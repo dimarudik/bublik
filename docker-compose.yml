@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: accounts_hidden_dev
       POSTGRES_USER: accounts_hidden_dev
-      POSTGRES_PASSWORD: VbVuYNiU
+      POSTGRES_PASSWORD: accounts_hidden_dev
       POSTGRES_HOST_AUTH_METHOD: md5
     ports:
       - '5432:5432'
