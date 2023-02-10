@@ -1,0 +1,14 @@
+threadCount: 10
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=m1-db-tst31.tcsbank.ru)(protocol=tcp)(port=1522))(connect_data=(service_name=BB_DTA_TST)))
+  user: ora2pg
+  password: ora2%pg_@!
+#toProperties:
+#  url: jdbc:postgresql://accounts-hidden-dev-api-common-1.m1.pg-test.tcsbank.ru:5432/accounts_hidden_dev
+#  user: accounts_hidden_dev
+#  password: VbVuYNiU
+toProperties:
+  url: jdbc:postgresql://localhost:5432/accounts_hidden_dev
+  user: accounts_hidden_dev
+  password: VbVuYNiU

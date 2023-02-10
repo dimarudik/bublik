@@ -1,0 +1,10 @@
+11:14:38.565 [main] INFO  org.example.util.ProcessUtil - HIDDEN_ACCOUNT 1 1
+11:16:23.511 [pool-2-thread-1] INFO  org.example.util.ProcessUtil - 	HIDDEN_ACCOUNT :	FETCH of 602 rows from ROWID AABhATAANAAAh9wAAA to ROWID AABhATAANAAAh93CcP of chunk_id 1 =	251 ms
+11:16:23.539 [pool-2-thread-1] INFO  org.example.util.ProcessUtil - 	HIDDEN_ACCOUNT :		INSERT of 602 rows from ROWID AABhATAANAAAh9wAAA to ROWID AABhATAANAAAh93CcP of chunk_id 1 =	26 ms
+11:16:24.722 [main] INFO  org.example.util.ProcessUtil - HIDDEN_CARD 24627 27089
+11:16:24.734 [main] INFO  org.example.App - FINISHED...
+11:16:43.122 [pool-3-thread-7] ERROR org.example.util.DatabaseUtil - IO Error: Operation timed out, connect lapse 18051 ms., Authentication lapse 0 ms.
+11:16:43.122 [pool-3-thread-1] ERROR org.example.util.DatabaseUtil - IO Error: Operation timed out, connect lapse 18051 ms., Authentication lapse 0 ms.
+11:16:43.122 [pool-3-thread-9] ERROR org.example.util.DatabaseUtil - IO Error: Operation timed out, connect lapse 18051 ms., Authentication lapse 0 ms.
+11:16:43.122 [pool-3-thread-10] ERROR org.example.util.DatabaseUtil - IO Error: Operation timed out, connect lapse 18051 ms., Authentication lapse 0 ms.
+11:16:43.122 [pool-3-thread-3] ERROR org.example.util.DatabaseUtil - IO Error: Operation timed out, connect lapse 18051 ms., Authentication lapse 0 ms.

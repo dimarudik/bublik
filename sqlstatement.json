@@ -1,0 +1,21 @@
+[
+  {
+    "fromSchemaName": "TCSPORTAL",
+    "fromTableName": "HIDDEN_ACCOUNT",
+    "toSchemaName": "accounts_hidden_dev",
+    "toTableName": "HIDDEN_ACCOUNT",
+    "fetchHintClause": "/*+ parallel(8) */",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "HIDDEN_ACCOUNT_TASK"
+  },
+  {
+    "numberColumn" : "UCID",
+    "fromSchemaName": "TCSPORTAL",
+    "fromTableName": "HIDDEN_CARD",
+    "toSchemaName": "accounts_hidden_dev",
+    "toTableName": "HIDDEN_CARD",
+    "fetchHintClause": "/* rda236 */",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "HIDDEN_CARD_TASK"
+  }
+]
