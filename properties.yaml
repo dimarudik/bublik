@@ -1,10 +1,10 @@
 threadCount: 10
 
 fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=m1-db-tst31)(protocol=tcp)(port=1522))(connect_data=(service_name=BB_DTA_TST)))
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1522))(connect_data=(service_name=SOURCE)))
   user: ora2pg
   password: ora2pg
 toProperties:
-  url: jdbc:postgresql://localhost:5432/accounts_hidden_dev
-  user: accounts_hidden_dev
-  password: accounts_hidden_dev
+  url: jdbc:postgresql://localhost:5432/db1
+  user: user1
+  password: password

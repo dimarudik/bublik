@@ -3,6 +3,8 @@ package org.example.util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Chunk;
+import org.example.model.LogMessage;
+import org.example.model.RunnerResult;
 import org.example.model.SQLStatement;
 import org.example.task.Runner;
 
@@ -11,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -51,8 +54,10 @@ public class ProcessUtil {
         }
     }
 
-    public static void initiateProcessToDatabase(Properties toProperties, ResultSet fetchResultSet,
-                                                 SQLStatement sqlStatement, Chunk chunk) {
+    public static RunnerResult initiateProcessToDatabase(Properties toProperties, ResultSet fetchResultSet,
+                                                         SQLStatement sqlStatement, Chunk chunk) {
+        LogMessage logMessage = null;
+        SQLException sqlException = null;
         try {
             if (fetchResultSet.next()) {
                 Connection connection = DatabaseUtil.getConnection(toProperties);
@@ -107,31 +112,32 @@ public class ProcessUtil {
 
                     }
                     rowCount++;
-//                System.out.println(statement);
                     statement.addBatch();
-//                }
                 } while (fetchResultSet.next());
 
-                String logMessage = " of " + rowCount +
-                        " rows from ROWID " + chunk.getStartRowId() +
-                        " to ROWID " + chunk.getEndRowId() +
-                        " of chunk_id " + chunk.getChunkId() +
-                        " =\t";
-                logger.info("\t" + sqlStatement.getFromTableName() + " :\tFETCH" + logMessage +
-                        (System.currentTimeMillis() - start) + " ms");
+                logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), rowCount,
+                        chunk.getStartRowId(), chunk.getEndRowId(), chunk.getChunkId());
+
+                logger.info(" {} :\t\tFETCH {}\t {}ms", logMessage.fromTableName(), logMessage,
+                        (System.currentTimeMillis() - start));
+
                 start = System.currentTimeMillis();
                 statement.executeBatch();
-                logger.info("\t" + sqlStatement.getFromTableName() + " :\t\tINSERT" + logMessage +
-                        (System.currentTimeMillis() - start) + " ms");
                 connection.commit();
+
+                logger.info(" {} :\t\tINSERT {}\t {}ms", logMessage.fromTableName(), logMessage,
+                        (System.currentTimeMillis() - start));
 
                 statement.close();
                 DatabaseUtil.closeConnection(connection);
             }
         } catch (SQLException e) {
-            logger.error("\t" + sqlStatement.getFromTableName() + " : " + e.getMessage());
+//            logger.error("\t" + sqlStatement.getFromTableName() + " : " + e.getMessage());
+            logger.error("{} \t {}", sqlStatement.getFromTableName(), e);
             e.printStackTrace();
+            sqlException = e;
         }
+        return new RunnerResult(logMessage, sqlException);
     }
 
     private static boolean getStateByDefinition(String ruleDefinition, Object o) {

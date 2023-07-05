@@ -1,21 +1,36 @@
 [
   {
-    "fromSchemaName": "TCSPORTAL",
-    "fromTableName": "HIDDEN_ACCOUNT",
-    "toSchemaName": "accounts_hidden_dev",
-    "toTableName": "HIDDEN_ACCOUNT",
+    "fromSchemaName": "SCHEMA1",
+    "fromTableName": "TABLE1",
+    "toSchemaName": "schema",
+    "toTableName": "TABLE2",
     "fetchHintClause": "/*+ parallel(8) */",
     "fetchWhereClause": "1 = 1",
-    "fromTaskName": "HIDDEN_ACCOUNT_TASK"
+    "fromTaskName": "TABLE1_TASK"
   },
   {
     "numberColumn" : "UCID",
-    "fromSchemaName": "TCSPORTAL",
-    "fromTableName": "HIDDEN_CARD",
-    "toSchemaName": "accounts_hidden_dev",
-    "toTableName": "HIDDEN_CARD",
+    "fromSchemaName": "SCHEMA1",
+    "fromTableName": "TABLE2",
+    "toSchemaName": "schema",
+    "toTableName": "TABLE2",
     "fetchHintClause": "/* rda236 */",
     "fetchWhereClause": "1 = 1",
-    "fromTaskName": "HIDDEN_CARD_TASK"
+    "fromTaskName": "TABLE2_TASK"
+  },
+  {
+    "fromSchemaName" : "SCHEMA2",
+    "fromTableName" : "TABLE3",
+    "toSchemaName" : "schema",
+    "toTableName" : "TABLE3",
+    "fetchHintClause" :"/*+ parallel(8) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE3_TASK",
+    "transformToRule" :
+    [
+      {"columnName": "COLUMN1", "columnType": "boolean", "ruleDefinition": "0,1"},
+      {"columnName": "COLUMN2", "columnType": "boolean", "ruleDefinition": "0,1"},
+      {"columnName": "COLUMN3", "columnType": "boolean", "ruleDefinition": "0,1"}
+    ]
   }
 ]

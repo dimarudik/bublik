@@ -11,12 +11,10 @@ public class DatabaseUtil {
 
     public static Connection getConnection(Properties properties) {
         Connection connection = null;
-        // переделать на ресурсный try
         try {
             connection = DriverManager.getConnection(properties.getProperty("url"), properties);
         } catch (SQLException e) {
             logger.error(e.getMessage());
-            //e.printStackTrace();
         }
         return connection;
     }
@@ -26,7 +24,6 @@ public class DatabaseUtil {
             connection.close();
         } catch (SQLException e) {
             logger.error(e.getMessage());
-            //e.printStackTrace();
         }
     }
 }

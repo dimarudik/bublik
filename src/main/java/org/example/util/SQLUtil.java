@@ -49,6 +49,7 @@ public class SQLUtil {
 
     public static String buildStartEndRowIdOfChunkStatement() {
         return "select chunk_id, start_rowid, end_rowid, start_id, end_id from user_parallel_execute_chunks where task_name = ? " +
+                "and status <> 'PROCESSED' " +
                 //"and rownum <= 25 " +
                 "order by chunk_id";
     }
