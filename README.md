@@ -1,11 +1,10 @@
-**Hints**
 
-MVN build
+Build
 ```
 mvn clean package -DskipTests
 ```
 
-RUN
+Run
 ```
-/opt/oracle/jdk-14.0.1/bin/java -jar ora2pgsql-1.0-SNAPSHOT.jar
+/opt/oracle/jdk-14.0.1/bin/java -jar -Xmx1g ora2pgsql-1.0-SNAPSHOT.jar
 ```

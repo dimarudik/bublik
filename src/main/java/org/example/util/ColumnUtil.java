@@ -21,7 +21,7 @@ public class ColumnUtil {
             resultSet = connection.getMetaData().getColumns(
                     null,
                     sqlStatement.getFromSchemaName(),
-                    sqlStatement.getFromTableName(),
+                    sqlStatement.getFromTableName().replaceAll("^\"|\"$", ""),
                     null
             );
             while (resultSet.next()) {

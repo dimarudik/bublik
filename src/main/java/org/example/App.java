@@ -2,6 +2,7 @@ package org.example;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Ora2PGProperties;
@@ -9,6 +10,7 @@ import org.example.model.SQLStatement;
 import org.example.util.ProcessUtil;
 
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.util.List;
 
 public class App {

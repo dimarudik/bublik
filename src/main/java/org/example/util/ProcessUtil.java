@@ -13,7 +13,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
-import java.util.EnumSet;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -33,6 +32,9 @@ public class ProcessUtil {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
+//            !!!!!!!!!!!!!!!!!!!!!!!!!!
+//            connection.unwrap(oracle.jdbc.OracleConnection.class).setSchema(sqlStatement.getFromSchemaName());
+//            !!!!!!!!!!!!!!!!!!!!!!!!!!
             sqlStatement.setSourceColumns(readSourceColumnsFromDB(connection, sqlStatement));
             sqlStatement.setColumn2Rule(getColumn2RuleMap(sqlStatement));
             TreeMap<Integer, Chunk> map = new TreeMap<>(getStartEndRowIdMap(connection, sqlStatement));
@@ -50,7 +52,7 @@ public class ProcessUtil {
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
             logger.error(e.getMessage());
-            //e.printStackTrace();
+            e.printStackTrace();
         }
     }
 
@@ -130,6 +132,10 @@ public class ProcessUtil {
 
                 statement.close();
                 DatabaseUtil.closeConnection(connection);
+            } else {
+                logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), 0,
+                        chunk.getStartRowId(), chunk.getEndRowId(), chunk.getChunkId());
+                logger.info(" {} :\t\tFETCH {}\t", logMessage.fromTableName(), logMessage);
             }
         } catch (SQLException e) {
 //            logger.error("\t" + sqlStatement.getFromTableName() + " : " + e.getMessage());
