@@ -8,6 +8,7 @@ import org.example.model.SQLStatement;
 
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.example.util.SQLUtil.buildStartEndRowIdOfChunkStatement;
 

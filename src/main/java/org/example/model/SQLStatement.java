@@ -4,9 +4,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-//@Data
-//@AllArgsConstructor
-//@NoArgsConstructor
 public class SQLStatement {
     private String numberColumn;
     private String fromSchemaName;
@@ -48,6 +45,24 @@ public class SQLStatement {
         this.transformToRule = transformToRule;
         this.column2Rule = column2Rule;
         this.columnName2columnType = columnName2columnType;
+    }
+    public SQLStatement(SQLStatement that) {
+        this.numberColumn = that.getNumberColumn();
+        this.fromSchemaName = that.getFromSchemaName();
+        this.fromTableName = that.getFromTableName();
+        this.toSchemaName = that.getToSchemaName();
+        this.toTableName = that.getToTableName();
+        this.fetchHintClause = that.getFetchHintClause();
+        this.fetchWhereClause = that.getFetchWhereClause();
+        this.fromTaskName = that.getFromTaskName();
+        this.sourceColumns = that.getSourceColumns();
+        this.excludedSourceColumns = that.getExcludedSourceColumns();
+        this.targetColumns = that.getTargetColumns();
+        this.targetColumnTypes = that.getTargetColumnTypes();
+        this.excludedTargetColumns = that.getExcludedTargetColumns();
+        this.transformToRule = that.getTransformToRule();
+        this.column2Rule = that.getColumn2Rule();
+        this.columnName2columnType = that.getColumnName2columnType();
     }
 
     public String getNumberColumn() {
@@ -177,6 +192,8 @@ public class SQLStatement {
     public void setColumnName2columnType(Map<String, String> columnName2columnType) {
         this.columnName2columnType = columnName2columnType;
     }
+
+    // Additional methods
 
     public List<String> getNeededSourceColumns() {
         return getFields(getSourceColumns(), getExcludedSourceColumns());

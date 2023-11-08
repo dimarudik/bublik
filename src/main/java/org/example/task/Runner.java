@@ -7,6 +7,7 @@ import org.example.model.RunnerResult;
 import org.example.model.SQLStatement;
 import org.example.util.DatabaseUtil;
 import org.example.util.ProcessUtil;
+import org.postgresql.PGConnection;
 
 import java.sql.*;
 import java.util.Properties;
@@ -33,6 +34,7 @@ public class Runner implements Runnable{
     public void run() {
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
+//            PGConnection pgConnection = connection.unwrap(PGConnection.class);
             String query = buildSQLFetchStatement(sqlStatement);
             PreparedStatement statement = connection.prepareStatement(query);
             if (sqlStatement.getNumberColumn() == null) {
