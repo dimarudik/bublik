@@ -1,6 +1,5 @@
 package org.example.util;
 
-import com.sun.source.tree.SynchronizedTree;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Chunk;
@@ -8,16 +7,27 @@ import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
 import org.example.model.SQLStatement;
 import org.example.task.Runner;
+import org.postgresql.copy.CopyManager;
+import org.postgresql.core.BaseConnection;
+import org.postgresql.util.ByteBufferByteStreamWriter;
+import org.postgresql.util.ByteStreamWriter;
+import org.postgresql.util.ReaderInputStream;
 
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Date;
+import java.util.Properties;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.example.util.ColumnUtil.*;
+import static org.example.util.SQLUtil.buildCopyStatement;
 import static org.example.util.SQLUtil.buildInsertStatement;
 
 public class ProcessUtil {
@@ -63,58 +73,21 @@ public class ProcessUtil {
         try {
             if (fetchResultSet.next()) {
                 Connection connection = DatabaseUtil.getConnection(toProperties);
-                connection.setAutoCommit(false);
+                CopyManager copyManager = new CopyManager((BaseConnection) connection);
                 threadSafeStatement.setTargetColumns(readTargetColumnsFromDB(connection, threadSafeStatement));
-                PreparedStatement statement = connection.prepareStatement(buildInsertStatement(threadSafeStatement));
+                String copySQL = buildCopyStatement(threadSafeStatement);
                 long start = System.currentTimeMillis();
                 int rowCount = 0;
-
+                StringBuilder stringBuilder = new StringBuilder();
                 do {
                     for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-
-                        if (threadSafeStatement.getColumn2Rule().get(i) == null) {
-
-                            switch (fetchResultSet.getMetaData().getColumnType(i)) {
-                                case 2004:
-                                    if (fetchResultSet.getObject(i) != null) {
-                                        statement.setBytes(i, convertBlobToBytes(fetchResultSet, i));
-                                    } else {
-                                        statement.setObject(i, null);
-                                    }
-                                    break;
-                                case 93:
-                                    Date localDate = fetchResultSet.getTimestamp(i);
-                                    statement.setObject(i, localDate);
-                                    break;
-                                default:
-//                                logger.info("Here... " + buildInsertStatement(sqlStatement));
-//                                logger.info(fetchResultSet.getMetaData().getColumnType(i));
-//                                System.out.println(statement + " " + fetchResultSet.getMetaData().getColumnType(i) + " " + fetchResultSet.getObject(i));
-                                    statement.setObject(i, fetchResultSet.getObject(i));
-//                                System.out.println("Here...");
-                                    break;
-                            }
-                        } else {
-                            switch (threadSafeStatement.getColumn2Rule().get(i).getColumnType()) {
-                                case "boolean":
-                                    if (fetchResultSet.getObject(i) != null) {
-                                        statement.setBoolean(i, getStateByDefinition(
-                                                threadSafeStatement.getColumn2Rule().get(i).getRuleDefinition(),
-                                                fetchResultSet.getObject(i)));
-                                    } else {
-                                        statement.setObject(i, null);
-                                    }
-                                    break;
-                                default:
-                                    statement.setObject(i, null);
-                                    break;
-                            }
+                        stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
+                        if (i != fetchResultSet.getMetaData().getColumnCount()) {
+                            stringBuilder.append("\t");
                         }
-
-
                     }
+                    stringBuilder.append("\n");
                     rowCount++;
-                    statement.addBatch();
                 } while (fetchResultSet.next());
 
                 logMessage = new LogMessage(threadSafeStatement.getFromTaskName(), threadSafeStatement.getFromTableName(), rowCount,
@@ -124,16 +97,16 @@ public class ProcessUtil {
                         (System.currentTimeMillis() - start));
 
                 start = System.currentTimeMillis();
-
-//                logger.info("{}", statement);
-
-                statement.executeBatch();
-                connection.commit();
-
-                logger.info(" {} :\t\tINSERT {}\t {}ms", logMessage.fromTableName(), logMessage,
+                InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuilder).getBytes());
+                long copyCount;
+                try {
+                    copyCount = copyManager.copyIn(copySQL, inputStream);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                logger.info(" {} :\t\tCOPY {}\t {}ms", logMessage.fromTableName(), logMessage,
                         (System.currentTimeMillis() - start));
 
-                statement.close();
                 DatabaseUtil.closeConnection(connection);
             } else {
                 logMessage = new LogMessage(threadSafeStatement.getFromTaskName(), threadSafeStatement.getFromTableName(), 0,
@@ -141,7 +114,6 @@ public class ProcessUtil {
                 logger.info(" {} :\t\tFETCH {}\t", logMessage.fromTableName(), logMessage);
             }
         } catch (SQLException e) {
-//            logger.error("\t" + sqlStatement.getFromTableName() + " : " + e.getMessage());
             logger.error("{} \t {}", threadSafeStatement.getFromTableName(), e);
             e.printStackTrace();
             sqlException = e;

@@ -15,6 +15,12 @@ public class SQLUtil {
                         .map(columnType -> "cast (? as " + columnType)
                         .collect(Collectors.joining("), ")) + "))";
     }
+    public static String buildCopyStatement(SQLStatement sqlStatement) {
+        return "COPY " + sqlStatement.getToSchemaName() + "." + sqlStatement.getToTableName() +
+                " (" +
+                String.join(", ", sqlStatement.getNeededTargetColumns()) +
+                ") FROM STDIN";
+    }
 
     public static String buildSQLFetchStatement(SQLStatement sqlStatement) {
         if (sqlStatement.getNeededSourceColumns() != null) {
