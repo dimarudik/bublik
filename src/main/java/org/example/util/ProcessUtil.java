@@ -9,18 +9,13 @@ import org.example.model.SQLStatement;
 import org.example.task.Runner;
 import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
-import org.postgresql.util.ByteBufferByteStreamWriter;
-import org.postgresql.util.ByteStreamWriter;
-import org.postgresql.util.ReaderInputStream;
 
-import java.io.*;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
@@ -28,7 +23,6 @@ import java.util.concurrent.Executors;
 
 import static org.example.util.ColumnUtil.*;
 import static org.example.util.SQLUtil.buildCopyStatement;
-import static org.example.util.SQLUtil.buildInsertStatement;
 
 public class ProcessUtil {
     private static final Logger logger = LogManager.getLogger(ProcessUtil.class);
@@ -78,15 +72,15 @@ public class ProcessUtil {
                 String copySQL = buildCopyStatement(threadSafeStatement);
                 long start = System.currentTimeMillis();
                 int rowCount = 0;
-                StringBuilder stringBuilder = new StringBuilder();
+                StringBuffer stringBuffer = new StringBuffer();
                 do {
                     for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-                        stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
+                        stringBuffer.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
                         if (i != fetchResultSet.getMetaData().getColumnCount()) {
-                            stringBuilder.append("\t");
+                            stringBuffer.append("\t");
                         }
                     }
-                    stringBuilder.append("\n");
+                    stringBuffer.append("\n");
                     rowCount++;
                 } while (fetchResultSet.next());
 
@@ -97,13 +91,15 @@ public class ProcessUtil {
                         (System.currentTimeMillis() - start));
 
                 start = System.currentTimeMillis();
-                InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuilder).getBytes());
+                InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuffer).getBytes());
                 long copyCount;
                 try {
                     copyCount = copyManager.copyIn(copySQL, inputStream);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
+                logMessage = new LogMessage(threadSafeStatement.getFromTaskName(), threadSafeStatement.getFromTableName(), (int) copyCount,
+                        chunk.getStartRowId(), chunk.getEndRowId(), chunk.getChunkId());
                 logger.info(" {} :\t\tCOPY {}\t {}ms", logMessage.fromTableName(), logMessage,
                         (System.currentTimeMillis() - start));
 

@@ -44,12 +44,10 @@ public class Runner implements Runnable{
                 statement.setLong(1, chunk.getStartId());
                 statement.setLong(2, chunk.getEndId());
             }
-//            logger.info("{}", query);
             ResultSet fetchResultSet = statement.executeQuery();
             RunnerResult runnerResult = ProcessUtil.initiateProcessToDatabase(toProperties, fetchResultSet, sqlStatement, chunk);
             fetchResultSet.close();
             statement.close();
-/*
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
                 CallableStatement callableStatement =
                         connection.prepareCall("CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,2)");
@@ -57,7 +55,6 @@ public class Runner implements Runnable{
                 callableStatement.setInt(2, runnerResult.logMessage().chunkId());
                 callableStatement.execute();
             }
-*/
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
             logger.error(e.getMessage());
