@@ -16,10 +16,11 @@ import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Properties;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.example.util.ColumnUtil.*;
 import static org.example.util.SQLUtil.buildCopyStatement;
@@ -30,8 +31,7 @@ public class ProcessUtil {
     public static void initiateProcessFromDatabase(Properties fromProperties,
                                                    Properties toProperties,
                                                    SQLStatement sqlStatement,
-                                                   int threads) {
-        // Надо переделать на Callable
+                                                   Integer threads) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
@@ -44,23 +44,44 @@ public class ProcessUtil {
             logger.info(sqlStatement.getFromTableName() + " "  +
                     map.keySet().stream().min(Integer::compareTo).orElse(0) + " " +
                     map.keySet().stream().max(Integer::compareTo).orElse(0));
-            // тут должен быть submit
+            List<Future<StringBuffer>> tasks = new ArrayList<>();
             map.forEach((key, chunk) ->
-                executorService.execute(new Runner(
+                tasks.add(executorService.submit(new Runner(
                         fromProperties,
                         toProperties,
                         sqlStatement,
-                        chunk)));
+                        chunk,
+                        threads))));
+
+            // Тут реализовать COPY в пачке тредов (так COPY будет работать быстрее)
+            // учесть это при отметке обработанных чанков
+            Iterator<Future<StringBuffer>> futureIterator = tasks.listIterator();
+            while (futureIterator.hasNext()) {
+                Future<StringBuffer> future = futureIterator.next();
+                if (future.isDone()) {
+                    StringBuffer stringBuffer = future.get();
+                    futureIterator.remove();
+                }
+                if (!futureIterator.hasNext()) {
+                    futureIterator = tasks.listIterator();
+                }
+                Thread.sleep(1);
+            }
+
             executorService.shutdown();
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
             logger.error(e.getMessage());
             e.printStackTrace();
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
     public static RunnerResult initiateProcessToDatabase(Properties toProperties, ResultSet fetchResultSet,
-                                                         SQLStatement sqlStatement, Chunk chunk) {
+                                                         SQLStatement sqlStatement, Chunk chunk, Integer threads) {
         LogMessage logMessage = null;
         SQLException sqlException = null;
         SQLStatement threadSafeStatement = new SQLStatement(sqlStatement);
@@ -117,8 +138,4 @@ public class ProcessUtil {
         return new RunnerResult(logMessage, sqlException);
     }
 
-    private static boolean getStateByDefinition(String ruleDefinition, Object o) {
-        String[] strings = ruleDefinition.split(",");
-        return !o.toString().equals(strings[0]);
-    }
 }

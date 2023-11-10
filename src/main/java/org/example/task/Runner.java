@@ -11,27 +11,29 @@ import org.postgresql.PGConnection;
 
 import java.sql.*;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 
 import static org.example.util.SQLUtil.buildSQLFetchStatement;
 
-// переделать на Callable
-//@AllArgsConstructor
-public class Runner implements Runnable{
+public class Runner implements Callable<StringBuffer> {
     private final Properties fromProperties;
     private final Properties toProperties;
     private final SQLStatement sqlStatement;
     private final Chunk chunk;
+    private final Integer threads;
     private static final Logger logger = LogManager.getLogger(Runner.class);
 
-    public Runner(Properties fromProperties, Properties toProperties, SQLStatement sqlStatement, Chunk chunk) {
+    public Runner(Properties fromProperties, Properties toProperties,
+                  SQLStatement sqlStatement, Chunk chunk, Integer threads) {
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
         this.sqlStatement = sqlStatement;
         this.chunk = chunk;
+        this.threads = threads;
     }
 
     @Override
-    public void run() {
+    public StringBuffer call() {
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
 //            PGConnection pgConnection = connection.unwrap(PGConnection.class);
@@ -45,7 +47,8 @@ public class Runner implements Runnable{
                 statement.setLong(2, chunk.getEndId());
             }
             ResultSet fetchResultSet = statement.executeQuery();
-            RunnerResult runnerResult = ProcessUtil.initiateProcessToDatabase(toProperties, fetchResultSet, sqlStatement, chunk);
+            RunnerResult runnerResult =
+                    ProcessUtil.initiateProcessToDatabase(toProperties, fetchResultSet, sqlStatement, chunk, threads);
             fetchResultSet.close();
             statement.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
@@ -61,5 +64,6 @@ public class Runner implements Runnable{
             //e.printStackTrace();
         }
         //logger.info("FINISHED...");
+        return new StringBuffer();
     }
 }
