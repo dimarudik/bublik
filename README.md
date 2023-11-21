@@ -6,5 +6,22 @@ mvn clean package -DskipTests
 
 Run
 ```
-/opt/oracle/jdk-14.0.1/bin/java -jar -Xmx1g ora2pgsql-1.0-SNAPSHOT.jar
+java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar
+```
+
+sqlstatement.json
+```json
+[
+  { 
+    "fromSchemaName" : "SourceOwner", 
+    "fromTableName" : "SourceTableName", 
+    "toSchemaName" : "TargetOwner", 
+    "toTableName" : "TargetTableName", 
+    "fetchHintClause" : "/*+ parallel(4) */", 
+    "fetchWhereClause" : "1 = 1 and created_at > sysdate - 30", 
+    "fromTaskName" : "OracleTaskName",
+    "excludedSourceColumns" : [ "Column1", "Column2" ],
+    "excludedTargetColumns" : [ "Column3" ]
+  }
+]
 ```

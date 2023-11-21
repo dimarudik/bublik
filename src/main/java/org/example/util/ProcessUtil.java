@@ -55,6 +55,9 @@ public class ProcessUtil {
 
             // Тут реализовать COPY в пачке тредов (так COPY будет работать быстрее)
             // учесть это при отметке обработанных чанков
+
+            // Проверить что происходит при падении COPY в плане фиксации на базе
+            
             Iterator<Future<StringBuffer>> futureIterator = tasks.listIterator();
             while (futureIterator.hasNext()) {
                 Future<StringBuffer> future = futureIterator.next();
