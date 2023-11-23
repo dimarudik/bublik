@@ -13,9 +13,7 @@ import org.postgresql.core.BaseConnection;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -99,12 +97,29 @@ public class ProcessUtil {
                 StringBuffer stringBuffer = new StringBuffer();
                 do {
                     for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
+/*
+                        int columnType = fetchResultSet.getMetaData().getColumnType(i);
+                        switch (columnType){
+                            case 2004:
+                                Blob blob = fetchResultSet.getBlob(i);
+                                stringBuffer.append(blob == null ? "\\N" : blob);
+                                break;
+                            case 2005:
+                                Clob clob = fetchResultSet.getClob(i);
+                                stringBuffer.append(clob.length() == 0 ? "\\N" : clob.getSubString(1L, (int) clob.length()));
+                                break;
+                            default:
+                                stringBuffer.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
+                                break;
+                        }
+*/
                         stringBuffer.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
                         if (i != fetchResultSet.getMetaData().getColumnCount()) {
                             stringBuffer.append("\t");
                         }
                     }
                     stringBuffer.append("\n");
+//                    System.out.println(stringBuffer);
                     rowCount++;
                 } while (fetchResultSet.next());
 
