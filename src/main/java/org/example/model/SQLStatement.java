@@ -23,6 +23,7 @@ public class SQLStatement {
     private Map<String, String> columnName2columnType;
 
     public SQLStatement(){}
+
     public SQLStatement(String numberColumn, String fromSchemaName, String fromTableName, String toSchemaName,
                         String toTableName, String fetchHintClause, String fetchWhereClause, String fromTaskName,
                         List<String> sourceColumns, List<String> excludedSourceColumns, List<String> targetColumns,
@@ -46,6 +47,7 @@ public class SQLStatement {
         this.column2Rule = column2Rule;
         this.columnName2columnType = columnName2columnType;
     }
+
     public SQLStatement(SQLStatement that) {
         this.numberColumn = that.getNumberColumn();
         this.fromSchemaName = that.getFromSchemaName();

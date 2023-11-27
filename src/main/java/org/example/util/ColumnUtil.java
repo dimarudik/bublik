@@ -78,13 +78,13 @@ public class ColumnUtil {
     }
 
     static HashMap<Integer, Chunk> getStartEndRowIdMap(Connection connection, SQLStatement sqlStatement) {
-        HashMap<Integer, Chunk> map = new HashMap<>();
+        HashMap<Integer, Chunk> chunkHashMap = new HashMap<>();
         try {
             PreparedStatement statement = connection.prepareStatement(buildStartEndRowIdOfChunkStatement());
             statement.setString(1, sqlStatement.getFromTaskName());
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
-                map.put(resultSet.getInt(1),
+                chunkHashMap.put(resultSet.getInt(1),
                         new Chunk(
                                 resultSet.getInt(1),
                                 resultSet.getString(2),
@@ -99,7 +99,7 @@ public class ColumnUtil {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return map;
+        return chunkHashMap;
     }
 
     public static byte[] convertBlobToBytes(ResultSet resultSet, int i) throws SQLException {

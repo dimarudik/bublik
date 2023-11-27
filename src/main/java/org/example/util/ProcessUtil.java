@@ -26,10 +26,10 @@ import static org.example.util.SQLUtil.buildCopyStatement;
 public class ProcessUtil {
     private static final Logger logger = LogManager.getLogger(ProcessUtil.class);
 
-    public static void initiateProcessFromDatabase(Properties fromProperties,
-                                                   Properties toProperties,
-                                                   SQLStatement sqlStatement,
-                                                   Integer threads) {
+    public void initiateProcessFromDatabase(Properties fromProperties,
+                                            Properties toProperties,
+                                            SQLStatement sqlStatement,
+                                            Integer threads) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
@@ -44,12 +44,16 @@ public class ProcessUtil {
                     map.keySet().stream().max(Integer::compareTo).orElse(0));
             List<Future<StringBuffer>> tasks = new ArrayList<>();
             map.forEach((key, chunk) ->
-                tasks.add(executorService.submit(new Runner(
-                        fromProperties,
-                        toProperties,
-                        sqlStatement,
-                        chunk,
-                        threads))));
+                tasks.add(
+                        executorService.
+                                submit(new Runner(
+                                    fromProperties,
+                                    toProperties,
+                                    new SQLStatement(sqlStatement),
+                                    chunk
+                                ))
+                )
+            );
 
             // Тут реализовать COPY в пачке тредов (так COPY будет работать быстрее)
             // учесть это при отметке обработанных чанков
@@ -81,79 +85,89 @@ public class ProcessUtil {
         }
     }
 
-    public static RunnerResult initiateProcessToDatabase(Properties toProperties, ResultSet fetchResultSet,
-                                                         SQLStatement sqlStatement, Chunk chunk, Integer threads) {
+    public RunnerResult initiateProcessToDatabase(Properties toProperties, ResultSet fetchResultSet,
+                                                         SQLStatement sqlStatement, Chunk chunk) {
         LogMessage logMessage = null;
         SQLException sqlException = null;
-        SQLStatement threadSafeStatement = new SQLStatement(sqlStatement);
         try {
             if (fetchResultSet.next()) {
                 Connection connection = DatabaseUtil.getConnection(toProperties);
+                StringBuilder stringBuilder = fetchForCopy(fetchResultSet, sqlStatement, chunk);
+
+                sqlStatement.setTargetColumns(readTargetColumnsFromDB(connection, sqlStatement));
                 CopyManager copyManager = new CopyManager((BaseConnection) connection);
-                threadSafeStatement.setTargetColumns(readTargetColumnsFromDB(connection, threadSafeStatement));
-                String copySQL = buildCopyStatement(threadSafeStatement);
+                String copySQL = buildCopyStatement(sqlStatement);
                 long start = System.currentTimeMillis();
-                int rowCount = 0;
-                StringBuffer stringBuffer = new StringBuffer();
-                do {
-                    for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-/*
-                        int columnType = fetchResultSet.getMetaData().getColumnType(i);
-                        switch (columnType){
-                            case 2004:
-                                Blob blob = fetchResultSet.getBlob(i);
-                                stringBuffer.append(blob == null ? "\\N" : blob);
-                                break;
-                            case 2005:
-                                Clob clob = fetchResultSet.getClob(i);
-                                stringBuffer.append(clob.length() == 0 ? "\\N" : clob.getSubString(1L, (int) clob.length()));
-                                break;
-                            default:
-                                stringBuffer.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
-                                break;
-                        }
-*/
-                        stringBuffer.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
-                        if (i != fetchResultSet.getMetaData().getColumnCount()) {
-                            stringBuffer.append("\t");
-                        }
-                    }
-                    stringBuffer.append("\n");
-//                    System.out.println(stringBuffer);
-                    rowCount++;
-                } while (fetchResultSet.next());
-
-                logMessage = new LogMessage(threadSafeStatement.getFromTaskName(), threadSafeStatement.getFromTableName(), rowCount,
-                        chunk.getStartRowId(), chunk.getEndRowId(), chunk.getChunkId());
-
-                logger.info(" {} :\t\tFETCH {}\t {}ms", logMessage.fromTableName(), logMessage,
-                        (System.currentTimeMillis() - start));
-
-                start = System.currentTimeMillis();
-                InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuffer).getBytes());
+                InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuilder).getBytes());
                 long copyCount;
                 try {
                     copyCount = copyManager.copyIn(copySQL, inputStream);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                logMessage = new LogMessage(threadSafeStatement.getFromTaskName(), threadSafeStatement.getFromTableName(), (int) copyCount,
-                        chunk.getStartRowId(), chunk.getEndRowId(), chunk.getChunkId());
+                logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), (int) copyCount,
+                        chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
                 logger.info(" {} :\t\tCOPY {}\t {}ms", logMessage.fromTableName(), logMessage,
                         (System.currentTimeMillis() - start));
 
                 DatabaseUtil.closeConnection(connection);
             } else {
-                logMessage = new LogMessage(threadSafeStatement.getFromTaskName(), threadSafeStatement.getFromTableName(), 0,
-                        chunk.getStartRowId(), chunk.getEndRowId(), chunk.getChunkId());
+                logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), 0,
+                        chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
                 logger.info(" {} :\t\tFETCH {}\t", logMessage.fromTableName(), logMessage);
             }
         } catch (SQLException e) {
-            logger.error("{} \t {}", threadSafeStatement.getFromTableName(), e);
+            logger.error("{} \t {}", sqlStatement.getFromTableName(), e);
             e.printStackTrace();
             sqlException = e;
         }
         return new RunnerResult(logMessage, sqlException);
     }
 
+    private StringBuilder fetchForCopy(ResultSet fetchResultSet, SQLStatement sqlStatement, Chunk chunk) throws SQLException {
+        StringBuilder stringBuilder = new StringBuilder();
+        int rowCount = 0;
+        long start = System.currentTimeMillis();
+        do {
+            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
+/*
+                        int columnType = fetchResultSet.getMetaData().getColumnType(i);
+                        switch (columnType){
+                            case 2004:
+                                Blob blob = fetchResultSet.getBlob(i);
+                                stringBuilder.append(blob == null ? "\\N" : blob);
+                                break;
+                            case 2005:
+                                Clob clob = fetchResultSet.getClob(i);
+                                // поправить, когда приезжает символ \\
+                                String stringClob =
+                                        clob.getSubString(1L, (int) clob.length())
+                                                .replace("\t", "\\t")
+                                                .replace("\n","\\n");
+                                stringBuilder.append(stringClob.isEmpty() ? "\\N" : stringClob);
+                                break;
+                            default:
+                                stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
+                                break;
+                        }
+*/
+                stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
+                if (i != fetchResultSet.getMetaData().getColumnCount()) {
+                    stringBuilder.append("\t");
+                }
+            }
+            stringBuilder.append("\n");
+//                    System.out.println(stringBuilder);
+//                    System.out.println();
+            rowCount++;
+        } while (fetchResultSet.next());
+        LogMessage logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), rowCount,
+                chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
+        logger.info(" {} :\t\tFETCH {}\t {}ms", logMessage.fromTableName(), logMessage,
+                (System.currentTimeMillis() - start));
+
+        return stringBuilder;
+    }
+
+//    record FetchResult(StringBuilder stringBuilder, LogMessage logMessage) {}
 }
