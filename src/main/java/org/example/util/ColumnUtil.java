@@ -3,13 +3,12 @@ package org.example.util;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Chunk;
-import org.example.model.ColumnRule;
 import org.example.model.SQLStatement;
-import org.postgresql.PGConnection;
 
 import java.sql.*;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 import static org.example.util.SQLUtil.buildStartEndRowIdOfChunkStatement;
 
@@ -30,11 +29,10 @@ public class ColumnUtil {
                 String columnName = resultSet.getString(4);
                 Integer columnType = Integer.valueOf(resultSet.getString(5));
                 columnMap.put(columnName, columnType);
-//                System.out.println(resultSet.getString(17) + " " + columnName + " " + columnType);
             }
             resultSet.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return columnMap;
     }
@@ -43,7 +41,6 @@ public class ColumnUtil {
         Map<String, String> columnMap = new TreeMap<>();
         ResultSet resultSet;
         try {
-//            PGConnection pgConnection = connection.unwrap(PGConnection.class);
             resultSet = connection.getMetaData().getColumns(
                     null,
                     sqlStatement.toSchemaName().toLowerCase(),
@@ -52,15 +49,13 @@ public class ColumnUtil {
             );
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
-                String columnType = resultSet.getString(5);
+                String columnType = resultSet.getString(6);
                 columnMap.put(columnName, columnType);
-//                System.out.println(resultSet.getString(17) + " " + columnName + " " + columnType);
             }
             resultSet.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
-//        sqlStatement.setTargetColumnTypes(typeList);
         return columnMap;
     }
 
@@ -105,7 +100,7 @@ public class ColumnUtil {
             resultSet.close();
             statement.close();
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage());
         }
         return chunkHashMap;
     }
@@ -114,5 +109,11 @@ public class ColumnUtil {
         Blob blob = resultSet.getBlob(i);
         int blobLength = (int) blob.length();
         return blob.getBytes(1, blobLength);
+    }
+
+    public static String convertClobToBytes(ResultSet resultSet, int i) throws SQLException {
+        Clob clob = resultSet.getClob(i);
+        int clobLength = (int) clob.length();
+        return clob.getSubString(1L, clobLength);
     }
 }

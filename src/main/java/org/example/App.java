@@ -36,8 +36,6 @@ public class App {
             );
         } catch (Exception e) {
             logger.error(e.getMessage());
-            e.printStackTrace();
         }
-        logger.info("FINISHED...");
     }
 }

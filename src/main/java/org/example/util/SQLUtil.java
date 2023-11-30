@@ -7,55 +7,38 @@ import java.util.stream.Collectors;
 
 public class SQLUtil {
 
-/*
-    public static String buildInsertStatement(SQLStatement sqlStatement) {
-        return "INSERT INTO " + sqlStatement.toSchemaName() + "." + sqlStatement.toTableName() +
-                " (" +
-                String.join(", ", getNeededTargetColumns(sqlStatement)) +
-                ") VALUES (" +
-                sqlStatement.targetColumnTypes()
-                        .stream()
-                        .map(columnType -> "cast (? as " + columnType)
-                        .collect(Collectors.joining("), ")) + "))";
-    }
-*/
-
-/*
-    protected static List<String> getNeededSourceColumns(SQLStatement sqlStatement) {
-        return getFields(sqlStatement, sqlStatement.sourceColumns(), sqlStatement.excludedSourceColumns());
-    }
-*/
-
-/*
-    private static List<String> getNeededTargetColumns(SQLStatement sqlStatement) {
-        return getFields(sqlStatement, sqlStatement.targetColumns(), sqlStatement.excludedTargetColumns());
-    }
-*/
-
-/*
-    private static List<String> getFields(SQLStatement sqlStatement, List<String> columns, List<String> excludedColumns) {
-        if (excludedColumns != null) {
-            columns.removeAll(excludedColumns);
-        }
-        if (sqlStatement.targetColumnTypes() != null && !sqlStatement.targetColumnTypes().isEmpty()) {
-            sqlStatement.setTargetColumnTypes(sqlStatement.targetColumnTypes().subList(0, columns.size()));
-        }
-        return columns;
-    }
-*/
-
     public static String buildCopyStatement(SQLStatement sqlStatement, Map<String, String> columnsToDB) {
-        List<String> neededTargetColumns = new ArrayList<>(columnsToDB.keySet());
-        if (sqlStatement.excludedTargetColumns() != null) {
-            Set<String> excludedTargetColumns = new HashSet<>(sqlStatement.excludedTargetColumns());
-            Map<String, String> neededTargetColumnsMap = new TreeMap<>(columnsToDB);
-            neededTargetColumnsMap.keySet().removeAll(excludedTargetColumns);
-            neededTargetColumns = new ArrayList<>(neededTargetColumnsMap.keySet());
-        }
+        List<String> neededTargetColumns =
+                new ArrayList<>(getNeededTargetColumnsAndTypes(sqlStatement, columnsToDB).keySet());
         return "COPY " + sqlStatement.toSchemaName() + "." + sqlStatement.toTableName() +
                 " (" +
                 String.join(", ", neededTargetColumns) +
                 ") FROM STDIN";
+    }
+
+    public static String buildInsertStatement(SQLStatement sqlStatement, Map<String, String> columnsToDB) {
+        List<String> neededTargetColumns =
+                new ArrayList<>(getNeededTargetColumnsAndTypes(sqlStatement, columnsToDB).keySet());
+        List<String> neededTargetTypes =
+                new ArrayList<>(getNeededTargetColumnsAndTypes(sqlStatement, columnsToDB).values());
+        return "INSERT INTO " + sqlStatement.toSchemaName() + "." + sqlStatement.toTableName() +
+                " (" +
+                String.join(", ", neededTargetColumns) +
+                ") VALUES (" +
+                neededTargetTypes
+                        .stream()
+                        .map(columnType -> "cast (? as " + columnType)
+                        .collect(Collectors.joining("), ")) + "))";
+    }
+
+    private static Map<String, String> getNeededTargetColumnsAndTypes(SQLStatement sqlStatement,
+                                                                      Map<String, String> columnsToDB) {
+        Map<String, String> neededTargetColumnsMap = new TreeMap<>(columnsToDB);
+        if (sqlStatement.excludedTargetColumns() != null) {
+            Set<String> excludedTargetColumns = new HashSet<>(sqlStatement.excludedTargetColumns());
+            neededTargetColumnsMap.keySet().removeAll(excludedTargetColumns);
+        }
+        return neededTargetColumnsMap;
     }
 
     public static String buildSQLFetchStatement(SQLStatement sqlStatement, Map<String, Integer> columnsFromDB) {

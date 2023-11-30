@@ -15,15 +15,15 @@ import java.util.concurrent.Callable;
 
 import static org.example.util.SQLUtil.buildSQLFetchStatement;
 
-public class Runner implements Callable<StringBuffer> {
+public class Worker implements Callable<StringBuffer> {
     private final Properties fromProperties;
     private final Properties toProperties;
     private final SQLStatement sqlStatement;
     private final Chunk chunk;
     private final Map<String, Integer> columnsFromDB;
-    private static final Logger logger = LogManager.getLogger(Runner.class);
+    private static final Logger logger = LogManager.getLogger(Worker.class);
 
-    public Runner(Properties fromProperties,
+    public Worker(Properties fromProperties,
                   Properties toProperties,
                   SQLStatement sqlStatement,
                   Chunk chunk,
@@ -39,34 +39,39 @@ public class Runner implements Callable<StringBuffer> {
     public StringBuffer call() {
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
-//            PGConnection pgConnection = connection.unwrap(PGConnection.class);
-            String query = buildSQLFetchStatement(sqlStatement, columnsFromDB);
-            PreparedStatement statement = connection.prepareStatement(query);
-            if (sqlStatement.numberColumn() == null) {
-                statement.setString(1, chunk.startRowId());
-                statement.setString(2, chunk.endRowId());
-            } else {
-                statement.setLong(1, chunk.startId());
-                statement.setLong(2, chunk.endId());
-            }
-            ResultSet fetchResultSet = statement.executeQuery();
+            ResultSet fetchResultSet = fetchResultSetFromDB(connection);
             RunnerResult runnerResult =
                     new ProcessUtil().initiateProcessToDatabase(toProperties, fetchResultSet, sqlStatement, chunk);
             fetchResultSet.close();
-            statement.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-                CallableStatement callableStatement =
-                        connection.prepareCall("CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,2)");
-                callableStatement.setString(1, sqlStatement.fromTaskName());
-                callableStatement.setInt(2, chunk.chunkId());
-                callableStatement.execute();
+                markChunkAsProceed(connection);
             }
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
             logger.error(e.getMessage());
-            //e.printStackTrace();
         }
-        //logger.info("FINISHED...");
         return new StringBuffer();
+    }
+
+    private ResultSet fetchResultSetFromDB(Connection connection) throws SQLException {
+        String query = buildSQLFetchStatement(sqlStatement, columnsFromDB);
+        PreparedStatement statement = connection.prepareStatement(query);
+        if (sqlStatement.numberColumn() == null) {
+            statement.setString(1, chunk.startRowId());
+            statement.setString(2, chunk.endRowId());
+        } else {
+            statement.setLong(1, chunk.startId());
+            statement.setLong(2, chunk.endId());
+        }
+        return statement.executeQuery();
+    }
+
+    private void markChunkAsProceed(Connection connection) throws SQLException {
+        CallableStatement callableStatement =
+                connection.prepareCall("CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,2)");
+        callableStatement.setString(1, sqlStatement.fromTaskName());
+        callableStatement.setInt(2, chunk.chunkId());
+        callableStatement.execute();
+        callableStatement.close();
     }
 }

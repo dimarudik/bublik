@@ -6,17 +6,16 @@ import org.example.model.Chunk;
 import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
 import org.example.model.SQLStatement;
-import org.example.task.Runner;
+import org.example.task.Worker;
 import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +23,7 @@ import java.util.concurrent.Future;
 
 import static org.example.util.ColumnUtil.*;
 import static org.example.util.SQLUtil.buildCopyStatement;
+import static org.example.util.SQLUtil.buildInsertStatement;
 
 public class ProcessUtil {
     private static final Logger logger = LogManager.getLogger(ProcessUtil.class);
@@ -48,7 +48,7 @@ public class ProcessUtil {
             map.forEach((key, chunk) ->
                 tasks.add(
                         executorService.
-                                submit(new Runner(
+                                submit(new Worker(
                                         fromProperties,
                                         toProperties,
                                         sqlStatement,
@@ -78,13 +78,8 @@ public class ProcessUtil {
 
             executorService.shutdown();
             DatabaseUtil.closeConnection(connection);
-        } catch (SQLException e) {
+        } catch (SQLException | ExecutionException | InterruptedException e) {
             logger.error(e.getMessage());
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -96,8 +91,12 @@ public class ProcessUtil {
         try {
             if (fetchResultSet.next()) {
                 Connection connection = DatabaseUtil.getConnection(toProperties);
-                StringBuilder stringBuilder = fetchForCopy(fetchResultSet, sqlStatement, chunk);
-                logMessage = copyToTarget(connection, stringBuilder, sqlStatement, chunk);
+                if (hasLOB(fetchResultSet)) {
+                    logMessage = batchInsertToTarget(connection, fetchResultSet, sqlStatement, chunk);
+                } else {
+                    StringBuilder stringBuilder = fetchForCopy(fetchResultSet, sqlStatement, chunk);
+                    logMessage = copyToTarget(connection, stringBuilder, sqlStatement, chunk);
+                }
                 DatabaseUtil.closeConnection(connection);
             } else {
                 logMessage = new LogMessage(sqlStatement.fromTaskName(), sqlStatement.fromTableName(), 0,
@@ -171,6 +170,55 @@ public class ProcessUtil {
         return saveToLogger(sqlStatement, chunk, (int) copyCount, start, "COPY");
     }
 
+    private LogMessage batchInsertToTarget(Connection connection,
+                                           ResultSet fetchResultSet,
+                                           SQLStatement sqlStatement,
+                                           Chunk chunk) throws SQLException {
+        connection.setAutoCommit(false);
+        Map<String, String> columnsToDB = readTargetColumnsFromDB(connection, sqlStatement);
+        String insertSQL = buildInsertStatement(sqlStatement, columnsToDB);
+        PreparedStatement statement = connection.prepareStatement(insertSQL);
+        long start = System.currentTimeMillis();
+        int fetchCount = 0;
+        do {
+            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
+                switch (fetchResultSet.getMetaData().getColumnType(i)) {
+                    case 2004:
+                        if (fetchResultSet.getObject(i) != null) {
+                            statement.setBytes(i, convertBlobToBytes(fetchResultSet, i));
+                        } else {
+                            statement.setObject(i, null);
+                        }
+                        break;
+                    case 2005:
+                        if (fetchResultSet.getObject(i) != null) {
+                            statement.setBytes(i, convertClobToBytes(fetchResultSet, i).getBytes());
+                        } else {
+                            statement.setObject(i, null);
+                        }
+                        break;
+                    case 93:
+                        Date localDate = fetchResultSet.getTimestamp(i);
+                        statement.setObject(i, localDate);
+                        break;
+                    default:
+                        statement.setObject(i, fetchResultSet.getObject(i));
+                        break;
+                }
+            }
+            fetchCount++;
+            statement.addBatch();
+        } while (fetchResultSet.next());
+        saveToLogger(sqlStatement, chunk, fetchCount, start, "FETCH");
+
+        start = System.currentTimeMillis();
+        statement.executeBatch();
+        connection.commit();
+
+        statement.close();
+        return saveToLogger(sqlStatement, chunk, fetchCount, start, "INSERT");
+    }
+
     public LogMessage saveToLogger(SQLStatement sqlStatement,
                                    Chunk chunk,
                                    int recordCount,
@@ -189,5 +237,15 @@ public class ProcessUtil {
                 logMessage,
                 (System.currentTimeMillis() - start));
         return logMessage;
+    }
+
+    private Boolean hasLOB(ResultSet fetchResultSet) throws SQLException {
+        for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
+            int columnType = fetchResultSet.getMetaData().getColumnType(i);
+            if (columnType == 2004 || columnType == 2005) {
+                return true;
+            }
+        }
+        return false;
     }
 }
