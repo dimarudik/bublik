@@ -1,8 +1,13 @@
-```text
-Is a tool to copy data from Oracle to Postgresql
-The fastest way to obtain data from Oracle is to get it by ROWID (use dbms_parallel_execute to prepare chunks)
-The fastest way to put data to Postgresql is to insert it by using COPY (except LOB's)
-```
+
+# Is a tool to copy data from Oracle to Postgresql
+
+The fastest way to obtain data from Oracle is to get it by `ROWID` (use dbms_parallel_execute to prepare chunks)
+The fastest way to put data to Postgresql is to insert it by using `COPY` (except LOB's)
+
+pgx is a pure Go driver and toolkit for PostgreSQL.
+
+The pgx driver is a low-level, high performance interface that exposes PostgreSQL-specific features such as `LISTEN` /
+`NOTIFY` and `COPY`. It also includes an adapter for the standard `database/sql` interface.
 
 Build
 ```
