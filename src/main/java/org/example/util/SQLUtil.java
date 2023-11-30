@@ -2,54 +2,92 @@ package org.example.util;
 
 import org.example.model.SQLStatement;
 
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SQLUtil {
+
+/*
     public static String buildInsertStatement(SQLStatement sqlStatement) {
-        return "INSERT INTO " + sqlStatement.getToSchemaName() + "." + sqlStatement.getToTableName() +
+        return "INSERT INTO " + sqlStatement.toSchemaName() + "." + sqlStatement.toTableName() +
                 " (" +
-                String.join(", ", sqlStatement.getNeededTargetColumns()) +
+                String.join(", ", getNeededTargetColumns(sqlStatement)) +
                 ") VALUES (" +
-                sqlStatement.getTargetColumnTypes()
+                sqlStatement.targetColumnTypes()
                         .stream()
                         .map(columnType -> "cast (? as " + columnType)
                         .collect(Collectors.joining("), ")) + "))";
     }
-    public static String buildCopyStatement(SQLStatement sqlStatement) {
-        return "COPY " + sqlStatement.getToSchemaName() + "." + sqlStatement.getToTableName() +
+*/
+
+/*
+    protected static List<String> getNeededSourceColumns(SQLStatement sqlStatement) {
+        return getFields(sqlStatement, sqlStatement.sourceColumns(), sqlStatement.excludedSourceColumns());
+    }
+*/
+
+/*
+    private static List<String> getNeededTargetColumns(SQLStatement sqlStatement) {
+        return getFields(sqlStatement, sqlStatement.targetColumns(), sqlStatement.excludedTargetColumns());
+    }
+*/
+
+/*
+    private static List<String> getFields(SQLStatement sqlStatement, List<String> columns, List<String> excludedColumns) {
+        if (excludedColumns != null) {
+            columns.removeAll(excludedColumns);
+        }
+        if (sqlStatement.targetColumnTypes() != null && !sqlStatement.targetColumnTypes().isEmpty()) {
+            sqlStatement.setTargetColumnTypes(sqlStatement.targetColumnTypes().subList(0, columns.size()));
+        }
+        return columns;
+    }
+*/
+
+    public static String buildCopyStatement(SQLStatement sqlStatement, Map<String, String> columnsToDB) {
+        List<String> neededTargetColumns = new ArrayList<>(columnsToDB.keySet());
+        if (sqlStatement.excludedTargetColumns() != null) {
+            Set<String> excludedTargetColumns = new HashSet<>(sqlStatement.excludedTargetColumns());
+            Map<String, String> neededTargetColumnsMap = new TreeMap<>(columnsToDB);
+            neededTargetColumnsMap.keySet().removeAll(excludedTargetColumns);
+            neededTargetColumns = new ArrayList<>(neededTargetColumnsMap.keySet());
+        }
+        return "COPY " + sqlStatement.toSchemaName() + "." + sqlStatement.toTableName() +
                 " (" +
-                String.join(", ", sqlStatement.getNeededTargetColumns()) +
+                String.join(", ", neededTargetColumns) +
                 ") FROM STDIN";
     }
 
-    public static String buildSQLFetchStatement(SQLStatement sqlStatement) {
-        if (sqlStatement.getNeededSourceColumns() != null) {
-            if (sqlStatement.getNumberColumn() == null) {
-                return "select " +
-                        sqlStatement.getFetchHintClause() +
-                        String.join(", ", sqlStatement.getNeededSourceColumns()) +
-                        " from " +
-                        sqlStatement.getFromSchemaName() +
-                        "." +
-                        sqlStatement.getFromTableName() +
-                        " where " +
-                        sqlStatement.getFetchWhereClause() +
-                        " and rowid between ? and ?";
-            } else {
-//                System.out.println(sqlStatement.getNumberColumn());
-                return "select " +
-                        sqlStatement.getFetchHintClause() +
-                        String.join(", ", sqlStatement.getNeededSourceColumns()) +
-                        " from " +
-                        sqlStatement.getFromSchemaName() +
-                        "." +
-                        sqlStatement.getFromTableName() +
-                        " where " +
-                        sqlStatement.getFetchWhereClause() +
-                        " and " + sqlStatement.getNumberColumn() + " between ? and ?";
-            }
+    public static String buildSQLFetchStatement(SQLStatement sqlStatement, Map<String, Integer> columnsFromDB) {
+        List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
+        if (sqlStatement.excludedSourceColumns() != null) {
+            Set<String> excludedSourceColumns = new HashSet<>(sqlStatement.excludedSourceColumns());
+            Map<String, Integer> neededSourceColumnsMap = new TreeMap<>(columnsFromDB);
+            neededSourceColumnsMap.keySet().removeAll(excludedSourceColumns);
+            neededSourceColumns = new ArrayList<>(neededSourceColumnsMap.keySet());
+        }
+        if (sqlStatement.numberColumn() == null) {
+            return "select " +
+                    sqlStatement.fetchHintClause() +
+                    String.join(", ", neededSourceColumns) +
+                    " from " +
+                    sqlStatement.fromSchemaName() +
+                    "." +
+                    sqlStatement.fromTableName() +
+                    " where " +
+                    sqlStatement.fetchWhereClause() +
+                    " and rowid between ? and ?";
         } else {
-            throw new RuntimeException("The list of source table columns is empty.");
+            return "select " +
+                    sqlStatement.fetchHintClause() +
+                    String.join(", ", neededSourceColumns) +
+                    " from " +
+                    sqlStatement.fromSchemaName() +
+                    "." +
+                    sqlStatement.fromTableName() +
+                    " where " +
+                    sqlStatement.fetchWhereClause() +
+                    " and " + sqlStatement.numberColumn() + " between ? and ?";
         }
     }
 

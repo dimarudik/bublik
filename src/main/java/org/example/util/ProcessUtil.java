@@ -13,7 +13,9 @@ import org.postgresql.core.BaseConnection;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -36,10 +38,10 @@ public class ProcessUtil {
 //            !!!!!!!!!!!!!!!!!!!!!!!!!!
 //            connection.unwrap(oracle.jdbc.OracleConnection.class).setSchema(sqlStatement.getFromSchemaName());
 //            !!!!!!!!!!!!!!!!!!!!!!!!!!
-            sqlStatement.setSourceColumns(readSourceColumnsFromDB(connection, sqlStatement));
-            sqlStatement.setColumn2Rule(getColumn2RuleMap(sqlStatement));
+            Map<String, Integer> columnsFromDB = readSourceColumnsFromDB(connection,sqlStatement);
+//            sqlStatement.setColumn2Rule(getColumn2RuleMap(sqlStatement));
             TreeMap<Integer, Chunk> map = new TreeMap<>(getStartEndRowIdMap(connection, sqlStatement));
-            logger.info(sqlStatement.getFromTableName() + " "  +
+            logger.info(sqlStatement.fromTableName() + " "  +
                     map.keySet().stream().min(Integer::compareTo).orElse(0) + " " +
                     map.keySet().stream().max(Integer::compareTo).orElse(0));
             List<Future<StringBuffer>> tasks = new ArrayList<>();
@@ -47,10 +49,11 @@ public class ProcessUtil {
                 tasks.add(
                         executorService.
                                 submit(new Runner(
-                                    fromProperties,
-                                    toProperties,
-                                    new SQLStatement(sqlStatement),
-                                    chunk
+                                        fromProperties,
+                                        toProperties,
+                                        sqlStatement,
+                                        chunk,
+                                        columnsFromDB
                                 ))
                 )
             );
@@ -85,46 +88,33 @@ public class ProcessUtil {
         }
     }
 
-    public RunnerResult initiateProcessToDatabase(Properties toProperties, ResultSet fetchResultSet,
-                                                         SQLStatement sqlStatement, Chunk chunk) {
+    public RunnerResult initiateProcessToDatabase(Properties toProperties,
+                                                  ResultSet fetchResultSet,
+                                                  SQLStatement sqlStatement,
+                                                  Chunk chunk) {
         LogMessage logMessage = null;
-        SQLException sqlException = null;
         try {
             if (fetchResultSet.next()) {
                 Connection connection = DatabaseUtil.getConnection(toProperties);
                 StringBuilder stringBuilder = fetchForCopy(fetchResultSet, sqlStatement, chunk);
-
-                sqlStatement.setTargetColumns(readTargetColumnsFromDB(connection, sqlStatement));
-                CopyManager copyManager = new CopyManager((BaseConnection) connection);
-                String copySQL = buildCopyStatement(sqlStatement);
-                long start = System.currentTimeMillis();
-                InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuilder).getBytes());
-                long copyCount;
-                try {
-                    copyCount = copyManager.copyIn(copySQL, inputStream);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), (int) copyCount,
-                        chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
-                logger.info(" {} :\t\tCOPY {}\t {}ms", logMessage.fromTableName(), logMessage,
-                        (System.currentTimeMillis() - start));
-
+                logMessage = copyToTarget(connection, stringBuilder, sqlStatement, chunk);
                 DatabaseUtil.closeConnection(connection);
             } else {
-                logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), 0,
+                logMessage = new LogMessage(sqlStatement.fromTaskName(), sqlStatement.fromTableName(), 0,
                         chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
                 logger.info(" {} :\t\tFETCH {}\t", logMessage.fromTableName(), logMessage);
             }
         } catch (SQLException e) {
-            logger.error("{} \t {}", sqlStatement.getFromTableName(), e);
+            logger.error("{} \t {}", sqlStatement.fromTableName(), e);
             e.printStackTrace();
-            sqlException = e;
+            return new RunnerResult(logMessage, e);
         }
-        return new RunnerResult(logMessage, sqlException);
+        return new RunnerResult(logMessage, null);
     }
 
-    private StringBuilder fetchForCopy(ResultSet fetchResultSet, SQLStatement sqlStatement, Chunk chunk) throws SQLException {
+    private StringBuilder fetchForCopy(ResultSet fetchResultSet,
+                                       SQLStatement sqlStatement,
+                                       Chunk chunk) throws SQLException {
         StringBuilder stringBuilder = new StringBuilder();
         int rowCount = 0;
         long start = System.currentTimeMillis();
@@ -157,17 +147,47 @@ public class ProcessUtil {
                 }
             }
             stringBuilder.append("\n");
-//                    System.out.println(stringBuilder);
-//                    System.out.println();
             rowCount++;
         } while (fetchResultSet.next());
-        LogMessage logMessage = new LogMessage(sqlStatement.getFromTaskName(), sqlStatement.getFromTableName(), rowCount,
-                chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
-        logger.info(" {} :\t\tFETCH {}\t {}ms", logMessage.fromTableName(), logMessage,
-                (System.currentTimeMillis() - start));
-
+        saveToLogger(sqlStatement, chunk, rowCount, start, "FETCH");
         return stringBuilder;
     }
 
-//    record FetchResult(StringBuilder stringBuilder, LogMessage logMessage) {}
+    private LogMessage copyToTarget(Connection connection,
+                                    StringBuilder stringBuilder,
+                                    SQLStatement sqlStatement,
+                                    Chunk chunk) throws SQLException {
+        Map<String, String> columnsToDB = readTargetColumnsFromDB(connection, sqlStatement);
+        String copySQL = buildCopyStatement(sqlStatement, columnsToDB);
+        CopyManager copyManager = new CopyManager((BaseConnection) connection);
+        long start = System.currentTimeMillis();
+        InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuilder).getBytes());
+        long copyCount;
+        try {
+            copyCount = copyManager.copyIn(copySQL, inputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return saveToLogger(sqlStatement, chunk, (int) copyCount, start, "COPY");
+    }
+
+    public LogMessage saveToLogger(SQLStatement sqlStatement,
+                                   Chunk chunk,
+                                   int recordCount,
+                                   long start,
+                                   String operation) {
+        LogMessage logMessage = new LogMessage(
+                sqlStatement.fromTaskName(),
+                sqlStatement.fromTableName(),
+                recordCount,
+                chunk.startRowId(),
+                chunk.endRowId(),
+                chunk.chunkId());
+        logger.info(" {} :\t\t{} {}\t {}ms",
+                logMessage.fromTableName(),
+                operation,
+                logMessage,
+                (System.currentTimeMillis() - start));
+        return logMessage;
+    }
 }
