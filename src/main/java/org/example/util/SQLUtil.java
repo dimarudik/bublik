@@ -31,7 +31,7 @@ public class SQLUtil {
                         .collect(Collectors.joining("), ")) + "))";
     }
 
-    private static Map<String, String> getNeededTargetColumnsAndTypes(SQLStatement sqlStatement,
+    public static Map<String, String> getNeededTargetColumnsAndTypes(SQLStatement sqlStatement,
                                                                       Map<String, String> columnsToDB) {
         Map<String, String> neededTargetColumnsMap = new TreeMap<>(columnsToDB);
         if (sqlStatement.excludedTargetColumns() != null) {
@@ -78,7 +78,8 @@ public class SQLUtil {
         return "select chunk_id, start_rowid, end_rowid, start_id, end_id from user_parallel_execute_chunks where task_name = ? " +
                 "and status <> 'PROCESSED' " +
                 //"and rownum <= 25 " +
-                "order by chunk_id";
+//                "order by chunk_id";
+                "order by ora_hash(concat(task_name,start_rowid))";
     }
 
 /*

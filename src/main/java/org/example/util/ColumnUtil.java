@@ -50,7 +50,7 @@ public class ColumnUtil {
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
-                columnMap.put(columnName, columnType);
+                columnMap.put(columnName.toUpperCase(), columnType);
             }
             resultSet.close();
         } catch (SQLException e) {

@@ -1,5 +1,7 @@
 package org.example.util;
 
+import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
+import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Chunk;
@@ -7,6 +9,7 @@ import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
 import org.example.model.SQLStatement;
 import org.example.task.Worker;
+import org.postgresql.PGConnection;
 import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
@@ -14,6 +17,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
@@ -22,8 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.example.util.ColumnUtil.*;
-import static org.example.util.SQLUtil.buildCopyStatement;
-import static org.example.util.SQLUtil.buildInsertStatement;
+import static org.example.util.SQLUtil.*;
 
 public class ProcessUtil {
     private static final Logger logger = LogManager.getLogger(ProcessUtil.class);
@@ -40,12 +46,13 @@ public class ProcessUtil {
 //            !!!!!!!!!!!!!!!!!!!!!!!!!!
             Map<String, Integer> columnsFromDB = readSourceColumnsFromDB(connection,sqlStatement);
 //            sqlStatement.setColumn2Rule(getColumn2RuleMap(sqlStatement));
-            TreeMap<Integer, Chunk> map = new TreeMap<>(getStartEndRowIdMap(connection, sqlStatement));
+//            TreeMap<Integer, Chunk> map = new TreeMap<>(getStartEndRowIdMap(connection, sqlStatement));
+            Map<Integer, Chunk> chunkMap = new HashMap<>(getStartEndRowIdMap(connection, sqlStatement));
             logger.info(sqlStatement.fromTableName() + " "  +
-                    map.keySet().stream().min(Integer::compareTo).orElse(0) + " " +
-                    map.keySet().stream().max(Integer::compareTo).orElse(0));
+                    chunkMap.keySet().stream().min(Integer::compareTo).orElse(0) + " " +
+                    chunkMap.keySet().stream().max(Integer::compareTo).orElse(0));
             List<Future<StringBuffer>> tasks = new ArrayList<>();
-            map.forEach((key, chunk) ->
+            chunkMap.forEach((key, chunk) ->
                 tasks.add(
                         executorService.
                                 submit(new Worker(
@@ -94,52 +101,130 @@ public class ProcessUtil {
                 if (hasLOB(fetchResultSet)) {
                     logMessage = batchInsertToTarget(connection, fetchResultSet, sqlStatement, chunk);
                 } else {
-                    StringBuilder stringBuilder = fetchForCopy(fetchResultSet, sqlStatement, chunk);
-                    logMessage = copyToTarget(connection, stringBuilder, sqlStatement, chunk);
+                    logMessage = fetchAndCopy(connection, fetchResultSet, sqlStatement, chunk);
                 }
                 DatabaseUtil.closeConnection(connection);
             } else {
-                logMessage = new LogMessage(sqlStatement.fromTaskName(), sqlStatement.fromTableName(), 0,
-                        chunk.startRowId(), chunk.endRowId(), chunk.chunkId());
-                logger.info(" {} :\t\tFETCH {}\t", logMessage.fromTableName(), logMessage);
+                logMessage = saveToLogger(
+                        sqlStatement,
+                        chunk,
+                        0,
+                        System.currentTimeMillis(),
+                        "NO ROWS FETCH");
             }
         } catch (SQLException e) {
             logger.error("{} \t {}", sqlStatement.fromTableName(), e);
-            e.printStackTrace();
             return new RunnerResult(logMessage, e);
         }
         return new RunnerResult(logMessage, null);
     }
 
-    private StringBuilder fetchForCopy(ResultSet fetchResultSet,
-                                       SQLStatement sqlStatement,
-                                       Chunk chunk) throws SQLException {
-        StringBuilder stringBuilder = new StringBuilder();
+    private LogMessage fetchAndCopy(Connection connection,
+                                    ResultSet fetchResultSet,
+                                    SQLStatement sqlStatement,
+                                    Chunk chunk) throws SQLException {
         int rowCount = 0;
+        Map<String, String> columnsToDB = readTargetColumnsFromDB(connection, sqlStatement);
+        Map<String, String> neededColumnsToDB = getNeededTargetColumnsAndTypes(sqlStatement, columnsToDB);
+        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
+        String[] columnNames = neededColumnsToDB.keySet().toArray(new String[0]);
+        SimpleRowWriter.Table table =
+                new SimpleRowWriter.Table(sqlStatement.toSchemaName(), sqlStatement.toTableName(), columnNames);
         long start = System.currentTimeMillis();
-        do {
-            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-/*
-                        int columnType = fetchResultSet.getMetaData().getColumnType(i);
-                        switch (columnType){
-                            case 2004:
-                                Blob blob = fetchResultSet.getBlob(i);
-                                stringBuilder.append(blob == null ? "\\N" : blob);
-                                break;
-                            case 2005:
-                                Clob clob = fetchResultSet.getClob(i);
-                                // поправить, когда приезжает символ \\
-                                String stringClob =
-                                        clob.getSubString(1L, (int) clob.length())
-                                                .replace("\t", "\\t")
-                                                .replace("\n","\\n");
-                                stringBuilder.append(stringClob.isEmpty() ? "\\N" : stringClob);
-                                break;
+        try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
+            do {
+                writer.startRow((row) -> {
+                    for (Map.Entry<String, String> entry : neededColumnsToDB.entrySet()) {
+                        switch (entry.getValue()) {
+                            case "varchar":
+                                try {
+                                    String s = fetchResultSet.getString(entry.getKey());
+                                    row.setText(entry.getKey(), s);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "numeric":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Long aLong = fetchResultSet.getLong(entry.getKey());
+                                    if (o == null) {
+                                        row.setDate(entry.getKey(), null);
+                                        break;
+                                    }
+                                    row.setNumeric(entry.getKey(), aLong);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "int8":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    long l = fetchResultSet.getLong(entry.getKey());
+                                    if (o == null) {
+                                        row.setDate(entry.getKey(), null);
+                                        break;
+                                    }
+                                    row.setLong(entry.getKey(), l);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "float8":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    float aFloat = fetchResultSet.getFloat(entry.getKey());
+                                    if (o == null) {
+                                        row.setDate(entry.getKey(), null);
+                                        break;
+                                    }
+                                    row.setDouble(entry.getKey(), Double.valueOf(aFloat));
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "timestamp":
+                                try {
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
+                                    if (timestamp == null) {
+                                        row.setDate(entry.getKey(), null);
+                                        break;
+                                    }
+                                    long l = timestamp.getTime();
+                                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
+                                            TimeZone.getDefault().toZoneId());
+                                    row.setTimeStamp(entry.getKey(), localDateTime);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "date":
+                                try {
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
+                                    if (timestamp == null) {
+                                        row.setDate(entry.getKey(), null);
+                                        break;
+                                    }
+                                    long l = timestamp.getTime();
+                                    LocalDate localDate = Instant.ofEpochMilli(l)
+                                            .atZone(ZoneId.systemDefault()).toLocalDate();
+                                    row.setDate(entry.getKey(), localDate);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
                             default:
-                                stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
                                 break;
                         }
-*/
+                    }
+                });
+                rowCount++;
+            } while (fetchResultSet.next());
+        }
+/*
+        StringBuilder stringBuilder = new StringBuilder();
+        do {
+            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
                 stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
                 if (i != fetchResultSet.getMetaData().getColumnCount()) {
                     stringBuilder.append("\t");
@@ -148,24 +233,31 @@ public class ProcessUtil {
             stringBuilder.append("\n");
             rowCount++;
         } while (fetchResultSet.next());
-        saveToLogger(sqlStatement, chunk, rowCount, start, "FETCH");
-        return stringBuilder;
+*/
+        return saveToLogger(sqlStatement, chunk, rowCount, start, "COPY");
     }
 
     private LogMessage copyToTarget(Connection connection,
                                     StringBuilder stringBuilder,
                                     SQLStatement sqlStatement,
-                                    Chunk chunk) throws SQLException {
+                                    Chunk chunk) {
         Map<String, String> columnsToDB = readTargetColumnsFromDB(connection, sqlStatement);
         String copySQL = buildCopyStatement(sqlStatement, columnsToDB);
-        CopyManager copyManager = new CopyManager((BaseConnection) connection);
+        CopyManager copyManager = null;
+        try {
+            copyManager = new CopyManager((BaseConnection) connection);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         long start = System.currentTimeMillis();
         InputStream inputStream = new ByteArrayInputStream(String.valueOf(stringBuilder).getBytes());
-        long copyCount;
+        long copyCount = 0;
         try {
+            connection.setAutoCommit(false);
             copyCount = copyManager.copyIn(copySQL, inputStream);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            connection.commit();
+        } catch (IOException | SQLException e) {
+            logger.error("{} \t {}", sqlStatement.fromTableName(), e);
         }
         return saveToLogger(sqlStatement, chunk, (int) copyCount, start, "COPY");
     }
@@ -231,11 +323,11 @@ public class ProcessUtil {
                 chunk.startRowId(),
                 chunk.endRowId(),
                 chunk.chunkId());
-        logger.info(" {} :\t\t{} {}\t {}ms",
+        logger.info(" {} :\t\t{} {}\t {} sec",
                 logMessage.fromTableName(),
                 operation,
                 logMessage,
-                (System.currentTimeMillis() - start));
+                Math.round( (float) (System.currentTimeMillis() - start) / 10) / 100.0);
         return logMessage;
     }
 
