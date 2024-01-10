@@ -68,7 +68,7 @@ exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE2_TASK',
 ### Step 3
 Run
 ```
-java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
+java -jar ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
 ```
 
-
+to avoid heap pressure please use `-Xmx16g`
