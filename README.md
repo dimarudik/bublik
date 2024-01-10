@@ -54,7 +54,9 @@ rules.json
 You have to stop changes at the source db (Oracle) 
 
 ### Step 2
-Prepare chunks of tables in Oracle (do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool, see `fromProperties` in `props.yaml`)
+Prepare chunks of tables in Oracle<br> 
+Do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool (see `fromProperties` in `props.yaml`)
+
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
