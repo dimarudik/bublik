@@ -4,10 +4,6 @@
 The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_parallel_execute` to prepare chunks)
 The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format (except LOB's)
 
-Run
-```
-java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
-```
 ## The Task
 We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle db to Postgresql db
 
@@ -70,7 +66,9 @@ exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE2_TASK',
 ```
 
 ### Step 3
-...
+Run
+```
+java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
+```
 
-### Step 4
-...
+
