@@ -44,6 +44,15 @@ toProperties:
     "fetchHintClause" : "/*+ parallel(2) */", 
     "fetchWhereClause" : "1 = 1", 
     "fromTaskName" : "TABLE1_TASK"
+  },
+  {
+    "fromSchemaName" : "ORASCHEMA",
+    "fromTableName" : "TABLE2",
+    "toSchemaName" : "PGSCHEMA",
+    "toTableName" : "TABLE2",
+    "fetchHintClause" : "/*+ parallel(2) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE2_TASK"
   }
 ]
 ```
