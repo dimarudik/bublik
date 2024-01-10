@@ -82,4 +82,8 @@ java -jar ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json
 
 <ul><li>to avoid heap pressure please use -Xmx16g</li></ul>
 <ul><li>see log/app.log</li></ul>
-<ul><li>progress in oracle select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct from dba_parallel_execute_chunks where task_owner = 'ORAOWNER' group by  status;</li></ul>
+<ul><li>progress in oracle:</li></ul>
+
+```
+select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct from dba_parallel_execute_chunks where task_owner = 'ORAOWNER' group by  status;
+```
