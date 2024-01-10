@@ -9,7 +9,7 @@ Run
 java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
 ```
 ## The Task
-We need to transfer two tables from Oracle to Postgresql
+We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle db to Postgresql db
 
 ### Step 0
 Build the jar file
@@ -18,6 +18,7 @@ git clone https://github.com/dimarudik/ora2pgsql.git
 cd ora2pgsql
 mvn clean package -DskipTests
 cd target
+mkdir logs
 ```
 Prepare files of parameters
 
@@ -38,15 +39,13 @@ rules.json
 ```json
 [
   { 
-    "fromSchemaName" : "SourceOwner", 
-    "fromTableName" : "SourceTableName", 
-    "toSchemaName" : "TargetOwner", 
-    "toTableName" : "TargetTableName", 
-    "fetchHintClause" : "/*+ parallel(4) */", 
-    "fetchWhereClause" : "1 = 1 and created_at > sysdate - 30", 
-    "fromTaskName" : "OracleTaskName",
-    "excludedSourceColumns" : [ "Column1", "Column2" ],
-    "excludedTargetColumns" : [ "Column3" ]
+    "fromSchemaName" : "ORASCHEMA", 
+    "fromTableName" : "TABLE1", 
+    "toSchemaName" : "PGSCHEMA", 
+    "toTableName" : "TABLE1", 
+    "fetchHintClause" : "/*+ parallel(2) */", 
+    "fetchWhereClause" : "1 = 1", 
+    "fromTaskName" : "TABLE1_TASK"
   }
 ]
 ```
@@ -55,7 +54,7 @@ rules.json
 You have to stop changes at the source db (Oracle) 
 
 ### Step 2
-Prepare chunks of tables in Oracle (do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool)
+Prepare chunks of tables in Oracle (do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool, see `fromProperties` in `props.yaml`)
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
