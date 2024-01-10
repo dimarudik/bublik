@@ -5,7 +5,7 @@ The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_pa
 The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format (except LOB's)
 
 ## The Task
-We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle db to Postgresql db
+We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle to Postgresql
 
 ### Step 1
 <ul><li>create empty tables in Postgresql db</li></ul>
