@@ -6,9 +6,7 @@ import org.example.model.Chunk;
 import org.example.model.SQLStatement;
 
 import java.sql.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 import static org.example.util.SQLUtil.buildStartEndRowIdOfChunkStatement;
 
@@ -50,7 +48,8 @@ public class ColumnUtil {
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
-                columnMap.put(columnName.toUpperCase(), columnType);
+                columnMap.put(columnName.toUpperCase(), columnType.equals("bigserial") ? "bigint" : columnType);
+//                System.out.println(columnName.toUpperCase() + " : " + (columnType.equals("bigserial") ? "bigint" : columnType));
             }
             resultSet.close();
         } catch (SQLException e) {
@@ -80,20 +79,22 @@ public class ColumnUtil {
     }
 */
 
-    static HashMap<Integer, Chunk> getStartEndRowIdMap(Connection connection, SQLStatement sqlStatement) {
-        HashMap<Integer, Chunk> chunkHashMap = new HashMap<>();
+    public static Map<Integer, Chunk> getStartEndRowIdMap(Connection connection, List<SQLStatement> sqlStatements) {
+        Map<Integer, Chunk> chunkHashMap = new TreeMap<>();
         try {
-            PreparedStatement statement = connection.prepareStatement(buildStartEndRowIdOfChunkStatement());
-            statement.setString(1, sqlStatement.fromTaskName());
+            String sql = buildStartEndRowIdOfChunkStatement(sqlStatements);
+//            System.out.println(sql);
+            PreparedStatement statement = connection.prepareStatement(sql);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 chunkHashMap.put(resultSet.getInt(1),
                         new Chunk(
-                                resultSet.getInt(1),
-                                resultSet.getString(2),
+                                resultSet.getInt(2),
                                 resultSet.getString(3),
-                                resultSet.getLong(4),
-                                resultSet.getLong(5)
+                                resultSet.getString(4),
+                                resultSet.getLong(5),
+                                resultSet.getLong(6),
+                                findByTaskName(sqlStatements, resultSet.getString(7))
                         )
                 );
             }
@@ -115,5 +116,14 @@ public class ColumnUtil {
         Clob clob = resultSet.getClob(i);
         int clobLength = (int) clob.length();
         return clob.getSubString(1L, clobLength);
+    }
+
+    public static SQLStatement findByTaskName(List<SQLStatement> sqlStatements, String taskName) {
+        for (SQLStatement sqlStatement : sqlStatements) {
+            if (sqlStatement.fromTaskName().equals(taskName)) {
+                return sqlStatement;
+            }
+        }
+        return null;
     }
 }

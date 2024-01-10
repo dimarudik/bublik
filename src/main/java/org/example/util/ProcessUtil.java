@@ -30,46 +30,52 @@ import java.util.concurrent.Future;
 
 import static org.example.util.ColumnUtil.*;
 import static org.example.util.SQLUtil.*;
+import static org.example.util.TableUtil.tableExists;
 
 public class ProcessUtil {
     private static final Logger logger = LogManager.getLogger(ProcessUtil.class);
 
     public void initiateProcessFromDatabase(Properties fromProperties,
                                             Properties toProperties,
-                                            SQLStatement sqlStatement,
+                                            List<SQLStatement> sqlStatements,
                                             Integer threads) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try {
-            Connection connection = DatabaseUtil.getConnection(fromProperties);
-//            !!!!!!!!!!!!!!!!!!!!!!!!!!
-//            connection.unwrap(oracle.jdbc.OracleConnection.class).setSchema(sqlStatement.getFromSchemaName());
-//            !!!!!!!!!!!!!!!!!!!!!!!!!!
-            Map<String, Integer> columnsFromDB = readSourceColumnsFromDB(connection,sqlStatement);
-//            sqlStatement.setColumn2Rule(getColumn2RuleMap(sqlStatement));
-//            TreeMap<Integer, Chunk> map = new TreeMap<>(getStartEndRowIdMap(connection, sqlStatement));
-            Map<Integer, Chunk> chunkMap = new HashMap<>(getStartEndRowIdMap(connection, sqlStatement));
+            Connection connOracle = DatabaseUtil.getConnection(fromProperties);
+/*
             logger.info(sqlStatement.fromTableName() + " "  +
                     chunkMap.keySet().stream().min(Integer::compareTo).orElse(0) + " " +
                     chunkMap.keySet().stream().max(Integer::compareTo).orElse(0));
+*/
+            Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndRowIdMap(connOracle, sqlStatements));
             List<Future<StringBuffer>> tasks = new ArrayList<>();
-            chunkMap.forEach((key, chunk) ->
-                tasks.add(
-                        executorService.
-                                submit(new Worker(
-                                        fromProperties,
-                                        toProperties,
-                                        sqlStatement,
-                                        chunk,
-                                        columnsFromDB
-                                ))
-                )
+            chunkMap.forEach((key, chunk) -> {
+                        try {
+                            if (tableExists(connOracle,
+                                    chunk.sqlStatement().fromSchemaName(),
+                                    chunk.sqlStatement().fromTableName())) {
+                                tasks.add(
+                                        executorService.
+                                                submit(new Worker(
+                                                        fromProperties,
+                                                        toProperties,
+                                                        chunk.sqlStatement(),
+                                                        chunk,
+                                                        readSourceColumnsFromDB(connOracle, chunk.sqlStatement())
+                                                ))
+                                );
+                            }
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                            logger.error(ex);
+                        }
+                    }
             );
 
             // Тут реализовать COPY в пачке тредов (так COPY будет работать быстрее)
             // учесть это при отметке обработанных чанков
-
             // Проверить что происходит при падении COPY в плане фиксации на базе
-            
+
             Iterator<Future<StringBuffer>> futureIterator = tasks.listIterator();
             while (futureIterator.hasNext()) {
                 Future<StringBuffer> future = futureIterator.next();
@@ -84,8 +90,10 @@ public class ProcessUtil {
             }
 
             executorService.shutdown();
-            DatabaseUtil.closeConnection(connection);
+            DatabaseUtil.closeConnection(connOracle);
         } catch (SQLException | ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+            executorService.shutdown();
             logger.error(e.getMessage());
         }
     }
@@ -97,13 +105,16 @@ public class ProcessUtil {
         LogMessage logMessage = null;
         try {
             if (fetchResultSet.next()) {
-                Connection connection = DatabaseUtil.getConnection(toProperties);
-                if (hasLOB(fetchResultSet)) {
-                    logMessage = batchInsertToTarget(connection, fetchResultSet, sqlStatement, chunk);
-                } else {
-                    logMessage = fetchAndCopy(connection, fetchResultSet, sqlStatement, chunk);
+                Connection connPostgresql = DatabaseUtil.getConnection(toProperties);
+                if (tableExists(connPostgresql, sqlStatement.toSchemaName(), sqlStatement.toTableName())) {
+//                logMessage = batchInsertToTarget(connPostgresql, fetchResultSet, sqlStatement, chunk);
+                    if (hasLOB(fetchResultSet)) {
+                        logMessage = batchInsertToTarget(connPostgresql, fetchResultSet, sqlStatement, chunk);
+                    } else {
+                        logMessage = fetchAndCopy(connPostgresql, fetchResultSet, sqlStatement, chunk);
+                    }
                 }
-                DatabaseUtil.closeConnection(connection);
+                DatabaseUtil.closeConnection(connPostgresql);
             } else {
                 logMessage = saveToLogger(
                         sqlStatement,
@@ -114,6 +125,7 @@ public class ProcessUtil {
             }
         } catch (SQLException e) {
             logger.error("{} \t {}", sqlStatement.fromTableName(), e);
+            e.printStackTrace();
             return new RunnerResult(logMessage, e);
         }
         return new RunnerResult(logMessage, null);
@@ -130,11 +142,20 @@ public class ProcessUtil {
         String[] columnNames = neededColumnsToDB.keySet().toArray(new String[0]);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(sqlStatement.toSchemaName(), sqlStatement.toTableName(), columnNames);
+//        Arrays.asList(columnNames).forEach(k -> System.out.print(k + " "));
+//        System.out.println();
         long start = System.currentTimeMillis();
         try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
             do {
                 writer.startRow((row) -> {
                     for (Map.Entry<String, String> entry : neededColumnsToDB.entrySet()) {
+/*
+                        try {
+                            System.out.println(entry.getKey() + " : " + entry.getValue() + " : " + fetchResultSet.getString(entry.getKey()));
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+*/
                         switch (entry.getValue()) {
                             case "varchar":
                                 try {
@@ -144,15 +165,28 @@ public class ProcessUtil {
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
+                            case "bigint":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    long l = fetchResultSet.getLong(entry.getKey());
+                                    if (o == null) {
+                                        row.setLong(entry.getKey(), null);
+                                        break;
+                                    }
+                                    row.setLong(entry.getKey(), l);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
                             case "numeric":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
-                                    Long aLong = fetchResultSet.getLong(entry.getKey());
+                                    Double aDouble = fetchResultSet.getDouble(entry.getKey());
                                     if (o == null) {
-                                        row.setDate(entry.getKey(), null);
+                                        row.setNumeric(entry.getKey(), null);
                                         break;
                                     }
-                                    row.setNumeric(entry.getKey(), aLong);
+                                    row.setNumeric(entry.getKey(), aDouble);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
@@ -162,7 +196,7 @@ public class ProcessUtil {
                                     Object o = fetchResultSet.getObject(entry.getKey());
                                     long l = fetchResultSet.getLong(entry.getKey());
                                     if (o == null) {
-                                        row.setDate(entry.getKey(), null);
+                                        row.setLong(entry.getKey(), null);
                                         break;
                                     }
                                     row.setLong(entry.getKey(), l);
@@ -175,7 +209,7 @@ public class ProcessUtil {
                                     Object o = fetchResultSet.getObject(entry.getKey());
                                     float aFloat = fetchResultSet.getFloat(entry.getKey());
                                     if (o == null) {
-                                        row.setDate(entry.getKey(), null);
+                                        row.setDouble(entry.getKey(), null);
                                         break;
                                     }
                                     row.setDouble(entry.getKey(), Double.valueOf(aFloat));
@@ -187,7 +221,22 @@ public class ProcessUtil {
                                 try {
                                     Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
                                     if (timestamp == null) {
-                                        row.setDate(entry.getKey(), null);
+                                        row.setTimeStamp(entry.getKey(), null);
+                                        break;
+                                    }
+                                    long l = timestamp.getTime();
+                                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
+                                            TimeZone.getDefault().toZoneId());
+                                    row.setTimeStamp(entry.getKey(), localDateTime);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "timestamptz":
+                                try {
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
+                                    if (timestamp == null) {
+                                        row.setTimeStamp(entry.getKey(), null);
                                         break;
                                     }
                                     long l = timestamp.getTime();
@@ -221,19 +270,6 @@ public class ProcessUtil {
                 rowCount++;
             } while (fetchResultSet.next());
         }
-/*
-        StringBuilder stringBuilder = new StringBuilder();
-        do {
-            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-                stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
-                if (i != fetchResultSet.getMetaData().getColumnCount()) {
-                    stringBuilder.append("\t");
-                }
-            }
-            stringBuilder.append("\n");
-            rowCount++;
-        } while (fetchResultSet.next());
-*/
         return saveToLogger(sqlStatement, chunk, rowCount, start, "COPY");
     }
 
@@ -269,6 +305,7 @@ public class ProcessUtil {
         connection.setAutoCommit(false);
         Map<String, String> columnsToDB = readTargetColumnsFromDB(connection, sqlStatement);
         String insertSQL = buildInsertStatement(sqlStatement, columnsToDB);
+//        System.out.println(insertSQL);
         PreparedStatement statement = connection.prepareStatement(insertSQL);
         long start = System.currentTimeMillis();
         int fetchCount = 0;
@@ -341,3 +378,17 @@ public class ProcessUtil {
         return false;
     }
 }
+
+/*
+        StringBuilder stringBuilder = new StringBuilder();
+        do {
+            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
+                stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
+                if (i != fetchResultSet.getMetaData().getColumnCount()) {
+                    stringBuilder.append("\t");
+                }
+            }
+            stringBuilder.append("\n");
+            rowCount++;
+        } while (fetchResultSet.next());
+*/

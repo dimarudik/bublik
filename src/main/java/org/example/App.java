@@ -13,27 +13,25 @@ import java.util.List;
 
 public class App {
     private static final Logger logger = LogManager.getLogger(App.class);
-
     public static void main(String[] args) {
+        String jdbcProperties = args[0];
+        String transRules = args[1];
         try {
             ObjectMapper mapperJSON = new ObjectMapper();
             ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
             mapperYAML.findAndRegisterModules();
-            List<SQLStatement> sqlStatementList =
-                    List.of(mapperJSON.readValue(Paths.get("sqlstatement.json").toFile(),
-                            SQLStatement[].class));
             Ora2PGProperties properties =
-                    mapperYAML.readValue(Paths.get("properties.yaml").toFile(),
+                    mapperYAML.readValue(Paths.get(jdbcProperties).toFile(),
                             Ora2PGProperties.class);
-            sqlStatementList.forEach(sqlStatement ->
-                new ProcessUtil()
-                        .initiateProcessFromDatabase(
+            List<SQLStatement> sqlStatementList =
+                    List.of(mapperJSON.readValue(Paths.get(transRules).toFile(),
+                            SQLStatement[].class));
+            new ProcessUtil()
+                    .initiateProcessFromDatabase(
                             properties.getFromProperty(),
                             properties.getToProperty(),
-                            sqlStatement,
-                            properties.getThreadCount()
-                        )
-            );
+                            sqlStatementList,
+                            properties.getThreadCount());
         } catch (Exception e) {
             logger.error(e.getMessage());
         }

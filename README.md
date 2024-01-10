@@ -2,7 +2,7 @@
 # Is a tool to copy data from Oracle to Postgresql
 
 The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_parallel_execute` to prepare chunks)
-The fastest way to put data to Postgresql is to insert it by using `COPY` (except LOB's)
+The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format (except LOB's)
 
 Build
 ```

@@ -74,18 +74,15 @@ public class SQLUtil {
         }
     }
 
-    public static String buildStartEndRowIdOfChunkStatement() {
-        return "select chunk_id, start_rowid, end_rowid, start_id, end_id from user_parallel_execute_chunks where task_name = ? " +
+    public static String buildStartEndRowIdOfChunkStatement(List<SQLStatement> sqlStatements) {
+        List<String> taskNames = new ArrayList<>();
+        sqlStatements.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
+//        return "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from user_parallel_execute_chunks where task_name = ? " +
+        return "select rownum, chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from (" +
+                "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from user_parallel_execute_chunks where task_name in ('" +
+                 String.join("', '", taskNames) + "') " +
                 "and status <> 'PROCESSED' " +
-                //"and rownum <= 25 " +
 //                "order by chunk_id";
-                "order by ora_hash(concat(task_name,start_rowid))";
+                "order by ora_hash(concat(task_name,start_rowid)) ) order by 1";
     }
-
-/*
-    public static String buildStartEndIdOfChunkStatement() {
-        return "select chunk_id, start_id, end_id from user_parallel_execute_chunks where task_name = ? " +
-                "order by chunk_id";
-    }
-*/
 }

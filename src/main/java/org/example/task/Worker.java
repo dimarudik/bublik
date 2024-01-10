@@ -7,6 +7,7 @@ import org.example.model.RunnerResult;
 import org.example.model.SQLStatement;
 import org.example.util.DatabaseUtil;
 import org.example.util.ProcessUtil;
+import org.postgresql.PGConnection;
 
 import java.sql.*;
 import java.util.Map;
@@ -38,24 +39,26 @@ public class Worker implements Callable<StringBuffer> {
     @Override
     public StringBuffer call() {
         try {
-            Connection connection = DatabaseUtil.getConnection(fromProperties);
-            ResultSet fetchResultSet = fetchResultSetFromDB(connection);
+            Connection connOracle = DatabaseUtil.getConnection(fromProperties);
+            String query = buildSQLFetchStatement(sqlStatement, columnsFromDB);
+//            System.out.println(query);
+            PreparedStatement statement = connOracle.prepareStatement(query);
+            ResultSet fetchResultSet = fetchResultSetFromDB(statement);
             RunnerResult runnerResult =
                     new ProcessUtil().initiateProcessToDatabase(toProperties, fetchResultSet, sqlStatement, chunk);
             fetchResultSet.close();
+            statement.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-                markChunkAsProceed(connection);
+                markChunkAsProceed(connOracle);
             }
-            DatabaseUtil.closeConnection(connection);
+            DatabaseUtil.closeConnection(connOracle);
         } catch (SQLException e) {
             logger.error(e.getMessage());
         }
         return new StringBuffer();
     }
 
-    private ResultSet fetchResultSetFromDB(Connection connection) throws SQLException {
-        String query = buildSQLFetchStatement(sqlStatement, columnsFromDB);
-        PreparedStatement statement = connection.prepareStatement(query);
+    private ResultSet fetchResultSetFromDB(PreparedStatement statement) throws SQLException {
         if (sqlStatement.numberColumn() == null) {
             statement.setString(1, chunk.startRowId());
             statement.setString(2, chunk.endRowId());

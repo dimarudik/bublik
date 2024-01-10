@@ -1,52 +1,52 @@
--- APPLICATIONONDEVICE
+-- TABLE1
 BEGIN
-  DBMS_PARALLEL_EXECUTE.create_task (task_name => 'APPLICATIONONDEVICE_TASK');
+  DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
 END;
 /
 BEGIN
-  DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid(task_name   => 'APPLICATIONONDEVICE_TASK',
-                                               table_owner => 'ESBCOMMON',
-                                               table_name  => 'APPLICATIONONDEVICE',
+  DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid(task_name   => 'TABLE1_TASK',
+                                               table_owner => 'OWNER',
+                                               table_name  => 'TABLE1',
                                                by_row      => TRUE,
                                                chunk_size  => 20000);
 END;
 /
 BEGIN
-  DBMS_PARALLEL_EXECUTE.drop_task('APPLICATIONONDEVICE_TASK');
+  DBMS_PARALLEL_EXECUTE.drop_task('TABLE1_TASK');
 END;
 /
--- DEVICE
+-- TABLE2
 BEGIN
-  DBMS_PARALLEL_EXECUTE.create_task (task_name => 'DEVICE_TASK');
+  DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE2_TASK');
 END;
 /
 BEGIN
-  DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid(task_name   => 'DEVICE_TASK',
-                                               table_owner => 'ESBCOMMON',
-                                               table_name  => 'DEVICE',
+  DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid(task_name   => 'TABLE2_TASK',
+                                               table_owner => 'OWNER',
+                                               table_name  => 'TABLE2',
                                                by_row      => TRUE,
                                                chunk_size  => 20000);
 END;
 /
 BEGIN
-  DBMS_PARALLEL_EXECUTE.drop_task('DEVICE_TASK');
+  DBMS_PARALLEL_EXECUTE.drop_task('TABLE2_TASK');
 END;
 /
--- APPLICATION
+-- TABLE3
 BEGIN
-  DBMS_PARALLEL_EXECUTE.create_task (task_name => 'APPLICATION_TASK');
+  DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE3_TASK');
 END;
 /
 BEGIN
-  DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid(task_name   => 'APPLICATION_TASK',
-                                               table_owner => 'ESBCOMMON',
-                                               table_name  => 'APPLICATION',
+  DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid(task_name   => 'TABLE3_TASK',
+                                               table_owner => 'OWNER',
+                                               table_name  => 'TABLE3',
                                                by_row      => TRUE,
                                                chunk_size  => 20000);
 END;
 /
 BEGIN
-  DBMS_PARALLEL_EXECUTE.drop_task('DEVICE_TASK');
+  DBMS_PARALLEL_EXECUTE.drop_task('TABLE2_TASK');
 END;
 /
 --
