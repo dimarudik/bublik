@@ -7,7 +7,7 @@ The fastest way to put data to Postgresql is to insert it by using `COPY` in bin
 ## The Task
 We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle db to Postgresql db
 
-### Step 0
+### Step 1
 <ul><li>create empty tables in Postgresql db</li></ul>
 <ul><li>build the jar file</li></ul>
 
@@ -57,12 +57,11 @@ toProperties:
 ]
 ```
 
-### Step 1
-You have to stop changes of movable tables at the source db (Oracle) 
-
 ### Step 2
+Stop changes of movable tables at the source db (Oracle)<br>
 Prepare chunks of tables in Oracle<br> 
-Do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool (see `fromProperties` in `props.yaml`)
+Do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool<br>
+(see `fromProperties` in `props.yaml`)
 
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
