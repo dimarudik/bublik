@@ -49,7 +49,7 @@ toProperties:
 ```
 
 ### Step 1
-You have to stop changes at the source db (Oracle) 
+You have to stop changes of movable tables at the source db (Oracle) 
 
 ### Step 2
 Prepare chunks of tables in Oracle<br> 
