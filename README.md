@@ -39,7 +39,7 @@ toProperties:
   { 
     "fromSchemaName" : "ORASCHEMA", 
     "fromTableName" : "TABLE1", 
-    "toSchemaName" : "PGSCHEMA", 
+    "toSchemaName" : "PGOWNER", 
     "toTableName" : "TABLE1", 
     "fetchHintClause" : "/*+ parallel(2) */", 
     "fetchWhereClause" : "1 = 1", 
@@ -48,7 +48,7 @@ toProperties:
   {
     "fromSchemaName" : "ORASCHEMA",
     "fromTableName" : "TABLE2",
-    "toSchemaName" : "PGSCHEMA",
+    "toSchemaName" : "PGOWNER",
     "toTableName" : "TABLE2",
     "fetchHintClause" : "/*+ parallel(2) */",
     "fetchWhereClause" : "1 = 1",
