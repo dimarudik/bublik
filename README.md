@@ -12,7 +12,7 @@ java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json
 We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle db to Postgresql db
 
 ### Step 0
-<ul><li>create destination tables in Postgresql db</li></ul>
+<ul><li>create empty tables in Postgresql db</li></ul>
 <ul><li>build the jar file</li></ul>
 
 ```shell
