@@ -12,7 +12,9 @@ java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json
 We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle db to Postgresql db
 
 ### Step 0
-Build the jar file
+<ul><li>create destination tables in Postgresql db</li></ul>
+<ul><li>build the jar file</li></ul>
+
 ```shell
 git clone https://github.com/dimarudik/ora2pgsql.git
 cd ora2pgsql
@@ -20,9 +22,8 @@ mvn clean package -DskipTests
 cd target
 mkdir logs
 ```
-Prepare files of parameters
+<ul><li>prepare file of connection parameters props.yaml</li></ul>
 
-props.yaml
 ```yaml
 threadCount: 20
 
@@ -35,7 +36,8 @@ toProperties:
   user: pgowner
   password: pgowner
 ```
-rules.json
+<ul><li>prepare file of table parameters rules.json</li></ul>
+
 ```json
 [
   { 
@@ -61,7 +63,14 @@ Do it by the same user as you are going to connect to Oracle via `ora2pgsql` too
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE1_TASK', table_owner => 'ORAOWNER', table_name  => 'TABLE1', by_row => TRUE, chunk_size  => 100000);
+
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE2_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE2_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE2_TASK', table_owner => 'ORAOWNER', table_name  => 'TABLE2', by_row => TRUE, chunk_size  => 100000);
 ```
+
+### Step 3
+...
+
+### Step 4
+...
