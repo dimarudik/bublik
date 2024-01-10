@@ -4,11 +4,6 @@
 The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_parallel_execute` to prepare chunks)
 The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format (except LOB's)
 
-Build
-```
-mvn clean package -DskipTests
-```
-
 Run
 ```
 java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
@@ -17,7 +12,13 @@ java -jar -Xmx4g ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json
 We need to transfer two tables from Oracle to Postgresql
 
 ### Step 0
-
+Build the jar file
+```shell
+git clone https://github.com/dimarudik/ora2pgsql.git
+cd ora2pgsql
+mvn clean package -DskipTests
+cd target
+```
 Prepare files of parameters
 
 props.yaml
@@ -33,7 +34,6 @@ toProperties:
   user: pgowner
   password: pgowner
 ```
-
 rules.json
 ```json
 [
@@ -52,13 +52,10 @@ rules.json
 ```
 
 ### Step 1
-
 You have to stop changes at the source db (Oracle) 
 
 ### Step 2
-
 Prepare chunks of tables in Oracle (do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool)
-
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
