@@ -17,10 +17,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.*;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
@@ -251,10 +248,10 @@ public class ProcessUtil {
                                         row.setTimeStamp(entry.getKey(), null);
                                         break;
                                     }
-                                    long l = timestamp.getTime();
-                                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
-                                            TimeZone.getDefault().toZoneId());
-                                    row.setTimeStamp(entry.getKey(), localDateTime);
+                                    ZonedDateTime zonedDateTime =
+                                            ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp.getTime()),
+                                                    ZoneOffset.UTC);
+                                    row.setTimeStampTz(entry.getKey(), zonedDateTime);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
