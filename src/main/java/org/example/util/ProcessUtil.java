@@ -65,9 +65,9 @@ public class ProcessUtil {
                                                 ))
                                 );
                             }
-                        } catch (SQLException ex) {
-                            ex.printStackTrace();
-                            logger.error(ex);
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.error(e.getMessage());
                         }
                     }
             );
@@ -91,10 +91,9 @@ public class ProcessUtil {
 
             executorService.shutdown();
             DatabaseUtil.closeConnection(connOracle);
-        } catch (SQLException | ExecutionException | InterruptedException e) {
-            e.printStackTrace();
+        } catch (SQLException | InterruptedException | ExecutionException e) {
             executorService.shutdown();
-            logger.error(e.getMessage());
+            logger.error("Stopping all threads... {}", e.getMessage());
         }
     }
 
@@ -134,7 +133,7 @@ public class ProcessUtil {
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
                                     SQLStatement sqlStatement,
-                                    Chunk chunk) throws SQLException {
+                                    Chunk chunk) {
         int rowCount = 0;
         Map<String, String> columnsToDB = readTargetColumnsFromDB(connection, sqlStatement);
         Map<String, String> neededColumnsToDB = getNeededTargetColumnsAndTypes(sqlStatement, columnsToDB);
@@ -187,6 +186,19 @@ public class ProcessUtil {
                                         break;
                                     }
                                     row.setNumeric(entry.getKey(), aDouble);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "int4":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    int l = fetchResultSet.getInt(entry.getKey());
+                                    if (o == null) {
+                                        row.setInteger(entry.getKey(), null);
+                                        break;
+                                    }
+                                    row.setInteger(entry.getKey(), l);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
@@ -263,12 +275,16 @@ public class ProcessUtil {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             default:
-                                break;
+                                throw new RuntimeException("There is no handler for type : " + entry.getValue());
                         }
                     }
                 });
                 rowCount++;
             } while (fetchResultSet.next());
+        } catch (SQLException | RuntimeException e) {
+            e.printStackTrace();
+            logger.error(e);
+            return null;
         }
         return saveToLogger(sqlStatement, chunk, rowCount, start, "COPY");
     }
