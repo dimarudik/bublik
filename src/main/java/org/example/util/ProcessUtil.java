@@ -161,14 +161,30 @@ public class ProcessUtil {
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
+                            case "text":
+                                try {
+                                    String s = fetchResultSet.getString(entry.getKey());
+                                    row.setText(entry.getKey(), s);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "bpchar":
+                                try {
+                                    String s = fetchResultSet.getString(entry.getKey());
+                                    row.setText(entry.getKey(), s);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
                             case "bigint":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
-                                    long l = fetchResultSet.getLong(entry.getKey());
                                     if (o == null) {
                                         row.setLong(entry.getKey(), null);
                                         break;
                                     }
+                                    long l = fetchResultSet.getLong(entry.getKey());
                                     row.setLong(entry.getKey(), l);
                                     break;
                                 } catch (SQLException e) {
@@ -177,12 +193,25 @@ public class ProcessUtil {
                             case "numeric":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
-                                    Double aDouble = fetchResultSet.getDouble(entry.getKey());
                                     if (o == null) {
                                         row.setNumeric(entry.getKey(), null);
                                         break;
                                     }
+                                    Double aDouble = fetchResultSet.getDouble(entry.getKey());
                                     row.setNumeric(entry.getKey(), aDouble);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "int2":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    if (o == null) {
+                                        row.setShort(entry.getKey(), null);
+                                        break;
+                                    }
+                                    Short aShort = fetchResultSet.getShort(entry.getKey());
+                                    row.setShort(entry.getKey(), aShort);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
@@ -190,12 +219,12 @@ public class ProcessUtil {
                             case "int4":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
-                                    int l = fetchResultSet.getInt(entry.getKey());
                                     if (o == null) {
                                         row.setInteger(entry.getKey(), null);
                                         break;
                                     }
-                                    row.setInteger(entry.getKey(), l);
+                                    int i = fetchResultSet.getInt(entry.getKey());
+                                    row.setInteger(entry.getKey(), i);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
@@ -203,11 +232,11 @@ public class ProcessUtil {
                             case "int8":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
-                                    long l = fetchResultSet.getLong(entry.getKey());
                                     if (o == null) {
                                         row.setLong(entry.getKey(), null);
                                         break;
                                     }
+                                    long l = fetchResultSet.getLong(entry.getKey());
                                     row.setLong(entry.getKey(), l);
                                     break;
                                 } catch (SQLException e) {
@@ -216,11 +245,11 @@ public class ProcessUtil {
                             case "float8":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
-                                    float aFloat = fetchResultSet.getFloat(entry.getKey());
                                     if (o == null) {
                                         row.setDouble(entry.getKey(), null);
                                         break;
                                     }
+                                    float aFloat = fetchResultSet.getFloat(entry.getKey());
                                     row.setDouble(entry.getKey(), Double.valueOf(aFloat));
                                     break;
                                 } catch (SQLException e) {
