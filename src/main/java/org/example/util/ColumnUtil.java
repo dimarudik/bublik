@@ -108,14 +108,39 @@ public class ColumnUtil {
 
     public static byte[] convertBlobToBytes(ResultSet resultSet, int i) throws SQLException {
         Blob blob = resultSet.getBlob(i);
-        int blobLength = (int) blob.length();
-        return blob.getBytes(1, blobLength);
+        return getBlobBytes(blob);
     }
 
-    public static String convertClobToBytes(ResultSet resultSet, int i) throws SQLException {
+    public static byte[] convertBlobToBytes(ResultSet resultSet, String columnName) throws SQLException {
+        Blob blob = resultSet.getBlob(columnName);
+        return getBlobBytes(blob);
+    }
+
+    private static byte[] getBlobBytes(Blob blob) throws SQLException {
+        return blob.getBytes(1, (int) blob.length());
+    }
+
+    public static String convertClobToString(ResultSet resultSet, int i) throws SQLException {
         Clob clob = resultSet.getClob(i);
-        int clobLength = (int) clob.length();
-        return clob.getSubString(1L, clobLength);
+        return getClobString(clob);
+    }
+
+    public static String convertClobToString(ResultSet resultSet, String columnName) throws SQLException {
+        Clob clob = resultSet.getClob(columnName);
+        return getClobString(clob);
+    }
+
+    private static String getClobString(Clob clob) throws SQLException {
+        return clob.getSubString(1L, (int) clob.length());
+    }
+
+    public static int getColumnIndexByColumnName(ResultSet resultSet, String columnName) throws SQLException {
+        for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+            if (columnName.equals(resultSet.getMetaData().getColumnName(i))) {
+                return i;
+            }
+        }
+        return 0;
     }
 
     public static SQLStatement findByTaskName(List<SQLStatement> sqlStatements, String taskName) {

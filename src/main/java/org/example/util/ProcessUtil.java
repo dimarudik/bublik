@@ -103,12 +103,14 @@ public class ProcessUtil {
             if (fetchResultSet.next()) {
                 Connection connPostgresql = DatabaseUtil.getConnection(toProperties);
                 if (tableExists(connPostgresql, sqlStatement.toSchemaName(), sqlStatement.toTableName())) {
-//                logMessage = batchInsertToTarget(connPostgresql, fetchResultSet, sqlStatement, chunk);
+                    logMessage = fetchAndCopy(connPostgresql, fetchResultSet, sqlStatement, chunk);
+/*
                     if (hasLOB(fetchResultSet)) {
                         logMessage = batchInsertToTarget(connPostgresql, fetchResultSet, sqlStatement, chunk);
                     } else {
                         logMessage = fetchAndCopy(connPostgresql, fetchResultSet, sqlStatement, chunk);
                     }
+*/
                 }
                 DatabaseUtil.closeConnection(connPostgresql);
             } else {
@@ -161,7 +163,7 @@ public class ProcessUtil {
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
-                            case "text":
+                            case "bpchar":
                                 try {
                                     String s = fetchResultSet.getString(entry.getKey());
                                     row.setText(entry.getKey(), s);
@@ -169,9 +171,20 @@ public class ProcessUtil {
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
-                            case "bpchar":
+                            case "text":
                                 try {
-                                    String s = fetchResultSet.getString(entry.getKey());
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    if (o == null) {
+                                        row.setText(entry.getKey(), null);
+                                        break;
+                                    }
+                                    String s;
+                                    int cIndex = getColumnIndexByColumnName(fetchResultSet, entry.getKey());
+                                    if (cIndex != 0 && fetchResultSet.getMetaData().getColumnType(cIndex) == 2005) {
+                                        s = convertClobToString(fetchResultSet, entry.getKey());
+                                    } else {
+                                        s = fetchResultSet.getString(entry.getKey());
+                                    }
                                     row.setText(entry.getKey(), s);
                                     break;
                                 } catch (SQLException e) {
@@ -197,8 +210,7 @@ public class ProcessUtil {
                                         row.setNumeric(entry.getKey(), null);
                                         break;
                                     }
-                                    Double aDouble = fetchResultSet.getDouble(entry.getKey());
-                                    row.setNumeric(entry.getKey(), aDouble);
+                                    row.setNumeric(entry.getKey(), (Number) o);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
@@ -300,6 +312,19 @@ public class ProcessUtil {
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
+                            case "bytea":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    if (o == null) {
+                                        row.setDouble(entry.getKey(), null);
+                                        break;
+                                    }
+                                    byte[] bytes = convertBlobToBytes(fetchResultSet, entry.getKey());
+                                    row.setByteArray(entry.getKey(), bytes);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
                             default:
                                 throw new RuntimeException("There is no handler for type : " + entry.getValue());
                         }
@@ -363,7 +388,7 @@ public class ProcessUtil {
                         break;
                     case 2005:
                         if (fetchResultSet.getObject(i) != null) {
-                            statement.setBytes(i, convertClobToBytes(fetchResultSet, i).getBytes());
+                            statement.setBytes(i, convertClobToString(fetchResultSet, i).getBytes());
                         } else {
                             statement.setObject(i, null);
                         }
@@ -420,17 +445,3 @@ public class ProcessUtil {
         return false;
     }
 }
-
-/*
-        StringBuilder stringBuilder = new StringBuilder();
-        do {
-            for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-                stringBuilder.append(fetchResultSet.getObject(i) == null ? "\\N" : fetchResultSet.getObject(i));
-                if (i != fetchResultSet.getMetaData().getColumnCount()) {
-                    stringBuilder.append("\t");
-                }
-            }
-            stringBuilder.append("\n");
-            rowCount++;
-        } while (fetchResultSet.next());
-*/
