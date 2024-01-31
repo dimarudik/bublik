@@ -5,7 +5,7 @@ The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_pa
 The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format
 
 ## Supported Types
-| ORACLE                   | PostgreSQL (possible types)                          |
+| ORACLE                   | Postgresql (possible types)                          |
 |:-------------------------|:-----------------------------------------------------|
 | char, varchar, varchar2  | char, bpchar, varchar, text                          |
 | CLOB                     | varchar, text                                        |
