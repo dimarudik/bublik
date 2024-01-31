@@ -261,8 +261,8 @@ public class ProcessUtil {
                                         row.setDouble(entry.getKey(), null);
                                         break;
                                     }
-                                    float aFloat = fetchResultSet.getFloat(entry.getKey());
-                                    row.setDouble(entry.getKey(), Double.valueOf(aFloat));
+                                    Double aDouble = fetchResultSet.getDouble(entry.getKey());
+                                    row.setDouble(entry.getKey(), aDouble);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
@@ -321,6 +321,18 @@ public class ProcessUtil {
                                     }
                                     byte[] bytes = convertBlobToBytes(fetchResultSet, entry.getKey());
                                     row.setByteArray(entry.getKey(), bytes);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
+                            case "bool":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    if (o == null) {
+                                        row.setLong(entry.getKey(), null);
+                                        break;
+                                    }
+                                    row.setBoolean(entry.getKey(), null);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);

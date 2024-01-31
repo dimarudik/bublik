@@ -4,6 +4,21 @@
 The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_parallel_execute` to prepare chunks)
 The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format
 
+## Supported Types
+
+| ORACLE                   | PostgreSQL (possible types)                          |
+|:-------------------------|:-----------------------------------------------------|
+| char, varchar, varchar2  | char, bpchar, varchar, text                          |
+| CLOB                     | varchar, text                                        |
+| BLOB                     | bytea                                                |
+| date                     | date, timestamp, timestamptz                         |
+| timestamp                | timestamp, timestamptz                               |
+| timestamp with time zone | timestamptz                                          |
+| number                   | numeric, smallint, bigint, integer, double precision |
+
+
+
+
 ## The Task
 We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle to Postgresql
 
