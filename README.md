@@ -1,8 +1,9 @@
 
-# Is a tool to copy data from Oracle to Postgresql
+# Tool for Data Transfer from Oracle to PostgreSQL
 
-The fastest way to obtain data from Oracle is to get it by `ROWID` (use `dbms_parallel_execute` to prepare chunks)
-The fastest way to put data to Postgresql is to insert it by using `COPY` in binary format
+This tool facilitates the efficient transfer of data from Oracle to PostgreSQL.
+The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
+Conversely, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
 ## Supported Types
 | ORACLE                   | Postgresql (possible types)                          |
@@ -16,11 +17,11 @@ The fastest way to put data to Postgresql is to insert it by using `COPY` in bin
 | number                   | numeric, smallint, bigint, integer, double precision |
 
 ## The Task
-We need to transfer two tables (TABLE1, TABLE2) of ORASCHEMA from Oracle to Postgresql
+The objective is to migrate two tables (TABLE1 and TABLE2) from an Oracle schema (ORASCHEMA) to a PostgreSQL database.
 
 ### Step 1
-<ul><li>create empty tables in Postgresql db</li></ul>
-<ul><li>build the jar file</li></ul>
+<ul><li>Create empty tables in the Postgresql database</li></ul>
+<ul><li>Build the jar file</li></ul>
 
 ```shell
 git clone https://github.com/dimarudik/ora2pgsql.git
@@ -29,7 +30,7 @@ mvn clean package -DskipTests
 cd target
 mkdir logs
 ```
-<ul><li>prepare file of connection parameters props.yaml</li></ul>
+<ul><li>Prepare the connection parameters file props.yaml</li></ul>
 
 ```yaml
 threadCount: 20
@@ -43,7 +44,7 @@ toProperties:
   user: pgowner
   password: pgowner
 ```
-<ul><li>prepare file of table parameters rules.json</li></ul>
+<ul><li>Prepare the table parameters file rules.json</li></ul>
 
 ```json
 [
@@ -69,10 +70,8 @@ toProperties:
 ```
 
 ### Step 2
-Stop changes of movable tables at the source db (Oracle)<br>
-Prepare chunks of tables in Oracle<br> 
-Do it by the same user as you are going to connect to Oracle via `ora2pgsql` tool<br>
-(see `fromProperties` in `props.yaml`)
+Halt any changes to the movable tables in the source database (Oracle)<br>
+Prepare data chunks in Oracle using the same user credentials specified in `ora2pgsql` tool (`fromProperties` in `props.yaml`):
 
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
@@ -85,14 +84,14 @@ exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE2_TASK',
 ```
 
 ### Step 3
-Run
+Run the tool
 ```
 java -jar ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
 ```
 
-<ul><li>to avoid heap pressure please use -Xmx16g</li></ul>
-<ul><li>see log/app.log</li></ul>
-<ul><li>progress in Oracle:</li></ul>
+<ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
+<ul><li>Monitor the logs at `log/app.log`.</li></ul>
+<ul><li>Track progress in Oracle:</li></ul>
 
 ```
 select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
