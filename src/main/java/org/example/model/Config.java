@@ -3,7 +3,7 @@ package org.example.model;
 import java.util.HashSet;
 import java.util.List;
 
-public record SQLStatement (
+public record Config(
         String numberColumn,
         String fromSchemaName,
         String fromTableName,

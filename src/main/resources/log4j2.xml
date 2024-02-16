@@ -9,5 +9,8 @@
         <Root level="trace">
             <AppenderRef ref="MainLog"/>
         </Root>
+<!--
+        <Logger name="org.postgresql" level="all"/>
+-->
     </Loggers>
 </Configuration>

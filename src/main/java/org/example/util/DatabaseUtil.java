@@ -12,9 +12,10 @@ public class DatabaseUtil {
     public static Connection getConnection(Properties properties) {
         Connection connection = null;
         try {
+            DriverManager.setLoginTimeout(1);
             connection = DriverManager.getConnection(properties.getProperty("url"), properties);
         } catch (SQLException e) {
-            logger.error(e.getMessage());
+            logger.error(e);
         }
         return connection;
     }
@@ -23,7 +24,7 @@ public class DatabaseUtil {
         try {
             connection.close();
         } catch (SQLException e) {
-            logger.error(e.getMessage());
+            logger.error(e);
         }
     }
 }

@@ -2,79 +2,78 @@ package org.example.task;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.example.constants.SourceContextHolder;
 import org.example.model.Chunk;
+import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
-import org.example.model.SQLStatement;
+import org.example.service.ChunkService;
+import org.example.service.ChunkServiceImpl;
+import org.example.util.CopyToPGInitiator;
 import org.example.util.DatabaseUtil;
-import org.example.util.ProcessUtil;
-import org.postgresql.PGConnection;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
-import static org.example.util.SQLUtil.buildSQLFetchStatement;
+import static org.example.constants.SQLConstants.LABEL_ORACLE;
+import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
+import static org.example.util.SQLUtil.buildOraSQLFetchStatement;
+import static org.example.util.SQLUtil.buildPGSQLFetchStatement;
 
-public class Worker implements Callable<StringBuffer> {
+public class Worker implements Callable<LogMessage> {
     private final Properties fromProperties;
     private final Properties toProperties;
-    private final SQLStatement sqlStatement;
     private final Chunk chunk;
+    private final SourceContextHolder contextHolder;
     private final Map<String, Integer> columnsFromDB;
+
+    private LogMessage logMessage;
     private static final Logger logger = LogManager.getLogger(Worker.class);
 
     public Worker(Properties fromProperties,
                   Properties toProperties,
-                  SQLStatement sqlStatement,
                   Chunk chunk,
+                  SourceContextHolder contextHolder,
                   Map<String, Integer> columnsFromDB) {
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
-        this.sqlStatement = sqlStatement;
         this.chunk = chunk;
+        this.contextHolder = contextHolder;
         this.columnsFromDB = columnsFromDB;
     }
 
     @Override
-    public StringBuffer call() {
+    public LogMessage call() {
         try {
-            Connection connOracle = DatabaseUtil.getConnection(fromProperties);
-            String query = buildSQLFetchStatement(sqlStatement, columnsFromDB);
-//            System.out.println(query);
-            PreparedStatement statement = connOracle.prepareStatement(query);
-            ResultSet fetchResultSet = fetchResultSetFromDB(statement);
-            RunnerResult runnerResult =
-                    new ProcessUtil().initiateProcessToDatabase(toProperties, fetchResultSet, sqlStatement, chunk);
-            fetchResultSet.close();
-            statement.close();
-            if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-                markChunkAsProceed(connOracle);
+            Connection connection = DatabaseUtil.getConnection(fromProperties);
+            ChunkService chunkService = new ChunkServiceImpl();
+            String query = null;
+            if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)) {
+                query = buildOraSQLFetchStatement(chunk.config(), columnsFromDB);
+            } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
+                query = buildPGSQLFetchStatement(chunk.config(),
+                        columnsFromDB,
+                        chunk.startPage(),
+                        chunk.endPage());
             }
-            DatabaseUtil.closeConnection(connOracle);
+            ResultSet fetchResultSet = chunkService.getChunkOfData(chunk, connection, contextHolder, query);
+            RunnerResult runnerResult =
+                    new CopyToPGInitiator()
+                            .initiateProcessToDatabase(toProperties, fetchResultSet, chunk, contextHolder);
+            logMessage = runnerResult.logMessage();
+            fetchResultSet.close();
+//            preparedStatement.close();
+            if (runnerResult.logMessage() != null && runnerResult.e() == null) {
+                chunkService.markChunkAsProceed(chunk, connection, contextHolder);
+            }
+            DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
+            e.printStackTrace();
             logger.error(e.getMessage());
         }
-        return new StringBuffer();
-    }
-
-    private ResultSet fetchResultSetFromDB(PreparedStatement statement) throws SQLException {
-        if (sqlStatement.numberColumn() == null) {
-            statement.setString(1, chunk.startRowId());
-            statement.setString(2, chunk.endRowId());
-        } else {
-            statement.setLong(1, chunk.startId());
-            statement.setLong(2, chunk.endId());
-        }
-        return statement.executeQuery();
-    }
-
-    private void markChunkAsProceed(Connection connection) throws SQLException {
-        CallableStatement callableStatement =
-                connection.prepareCall("CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,2)");
-        callableStatement.setString(1, sqlStatement.fromTaskName());
-        callableStatement.setInt(2, chunk.chunkId());
-        callableStatement.execute();
-        callableStatement.close();
+        return logMessage;
     }
 }

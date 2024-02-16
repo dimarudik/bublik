@@ -1,8 +1,12 @@
 package org.example.model;
 
-public record Chunk(Integer chunkId,
-                    String startRowId,
-                    String endRowId,
-                    Long startId,
-                    Long endId,
-                    SQLStatement sqlStatement) {}
+public interface Chunk {
+    Integer chunkId();
+    String startRowId();
+    String endRowId();
+    Long startId();
+    Long endId();
+    Long startPage();
+    Long endPage();
+    Config config();
+}

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Ora2PGProperties;
-import org.example.model.SQLStatement;
+import org.example.model.Config;
 import org.example.util.ProcessUtil;
 
 import java.nio.file.Paths;
@@ -23,14 +23,14 @@ public class App {
             Ora2PGProperties properties =
                     mapperYAML.readValue(Paths.get(jdbcProperties).toFile(),
                             Ora2PGProperties.class);
-            List<SQLStatement> sqlStatementList =
+            List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(transRules).toFile(),
-                            SQLStatement[].class));
+                            Config[].class));
             new ProcessUtil()
                     .initiateProcessFromDatabase(
                             properties.getFromProperty(),
                             properties.getToProperty(),
-                            sqlStatementList,
+                            configList,
                             properties.getThreadCount());
         } catch (Exception e) {
             logger.error(e.getMessage());
