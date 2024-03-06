@@ -181,6 +181,19 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
+                            case "float4":
+                                try {
+                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    if (o == null) {
+                                        row.setDouble(entry.getKey(), null);
+                                        break;
+                                    }
+                                    Float aFloat = fetchResultSet.getFloat(entry.getKey());
+                                    row.setFloat(entry.getKey(), aFloat);
+                                    break;
+                                } catch (SQLException e) {
+                                    logger.error("{} {}", entry.getKey(), e);
+                                }
                             case "float8":
                                 try {
                                     Object o = fetchResultSet.getObject(entry.getKey());
