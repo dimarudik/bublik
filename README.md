@@ -24,8 +24,8 @@ The objective is to migrate two tables (TABLE1 and TABLE2) from an Oracle schema
 <ul><li>Build the jar file</li></ul>
 
 ```shell
-git clone https://github.com/dimarudik/ora2pgsql.git
-cd ora2pgsql
+git clone https://github.com/dimarudik/bublik.git
+cd bublik
 mvn clean package -DskipTests
 cd target
 mkdir logs
@@ -87,7 +87,7 @@ exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE2_TASK',
 ### Step 3
 Run the tool
 ```
-java -jar ora2pgsql-1.1-SNAPSHOT.jar props.yaml rules.json 
+java -jar bublik-1.2.jar props.yaml rules.json 
 ```
 
 <ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
