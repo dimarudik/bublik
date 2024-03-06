@@ -68,6 +68,7 @@ toProperties:
   }
 ]
 ```
+>  **WARNING**: `excludedSourceColumns` and `excludedTargetColumns` are case sensetive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE") and lower case for Postgres (e.g. "column_name"). In other cases use upper case.
 
 ### Step 2
 Halt any changes to the movable tables in the source database (Oracle)<br>
