@@ -1,0 +1,93 @@
+# LICENSE UPL 1.0
+#
+# Copyright (c) 2018, 2022 Oracle and/or its affiliates.
+#
+# ORACLE DOCKERFILES PROJECT
+# --------------------------
+# This is the Dockerfile for Oracle Database 21c Express Edition
+# 
+# REQUIRED FILES TO BUILD THIS IMAGE
+# ----------------------------------
+# None
+#
+# HOW TO BUILD THIS IMAGE
+# -----------------------
+# Run: 
+#      $ docker build -t oracle/database:21.3.0-xe -f Dockerfile.xe .
+#
+#
+# Pull base image
+# ---------------
+FROM oraclelinux:7-slim
+
+# Labels
+# ------
+LABEL "provider"="Oracle"                                               \
+      "issues"="https://github.com/oracle/docker-images/issues"         \
+      "volume.data"="/opt/oracle/oradata"                               \
+      "volume.setup.location1"="/opt/oracle/scripts/setup"              \
+      "volume.setup.location2"="/docker-entrypoint-initdb.d/setup"      \
+      "volume.startup.location1"="/opt/oracle/scripts/startup"          \
+      "volume.startup.location2"="/docker-entrypoint-initdb.d/startup"  \
+      "port.listener"="1521"                                            \
+      "port.oemexpress"="5500"                                          \
+      "port.apex"="8080"
+
+# Environment variables required for this build (do NOT change)
+# -------------------------------------------------------------
+ENV ORACLE_BASE=/opt/oracle \
+    ORACLE_HOME=/opt/oracle/product/21c/dbhomeXE \
+    ORACLE_BASE_HOME=/opt/oracle/homes/OraDBHome21cXE \
+    ORACLE_SID=XE \
+    INSTALL_FILE_1="https://download.oracle.com/otn-pub/otn_software/db-express/oracle-database-xe-21c-1.0-1.ol7.x86_64.rpm" \
+    RUN_FILE="runOracle.sh" \
+    PWD_FILE="setPassword.sh" \
+    CREATE_DB_FILE="createDB.sh" \
+    USER_SCRIPTS_FILE="runUserScripts.sh" \
+    CONF_FILE="oracle-xe-21c.conf" \
+    CHECK_SPACE_FILE="checkSpace.sh" \
+    CHECK_DB_FILE="checkDBStatus.sh" \
+    SETUP_LINUX_FILE="setupLinuxEnv.sh" \
+    CONFIG_TCPS_FILE="configTcps.sh" \
+    INSTALL_DIR="$HOME/install" \
+    ORACLE_DOCKER_INSTALL="true" \
+    CHECKPOINT_FILE_EXTN=".created"
+
+# Use second ENV so that variable get substituted
+ENV PATH=$ORACLE_HOME/bin:$PATH
+
+# Copy binaries
+# -------------
+COPY $CHECK_SPACE_FILE $CONF_FILE $SETUP_LINUX_FILE $RUN_FILE $PWD_FILE $CHECK_DB_FILE $CREATE_DB_FILE $USER_SCRIPTS_FILE $CONFIG_TCPS_FILE $INSTALL_DIR/
+
+WORKDIR $INSTALL_DIR
+
+# hadolint ignore=DL3003,DL3033,SC2035
+RUN mkdir -p $ORACLE_BASE && \
+    mv $RUN_FILE $PWD_FILE $CHECK_DB_FILE $CREATE_DB_FILE $USER_SCRIPTS_FILE $CONFIG_TCPS_FILE $ORACLE_BASE/ && \
+    chmod ug+x *.sh && \
+    sync && \
+    ./$CHECK_SPACE_FILE && \
+    yum -y install expect && \
+    ./$SETUP_LINUX_FILE && \
+    chown -R oracle:oinstall $ORACLE_BASE /home/oracle && \
+    sed -i -r 's/(^session\s+include\s+system-auth)/# \1/' /etc/pam.d/su && \
+    unbuffer yum -y install $INSTALL_FILE_1 && \
+    yum -y remove expect && \
+    rm -rf /var/cache/yum && \
+    rm -rf /var/tmp/yum-* && \
+    mv $CONF_FILE /etc/sysconfig/ && \
+    cd $HOME && \
+    rm -rf $INSTALL_DIR && \
+    $ORACLE_BASE/oraInventory/orainstRoot.sh && \
+    $ORACLE_HOME/root.sh && \
+    echo 'export ORACLE_SID=XE' >> /home/oracle/.bashrc && \
+    chown oracle.oinstall /home/oracle/.bashrc
+
+USER oracle
+WORKDIR /home/oracle
+
+HEALTHCHECK --interval=1m --start-period=5m --timeout=30s \
+   CMD "$ORACLE_BASE/$CHECK_DB_FILE" >/dev/null || exit 1
+
+CMD [ "/bin/bash", "-c", "$ORACLE_BASE/$RUN_FILE" ]
