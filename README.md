@@ -17,7 +17,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
-## The Task
+## 1. Oracle To PostgreSQL
 The objective is to migrate two tables (TABLE1 and TABLE2) from an Oracle schema (ORASCHEMA) to a PostgreSQL database.
 
 
@@ -153,3 +153,6 @@ java -jar bublik-1.2.jar props.yaml rules.json
 select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
     from dba_parallel_execute_chunks where task_owner = 'ORAOWNER' group by  status;
 ```
+
+## 2. PostgreSQL To PostgreSQL
+The objective is to migrate two tables (TABLE1 and TABLE2) from one PostgreSQL database to another.
