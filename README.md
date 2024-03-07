@@ -1,5 +1,5 @@
 
-# Tool for Data Transfer from Oracle to PostgreSQL OR from PostgreSQL to PostgreSQL
+# Tool for Data Transfer from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL
 
 This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
@@ -18,13 +18,13 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | number                   | numeric, smallint, bigint, integer, double precision |
 
 ## 1. Oracle To PostgreSQL
-The objective is to migrate two tables (TABLE1 and TABLE2) from an Oracle schema (ORASCHEMA) to a PostgreSQL database.
+The objective is to migrate table TABLE1 from an Oracle schema TEST to a PostgreSQL database.
 
 
 
 ### Step 1
 
-<ul><li>Prepare Oracle environment</li></ul>
+<ul><li>Prepare Oracle environment in docker for testing</li></ul>
 
 ```
 git clone https://github.com/dimarudik/bublik.git
@@ -43,7 +43,7 @@ docker run --name oracle \
     -d oracle/database:21.3.0-xe
 ```
 
-<ul><li>Create the source tables</li></ul>
+<ul><li>How to connect</li></ul>
 
 ```
 sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
@@ -58,6 +58,35 @@ mkdir logs
 ```
 
 <ul><li>Create empty tables in the Postgresql database</li></ul>
+
+>  **WARNING**: Will be created during postgre docker startup
+
+```
+docker run --name postgres \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
+```
+
+<ul><li>How to connect</li></ul>
+
+```
+psql postgresql://test:test@localhost/postgres
+```
+
 <ul><li>Prepare the connection parameters file props.yaml</li></ul>
 
 ```yaml
@@ -99,31 +128,6 @@ toProperties:
 ]
 ```
 >  **WARNING**: `excludedSourceColumns` and `excludedTargetColumns` are case sensetive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE") and lower case for Postgres (e.g. "column_name"). In other cases use upper case.
-
-
-```
-docker run --name postgres \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=postgres \
-        -e POSTGRES_DB=postgres \
-        -p 5432:5432 \
-        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
-        -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
-        -c max_connections=200 \
-        -c logging_collector=on \
-        -c log_directory=pg_log \
-        -c log_filename=%u_%a.log \
-        -c log_min_duration_statement=3 \
-        -c log_statement=all \
-        -c auto_explain.log_min_duration=0 \
-        -c auto_explain.log_analyze=true
-```
-
-```
-psql postgresql://test:test@localhost/postgres
-```
 
 ### Step 2
 Halt any changes to the movable tables in the source database (Oracle)<br>
