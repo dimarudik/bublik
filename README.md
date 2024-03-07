@@ -27,6 +27,11 @@ The objective is to migrate two tables (TABLE1 and TABLE2) from an Oracle schema
 <ul><li>Prepare Oracle environment</li></ul>
 
 ```
+git clone https://github.com/dimarudik/bublik.git
+cd bublik
+```
+
+```
 ./dockerfiles/buildContainerImage.sh -x -v 21.3.0
 ```
 
@@ -47,8 +52,6 @@ sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521
 <ul><li>Build the jar file</li></ul>
 
 ```shell
-git clone https://github.com/dimarudik/bublik.git
-cd bublik
 mvn clean package -DskipTests
 cd target
 mkdir logs
