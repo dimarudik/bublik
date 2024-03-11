@@ -23,5 +23,5 @@ insert into test.table1
         utl_raw.cast_to_raw('Hi, I''m using CLOB to bytea') as byteablob,
         to_clob('Hi, I''m using CLOB to text') as textclob,
         null as exclude_me
-    from dual connect by level < 100000);
+    from dual connect by level < 1000000);
 commit;

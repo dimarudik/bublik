@@ -18,7 +18,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | number                   | numeric, smallint, bigint, integer, double precision |
 
 ## 1. Oracle To PostgreSQL
-The objective is to migrate table TABLE1 from an Oracle schema TEST to a PostgreSQL database.
+The objective is to migrate table `TABLE1` from an Oracle schema `TEST` to a PostgreSQL database.
 
 
 
@@ -42,7 +42,7 @@ docker run --name oracle \
     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
     -d oracle/database:21.3.0-xe
 ```
->  **WARNING**: The source tables will be created and fulfilled during oracle docker container startup
+>  **WARNING**: The source table `TEST.TABLE1` will be created and fulfilled during oracle docker container startup
 
 <ul><li>How to connect</li></ul>
 
@@ -72,7 +72,7 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
->  **WARNING**: The empty target tables will be created during postgre docker container startup
+>  **WARNING**: The empty target table `PUBLIC.TABLE1` will be created during postgre docker container startup
 
 <ul><li>How to connect</li></ul>
 
@@ -132,7 +132,7 @@ begin
                                                     table_owner => 'TEST',
                                                     table_name  => 'TABLE1',
                                                     by_row => TRUE,
-                                                    chunk_size  => 10000);
+                                                    chunk_size  => 100000 );
 end;
 /
 ```
