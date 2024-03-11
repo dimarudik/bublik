@@ -2,6 +2,7 @@ package org.example.util;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.example.constants.PGKeywords;
 import org.example.model.OraChunk;
 import org.example.model.PGChunk;
 import org.example.model.Config;
@@ -17,6 +18,7 @@ public class ColumnUtil {
     private static final Logger logger = LogManager.getLogger(ColumnUtil.class);
 
     // https://www.postgresql.org/docs/current/sql-keywords-appendix.html
+    @Deprecated
     private static final Set<String> KEYWORDS = Set.of(
             "ALL",
             "ANALYSE",
@@ -135,7 +137,8 @@ public class ColumnUtil {
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4).toUpperCase();
                 String columnType = resultSet.getString(6);
-                if(KEYWORDS.contains(columnName)){
+//                if(KEYWORDS.contains(columnName)){
+                if(PGKeywords.contains(columnName)){
                     columnName = '"' + columnName.toLowerCase() + '"';
                 }
                 columnMap.put(columnName, columnType.equals("bigserial") ? "bigint" : columnType);
