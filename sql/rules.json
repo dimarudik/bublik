@@ -1,0 +1,12 @@
+[
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "TABLE1",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TABLE1",
+    "fetchHintClause" : "/*+ no_index(TABLE1) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE1_TASK",
+    "excludedSourceColumns" : ["exclude_me"]
+  }
+]
