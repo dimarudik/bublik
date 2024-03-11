@@ -105,14 +105,14 @@ toProperties:
     "fromTableName" : "TABLE1",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
-    "fetchHintClause" : "/*+ parallel(2) no_index(TABLE1) */",
+    "fetchHintClause" : "/*+ no_index(TABLE1) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
     "excludedSourceColumns" : ["exclude_me"]
   }
 ]
 ```
->  **WARNING**: `excludedSourceColumns` are case sensitive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE").
+>  **WARNING**: `excludedSourceColumns` are case-sensitive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE").
 
 <ul><li>Build the jar file</li></ul>
 
