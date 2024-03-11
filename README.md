@@ -50,6 +50,8 @@ docker run --name oracle \
 sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
 ```
 
+<ul><li>Prepare PostgreSQL environment</li></ul>
+
 ```
 docker run --name postgres \
         -e POSTGRES_USER=postgres \
@@ -70,7 +72,7 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
->  **WARNING**: The target tables will be created during postgre docker container startup
+>  **WARNING**: The empty target tables will be created during postgre docker container startup
 
 <ul><li>How to connect</li></ul>
 
@@ -110,7 +112,7 @@ toProperties:
   }
 ]
 ```
->  **WARNING**: `excludedSourceColumns` are case sensetive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE") and lower case for Postgres (e.g. "column_name"). In other cases use upper case.
+>  **WARNING**: `excludedSourceColumns` are case sensitive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE").
 
 <ul><li>Build the jar file</li></ul>
 
@@ -120,12 +122,19 @@ mvn clean package -DskipTests
 
 ### Step 2
 Halt any changes to the movable tables in the source database (Oracle)<br>
-Prepare data chunks in Oracle using the same user credentials specified in `ora2pgsql` tool (`fromProperties` in `props.yaml`):
+Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `props.yaml`):
 
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
-exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE1_TASK', table_owner => 'TEST', table_name  => 'TABLE1', by_row => TRUE, chunk_size  => 10000);
+begin 
+    DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
+                                                    table_owner => 'TEST',
+                                                    table_name  => 'TABLE1',
+                                                    by_row => TRUE,
+                                                    chunk_size  => 10000);
+end;
+/
 ```
 
 ### Step 3
@@ -135,12 +144,12 @@ java -jar ./target/bublik-1.2.jar ./sql/props.yaml ./sql/rules.json
 ```
 
 <ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
-<ul><li>Monitor the logs at `log/app.log`.</li></ul>
+<ul><li>Monitor the logs at `logs/app.log`.</li></ul>
 <ul><li>Track progress in Oracle:</li></ul>
 
 ```
 select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-    from user_parallel_execute_chunks group by  status;
+    from user_parallel_execute_chunks group by status;
 ```
 
 ## 2. PostgreSQL To PostgreSQL
