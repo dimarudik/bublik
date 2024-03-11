@@ -28,7 +28,7 @@ The objective is to migrate table TABLE1 from an Oracle schema TEST to a Postgre
 
 ```
 git clone https://github.com/dimarudik/bublik.git
-cd bublik
+cd ./bublik
 ```
 
 ```
@@ -42,24 +42,13 @@ docker run --name oracle \
     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
     -d oracle/database:21.3.0-xe
 ```
+>  **WARNING**: The source tables will be created and fulfilled during oracle docker container startup
 
 <ul><li>How to connect</li></ul>
 
 ```
 sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
 ```
-
-<ul><li>Build the jar file</li></ul>
-
-```shell
-mvn clean package -DskipTests
-cd target
-mkdir logs
-```
-
-<ul><li>Create empty tables in the Postgresql database</li></ul>
-
->  **WARNING**: Will be created during postgre docker startup
 
 ```
 docker run --name postgres \
@@ -81,6 +70,8 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
+>  **WARNING**: The target tables will be created during postgre docker container startup
+
 <ul><li>How to connect</li></ul>
 
 ```
@@ -90,16 +81,16 @@ psql postgresql://test:test@localhost/postgres
 <ul><li>Prepare the connection parameters file props.yaml</li></ul>
 
 ```yaml
-threadCount: 20
+threadCount: 10
 
 fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=oracle-host)(protocol=tcp)(port=1521))(connect_data=(service_name=ORA)))
-  user: oraowner
-  password: oraowner
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
+  user: test
+  password: test
 toProperties:
-  url: jdbc:postgresql://postgres-host:5432/db
-  user: pgowner
-  password: pgowner
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
 ```
 
 
@@ -107,27 +98,25 @@ toProperties:
 
 ```json
 [
-  { 
-    "fromSchemaName" : "ORASCHEMA", 
-    "fromTableName" : "TABLE1", 
-    "toSchemaName" : "PGOWNER", 
-    "toTableName" : "TABLE1", 
-    "fetchHintClause" : "/*+ parallel(2) */", 
-    "fetchWhereClause" : "1 = 1", 
-    "fromTaskName" : "TABLE1_TASK"
-  },
   {
-    "fromSchemaName" : "ORASCHEMA",
-    "fromTableName" : "TABLE2",
-    "toSchemaName" : "PGOWNER",
-    "toTableName" : "TABLE2",
-    "fetchHintClause" : "/*+ parallel(2) */",
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "TABLE1",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TABLE1",
+    "fetchHintClause" : "/*+ parallel(2) no_index(TABLE1) */",
     "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE2_TASK"
+    "fromTaskName" : "TABLE1_TASK",
+    "excludedSourceColumns" : ["exclude_me"]
   }
 ]
 ```
->  **WARNING**: `excludedSourceColumns` and `excludedTargetColumns` are case sensetive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE") and lower case for Postgres (e.g. "column_name"). In other cases use upper case.
+>  **WARNING**: `excludedSourceColumns` are case sensetive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE") and lower case for Postgres (e.g. "column_name"). In other cases use upper case.
+
+<ul><li>Build the jar file</li></ul>
+
+```shell
+mvn clean package -DskipTests
+```
 
 ### Step 2
 Halt any changes to the movable tables in the source database (Oracle)<br>
@@ -136,17 +125,13 @@ Prepare data chunks in Oracle using the same user credentials specified in `ora2
 ```
 exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
 exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
-exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE1_TASK', table_owner => 'ORAOWNER', table_name  => 'TABLE1', by_row => TRUE, chunk_size  => 100000);
-
-exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE2_TASK');
-exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE2_TASK');
-exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE2_TASK', table_owner => 'ORAOWNER', table_name  => 'TABLE2', by_row => TRUE, chunk_size  => 100000);
+exec DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (task_name   => 'TABLE1_TASK', table_owner => 'TEST', table_name  => 'TABLE1', by_row => TRUE, chunk_size  => 10000);
 ```
 
 ### Step 3
 Run the tool
 ```
-java -jar bublik-1.2.jar props.yaml rules.json 
+java -jar ./target/bublik-1.2.jar ./sql/props.yaml ./sql/rules.json
 ```
 
 <ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
@@ -155,7 +140,7 @@ java -jar bublik-1.2.jar props.yaml rules.json
 
 ```
 select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-    from dba_parallel_execute_chunks where task_owner = 'ORAOWNER' group by  status;
+    from user_parallel_execute_chunks group by  status;
 ```
 
 ## 2. PostgreSQL To PostgreSQL
