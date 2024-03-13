@@ -125,10 +125,10 @@ Halt any changes to the movable tables in the source database (Oracle)<br>
 Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `props.yaml`):
 
 ```
-exec DBMS_PARALLEL_EXECUTE.drop_task(task_name => 'TABLE1_TASK');
-exec DBMS_PARALLEL_EXECUTE.create_task (task_name => 'TABLE1_TASK');
+exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
+exec dbms_parallel_execute.create_task (task_name => 'TABLE1_TASK');
 begin 
-    DBMS_PARALLEL_EXECUTE.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
+    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
                                                     table_owner => 'TEST',
                                                     table_name  => 'TABLE1',
                                                     by_row => TRUE,
