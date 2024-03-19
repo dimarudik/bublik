@@ -32,7 +32,9 @@ public class ProcessUtil {
     public void initiateProcessFromDatabase(Properties fromProperties,
                                             Properties toProperties,
                                             List<Config> configs,
-                                            Integer threads) {
+                                            Integer threads,
+                                            Boolean initPGChunks,
+                                            Boolean copyPGChunks) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
@@ -71,30 +73,38 @@ public class ProcessUtil {
                         }
                 );
             } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
-                fillPGChunks(connection, configs);
-                Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
-                chunkMap.forEach((key, chunk) -> {
-                            try {
-                                if (tableExists(connection,
-                                        chunk.config().fromSchemaName(),
-                                        chunk.config().fromTableName())) {
-                                    tasks.add(
-                                            executorService.
-                                                    submit(new Worker(
-                                                            fromProperties,
-                                                            toProperties,
-                                                            chunk,
-                                                            contextHolder,
-                                                            readPGSourceColumns(connection, chunk.config())
-                                                    ))
-                                    );
+                if (initPGChunks != null && initPGChunks) {
+                    fillPGChunks(connection, configs);
+                } else {
+                    return;
+                }
+                if (copyPGChunks != null && copyPGChunks) {
+                    Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
+                    chunkMap.forEach((key, chunk) -> {
+                                try {
+                                    if (tableExists(connection,
+                                            chunk.config().fromSchemaName(),
+                                            chunk.config().fromTableName())) {
+                                        tasks.add(
+                                                executorService.
+                                                        submit(new Worker(
+                                                                fromProperties,
+                                                                toProperties,
+                                                                chunk,
+                                                                contextHolder,
+                                                                readPGSourceColumns(connection, chunk.config())
+                                                        ))
+                                        );
+                                    }
+                                } catch (SQLException e) {
+                                    e.printStackTrace();
+                                    logger.error(e.getMessage());
                                 }
-                            } catch (SQLException e) {
-                                e.printStackTrace();
-                                logger.error(e.getMessage());
                             }
-                        }
-                );
+                    );
+                } else {
+                    return;
+                }
             } else return;
             futureProceed(tasks);
 

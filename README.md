@@ -84,6 +84,8 @@ psql postgresql://test:test@localhost/postgres
 
 ```yaml
 threadCount: 10
+initPGChunks: true
+copyPGChunks: true
 
 fromProperties:
   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))

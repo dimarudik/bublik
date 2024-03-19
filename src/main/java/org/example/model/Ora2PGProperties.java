@@ -6,8 +6,26 @@ import java.util.Properties;
 //@Data
 public class Ora2PGProperties {
     private int threadCount;
+    private Boolean initPGChunks;
+    private Boolean copyPGChunks;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
+
+    public Boolean getCopyPGChunks() {
+        return copyPGChunks;
+    }
+
+    public void setCopyPGChunks(Boolean copyPGChunks) {
+        this.copyPGChunks = copyPGChunks;
+    }
+
+    public Boolean getInitPGChunks() {
+        return initPGChunks;
+    }
+
+    public void setInitPGChunks(Boolean initPGChunks) {
+        this.initPGChunks = initPGChunks;
+    }
 
     public int getThreadCount() {
         return threadCount;

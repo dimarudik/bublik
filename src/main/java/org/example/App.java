@@ -31,7 +31,9 @@ public class App {
                             properties.getFromProperty(),
                             properties.getToProperty(),
                             configList,
-                            properties.getThreadCount());
+                            properties.getThreadCount(),
+                            properties.getInitPGChunks(),
+                            properties.getCopyPGChunks());
         } catch (Exception e) {
             logger.error(e.getMessage());
         }
