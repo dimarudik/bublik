@@ -17,67 +17,6 @@ import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 public class ColumnUtil {
     private static final Logger logger = LogManager.getLogger(ColumnUtil.class);
 
-    // https://www.postgresql.org/docs/current/sql-keywords-appendix.html
-    @Deprecated
-    private static final Set<String> KEYWORDS = Set.of(
-            "ALL",
-            "ANALYSE",
-            "ANALYZE",
-            "AND",
-            "ANY",
-            "ASC",
-            "ASYMMETRIC",
-            "BOTH",
-            "CASE",
-            "CAST",
-            "CHECK",
-            "COLLATE",
-            "COLUMN",
-            "CONSTRAINT",
-            "CURRENT_CATALOG",
-            "CURRENT_DATE",
-            "CURRENT_ROLE",
-            "CURRENT_TIME",
-            "CURRENT_TIMESTAMP",
-            "CURRENT_USER",
-            "DEFAULT",
-            "DEFERRABLE",
-            "DESC",
-            "DISTINCT",
-            "DO",
-            "ELSE",
-            "END",
-            "FALSE",
-            "FOREIGN",
-            "IN",
-            "INITIALLY",
-            "LATERAL",
-            "LEADING",
-            "LOCALTIME",
-            "LOCALTIMESTAMP",
-            "NOT",
-            "NULL",
-            "ONLY",
-            "OR",
-            "PLACING",
-            "PRIMARY",
-            "REFERENCES",
-            "SELECT",
-            "SESSION_USER",
-            "SOME",
-            "SYMMETRIC",
-            "SYSTEM_USER",
-            "TABLE",
-            "THEN",
-            "TRAILING",
-            "TRUE",
-            "UNIQUE",
-            "USER",
-            "USING",
-            "VARIADIC",
-            "WHEN"
-    );
-
     public static Map<String, Integer> readOraSourceColumns(Connection connection, Config config) {
         Map<String, Integer> columnMap = new TreeMap<>();
         ResultSet resultSet;
@@ -137,10 +76,11 @@ public class ColumnUtil {
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4).toUpperCase();
                 String columnType = resultSet.getString(6);
-//                if(KEYWORDS.contains(columnName)){
+/*
                 if(PGKeywords.contains(columnName)){
                     columnName = '"' + columnName.toLowerCase() + '"';
                 }
+*/
                 columnMap.put(columnName, columnType.equals("bigserial") ? "bigint" : columnType);
 //                System.out.println(columnName.toUpperCase() + " : " + (columnType.equals("bigserial") ? "bigint" : columnType));
             }
