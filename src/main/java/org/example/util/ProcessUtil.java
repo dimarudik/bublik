@@ -75,8 +75,6 @@ public class ProcessUtil {
             } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
                 if (initPGChunks != null && initPGChunks) {
                     fillPGChunks(connection, configs);
-                } else {
-                    return;
                 }
                 if (copyPGChunks != null && copyPGChunks) {
                     Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
