@@ -27,14 +27,13 @@ public class CopyToPGInitiator {
 
     public RunnerResult initiateProcessToDatabase(Properties toProperties,
                                                   ResultSet fetchResultSet,
-                                                  Chunk chunk,
-                                                  SourceContextHolder contextHolder) {
+                                                  Chunk chunk) {
         LogMessage logMessage = null;
         try {
             if (fetchResultSet.next()) {
                 Connection connection = DatabaseUtil.getConnection(toProperties);
                 if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
-                    logMessage = fetchAndCopy(connection, fetchResultSet, chunk.config(), chunk, contextHolder);
+                    logMessage = fetchAndCopy(connection, fetchResultSet, chunk.config(), chunk);
                 }
                 DatabaseUtil.closeConnection(connection);
             } else {
@@ -55,8 +54,7 @@ public class CopyToPGInitiator {
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
                                     Config config,
-                                    Chunk chunk,
-                                    SourceContextHolder contextHolder) {
+                                    Chunk chunk) {
         int rowCount = 0;
         Map<String, String> columnsToDB = readPGTargetColumns(connection, config);
         Map<String, String> neededColumnsToDB = getNeededTargetColumnsAndTypes(config, columnsToDB);
@@ -260,9 +258,9 @@ public class CopyToPGInitiator {
                                         break;
                                     }
                                     byte[] bytes = new byte[0];
-                                    if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)) {
+                                    if (chunk instanceof OraChunk) {
                                         bytes = convertBlobToBytes(fetchResultSet, entry.getKey());
-                                    } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)) {
+                                    } else if (chunk instanceof PGChunk) {
                                         bytes = fetchResultSet.getBytes(entry.getKey());
                                     }
                                     row.setByteArray(entry.getKey(), bytes);

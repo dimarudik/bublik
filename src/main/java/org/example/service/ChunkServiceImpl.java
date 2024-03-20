@@ -1,23 +1,25 @@
 package org.example.service;
 
-import org.example.constants.SourceContextHolder;
 import org.example.model.Chunk;
+import org.example.model.OraChunk;
+import org.example.model.PGChunk;
 
 import java.sql.*;
 
-import static org.example.constants.SQLConstants.*;
+import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
+import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 public class ChunkServiceImpl implements ChunkService {
     @Override
-    public void markChunkAsProceed(Chunk chunk, Connection connection, SourceContextHolder contextHolder) throws SQLException {
-        if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)) {
+    public void markChunkAsProceed(Chunk chunk, Connection connection) throws SQLException {
+        if (chunk instanceof OraChunk) {
             CallableStatement callableStatement =
                     connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
             callableStatement.setString(1, chunk.config().fromTaskName());
             callableStatement.setInt(2, chunk.chunkId());
             callableStatement.execute();
             callableStatement.close();
-        } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)) {
+        } else if (chunk instanceof PGChunk) {
             PreparedStatement updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
             updateStatus.setLong(1, chunk.chunkId());
             updateStatus.setString(2, chunk.config().fromTaskName());
@@ -27,11 +29,11 @@ public class ChunkServiceImpl implements ChunkService {
     }
 
     @Override
-    public ResultSet getChunkOfData(Chunk chunk, Connection connection, SourceContextHolder contextHolder, String query) throws SQLException {
+    public ResultSet getChunkOfData(Chunk chunk, Connection connection, String query) throws SQLException {
         PreparedStatement preparedStatement = connection.prepareStatement(query);
-        if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)) {
+        if (chunk instanceof OraChunk) {
             return fetchOraResultSet(chunk, preparedStatement);
-        } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
+        } else if (chunk instanceof PGChunk) {
             return preparedStatement.executeQuery();
         }
         return null;

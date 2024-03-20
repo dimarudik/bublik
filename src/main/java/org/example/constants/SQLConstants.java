@@ -17,7 +17,8 @@ public abstract class SQLConstants {
             "start_page bigint, " +
             "end_page bigint, " +
             "task_name varchar(128), " +
-            "status varchar(20)  default 'UNASSIGNED' )";
+            "status varchar(20)  default 'UNASSIGNED', " +
+            "unique (start_page, end_page, task_name, status) )";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, task_name) " +
             "(select id start_page, id + ? end_page, ? task_name " +

@@ -5,9 +5,8 @@ import org.apache.logging.log4j.Logger;
 import org.example.constants.SourceContext;
 import org.example.constants.SourceContextHolder;
 import org.example.model.Chunk;
-import org.example.model.LogMessage;
-import org.example.model.PGChunk;
 import org.example.model.Config;
+import org.example.model.LogMessage;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
 import org.example.task.Worker;
@@ -46,11 +45,38 @@ public class ProcessUtil {
                 logger.error("Unknown Source Database!");
                 return;
             }
-            Chunk chunk0 = new PGChunk(1, 1L, 2L, null);
+//            Chunk chunk0 = new PGChunk(1, 1L, 2L, null);
             List<Future<LogMessage>> tasks = new ArrayList<>();
             if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
                 Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
                 chunkMap.forEach((key, chunk) -> {
+                        try {
+                            if (tableExists(connection,
+                                    chunk.config().fromSchemaName(),
+                                    chunk.config().fromTableName())) {
+                                tasks.add(
+                                        executorService.
+                                                submit(new Worker(
+                                                        fromProperties,
+                                                        toProperties,
+                                                        chunk,
+                                                        readOraSourceColumns(connection, chunk.config())
+                                                ))
+                                );
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.error(e.getMessage());
+                        }
+                    }
+                );
+            } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
+                if (initPGChunks != null && initPGChunks) {
+                    fillPGChunks(connection, configs);
+                }
+                if (copyPGChunks != null && copyPGChunks) {
+                    Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
+                    chunkMap.forEach((key, chunk) -> {
                             try {
                                 if (tableExists(connection,
                                         chunk.config().fromSchemaName(),
@@ -61,8 +87,7 @@ public class ProcessUtil {
                                                             fromProperties,
                                                             toProperties,
                                                             chunk,
-                                                            contextHolder,
-                                                            readOraSourceColumns(connection, chunk.config())
+                                                            readPGSourceColumns(connection, chunk.config())
                                                     ))
                                     );
                                 }
@@ -71,34 +96,6 @@ public class ProcessUtil {
                                 logger.error(e.getMessage());
                             }
                         }
-                );
-            } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
-                if (initPGChunks != null && initPGChunks) {
-                    fillPGChunks(connection, configs);
-                }
-                if (copyPGChunks != null && copyPGChunks) {
-                    Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
-                    chunkMap.forEach((key, chunk) -> {
-                                try {
-                                    if (tableExists(connection,
-                                            chunk.config().fromSchemaName(),
-                                            chunk.config().fromTableName())) {
-                                        tasks.add(
-                                                executorService.
-                                                        submit(new Worker(
-                                                                fromProperties,
-                                                                toProperties,
-                                                                chunk,
-                                                                contextHolder,
-                                                                readPGSourceColumns(connection, chunk.config())
-                                                        ))
-                                        );
-                                    }
-                                } catch (SQLException e) {
-                                    e.printStackTrace();
-                                    logger.error(e.getMessage());
-                                }
-                            }
                     );
                 } else {
                     return;

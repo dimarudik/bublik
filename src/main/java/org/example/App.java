@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.example.model.Ora2PGProperties;
+import org.example.model.SourceTargetProperties;
 import org.example.model.Config;
 import org.example.util.ProcessUtil;
 
@@ -20,9 +20,9 @@ public class App {
             ObjectMapper mapperJSON = new ObjectMapper();
             ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
             mapperYAML.findAndRegisterModules();
-            Ora2PGProperties properties =
+            SourceTargetProperties properties =
                     mapperYAML.readValue(Paths.get(jdbcProperties).toFile(),
-                            Ora2PGProperties.class);
+                            SourceTargetProperties.class);
             List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(transRules).toFile(),
                             Config[].class));
