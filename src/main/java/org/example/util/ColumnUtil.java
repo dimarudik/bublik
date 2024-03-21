@@ -5,11 +5,10 @@ import org.apache.logging.log4j.Logger;
 import org.example.model.Config;
 import org.example.model.OraChunk;
 import org.example.model.PGChunk;
+import org.example.model.PGColumn;
 
 import java.sql.*;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 import static org.example.constants.SQLConstants.*;
 import static org.example.util.SQLUtil.buildStartEndPageOfPGChunk;
@@ -18,54 +17,8 @@ import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 public class ColumnUtil {
     private static final Logger logger = LogManager.getLogger(ColumnUtil.class);
 
-/*
-    public static Map<String, Integer> readOraSourceColumns(Connection connection, Config config) {
-        Map<String, Integer> columnMap = new TreeMap<>();
-        ResultSet resultSet;
-        try {
-            resultSet = connection.getMetaData().getColumns(
-                    null,
-                    config.fromSchemaName(),
-                    config.fromTableName().replaceAll("^\"|\"$", ""),
-                    null
-            );
-            while (resultSet.next()) {
-                String columnName = resultSet.getString(4);
-                Integer columnType = Integer.valueOf(resultSet.getString(5));
-                columnMap.put(columnName, columnType);
-            }
-            resultSet.close();
-        } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
-        }
-        return columnMap;
-    }
-
-    public static Map<String, Integer> readPGSourceColumns(Connection connection, Config config) {
-        Map<String, Integer> columnMap = new TreeMap<>();
-        ResultSet resultSet;
-        try {
-            resultSet = connection.getMetaData().getColumns(
-                    null,
-                    config.fromSchemaName().toLowerCase(),
-                    config.toTableName().toLowerCase(),
-                    null
-            );
-            while (resultSet.next()) {
-                String columnName = resultSet.getString(4);
-                String columnType = resultSet.getString(6);
-                columnMap.put(columnName.toUpperCase(), 0);
-            }
-            resultSet.close();
-        } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
-        }
-        return columnMap;
-    }
-*/
-
-    public static Map<String, String> readPGTargetColumns(Connection connection, Config config) {
-        Map<String, String> columnMap = new TreeMap<>();
+    public static Map<String, PGColumn> readPGTargetColumns(Connection connection, Config config) {
+        Map<String, PGColumn> columnMap = new HashMap<>();
         ResultSet resultSet;
         try {
             resultSet = connection.getMetaData().getColumns(
@@ -74,16 +27,17 @@ public class ColumnUtil {
                     config.toTableName().toLowerCase(),
                     null
             );
+            Map<String, String> fromConfig = config.columnToColumn();
             while (resultSet.next()) {
-                String columnName = resultSet.getString(4).toUpperCase();
+                String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
-/*
-                if(PGKeywords.contains(columnName)){
-                    columnName = '"' + columnName.toLowerCase() + '"';
+
+                for (Map.Entry<String, String> entry : fromConfig.entrySet()) {
+                    if (entry.getValue().replaceAll("\"","").equalsIgnoreCase(columnName)) {
+                        columnMap.put(entry.getKey(), new PGColumn(entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
+                    }
                 }
-*/
-                columnMap.put(columnName, columnType.equals("bigserial") ? "bigint" : columnType);
-//                System.out.println(columnName.toUpperCase() + " : " + (columnType.equals("bigserial") ? "bigint" : columnType));
+
             }
             resultSet.close();
         } catch (SQLException e) {
@@ -91,6 +45,36 @@ public class ColumnUtil {
         }
         return columnMap;
     }
+
+/*
+    public static Map<String, String> readPGTargetColumns(Connection connection, Config config) {
+        Map<String, String> columnMap = new HashMap<>();
+        ResultSet resultSet;
+        try {
+            resultSet = connection.getMetaData().getColumns(
+                    null,
+                    config.toSchemaName().toLowerCase(),
+                    config.toTableName().toLowerCase(),
+                    null
+            );
+            List<String> values = new ArrayList<>(config.columnToColumn().values());
+            while (resultSet.next()) {
+                String columnName = resultSet.getString(4);
+                String columnType = resultSet.getString(6);
+                values
+                        .stream()
+                        .filter(i -> i.replaceAll("\"","").equalsIgnoreCase(columnName))
+                        .forEach(i -> {
+                            columnMap.put(i, columnType.equals("bigserial") ? "bigint" : columnType);
+                        });
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        }
+        return columnMap;
+    }
+*/
 
 /*
     public static Map<Integer, ColumnRule> getColumn2RuleMap(SQLStatement sqlStatement) {

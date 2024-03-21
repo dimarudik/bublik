@@ -5,6 +5,24 @@
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE1_TASK"
+    "fromTaskName" : "TABLE1_TASK",
+    "columnToColumn" : {
+      "id"            : "id",
+      "uuid"          : "uuid",
+      "\"Primary\""   : "\"Primary\"",
+      "boolean"       : "boolean",
+      "int2"          : "int2",
+      "int4"          : "int4",
+      "int8"          : "int8",
+      "smallint"      : "smallint",
+      "bigint"        : "bigint",
+      "numeric"       : "numeric",
+      "float8"        : "float8",
+      "date"          : "date",
+      "timestamp"     : "timestamp",
+      "timestamptz"   : "timestamptz",
+      "description"   : "rem",
+      "image"         : "image"
+    }
   }
 ]

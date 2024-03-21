@@ -11,7 +11,7 @@ create table table1 (
 create table source (
     id int primary key generated always as identity,
     uuid uuid,
-    name varchar(256),
+    "Primary" varchar(256),
     boolean boolean,
     int2 int2,
     int4 int4,
@@ -26,8 +26,26 @@ create table source (
     description text,
     image bytea
 );
-create table target as select * from source where 0 = 1;
-insert into source(uuid, name, boolean,
+create table target as
+select
+    id,
+    uuid,
+    "Primary",
+    boolean,
+    int2,
+    int4,
+    int8,
+    smallint,
+    bigint,
+    numeric,
+    float8,
+    date,
+    timestamp,
+    timestamptz,
+    description as rem,
+    image
+ from source where 0 = 1;
+insert into source(uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, image)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,

@@ -17,5 +17,5 @@ public interface Chunk {
     void markChunkAsProceed(Connection connection) throws SQLException;
     ResultSet getData(Connection connection, String query) throws SQLException;
     Map<String, Integer> readSourceColumns(Connection connection) throws SQLException;
-    String buildSQLFetchStatement(Map<String, Integer> columnsFromDB);
+    String buildFetchStatement(Map<String, Integer> columnsFromDB);
 }

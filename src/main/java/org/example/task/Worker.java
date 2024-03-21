@@ -36,14 +36,14 @@ public class Worker implements Callable<LogMessage> {
     public LogMessage call() {
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
-            String query = chunk.buildSQLFetchStatement(columnsFromDB);
+            String query = chunk.buildFetchStatement(columnsFromDB);
+//            System.out.println(query);
             ResultSet fetchResultSet = chunk.getData(connection, query);
             RunnerResult runnerResult =
                     new CopyToPGInitiator()
                             .initiateProcessToDatabase(toProperties, fetchResultSet, chunk);
             logMessage = runnerResult.logMessage();
             fetchResultSet.close();
-//            preparedStatement.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
                 chunk.markChunkAsProceed(connection);
             }

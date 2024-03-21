@@ -53,13 +53,15 @@ public class ProcessUtil {
                             if (tableExists(connection,
                                     chunk.config().fromSchemaName(),
                                     chunk.config().fromTableName())) {
+                                Map<String, Integer> orderedColumns = new HashMap<>();
+                                chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
                                 tasks.add(
                                         executorService.
                                                 submit(new Worker(
                                                         fromProperties,
                                                         toProperties,
                                                         chunk,
-                                                        chunk.readSourceColumns(connection)
+                                                        orderedColumns
                                                 ))
                                 );
                             }
@@ -70,23 +72,25 @@ public class ProcessUtil {
                     }
                 );
             } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
-                if (initPGChunks != null && initPGChunks) {
+                if (initPGChunks) {
                     fillPGChunks(connection, configs);
                 }
-                if (copyPGChunks != null && copyPGChunks) {
+                if (copyPGChunks) {
                     Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
                     chunkMap.forEach((key, chunk) -> {
                             try {
                                 if (tableExists(connection,
                                         chunk.config().fromSchemaName(),
                                         chunk.config().fromTableName())) {
+                                    Map<String, Integer> orderedColumns = new HashMap<>();
+                                    chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
                                     tasks.add(
                                             executorService.
                                                     submit(new Worker(
                                                             fromProperties,
                                                             toProperties,
                                                             chunk,
-                                                            chunk.readSourceColumns(connection)
+                                                            orderedColumns
                                                     ))
                                     );
                                 }

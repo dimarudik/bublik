@@ -69,7 +69,7 @@ public record PGChunk(Integer chunkId,
     }
 
     @Override
-    public String buildSQLFetchStatement(Map<String, Integer> columnsFromDB) {
+    public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
         if (config.excludedSourceColumns() != null) {
             Set<String> excludedSourceColumns = new HashSet<>(config.excludedSourceColumns());

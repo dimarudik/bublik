@@ -109,11 +109,18 @@ toProperties:
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
-    "excludedSourceColumns" : ["exclude_me"]
+    "columnToColumn" : {
+      "id"          : "id",
+      "name"        : "name",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    }
   }
 ]
 ```
->  **WARNING**: `excludedSourceColumns` are case-sensitive. Usually for quoted values use upper case for Oracle (e.g. "COLUMN_VANE").
 
 <ul><li>Build the jar file</li></ul>
 
@@ -217,7 +224,25 @@ toProperties:
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE1_TASK"
+    "fromTaskName" : "TABLE1_TASK",
+    "columnToColumn" : {
+      "id"            : "id",
+      "uuid"          : "uuid",
+      "\"Primary\""   : "\"Primary\"",
+      "boolean"       : "boolean",
+      "int2"          : "int2",
+      "int4"          : "int4",
+      "int8"          : "int8",
+      "smallint"      : "smallint",
+      "bigint"        : "bigint",
+      "numeric"       : "numeric",
+      "float8"        : "float8",
+      "date"          : "date",
+      "timestamp"     : "timestamp",
+      "timestamptz"   : "timestamptz",
+      "description"   : "rem",
+      "image"         : "image"
+    }
   }
 ]
 ```

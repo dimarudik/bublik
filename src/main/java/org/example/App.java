@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.example.model.SourceTargetProperties;
 import org.example.model.Config;
+import org.example.model.SourceTargetProperties;
 import org.example.util.ProcessUtil;
 
 import java.nio.file.Paths;

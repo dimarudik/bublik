@@ -12,10 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.*;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.util.*;
 
 import static org.example.util.ColumnUtil.*;
 import static org.example.util.SQLUtil.getNeededTargetColumnsAndTypes;
@@ -55,22 +52,23 @@ public class CopyToPGInitiator {
                                     Config config,
                                     Chunk chunk) {
         int rowCount = 0;
-        Map<String, String> columnsToDB = readPGTargetColumns(connection, config);
-        Map<String, String> neededColumnsToDB = getNeededTargetColumnsAndTypes(config, columnsToDB);
+//        Map<String, String> neededColumnsToDB = readPGTargetColumns(connection, config);
+        Map<String, PGColumn> neededColumnsToDB = readPGTargetColumns(connection, config);
         long start = System.currentTimeMillis();
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
-//        System.out.println("Create to destination connection time : " + (System.currentTimeMillis() - start) / 1000d);
-        String[] columnNames = neededColumnsToDB.keySet().toArray(new String[0]);
+//        String[] columnNames = neededColumnsToDB.keySet().toArray(new String[0]);
+        List<String> tmpTargetColumns = new ArrayList<>();
+        neededColumnsToDB.values().forEach(i -> tmpTargetColumns.add(i.getColumnName()));
+        String[] columnNames = new ArrayList<>(tmpTargetColumns).toArray(new String[0]);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(config.toSchemaName(), config.toTableName(), columnNames);
-//        Arrays.asList(columnNames).forEach(k -> System.out.print(k + " "));
-//        System.out.println();
         start = System.currentTimeMillis();
-//        start = Instant.now().getEpochSecond();
         try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
             do {
                 writer.startRow((row) -> {
-                    for (Map.Entry<String, String> entry : neededColumnsToDB.entrySet()) {
+                    for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
+                        String sourceColumn = entry.getKey().replaceAll("\"","");
+                        String targetColumn = entry.getValue().getColumnName();
 /*
                         try {
                             System.out.println(entry.getKey() + " : " + entry.getValue() + " : " + fetchResultSet.getString(entry.getKey()));
@@ -78,217 +76,217 @@ public class CopyToPGInitiator {
                             throw new RuntimeException(e);
                         }
 */
-                        switch (entry.getValue()) {
+                        switch (entry.getValue().getColumnType()) {
                             case "varchar":
                                 try {
-                                    String s = fetchResultSet.getString(entry.getKey());
-                                    row.setText(entry.getKey(), s);
+                                    String s = fetchResultSet.getString(sourceColumn);
+                                    row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "bpchar":
                                 try {
-                                    String s = fetchResultSet.getString(entry.getKey());
-                                    row.setText(entry.getKey(), s);
+                                    String s = fetchResultSet.getString(sourceColumn);
+                                    row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "text":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setText(entry.getKey(), null);
+                                        row.setText(targetColumn, null);
                                         break;
                                     }
                                     String s;
-                                    int cIndex = getColumnIndexByColumnName(fetchResultSet, entry.getKey());
+                                    int cIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn);
                                     if (cIndex != 0 && fetchResultSet.getMetaData().getColumnType(cIndex) == 2005) {
-                                        s = convertClobToString(fetchResultSet, entry.getKey());
+                                        s = convertClobToString(fetchResultSet, sourceColumn);
                                     } else {
-                                        s = fetchResultSet.getString(entry.getKey());
+                                        s = fetchResultSet.getString(sourceColumn);
                                     }
-                                    row.setText(entry.getKey(), s);
+                                    row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "bigint":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setLong(entry.getKey(), null);
+                                        row.setLong(targetColumn, null);
                                         break;
                                     }
-                                    long l = fetchResultSet.getLong(entry.getKey());
-                                    row.setLong(entry.getKey(), l);
+                                    long l = fetchResultSet.getLong(sourceColumn);
+                                    row.setLong(targetColumn, l);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "numeric":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setNumeric(entry.getKey(), null);
+                                        row.setNumeric(targetColumn, null);
                                         break;
                                     }
-                                    row.setNumeric(entry.getKey(), (Number) o);
+                                    row.setNumeric(targetColumn, (Number) o);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "int2":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setShort(entry.getKey(), null);
+                                        row.setShort(targetColumn, null);
                                         break;
                                     }
-                                    Short aShort = fetchResultSet.getShort(entry.getKey());
-                                    row.setShort(entry.getKey(), aShort);
+                                    Short aShort = fetchResultSet.getShort(sourceColumn);
+                                    row.setShort(targetColumn, aShort);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "int4":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setInteger(entry.getKey(), null);
+                                        row.setInteger(targetColumn, null);
                                         break;
                                     }
-                                    int i = fetchResultSet.getInt(entry.getKey());
-                                    row.setInteger(entry.getKey(), i);
+                                    int i = fetchResultSet.getInt(sourceColumn);
+                                    row.setInteger(targetColumn, i);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "int8":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setLong(entry.getKey(), null);
+                                        row.setLong(targetColumn, null);
                                         break;
                                     }
-                                    long l = fetchResultSet.getLong(entry.getKey());
-                                    row.setLong(entry.getKey(), l);
+                                    long l = fetchResultSet.getLong(sourceColumn);
+                                    row.setLong(targetColumn, l);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "float4":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setDouble(entry.getKey(), null);
+                                        row.setDouble(targetColumn, null);
                                         break;
                                     }
-                                    Float aFloat = fetchResultSet.getFloat(entry.getKey());
-                                    row.setFloat(entry.getKey(), aFloat);
+                                    Float aFloat = fetchResultSet.getFloat(sourceColumn);
+                                    row.setFloat(targetColumn, aFloat);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "float8":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setDouble(entry.getKey(), null);
+                                        row.setDouble(targetColumn, null);
                                         break;
                                     }
-                                    Double aDouble = fetchResultSet.getDouble(entry.getKey());
-                                    row.setDouble(entry.getKey(), aDouble);
+                                    Double aDouble = fetchResultSet.getDouble(sourceColumn);
+                                    row.setDouble(targetColumn, aDouble);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "timestamp":
                                 try {
-                                    Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
                                     if (timestamp == null) {
-                                        row.setTimeStamp(entry.getKey(), null);
+                                        row.setTimeStamp(targetColumn, null);
                                         break;
                                     }
                                     long l = timestamp.getTime();
                                     LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
                                             TimeZone.getDefault().toZoneId());
-                                    row.setTimeStamp(entry.getKey(), localDateTime);
+                                    row.setTimeStamp(targetColumn, localDateTime);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "timestamptz":
                                 try {
-                                    Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
                                     if (timestamp == null) {
-                                        row.setTimeStamp(entry.getKey(), null);
+                                        row.setTimeStamp(targetColumn, null);
                                         break;
                                     }
                                     ZonedDateTime zonedDateTime =
                                             ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp.getTime()),
                                                     ZoneOffset.UTC);
-                                    row.setTimeStampTz(entry.getKey(), zonedDateTime);
+                                    row.setTimeStampTz(targetColumn, zonedDateTime);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "date":
                                 try {
-                                    Timestamp timestamp = fetchResultSet.getTimestamp(entry.getKey());
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
                                     if (timestamp == null) {
-                                        row.setDate(entry.getKey(), null);
+                                        row.setDate(targetColumn, null);
                                         break;
                                     }
                                     long l = timestamp.getTime();
                                     LocalDate localDate = Instant.ofEpochMilli(l)
                                             .atZone(ZoneId.systemDefault()).toLocalDate();
-                                    row.setDate(entry.getKey(), localDate);
+                                    row.setDate(targetColumn, localDate);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "bytea":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setByteArray(entry.getKey(), null);
+                                        row.setByteArray(targetColumn, null);
                                         break;
                                     }
                                     byte[] bytes = new byte[0];
                                     if (chunk instanceof OraChunk) {
-                                        bytes = convertBlobToBytes(fetchResultSet, entry.getKey());
+                                        bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
                                     } else if (chunk instanceof PGChunk) {
-                                        bytes = fetchResultSet.getBytes(entry.getKey());
+                                        bytes = fetchResultSet.getBytes(sourceColumn);
                                     }
-                                    row.setByteArray(entry.getKey(), bytes);
+                                    row.setByteArray(targetColumn, bytes);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "bool":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setBoolean(entry.getKey(), null);
+                                        row.setBoolean(targetColumn, null);
                                         break;
                                     }
-                                    boolean b = fetchResultSet.getBoolean(entry.getKey());
-                                    row.setBoolean(entry.getKey(), b);
+                                    boolean b = fetchResultSet.getBoolean(sourceColumn);
+                                    row.setBoolean(targetColumn, b);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);
                                 }
                             case "uuid":
                                 try {
-                                    Object o = fetchResultSet.getObject(entry.getKey());
+                                    Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
-                                        row.setUUID(entry.getKey(), null);
+                                        row.setUUID(targetColumn, null);
                                         break;
                                     }
                                     UUID uuid = (UUID) o;
-                                    row.setUUID(entry.getKey(), uuid);
+                                    row.setUUID(targetColumn, uuid);
                                     break;
                                 } catch (SQLException e) {
                                     logger.error("{} {}", entry.getKey(), e);

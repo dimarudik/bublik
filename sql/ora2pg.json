@@ -7,6 +7,14 @@
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
-    "excludedSourceColumns" : ["exclude_me"]
+    "columnToColumn" : {
+      "id"          : "id",
+      "name"        : "name",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    }
   }
 ]
