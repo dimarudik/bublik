@@ -247,6 +247,8 @@ toProperties:
 ]
 ```
 
+>  **WARNING**: The names of columns might be different at source and target
+
 ### Step 2
 Halt any changes to the movable tables in the source database
 
