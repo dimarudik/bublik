@@ -13,6 +13,7 @@ public record Config(
         String fetchHintClause,
         String fetchWhereClause,
         String fromTaskName,
+        @Deprecated
         List<String> excludedSourceColumns,
         @Deprecated
         List<String> excludedTargetColumns,

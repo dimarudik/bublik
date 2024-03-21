@@ -46,35 +46,6 @@ public class ColumnUtil {
         return columnMap;
     }
 
-/*
-    public static Map<String, String> readPGTargetColumns(Connection connection, Config config) {
-        Map<String, String> columnMap = new HashMap<>();
-        ResultSet resultSet;
-        try {
-            resultSet = connection.getMetaData().getColumns(
-                    null,
-                    config.toSchemaName().toLowerCase(),
-                    config.toTableName().toLowerCase(),
-                    null
-            );
-            List<String> values = new ArrayList<>(config.columnToColumn().values());
-            while (resultSet.next()) {
-                String columnName = resultSet.getString(4);
-                String columnType = resultSet.getString(6);
-                values
-                        .stream()
-                        .filter(i -> i.replaceAll("\"","").equalsIgnoreCase(columnName))
-                        .forEach(i -> {
-                            columnMap.put(i, columnType.equals("bigserial") ? "bigint" : columnType);
-                        });
-            }
-            resultSet.close();
-        } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
-        }
-        return columnMap;
-    }
-*/
 
 /*
     public static Map<Integer, ColumnRule> getColumn2RuleMap(SQLStatement sqlStatement) {
