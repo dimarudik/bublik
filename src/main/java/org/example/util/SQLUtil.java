@@ -42,6 +42,7 @@ public class SQLUtil {
         return neededTargetColumnsMap;
     }
 
+/*
     public static String buildOraSQLFetchStatement(Config config, Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
         if (config.excludedSourceColumns() != null) {
@@ -74,7 +75,9 @@ public class SQLUtil {
                     " and " + config.numberColumn() + " between ? and ?";
         }
     }
+*/
 
+/*
     public static String buildPGSQLFetchStatement(Config config,
                                                   Map<String, Integer> columnsFromDB,
                                                   Long page_start,
@@ -96,6 +99,7 @@ public class SQLUtil {
                 config.fetchWhereClause() +
                 " and ctid >= '(" + page_start +",1)' and ctid < '(" + page_end + ",1)'";
     }
+*/
 
     public static String buildStartEndRowIdOfOracleChunk(List<Config> configs) {
         List<String> taskNames = new ArrayList<>();

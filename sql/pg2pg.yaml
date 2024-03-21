@@ -1,0 +1,12 @@
+threadCount: 10
+initPGChunks: true
+copyPGChunks: true
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test

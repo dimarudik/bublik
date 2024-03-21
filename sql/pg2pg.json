@@ -1,0 +1,10 @@
+[
+  {
+    "fromSchemaName" : "PUBLIC",
+    "fromTableName" : "SOURCE",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TARGET",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE1_TASK"
+  }
+]

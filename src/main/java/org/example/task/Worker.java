@@ -3,8 +3,6 @@ package org.example.task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.*;
-import org.example.service.ChunkService;
-import org.example.service.ChunkServiceImpl;
 import org.example.util.CopyToPGInitiator;
 import org.example.util.DatabaseUtil;
 
@@ -14,9 +12,6 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-
-import static org.example.util.SQLUtil.buildOraSQLFetchStatement;
-import static org.example.util.SQLUtil.buildPGSQLFetchStatement;
 
 public class Worker implements Callable<LogMessage> {
     private final Properties fromProperties;
@@ -41,17 +36,8 @@ public class Worker implements Callable<LogMessage> {
     public LogMessage call() {
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
-            ChunkService chunkService = new ChunkServiceImpl();
-            String query = null;
-            if (chunk instanceof OraChunk) {
-                query = buildOraSQLFetchStatement(chunk.config(), columnsFromDB);
-            } else if (chunk instanceof PGChunk) {
-                query = buildPGSQLFetchStatement(chunk.config(),
-                        columnsFromDB,
-                        chunk.startPage(),
-                        chunk.endPage());
-            }
-            ResultSet fetchResultSet = chunkService.getChunkOfData(chunk, connection, query);
+            String query = chunk.buildSQLFetchStatement(columnsFromDB);
+            ResultSet fetchResultSet = chunk.getData(connection, query);
             RunnerResult runnerResult =
                     new CopyToPGInitiator()
                             .initiateProcessToDatabase(toProperties, fetchResultSet, chunk);
@@ -59,7 +45,7 @@ public class Worker implements Callable<LogMessage> {
             fetchResultSet.close();
 //            preparedStatement.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-                chunkService.markChunkAsProceed(chunk, connection);
+                chunk.markChunkAsProceed(connection);
             }
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {

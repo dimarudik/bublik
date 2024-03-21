@@ -45,7 +45,6 @@ public class ProcessUtil {
                 logger.error("Unknown Source Database!");
                 return;
             }
-//            Chunk chunk0 = new PGChunk(1, 1L, 2L, null);
             List<Future<LogMessage>> tasks = new ArrayList<>();
             if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
                 Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
@@ -60,7 +59,7 @@ public class ProcessUtil {
                                                         fromProperties,
                                                         toProperties,
                                                         chunk,
-                                                        readOraSourceColumns(connection, chunk.config())
+                                                        chunk.readSourceColumns(connection)
                                                 ))
                                 );
                             }
@@ -87,7 +86,7 @@ public class ProcessUtil {
                                                             fromProperties,
                                                             toProperties,
                                                             chunk,
-                                                            readPGSourceColumns(connection, chunk.config())
+                                                            chunk.readSourceColumns(connection)
                                                     ))
                                     );
                                 }

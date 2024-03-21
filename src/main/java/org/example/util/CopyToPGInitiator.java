@@ -4,7 +4,6 @@ import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.example.constants.SourceContextHolder;
 import org.example.model.*;
 import org.postgresql.PGConnection;
 
@@ -13,12 +12,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.*;
-import java.util.*;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TimeZone;
+import java.util.UUID;
 
-import static org.example.constants.SQLConstants.LABEL_ORACLE;
-import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
 import static org.example.util.ColumnUtil.*;
-import static org.example.util.ColumnUtil.convertBlobToBytes;
 import static org.example.util.SQLUtil.getNeededTargetColumnsAndTypes;
 import static org.example.util.TableUtil.tableExists;
 

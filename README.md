@@ -60,6 +60,7 @@ docker run --name postgres \
         -p 5432:5432 \
         -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
         -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
         -d postgres \
         -c shared_preload_libraries="pg_stat_statements,auto_explain" \
         -c max_connections=200 \
@@ -80,12 +81,10 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-<ul><li>Prepare the connection parameters file props.yaml</li></ul>
+<ul><li>Prepare the connection parameters file ./sql/ora2pg.yaml</li></ul>
 
 ```yaml
 threadCount: 10
-initPGChunks: true
-copyPGChunks: true
 
 fromProperties:
   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
@@ -98,7 +97,7 @@ toProperties:
 ```
 
 
-<ul><li>Prepare the table parameters file rules.json</li></ul>
+<ul><li>Prepare the table parameters file ./sql/ora2pg.json</li></ul>
 
 ```json
 [
@@ -142,7 +141,7 @@ end;
 ### Step 3
 Run the tool
 ```
-java -jar ./target/bublik-1.2.jar ./sql/props.yaml ./sql/rules.json
+java -jar ./target/bublik-1.2.jar ./sql/ora2pg.yaml ./sql/ora2pg.json
 ```
 
 <ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
@@ -155,4 +154,88 @@ select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct
 ```
 
 ## 2. PostgreSQL To PostgreSQL
-The objective is to migrate two tables (TABLE1 and TABLE2) from one PostgreSQL database to another.
+The objective is to migrate table SOURCE to table TARGET from one PostgreSQL database to another.
+>  **WARNING**: To simplify test case we're using same database
+
+### Step 1
+<ul><li>Prepare PostgreSQL environment</li></ul>
+
+```
+docker run --name postgres \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
+```
+
+>  **WARNING**: SOURCE & TARGET tables will be created during postgre docker container startup
+
+<ul><li>How to connect</li></ul>
+
+```
+psql postgresql://test:test@localhost/postgres
+```
+
+<ul><li>Prepare the connection parameters file ./sql/pg2pg.yaml</li></ul>
+
+```yaml
+threadCount: 10
+initPGChunks: true
+copyPGChunks: true
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+```
+
+
+<ul><li>Prepare the table parameters file ./sql/pg2pg.json</li></ul>
+
+```json
+[
+  {
+    "fromSchemaName" : "PUBLIC",
+    "fromTableName" : "SOURCE",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TARGET",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE1_TASK"
+  }
+]
+```
+
+### Step 2
+Halt any changes to the movable tables in the source database
+
+### Step 3
+Run the tool
+```
+java -jar ./target/bublik-1.2.jar ./sql/pg2pg.yaml ./sql/pg2pg.json
+```
+
+<ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
+<ul><li>Monitor the logs at `logs/app.log`.</li></ul>
+<ul><li>Track progress at source:</li></ul>
+
+```
+select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
+    from ctid_chunks group by status;
+```

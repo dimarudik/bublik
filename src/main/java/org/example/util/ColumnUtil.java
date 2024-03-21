@@ -18,6 +18,7 @@ import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 public class ColumnUtil {
     private static final Logger logger = LogManager.getLogger(ColumnUtil.class);
 
+/*
     public static Map<String, Integer> readOraSourceColumns(Connection connection, Config config) {
         Map<String, Integer> columnMap = new TreeMap<>();
         ResultSet resultSet;
@@ -44,7 +45,6 @@ public class ColumnUtil {
         Map<String, Integer> columnMap = new TreeMap<>();
         ResultSet resultSet;
         try {
-//            String schemaName = sqlStatement.toSchemaName().equalsIgnoreCase("public") ? null : sqlStatement.toSchemaName().toLowerCase();
             resultSet = connection.getMetaData().getColumns(
                     null,
                     config.fromSchemaName().toLowerCase(),
@@ -55,7 +55,6 @@ public class ColumnUtil {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
                 columnMap.put(columnName.toUpperCase(), 0);
-//                System.out.println(columnName.toUpperCase() + " : " + (columnType.equals("bigserial") ? "bigint" : columnType));
             }
             resultSet.close();
         } catch (SQLException e) {
@@ -63,6 +62,7 @@ public class ColumnUtil {
         }
         return columnMap;
     }
+*/
 
     public static Map<String, String> readPGTargetColumns(Connection connection, Config config) {
         Map<String, String> columnMap = new TreeMap<>();
