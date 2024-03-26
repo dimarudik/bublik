@@ -72,12 +72,14 @@ public record PGChunk(Integer chunkId,
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
+/*
         if (config.excludedSourceColumns() != null) {
             Set<String> excludedSourceColumns = new HashSet<>(config.excludedSourceColumns());
             Map<String, Integer> neededSourceColumnsMap = new TreeMap<>(columnsFromDB);
             neededSourceColumnsMap.keySet().removeAll(excludedSourceColumns);
             neededSourceColumns = new ArrayList<>(neededSourceColumnsMap.keySet());
         }
+*/
         return "select " +
                 String.join(", ", neededSourceColumns) +
                 " from " +

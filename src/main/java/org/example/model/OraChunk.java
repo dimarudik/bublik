@@ -1,9 +1,9 @@
 package org.example.model;
 
-import lombok.AllArgsConstructor;
-
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
@@ -25,33 +25,6 @@ public class OraChunk extends C {
 */
 
 
-
-
-    @Override
-    public Integer chunkId() {
-        return null;
-    }
-
-    @Override
-    public String startRowId() {
-        return null;
-    }
-
-    @Override
-    public String endRowId() {
-        return null;
-    }
-
-    @Override
-    public Long startId() {
-        return null;
-    }
-
-    @Override
-    public Long endId() {
-        return null;
-    }
-
     @Override
     public Long startPage() {
         return null;
@@ -61,16 +34,6 @@ public class OraChunk extends C {
     public Long endPage() {
         return null;
     }
-
-    @Override
-    public Config config() {
-        return null;
-    }
-
-
-
-
-
 
     @Override
     public void markChunkAsProceed(Connection connection) throws SQLException {
@@ -119,12 +82,14 @@ public class OraChunk extends C {
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
+/*
         if (config.excludedSourceColumns() != null) {
             Set<String> excludedSourceColumns = new HashSet<>(config.excludedSourceColumns());
             Map<String, Integer> neededSourceColumnsMap = new TreeMap<>(columnsFromDB);
             neededSourceColumnsMap.keySet().removeAll(excludedSourceColumns);
             neededSourceColumns = new ArrayList<>(neededSourceColumnsMap.keySet());
         }
+*/
         if (config.numberColumn() == null) {
             return "select " +
                     config.fetchHintClause() +

@@ -16,10 +16,5 @@
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
     }
-  },
-  {
-    "fromSchemaName" : "TEST",
-    "fromTableName" : "TABLE2",
-    "fromTaskName" : "TABLE2_TASK"
   }
 ]

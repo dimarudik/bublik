@@ -1,7 +1,6 @@
 package org.example.model;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 
 public record Config(
@@ -13,10 +12,12 @@ public record Config(
         String fetchHintClause,
         String fetchWhereClause,
         String fromTaskName,
+/*
         @Deprecated
         List<String> excludedSourceColumns,
         @Deprecated
         List<String> excludedTargetColumns,
+*/
         HashSet<ColumnRule> transformToRule,
         Map<String, String> columnToColumn
 //    Map<Integer, ColumnRule> column2Rule,
