@@ -12,13 +12,7 @@ public record Config(
         String fetchHintClause,
         String fetchWhereClause,
         String fromTaskName,
-/*
-        @Deprecated
-        List<String> excludedSourceColumns,
-        @Deprecated
-        List<String> excludedTargetColumns,
-*/
-        HashSet<ColumnRule> transformToRule,
+//        HashSet<ColumnRule> transformToRule,
         Map<String, String> columnToColumn
 //    Map<Integer, ColumnRule> column2Rule,
 //    Map<String, String> columnName2columnType
