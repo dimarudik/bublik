@@ -1,5 +1,7 @@
 package org.example.model;
 
+import lombok.AllArgsConstructor;
+
 import java.sql.*;
 import java.util.*;
 
@@ -11,6 +13,45 @@ public record OraChunk(Integer chunkId,
                        Long startId,
                        Long endId,
                        Config config) implements Chunk {
+/*
+@AllArgsConstructor
+public class OraChunk extends C {
+    Integer chunkId;
+    String startRowId;
+    String endRowId;
+    Long startId;
+    Long endId;
+    Config config;
+*/
+
+
+
+
+    @Override
+    public Integer chunkId() {
+        return null;
+    }
+
+    @Override
+    public String startRowId() {
+        return null;
+    }
+
+    @Override
+    public String endRowId() {
+        return null;
+    }
+
+    @Override
+    public Long startId() {
+        return null;
+    }
+
+    @Override
+    public Long endId() {
+        return null;
+    }
+
     @Override
     public Long startPage() {
         return null;
@@ -20,6 +61,16 @@ public record OraChunk(Integer chunkId,
     public Long endPage() {
         return null;
     }
+
+    @Override
+    public Config config() {
+        return null;
+    }
+
+
+
+
+
 
     @Override
     public void markChunkAsProceed(Connection connection) throws SQLException {
@@ -44,6 +95,7 @@ public record OraChunk(Integer chunkId,
         return statement.executeQuery();
     }
 
+/*
     @Override
     public Map<String, Integer> readSourceColumns(Connection connection) throws SQLException {
         Map<String, Integer> columnMap = new TreeMap<>();
@@ -62,6 +114,7 @@ public record OraChunk(Integer chunkId,
         resultSet.close();
         return columnMap;
     }
+*/
 
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {

@@ -48,6 +48,7 @@ public record PGChunk(Integer chunkId,
         return preparedStatement.executeQuery();
     }
 
+/*
     @Override
     public Map<String, Integer> readSourceColumns(Connection connection) throws SQLException {
         Map<String, Integer> columnMap = new TreeMap<>();
@@ -62,11 +63,11 @@ public record PGChunk(Integer chunkId,
             String columnName = resultSet.getString(4);
             String columnType = resultSet.getString(6);
             columnMap.put(columnName.toUpperCase(), 0);
-//                System.out.println(columnName.toUpperCase() + " : " + (columnType.equals("bigserial") ? "bigint" : columnType));
         }
         resultSet.close();
         return columnMap;
     }
+*/
 
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {

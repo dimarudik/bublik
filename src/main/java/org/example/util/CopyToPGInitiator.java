@@ -15,7 +15,6 @@ import java.time.*;
 import java.util.*;
 
 import static org.example.util.ColumnUtil.*;
-import static org.example.util.SQLUtil.getNeededTargetColumnsAndTypes;
 import static org.example.util.TableUtil.tableExists;
 
 public class CopyToPGInitiator {
@@ -53,7 +52,7 @@ public class CopyToPGInitiator {
                                     Chunk chunk) {
         int rowCount = 0;
 //        Map<String, String> neededColumnsToDB = readPGTargetColumns(connection, config);
-        Map<String, PGColumn> neededColumnsToDB = readPGTargetColumns(connection, config);
+        Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, config);
         long start = System.currentTimeMillis();
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
 //        String[] columnNames = neededColumnsToDB.keySet().toArray(new String[0]);

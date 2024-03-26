@@ -6,16 +6,6 @@ import java.util.*;
 
 public class SQLUtil {
 
-    public static Map<String, String> getNeededTargetColumnsAndTypes(Config config,
-                                                                     Map<String, String> columnsToDB) {
-        Map<String, String> neededTargetColumnsMap = new TreeMap<>(columnsToDB);
-        if (config.excludedTargetColumns() != null) {
-            Set<String> excludedTargetColumns = new HashSet<>(config.excludedTargetColumns());
-            neededTargetColumnsMap.keySet().removeAll(excludedTargetColumns);
-        }
-        return neededTargetColumnsMap;
-    }
-
     public static String buildStartEndRowIdOfOracleChunk(List<Config> configs) {
         List<String> taskNames = new ArrayList<>();
         configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));

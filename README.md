@@ -3,7 +3,7 @@
 
 This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
-In case of PostgreSQL, we should split a table into chunks by CTID.<br>
+In case of PostgreSQL, we should split a table into chunks by `CTID`.<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
 ## Supported Types

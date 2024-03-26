@@ -1,5 +1,6 @@
 package org.example.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.example.model.Config;
@@ -9,15 +10,17 @@ import org.example.model.PGColumn;
 
 import java.sql.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.example.constants.SQLConstants.*;
 import static org.example.util.SQLUtil.buildStartEndPageOfPGChunk;
 import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 
+//@Slf4j
 public class ColumnUtil {
-    private static final Logger logger = LogManager.getLogger(ColumnUtil.class);
+    private static final Logger log = LogManager.getLogger(ColumnUtil.class);
 
-    public static Map<String, PGColumn> readPGTargetColumns(Connection connection, Config config) {
+    public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Config config) {
         Map<String, PGColumn> columnMap = new HashMap<>();
         ResultSet resultSet;
         try {
@@ -41,7 +44,7 @@ public class ColumnUtil {
             }
             resultSet.close();
         } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
         }
         return columnMap;
     }
@@ -74,22 +77,27 @@ public class ColumnUtil {
             String sql = buildStartEndRowIdOfOracleChunk(configs);
             PreparedStatement statement = connection.prepareStatement(sql);
             ResultSet resultSet = statement.executeQuery();
-            while (resultSet.next()) {
-                chunkHashMap.put(resultSet.getInt(1),
-                        new OraChunk(
-                                resultSet.getInt(2),
-                                resultSet.getString(3),
-                                resultSet.getString(4),
-                                resultSet.getLong(5),
-                                resultSet.getLong(6),
-                                findByTaskName(configs, resultSet.getString(7))
-                        )
-                );
+            if (!resultSet.isBeforeFirst()) {
+                log.error("No chunk definition found in USER_PARALLEL_EXECUTE_CHUNKS for : " +
+                        configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
+            } else {
+                while (resultSet.next()) {
+                    chunkHashMap.put(resultSet.getInt(1),
+                            new OraChunk(
+                                    resultSet.getInt(2),
+                                    resultSet.getString(3),
+                                    resultSet.getString(4),
+                                    resultSet.getLong(5),
+                                    resultSet.getLong(6),
+                                    findByTaskName(configs, resultSet.getString(7))
+                            )
+                    );
+                }
             }
             resultSet.close();
             statement.close();
         } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
         }
         return chunkHashMap;
     }
@@ -100,7 +108,10 @@ public class ColumnUtil {
             String sql = buildStartEndPageOfPGChunk(configs);
             PreparedStatement statement = connection.prepareStatement(sql);
             ResultSet resultSet = statement.executeQuery();
-            while (resultSet.next()) {
+            if (!resultSet.isBeforeFirst()) {
+                log.error("No chunk definition found in CTID_CHUNKS for : " +
+                        configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
+            } else while (resultSet.next()) {
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new PGChunk(
                                 resultSet.getInt("chunk_id"),
@@ -114,7 +125,8 @@ public class ColumnUtil {
             resultSet.close();
             statement.close();
         } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
+//            logger.error(e.getMessage(), e);
         }
         return chunkHashMap;
     }
@@ -139,7 +151,7 @@ public class ColumnUtil {
                     long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                             (int) Math.round(relpages / (reltuples / rowsInChunk));
                     long pagesInChunk = Math.min(v, relpages + 1);
-                    logger.info("{}.{} \t\t\t relpages : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                    log.info("{}.{} \t\t\t relpages : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
                             sqlStatement.fromSchemaName(),
                             sqlStatement.fromTableName(),
                             relpages,
@@ -155,15 +167,16 @@ public class ColumnUtil {
                     resultSet.close();
                     preparedStatement.close();
                 } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
+                    log.error(e.getMessage(), e);
                 }
             });
             createTable.close();
         } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
         }
 
     }
+
     public static byte[] convertBlobToBytes(ResultSet resultSet, int i) throws SQLException {
         Blob blob = resultSet.getBlob(i);
         return getBlobBytes(blob);
