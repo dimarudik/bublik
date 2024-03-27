@@ -36,7 +36,7 @@ public class App {
                             properties.getInitPGChunks(),
                             properties.getCopyPGChunks());
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error(e.getMessage(), e);
         }
     }
 }

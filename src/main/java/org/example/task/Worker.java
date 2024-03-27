@@ -7,6 +7,7 @@ import org.example.util.CopyToPGInitiator;
 import org.example.util.DatabaseUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -36,6 +37,7 @@ public class Worker implements Callable<LogMessage> {
 
     @Override
     public LogMessage call() {
+        var mdcToTableName = MDC.putCloseable("toTableName", chunk.config().toTableName());
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
             String query = chunk.buildFetchStatement(columnsFromDB);
@@ -51,8 +53,10 @@ public class Worker implements Callable<LogMessage> {
             }
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
-            e.printStackTrace();
-            logger.error(e.getMessage());
+            logger.error(e.getMessage(), e);
+        }
+        finally {
+            mdcToTableName.close();
         }
         return logMessage;
     }

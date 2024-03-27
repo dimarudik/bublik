@@ -74,8 +74,7 @@ public class ProcessUtil {
                                 );
                             }
                         } catch (SQLException e) {
-                            e.printStackTrace();
-                            logger.error(e.getMessage());
+                            logger.error(e.getMessage(), e);
                         }
                     }
                 );
@@ -103,8 +102,7 @@ public class ProcessUtil {
                                     );
                                 }
                             } catch (SQLException e) {
-                                e.printStackTrace();
-                                logger.error(e.getMessage());
+                                logger.error(e.getMessage(), e);
                             }
                         }
                     );
