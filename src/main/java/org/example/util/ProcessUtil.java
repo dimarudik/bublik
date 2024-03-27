@@ -1,17 +1,25 @@
 package org.example.util;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.example.constants.SourceContext;
 import org.example.constants.SourceContextHolder;
-import org.example.model.*;
+import org.example.model.Chunk;
+import org.example.model.Config;
+import org.example.model.LogMessage;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
 import org.example.task.Worker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,11 +27,13 @@ import java.util.concurrent.Future;
 
 import static org.example.constants.SQLConstants.LABEL_ORACLE;
 import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
-import static org.example.util.ColumnUtil.*;
+import static org.example.util.ColumnUtil.fillPGChunks;
+import static org.example.util.ColumnUtil.getStartEndCTIDMap;
+import static org.example.util.ColumnUtil.getStartEndRowIdMap;
 import static org.example.util.TableUtil.tableExists;
 
 public class ProcessUtil {
-    private static final Logger logger = LogManager.getLogger(ProcessUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(ProcessUtil.class);
     private SourceContextHolder contextHolder = null;
 
     public void initiateProcessFromDatabase(Properties fromProperties,
