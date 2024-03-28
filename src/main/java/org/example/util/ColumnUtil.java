@@ -1,34 +1,25 @@
 package org.example.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.model.Config;
 import org.example.model.OraChunk;
 import org.example.model.PGChunk;
 import org.example.model.PGColumn;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.sql.Blob;
-import java.sql.Clob;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-import static org.example.constants.SQLConstants.DDL_CREATE_POSTGRESQL_TABLE_CHUNKS;
-import static org.example.constants.SQLConstants.DML_BATCH_INSERT_CTID_CHUNKS;
-import static org.example.constants.SQLConstants.SQL_NUMBER_OF_TUPLES;
+import static org.example.constants.SQLConstants.*;
 import static org.example.util.SQLUtil.buildStartEndPageOfPGChunk;
 import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 
-//@Slf4j
+@Slf4j
 public class ColumnUtil {
-    private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);
+//    private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);
 
     public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Config config) {
         Map<String, PGColumn> columnMap = new HashMap<>();

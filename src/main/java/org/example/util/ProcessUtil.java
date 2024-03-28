@@ -1,5 +1,6 @@
 package org.example.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.constants.SourceContext;
 import org.example.constants.SourceContextHolder;
 import org.example.model.Chunk;
@@ -32,8 +33,8 @@ import static org.example.util.ColumnUtil.getStartEndCTIDMap;
 import static org.example.util.ColumnUtil.getStartEndRowIdMap;
 import static org.example.util.TableUtil.tableExists;
 
+@Slf4j
 public class ProcessUtil {
-    private static final Logger logger = LoggerFactory.getLogger(ProcessUtil.class);
     private SourceContextHolder contextHolder = null;
 
     public void initiateProcessFromDatabase(Properties fromProperties,
@@ -50,7 +51,7 @@ public class ProcessUtil {
             } else if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_POSTGRESQL)) {
                 contextHolder = new SourceContextHolder(SourceContext.PostgreSQL);
             } else {
-                logger.error("Unknown Source Database!");
+                log.error("Unknown Source Database!");
                 return;
             }
             List<Future<LogMessage>> tasks = new ArrayList<>();
@@ -74,7 +75,7 @@ public class ProcessUtil {
                                 );
                             }
                         } catch (SQLException e) {
-                            logger.error(e.getMessage(), e);
+                            log.error(e.getMessage(), e);
                         }
                     }
                 );
@@ -102,7 +103,7 @@ public class ProcessUtil {
                                     );
                                 }
                             } catch (SQLException e) {
-                                logger.error(e.getMessage(), e);
+                                log.error(e.getMessage(), e);
                             }
                         }
                     );
@@ -116,7 +117,7 @@ public class ProcessUtil {
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException | InterruptedException | ExecutionException e) {
             executorService.shutdown();
-            logger.error("Stopping all threads... {}", e.getMessage());
+            log.error("Stopping all threads... {}", e.getMessage());
         }
     }
 
