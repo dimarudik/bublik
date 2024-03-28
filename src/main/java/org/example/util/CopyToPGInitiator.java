@@ -2,23 +2,42 @@ package org.example.util;
 
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.example.model.*;
+import org.example.model.Chunk;
+import org.example.model.Config;
+import org.example.model.LogMessage;
+import org.example.model.OraChunk;
+import org.example.model.PGChunk;
+import org.example.model.PGColumn;
+import org.example.model.RunnerResult;
 import org.postgresql.PGConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.*;
-import java.util.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TimeZone;
+import java.util.UUID;
 
-import static org.example.util.ColumnUtil.*;
+import static org.example.util.ColumnUtil.convertBlobToBytes;
+import static org.example.util.ColumnUtil.convertClobToString;
+import static org.example.util.ColumnUtil.getColumnIndexByColumnName;
+import static org.example.util.ColumnUtil.readTargetColumnsAndTypes;
 import static org.example.util.TableUtil.tableExists;
 
 public class CopyToPGInitiator {
-    private static final Logger logger = LogManager.getLogger(CopyToPGInitiator.class);
+    private static final Logger logger = LoggerFactory.getLogger(CopyToPGInitiator.class);
 
     public RunnerResult initiateProcessToDatabase(Properties toProperties,
                                                   ResultSet fetchResultSet,
@@ -299,7 +318,7 @@ public class CopyToPGInitiator {
             } while (fetchResultSet.next());
         } catch (SQLException | RuntimeException e) {
             e.printStackTrace();
-            logger.error(e);
+            logger.error(e.getMessage(), e);
             return null;
         }
         return saveToLogger(chunk, rowCount, start, "COPY");

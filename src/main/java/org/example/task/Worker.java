@@ -1,10 +1,13 @@
 package org.example.task;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.example.model.*;
+import org.example.model.Chunk;
+import org.example.model.LogMessage;
+import org.example.model.RunnerResult;
 import org.example.util.CopyToPGInitiator;
 import org.example.util.DatabaseUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -20,7 +23,7 @@ public class Worker implements Callable<LogMessage> {
     private final Map<String, Integer> columnsFromDB;
 
     private LogMessage logMessage;
-    private static final Logger logger = LogManager.getLogger(Worker.class);
+    private static final Logger logger = LoggerFactory.getLogger(Worker.class);
 
     public Worker(Properties fromProperties,
                   Properties toProperties,
@@ -34,6 +37,7 @@ public class Worker implements Callable<LogMessage> {
 
     @Override
     public LogMessage call() {
+        var mdcToTableName = MDC.putCloseable("toTableName", chunk.config().toTableName());
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
             String query = chunk.buildFetchStatement(columnsFromDB);
@@ -49,8 +53,10 @@ public class Worker implements Callable<LogMessage> {
             }
             DatabaseUtil.closeConnection(connection);
         } catch (SQLException e) {
-            e.printStackTrace();
-            logger.error(e.getMessage());
+            logger.error(e.getMessage(), e);
+        }
+        finally {
+            mdcToTableName.close();
         }
         return logMessage;
     }
