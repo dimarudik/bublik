@@ -1,13 +1,28 @@
 package org.example.util;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 public class TableUtil {
+
+    private static final AtomicInteger count = new AtomicInteger(0);
+    private static final AtomicLong duration = new AtomicLong(0L);
+
     public static boolean tableExists(Connection connection,
                                       String schemaName,
                                       String tableName) throws SQLException {
+        var curVal = count.getAndIncrement();
+        if (curVal != 0 && curVal % 100 == 0) {
+            printStats(curVal, duration.get());
+        }
+
+        var start = System.currentTimeMillis();
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
                 schemaName.toLowerCase(),
@@ -26,6 +41,13 @@ public class TableUtil {
         }
         tablesLowCase.close();
         tablesUpCase.close();
+        var end = System.currentTimeMillis();
+        var d = end - start;
+        duration.addAndGet(d);
         return true;
+    }
+
+    private static void printStats(int curVal, long duration) {
+        log.trace("\n\n----STATS---\nCOUNT: {}\nDURATION: {}\n\n", curVal, duration);
     }
 }
