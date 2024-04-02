@@ -6,8 +6,6 @@ import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
 import org.example.util.CopyToPGInitiator;
 import org.example.util.DatabaseUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import java.sql.Connection;

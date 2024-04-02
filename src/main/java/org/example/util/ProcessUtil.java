@@ -9,18 +9,10 @@ import org.example.model.LogMessage;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
 import org.example.task.Worker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,9 +20,7 @@ import java.util.concurrent.Future;
 
 import static org.example.constants.SQLConstants.LABEL_ORACLE;
 import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
-import static org.example.util.ColumnUtil.fillPGChunks;
-import static org.example.util.ColumnUtil.getStartEndCTIDMap;
-import static org.example.util.ColumnUtil.getStartEndRowIdMap;
+import static org.example.util.ColumnUtil.*;
 import static org.example.util.TableUtil.tableExists;
 
 @Slf4j

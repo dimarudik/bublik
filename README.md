@@ -204,7 +204,7 @@ initPGChunks: true
 copyPGChunks: true
 
 fromProperties:
-  url: jdbc:postgresql://localhost:5432/postgres
+  url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
   user: test
   password: test
 toProperties:
