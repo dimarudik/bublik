@@ -3,11 +3,20 @@ package org.example.util;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TableUtil {
+
+    private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
+
     public static boolean tableExists(Connection connection,
                                       String schemaName,
                                       String tableName) throws SQLException {
+        if (tableExistsCache.contains(tableName)) {
+            return true;
+        }
+
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
                 schemaName.toLowerCase(),
@@ -26,6 +35,7 @@ public class TableUtil {
         }
         tablesLowCase.close();
         tablesUpCase.close();
+        tableExistsCache.add(tableName);
         return true;
     }
 }
