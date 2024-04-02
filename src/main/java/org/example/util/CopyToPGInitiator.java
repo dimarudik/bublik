@@ -111,6 +111,32 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     log.error("{} {}", entry.getKey(), e);
                                 }
+                            case "smallserial":
+                                try {
+                                    Object o = fetchResultSet.getObject(sourceColumn);
+                                    if (o == null) {
+                                        row.setShort(targetColumn, null);
+                                        break;
+                                    }
+                                    Short aShort = fetchResultSet.getShort(sourceColumn);
+                                    row.setShort(targetColumn, aShort);
+                                    break;
+                                } catch (SQLException e) {
+                                    log.error("{} {}", entry.getKey(), e);
+                                }
+                            case "serial":
+                                try {
+                                    Object o = fetchResultSet.getObject(sourceColumn);
+                                    if (o == null) {
+                                        row.setInteger(targetColumn, null);
+                                        break;
+                                    }
+                                    int i = fetchResultSet.getInt(sourceColumn);
+                                    row.setInteger(targetColumn, i);
+                                    break;
+                                } catch (SQLException e) {
+                                    log.error("{} {}", entry.getKey(), e);
+                                }
                             case "bigint":
                                 try {
                                     Object o = fetchResultSet.getObject(sourceColumn);
@@ -325,8 +351,7 @@ public class CopyToPGInitiator {
                 chunk.startRowId(),
                 chunk.endRowId(),
                 chunk.chunkId());
-        log.info(" {} :\t\t{} {}\t {} sec",
-                logMessage.fromTableName(),
+        log.info("\t{} {}\t {} sec",
                 operation,
                 logMessage,
                 Math.round( (float) (System.currentTimeMillis() - start) / 10) / 100.0);

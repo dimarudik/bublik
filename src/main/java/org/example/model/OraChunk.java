@@ -82,14 +82,17 @@ public class OraChunk extends C {
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
+        return "select " +
+                config.fetchHintClause() +
+                String.join(", ", neededSourceColumns) +
+                " from " +
+                config.fromSchemaName() +
+                "." +
+                config.fromTableName() +
+                " where " +
+                config.fetchWhereClause() +
+                " and rowid between ? and ?";
 /*
-        if (config.excludedSourceColumns() != null) {
-            Set<String> excludedSourceColumns = new HashSet<>(config.excludedSourceColumns());
-            Map<String, Integer> neededSourceColumnsMap = new TreeMap<>(columnsFromDB);
-            neededSourceColumnsMap.keySet().removeAll(excludedSourceColumns);
-            neededSourceColumns = new ArrayList<>(neededSourceColumnsMap.keySet());
-        }
-*/
         if (config.numberColumn() == null) {
             return "select " +
                     config.fetchHintClause() +
@@ -113,5 +116,6 @@ public class OraChunk extends C {
                     config.fetchWhereClause() +
                     " and " + config.numberColumn() + " between ? and ?";
         }
+*/
     }
 }

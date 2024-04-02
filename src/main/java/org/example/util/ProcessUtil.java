@@ -54,6 +54,7 @@ public class ProcessUtil {
                                     chunk.config().fromTableName())) {
                                 Map<String, Integer> orderedColumns = new HashMap<>();
                                 chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
+//                                System.out.println(orderedColumns);
                                 tasks.add(
                                         executorService.
                                                 submit(new Worker(
