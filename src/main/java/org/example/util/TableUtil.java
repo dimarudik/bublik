@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -13,6 +15,8 @@ public class TableUtil {
 
     private static final AtomicInteger count = new AtomicInteger(0);
     private static final AtomicLong duration = new AtomicLong(0L);
+
+    private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
 
     public static boolean tableExists(Connection connection,
                                       String schemaName,
@@ -23,6 +27,10 @@ public class TableUtil {
         }
 
         var start = System.currentTimeMillis();
+        if (tableExistsCache.contains(tableName)) {
+            return true;
+        }
+
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
                 schemaName.toLowerCase(),
@@ -41,6 +49,7 @@ public class TableUtil {
         }
         tablesLowCase.close();
         tablesUpCase.close();
+        tableExistsCache.add(tableName);
         var end = System.currentTimeMillis();
         var d = end - start;
         duration.addAndGet(d);
