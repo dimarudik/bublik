@@ -1,5 +1,6 @@
 package org.example.util;
 
+import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,7 @@ import static org.example.util.TableUtil.tableExists;
 
 @Slf4j
 public class CopyToPGInitiator {
-//    private static final Logger logger = LoggerFactory.getLogger(CopyToPGInitiator.class);
+    private StringBuffer tmpString = new StringBuffer();
 
     public RunnerResult initiateProcessToDatabase(Properties toProperties,
                                                   ResultSet fetchResultSet,
@@ -65,21 +66,28 @@ public class CopyToPGInitiator {
         try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
             do {
                 writer.startRow((row) -> {
+                    tmpString.setLength(0);
                     for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
                         String sourceColumn = entry.getKey().replaceAll("\"","");
                         String targetColumn = entry.getValue().getColumnName();
-/*
+
                         try {
-                            System.out.println(entry.getKey() + " : " + entry.getValue() + " : " + fetchResultSet.getString(entry.getKey()));
+//                            System.out.println(sourceColumn + " : " + targetColumn + " : " + fetchResultSet.getString(sourceColumn));
+                            tmpString.append(targetColumn).append(" : ").append(fetchResultSet.getString(sourceColumn)).append("\n");
                         } catch (SQLException e) {
                             throw new RuntimeException(e);
                         }
-*/
+
                         switch (entry.getValue().getColumnType()) {
                             case "varchar":
                                 try {
                                     String s = fetchResultSet.getString(sourceColumn);
-                                    row.setText(targetColumn, s);
+                                    if (s == null) {
+                                        row.setText(targetColumn, null);
+                                        break;
+                                    }
+                                    row.setText(targetColumn, s.replaceAll("\u0000", ""));
+//                                    row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
                                     log.error("{} {}", entry.getKey(), e);
@@ -324,6 +332,7 @@ public class CopyToPGInitiator {
                 rowCount++;
             } while (fetchResultSet.next());
         } catch (SQLException | RuntimeException e) {
+            System.out.println(tmpString);
             e.printStackTrace();
             log.error(e.getMessage(), e);
             return null;
