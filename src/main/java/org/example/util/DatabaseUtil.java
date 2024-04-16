@@ -1,5 +1,8 @@
 package org.example.util;
 
+import org.example.constants.SourceContext;
+import org.example.constants.SourceContextHolder;
+import org.postgresql.PGConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,5 +31,14 @@ public class DatabaseUtil {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         }
+    }
+
+    public static SourceContextHolder sourceContextHolder(Connection connection) throws SQLException {
+        if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
+            return new SourceContextHolder(SourceContext.Oracle);
+        } else if (connection.isWrapperFor(PGConnection.class)) {
+            return new SourceContextHolder(SourceContext.PostgreSQL);
+        }
+        throw new SQLException("Unknown DataSource");
     }
 }

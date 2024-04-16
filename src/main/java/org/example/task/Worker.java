@@ -37,7 +37,7 @@ public class Worker implements Callable<LogMessage> {
 
     @Override
     public LogMessage call() {
-        var mdcToTableName = MDC.putCloseable("toTableName", chunk.config().toTableName());
+        MDC.MDCCloseable mdcToTableName = MDC.putCloseable("toTableName", chunk.config().toTableName());
         try {
             Connection connection = DatabaseUtil.getConnection(fromProperties);
             String query = chunk.buildFetchStatement(columnsFromDB);
