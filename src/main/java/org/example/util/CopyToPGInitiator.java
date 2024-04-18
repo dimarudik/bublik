@@ -4,34 +4,49 @@ import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.example.model.*;
+import org.example.model.Chunk;
+import org.example.model.Config;
+import org.example.model.LogMessage;
+import org.example.model.OraChunk;
+import org.example.model.PGChunk;
+import org.example.model.PGColumn;
+import org.example.model.RunnerResult;
 import org.postgresql.PGConnection;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.*;
-import java.util.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.UUID;
 
-import static org.example.util.ColumnUtil.*;
+import static org.example.util.ColumnUtil.convertBlobToBytes;
+import static org.example.util.ColumnUtil.convertClobToString;
+import static org.example.util.ColumnUtil.getColumnIndexByColumnName;
+import static org.example.util.ColumnUtil.readTargetColumnsAndTypes;
 import static org.example.util.TableUtil.tableExists;
 
 @Slf4j
 public class CopyToPGInitiator {
     private StringBuffer tmpString = new StringBuffer();
 
-    public RunnerResult initiateProcessToDatabase(Properties toProperties,
-                                                  ResultSet fetchResultSet,
+    public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet,
                                                   Chunk chunk) {
         LogMessage logMessage = null;
-        try {
+        try (Connection connection = DatabaseUtil.getConnectionDbTo()) {
             if (fetchResultSet.next()) {
-                Connection connection = DatabaseUtil.getConnection(toProperties);
                 if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
                     logMessage = fetchAndCopy(connection, fetchResultSet, chunk.config(), chunk);
                 }
-                DatabaseUtil.closeConnection(connection);
             } else {
                 logMessage = saveToLogger(
                         chunk,
@@ -68,7 +83,7 @@ public class CopyToPGInitiator {
                 writer.startRow((row) -> {
                     tmpString.setLength(0);
                     for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
-                        String sourceColumn = entry.getKey().replaceAll("\"","");
+                        String sourceColumn = entry.getKey().replaceAll("\"", "");
                         String targetColumn = entry.getValue().getColumnName();
 
                         try {
@@ -363,7 +378,7 @@ public class CopyToPGInitiator {
         log.info("\t{} {}\t {} sec",
                 operation,
                 logMessage,
-                Math.round( (float) (System.currentTimeMillis() - start) / 10) / 100.0);
+                Math.round((float) (System.currentTimeMillis() - start) / 10) / 100.0);
         return logMessage;
     }
 

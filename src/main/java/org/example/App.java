@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.example.model.Config;
 import org.example.model.SourceTargetProperties;
+import org.example.util.DatabaseUtil;
 import org.example.util.ProcessUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +28,9 @@ public class App {
             List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(transRules).toFile(),
                             Config[].class));
+            DatabaseUtil.initializeConnectionPools(properties);
             new ProcessUtil()
                     .initiateProcessFromDatabase(
-                            properties.getFromProperty(),
-                            properties.getToProperty(),
                             configList,
                             properties.getThreadCount(),
                             properties.getInitPGChunks(),

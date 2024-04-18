@@ -27,15 +27,12 @@ import static org.example.util.TableUtil.tableExists;
 public class ProcessUtil {
     private SourceContextHolder contextHolder = null;
 
-    public void initiateProcessFromDatabase(Properties fromProperties,
-                                            Properties toProperties,
-                                            List<Config> configs,
+    public void initiateProcessFromDatabase(List<Config> configs,
                                             Integer threads,
                                             Boolean initPGChunks,
                                             Boolean copyPGChunks) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
-        try {
-            Connection connection = DatabaseUtil.getConnection(fromProperties);
+        try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
             if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_ORACLE)) {
                 contextHolder = new SourceContextHolder(SourceContext.Oracle);
             } else if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_POSTGRESQL)) {
@@ -58,8 +55,6 @@ public class ProcessUtil {
                                 tasks.add(
                                         executorService.
                                                 submit(new Worker(
-                                                        fromProperties,
-                                                        toProperties,
                                                         chunk,
                                                         orderedColumns
                                                 ))
@@ -84,13 +79,7 @@ public class ProcessUtil {
                                     Map<String, Integer> orderedColumns = new HashMap<>();
                                     chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
                                     tasks.add(
-                                            executorService.
-                                                    submit(new Worker(
-                                                            fromProperties,
-                                                            toProperties,
-                                                            chunk,
-                                                            orderedColumns
-                                                    ))
+                                            executorService.submit(new Worker(chunk, orderedColumns))
                                     );
                                 }
                             } catch (SQLException e) {
@@ -105,7 +94,6 @@ public class ProcessUtil {
             futureProceed(tasks);
 
             executorService.shutdown();
-            DatabaseUtil.closeConnection(connection);
         } catch (SQLException | InterruptedException | ExecutionException e) {
             executorService.shutdown();
             log.error("Stopping all threads... {}", e.getMessage());
