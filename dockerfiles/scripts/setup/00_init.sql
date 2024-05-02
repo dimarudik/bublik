@@ -11,6 +11,7 @@ create table test.table1 (
     byteablob blob,
     textclob clob,
     exclude_me int,
+    "CaseSensitive" varchar2(20),
     primary key (id)
 );
 insert into test.table1
@@ -22,6 +23,8 @@ insert into test.table1
         mod(rownum, 2) as gender,
         utl_raw.cast_to_raw('Hi, I''m using CLOB to bytea') as byteablob,
         to_clob('Hi, I''m using CLOB to text') as textclob,
-        null as exclude_me
+        null as exclude_me,
+        null as "CaseSensitive"
     from dual connect by level < 1000000);
 commit;
+create table test."Table2" as select * from test.table1;

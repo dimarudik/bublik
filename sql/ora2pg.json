@@ -16,5 +16,23 @@
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
     }
+  },
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "\"Table2\"",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TABLE2",
+    "fetchHintClause" : "/*+ no_index(TABLE2) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE2_TASK",
+    "columnToColumn" : {
+      "id"          : "id",
+      "name"        : "name",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    }
   }
 ]
