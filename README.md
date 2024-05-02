@@ -176,7 +176,7 @@ end;
 ### Step 3
 Run the tool
 ```
-java -jar ./target/bublik-1.2.jar ./sql/ora2pg.yaml ./sql/ora2pg.json
+java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
 ```
 
 <ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>

@@ -2,20 +2,19 @@ package org.example.util;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import lombok.extern.slf4j.Slf4j;
 import org.example.model.SourceTargetProperties;
 import org.example.constants.SourceContext;
 import org.example.constants.SourceContextHolder;
 import org.postgresql.PGConnection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 
+@Slf4j
 public class DatabaseUtil {
-    private static final Logger logger = LoggerFactory.getLogger(DatabaseUtil.class);
 
     private static DataSource fromDataSource;
     private static DataSource toDataSource;
@@ -28,16 +27,16 @@ public class DatabaseUtil {
         return getConnection(toDataSource);
     }
 
-    public static void closeConnection(Connection connection) throws SQLException {
+    public static void closeConnection(Connection connection) {
         try {
             connection.close();
         } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
+            log.error(e.getMessage(), e);
         }
     }
 
     public static void initializeConnectionPools(SourceTargetProperties properties) {
-        var maxPoolSize = properties.getThreadCount();
+        var maxPoolSize = properties.getThreadCount() + 1;
         var fromConfiguration = buildConfiguration(
                 properties.getFromProperty(),
                 maxPoolSize,
@@ -57,7 +56,7 @@ public class DatabaseUtil {
         try {
             return dataSource.getConnection();
         } catch (SQLException e) {
-            logger.error("Failed to get connection from pool: {}", e.getMessage(), e);
+            log.error("Failed to get connection from pool: {}", e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
@@ -70,6 +69,7 @@ public class DatabaseUtil {
         hikariConfig.setMaximumPoolSize(maxPoolSize);
         hikariConfig.setPoolName(poolName);
         return hikariConfig;
+    }
 
     public static SourceContextHolder sourceContextHolder(Connection connection) throws SQLException {
         if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {

@@ -31,6 +31,7 @@ public class ProcessUtil {
                                             Boolean copyPGChunks) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
+/*
             if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_ORACLE)) {
                 contextHolder = new SourceContextHolder(SourceContext.Oracle);
             } else if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_POSTGRESQL)) {
@@ -39,6 +40,7 @@ public class ProcessUtil {
                 log.error("Unknown Source Database!");
                 return;
             }
+*/
             List<Future<LogMessage>> tasks = new ArrayList<>();
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){

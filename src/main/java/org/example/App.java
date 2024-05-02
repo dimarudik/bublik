@@ -81,6 +81,7 @@ public class App {
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
             DatabaseUtil.initializeConnectionPools(properties);
+//            Thread.sleep(10000);
             new ProcessUtil()
                     .initiateProcessFromDatabase(
                             configList,
@@ -95,7 +96,8 @@ public class App {
     private static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
         SourceTargetProperties properties = sourceTargetProperties(configFileName);
         ObjectMapper mapperJSON = new ObjectMapper();
-        Connection connection = DatabaseUtil.getConnection(properties.getFromProperty());
+        DatabaseUtil.initializeConnectionPools(properties);
+        Connection connection = DatabaseUtil.getConnectionDbFrom();
         List<Table> tableList =
                 List.of(mapperJSON.readValue(Paths.get(listOfTablesFileName).toFile(),
                         TableService.getTableArrayClass(connection)
