@@ -80,10 +80,9 @@ public class App {
             List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
+            DatabaseUtil.initializeConnectionPools(properties);
             new ProcessUtil()
                     .initiateProcessFromDatabase(
-                            properties.getFromProperty(),
-                            properties.getToProperty(),
                             configList,
                             properties.getThreadCount(),
                             properties.getInitPGChunks(),
