@@ -78,10 +78,12 @@ public class ColumnUtil {
             String sql = buildStartEndRowIdOfOracleChunk(configs);
             PreparedStatement statement = connection.prepareStatement(sql);
             ResultSet resultSet = statement.executeQuery();
+/*
             if (!resultSet.isBeforeFirst()) {
-                log.error("No chunk definition found in USER_PARALLEL_EXECUTE_CHUNKS for : " +
+                log.warn("No unprocessed chunks found in USER_PARALLEL_EXECUTE_CHUNKS for : " +
                         configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
             } else {
+*/
                 while (resultSet.next()) {
                     chunkHashMap.put(resultSet.getInt(1),
                             new OraChunk(
@@ -94,7 +96,7 @@ public class ColumnUtil {
                             )
                     );
                 }
-            }
+//            }
             resultSet.close();
             statement.close();
         } catch (SQLException e) {

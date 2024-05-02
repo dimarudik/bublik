@@ -18,7 +18,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | number                   | numeric, smallint, bigint, integer, double precision |
 
 ## 1. Oracle To PostgreSQL
-The objective is to migrate table `TABLE1` from an Oracle schema `TEST` to a PostgreSQL database.
+The objective is to migrate tables `TABLE1` `Table2` from an Oracle schema `TEST` to a PostgreSQL database.
 
 
 
@@ -118,6 +118,24 @@ toProperties:
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
     }
+  },
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "TABLE2",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TABLE2",
+    "fetchHintClause" : "/*+ no_index(TABLE2) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE2_TASK",
+    "columnToColumn" : {
+      "id"          : "id",
+      "name"        : "name",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    }
   }
 ]
 ```
@@ -139,6 +157,16 @@ begin
     dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
                                                     table_owner => 'TEST',
                                                     table_name  => 'TABLE1',
+                                                    by_row => TRUE,
+                                                    chunk_size  => 100000 );
+end;
+/
+exec dbms_parallel_execute.drop_task(task_name => 'TABLE2_TASK');
+exec dbms_parallel_execute.create_task (task_name => 'TABLE2_TASK');
+begin 
+    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE2_TASK',
+                                                    table_owner => 'TEST',
+                                                    table_name  => 'Table2',
                                                     by_row => TRUE,
                                                     chunk_size  => 100000 );
 end;

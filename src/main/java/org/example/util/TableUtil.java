@@ -1,5 +1,7 @@
 package org.example.util;
 
+import org.example.exception.TableNotExistsException;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,9 +15,11 @@ public class TableUtil {
     public static boolean tableExists(Connection connection,
                                       String schemaName,
                                       String tableName) throws SQLException {
+/*
         if (tableExistsCache.contains(tableName)) {
             return true;
         }
+*/
 
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
@@ -30,7 +34,7 @@ public class TableUtil {
         if (!tablesLowCase.next() && !tablesUpCase.next()) {
             tablesLowCase.close();
             tablesUpCase.close();
-            throw new SQLException("Table " + schemaName + "."
+            throw new TableNotExistsException("Table " + schemaName + "."
                     + tableName + " does not exist.");
         }
         tablesLowCase.close();

@@ -1,11 +1,9 @@
 package org.example.util;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.constants.SourceContext;
 import org.example.constants.SourceContextHolder;
-import org.example.model.Chunk;
-import org.example.model.Config;
-import org.example.model.LogMessage;
+import org.example.exception.TableNotExistsException;
+import org.example.model.*;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
 import org.example.task.Worker;
@@ -25,7 +23,7 @@ import static org.example.util.TableUtil.tableExists;
 
 @Slf4j
 public class ProcessUtil {
-    private SourceContextHolder contextHolder = null;
+//    private SourceContextHolder contextHolder = null;
 
     public void initiateProcessFromDatabase(List<Config> configs,
                                             Integer threads,
@@ -42,16 +40,15 @@ public class ProcessUtil {
                 return;
             }
             List<Future<LogMessage>> tasks = new ArrayList<>();
-            if (contextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
+            SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
+            if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
                 Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
                 chunkMap.forEach((key, chunk) -> {
                         try {
-                            if (tableExists(connection,
-                                    chunk.config().fromSchemaName(),
-                                    chunk.config().fromTableName())) {
+                            Table table = new OraTable(chunk.config().fromSchemaName(), chunk.config().fromTableName());
+                            if (table.exists(connection)) {
                                 Map<String, Integer> orderedColumns = new HashMap<>();
                                 chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
-//                                System.out.println(orderedColumns);
                                 tasks.add(
                                         executorService.
                                                 submit(new Worker(
@@ -59,13 +56,16 @@ public class ProcessUtil {
                                                         orderedColumns
                                                 ))
                                 );
+                            } else {
+                                throw new TableNotExistsException("Table " + chunk.config().fromSchemaName() + "."
+                                        + chunk.config().fromTableName() + " does not exist.");
                             }
                         } catch (SQLException e) {
                             log.error(e.getMessage(), e);
                         }
                     }
                 );
-            } else if (contextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
+            } else if (sourceContextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
                 if (initPGChunks) {
                     fillPGChunks(connection, configs);
                 }

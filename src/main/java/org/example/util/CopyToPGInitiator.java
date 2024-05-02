@@ -85,15 +85,22 @@ public class CopyToPGInitiator {
                     for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
                         String sourceColumn = entry.getKey().replaceAll("\"", "");
                         String targetColumn = entry.getValue().getColumnName();
+                        String targetType = entry.getValue().getColumnType();
 
+/*
                         try {
-//                            System.out.println(sourceColumn + " : " + targetColumn + " : " + fetchResultSet.getString(sourceColumn));
-                            tmpString.append(targetColumn).append(" : ").append(fetchResultSet.getString(sourceColumn)).append("\n");
+                            tmpString
+                                    .append(targetType)
+                                    .append(" : ")
+                                    .append(targetColumn)
+                                    .append(" : ")
+                                    .append(fetchResultSet.getString(sourceColumn)).append("\n");
                         } catch (SQLException e) {
                             throw new RuntimeException(e);
                         }
+*/
 
-                        switch (entry.getValue().getColumnType()) {
+                        switch (targetType) {
                             case "varchar":
                                 try {
                                     String s = fetchResultSet.getString(sourceColumn);

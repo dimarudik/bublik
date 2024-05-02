@@ -1,0 +1,4 @@
+[
+  {"schemaName" : "test", "tableName" : "table1"},
+  {"schemaName" : "test", "tableName" : "\"Table2\""}
+]

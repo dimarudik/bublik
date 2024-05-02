@@ -6,9 +6,20 @@ create table table1 (
     update_at timestamp(6) with time zone,
     gender boolean,
     byteablob bytea,
-    textclob text
+    textclob text,
+    "CaseSensitive" varchar(20)
 );
-create table source (
+create table table2 (
+    id bigint,
+    create_at timestamp(6) with time zone,
+    name character varying(255),
+    update_at timestamp(6) with time zone,
+    gender boolean,
+    byteablob bytea,
+    textclob text,
+    "CaseSensitive" varchar(20)
+);
+create table "Source" (
     id int primary key generated always as identity,
     uuid uuid,
     "Primary" varchar(256),
@@ -44,8 +55,8 @@ select
     timestamptz,
     description as rem,
     image
- from source where 0 = 1;
-insert into source(uuid, "Primary", boolean,
+ from "Source" where 0 = 1;
+insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, image)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
@@ -55,4 +66,4 @@ insert into source(uuid, "Primary", boolean,
         case when mod(n, 1000) = 0 then pg_read_binary_file('/var/lib/postgresql/bublik.png')::bytea
         end image
     from generate_series(1,100000) as n;
-vacuum source;
+vacuum "Source";
