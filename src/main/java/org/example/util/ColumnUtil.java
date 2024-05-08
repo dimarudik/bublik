@@ -142,6 +142,8 @@ public class ColumnUtil {
                 try {
                     long reltuples = 0;
                     long relpages = 0;
+                    long max_end_page = 0;
+                    long heap_blks_total = 0;
                     PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
                     preparedStatement.setString(1, sqlStatement.fromSchemaName().toLowerCase());
                     preparedStatement.setString(2, sqlStatement.fromTableName().toLowerCase());
@@ -150,14 +152,26 @@ public class ColumnUtil {
                         reltuples = resultSet.getLong("reltuples");
                         relpages = resultSet.getLong("relpages");
                     }
+                    resultSet.close();
+                    preparedStatement.close();
+                    preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
+                    preparedStatement.setString(1, sqlStatement.fromSchemaName().toLowerCase() + "." +
+                            sqlStatement.fromTableName().toLowerCase());
+                    resultSet = preparedStatement.executeQuery();
+                    while(resultSet.next()) {
+                        heap_blks_total = resultSet.getLong("heap_blks_total");
+                    }
+                    resultSet.close();
+                    preparedStatement.close();
                     double rowsInChunk = reltuples >= 500000 ? 100000d : 10000d;
                     long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                             (int) Math.round(relpages / (reltuples / rowsInChunk));
                     long pagesInChunk = Math.min(v, relpages + 1);
-                    log.info("{}.{} \t\t\t relpages : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                    log.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
                             sqlStatement.fromSchemaName(),
                             sqlStatement.fromTableName(),
                             relpages,
+                            heap_blks_total,
                             reltuples,
                             rowsInChunk,
                             pagesInChunk);
@@ -167,8 +181,23 @@ public class ColumnUtil {
                     chunkInsert.setLong(3, relpages);
                     chunkInsert.setLong(4, pagesInChunk);
                     int rows = chunkInsert.executeUpdate();
+                    chunkInsert.close();
+                    preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
+                    preparedStatement.setString(1, sqlStatement.fromTaskName());
+                    resultSet = preparedStatement.executeQuery();
+                    while(resultSet.next()) {
+                        max_end_page = resultSet.getLong("max_end_page");
+                    }
                     resultSet.close();
                     preparedStatement.close();
+                    if (heap_blks_total > max_end_page) {
+                        chunkInsert = connection.prepareStatement(DML_INSERT_CTID_CHUNKS);
+                        chunkInsert.setLong(1, max_end_page);
+                        chunkInsert.setLong(2, heap_blks_total);
+                        chunkInsert.setString(3, sqlStatement.fromTaskName());
+                        rows = chunkInsert.executeUpdate();
+                        chunkInsert.close();
+                    }
                 } catch (SQLException e) {
                     log.error(e.getMessage(), e);
                 }

@@ -45,6 +45,7 @@ public record PGChunk(Integer chunkId,
     @Override
     public ResultSet getData(Connection connection, String query) throws SQLException {
         PreparedStatement preparedStatement = connection.prepareStatement(query);
+        preparedStatement.setFetchSize(10000);
         return preparedStatement.executeQuery();
     }
 

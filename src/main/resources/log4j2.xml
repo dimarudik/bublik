@@ -9,6 +9,9 @@
         <Root level="trace">
             <AppenderRef ref="MainLog"/>
         </Root>
+        <logger name="com.zaxxer.hikari">
+            <level value="error"/>
+        </logger>
 <!--
         <Logger name="org.postgresql" level="all"/>
 -->

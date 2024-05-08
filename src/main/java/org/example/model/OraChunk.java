@@ -55,6 +55,7 @@ public class OraChunk extends C {
             statement.setLong(1, this.startId());
             statement.setLong(2, this.endId());
         }
+        statement.setFetchSize(10000);
         return statement.executeQuery();
     }
 

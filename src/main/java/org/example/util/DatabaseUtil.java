@@ -36,7 +36,7 @@ public class DatabaseUtil {
     }
 
     public static void initializeConnectionPools(SourceTargetProperties properties) {
-        var maxPoolSize = properties.getThreadCount() + 1;
+        var maxPoolSize = properties.getThreadCount() + 2;
         var fromConfiguration = buildConfiguration(
                 properties.getFromProperty(),
                 maxPoolSize,

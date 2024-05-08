@@ -11,6 +11,10 @@ public abstract class SQLConstants {
     public static final String SQL_NUMBER_OF_TUPLES =
             "select reltuples, relpages from pg_class " +
             "where relnamespace::regnamespace::text = ? and relname = ?";
+    public static final String SQL_NUMBER_OF_RAW_TUPLES =
+            "select pg_relation_size( ? ) / 8192 as heap_blks_total";
+    public static final String SQL_MAX_END_PAGE =
+            "select max(end_page) as max_end_page from public.ctid_chunks where task_name = ?";
     public static final String DDL_CREATE_POSTGRESQL_TABLE_CHUNKS =
             "create table if not exists public.ctid_chunks (" +
             "chunk_id int generated always as identity primary key, " +
@@ -19,6 +23,9 @@ public abstract class SQLConstants {
             "task_name varchar(128), " +
             "status varchar(20)  default 'UNASSIGNED', " +
             "unique (start_page, end_page, task_name, status) )";
+    public static final String DML_INSERT_CTID_CHUNKS =
+            "insert into public.ctid_chunks (start_page, end_page, task_name) " +
+            "values (?, ?, ?)";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, task_name) " +
             "(select id start_page, id + ? end_page, ? task_name " +

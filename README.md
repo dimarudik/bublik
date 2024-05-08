@@ -283,7 +283,7 @@ Halt any changes to the movable tables in the source database
 ### Step 3
 Run the tool
 ```
-java -jar ./target/bublik-1.2.jar ./sql/pg2pg.yaml ./sql/pg2pg.json
+java -jar ./target/bublik-1.2.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
 ```
 
 <ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
