@@ -4,13 +4,8 @@ import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.example.model.Chunk;
-import org.example.model.Config;
-import org.example.model.LogMessage;
-import org.example.model.OraChunk;
-import org.example.model.PGChunk;
-import org.example.model.PGColumn;
-import org.example.model.RunnerResult;
+import org.example.model.*;
+import org.example.service.TableService;
 import org.postgresql.PGConnection;
 
 import java.sql.Connection;
@@ -44,7 +39,9 @@ public class CopyToPGInitiator {
         LogMessage logMessage = null;
         try (Connection connection = DatabaseUtil.getConnectionDbTo()) {
             if (fetchResultSet.next()) {
-                if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
+                Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
+//                if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
+                if (table.exists(connection)) {
                     logMessage = fetchAndCopy(connection, fetchResultSet, chunk.config(), chunk);
                 }
             } else {

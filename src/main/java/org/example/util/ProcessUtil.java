@@ -7,6 +7,7 @@ import org.example.exception.TableNotExistsException;
 import org.example.model.*;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
+import org.example.service.TableService;
 import org.example.task.Worker;
 
 import java.sql.Connection;
@@ -48,7 +49,7 @@ public class ProcessUtil {
                 Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
                 chunkMap.forEach((key, chunk) -> {
                         try {
-                            Table table = new OraTable(chunk.config().fromSchemaName(), chunk.config().fromTableName());
+                            Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
                             if (table.exists(connection)) {
                                 Map<String, Integer> orderedColumns = new HashMap<>();
                                 chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
@@ -76,9 +77,8 @@ public class ProcessUtil {
                     Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
                     chunkMap.forEach((key, chunk) -> {
                             try {
-                                if (tableExists(connection,
-                                        chunk.config().fromSchemaName(),
-                                        chunk.config().fromTableName())) {
+                                Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
+                                if (table.exists(connection)) {
                                     Map<String, Integer> orderedColumns = new HashMap<>();
                                     chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
                                     tasks.add(

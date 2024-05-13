@@ -102,7 +102,6 @@ public class App {
                 List.of(mapperJSON.readValue(Paths.get(listOfTablesFileName).toFile(),
                         TableService.getTableArrayClass(connection)
                 ));
-
         List<Config> configList = new ArrayList<>();
         ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
         for (Table t : tableList) {

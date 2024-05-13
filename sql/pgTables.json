@@ -1,4 +1,4 @@
 [
-  {"schemaName" : "test", "tableName" : "table1"},
-  {"schemaName" : "test", "tableName" : "\"Table2\""}
+  {"schemaName" : "public", "tableName" : "table1"},
+  {"schemaName" : "public", "tableName" : "\"Source\""}
 ]
