@@ -11,7 +11,7 @@ public record Config(
         String fetchHintClause,
         String fetchWhereClause,
         String fromTaskName,
-//        HashSet<ColumnRule> transformToRule,
+        String fromTaskWhereClause,
         Map<String, String> columnToColumn
 //    Map<Integer, ColumnRule> column2Rule,
 //    Map<String, String> columnName2columnType

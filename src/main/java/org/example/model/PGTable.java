@@ -65,7 +65,6 @@ public class PGTable extends Table {
         while (columnsLowCase.next()) {
             String columnName = columnsLowCase.getString(4);
             String finalColumnName = columnName.equals(columnName.toLowerCase()) ? columnName : "\"" + columnName + "\"";
-//            String finalColumnName = columnName;
             map.put(finalColumnName, finalColumnName);
         }
         return map;

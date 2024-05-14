@@ -7,6 +7,7 @@
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
+    "fromTaskWhereClause" : " 1 = 1 ",
     "columnToColumn" : {
       "id"          : "id",
       "name"        : "name",

@@ -1,10 +1,12 @@
 package org.example.util;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.constants.SourceContext;
 import org.example.constants.SourceContextHolder;
 import org.example.exception.TableNotExistsException;
-import org.example.model.*;
+import org.example.model.Chunk;
+import org.example.model.Config;
+import org.example.model.LogMessage;
+import org.example.model.Table;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
 import org.example.service.TableService;
@@ -21,11 +23,9 @@ import java.util.concurrent.Future;
 import static org.example.constants.SQLConstants.LABEL_ORACLE;
 import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
 import static org.example.util.ColumnUtil.*;
-import static org.example.util.TableUtil.tableExists;
 
 @Slf4j
 public class ProcessUtil {
-//    private SourceContextHolder contextHolder = null;
 
     public void initiateProcessFromDatabase(List<Config> configs,
                                             Integer threads,
@@ -33,20 +33,11 @@ public class ProcessUtil {
                                             Boolean copyPGChunks) {
         ExecutorService executorService = Executors.newFixedThreadPool(threads);
         try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
-/*
-            if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_ORACLE)) {
-                contextHolder = new SourceContextHolder(SourceContext.Oracle);
-            } else if (connection.getMetaData().getDriverName().split(" ")[0].equals(LABEL_POSTGRESQL)) {
-                contextHolder = new SourceContextHolder(SourceContext.PostgreSQL);
-            } else {
-                log.error("Unknown Source Database!");
-                return;
-            }
-*/
             List<Future<LogMessage>> tasks = new ArrayList<>();
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
                 Map<Integer, Chunk> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
+//                if (!chunkMap.isEmpty()) return;
                 chunkMap.forEach((key, chunk) -> {
                         try {
                             Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
@@ -84,6 +75,9 @@ public class ProcessUtil {
                                     tasks.add(
                                             executorService.submit(new Worker(chunk, orderedColumns))
                                     );
+                                } else {
+                                    throw new TableNotExistsException("Table " + chunk.config().fromSchemaName() + "."
+                                            + chunk.config().fromTableName() + " does not exist.");
                                 }
                             } catch (SQLException e) {
                                 log.error(e.getMessage(), e);

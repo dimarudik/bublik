@@ -76,6 +76,7 @@ public class ColumnUtil {
         Map<Integer, OraChunk> chunkHashMap = new TreeMap<>();
         try {
             String sql = buildStartEndRowIdOfOracleChunk(configs);
+//            System.out.println(sql);
             PreparedStatement statement = connection.prepareStatement(sql);
             ResultSet resultSet = statement.executeQuery();
 /*
