@@ -20,16 +20,16 @@ create table test.countries (
     name varchar2(256) not null,
     primary key (id)
 );
-insert into test.countries values
-    (1, 'Brazil'),
-    (2, 'China'),
-    (3, 'Egypt'),
-    (4, 'Ethiopia'),
-    (5, 'India'),
-    (6, 'Iran'),
-    (7, 'Russia'),
-    (8, 'South Africa'),
-    (9, 'United Arab Emirates');
+insert into test.countries values (1, 'Brazil');
+insert into test.countries values (2, 'China');
+insert into test.countries values (3, 'Egypt');
+insert into test.countries values (4, 'Ethiopia');
+insert into test.countries values (5, 'India');
+insert into test.countries values (6, 'Iran');
+insert into test.countries values (7, 'Russia');
+insert into test.countries values (8, 'South Africa');
+insert into test.countries values (9, 'United Arab Emirates');
+commit;
 insert into test.table1
     (select
         rownum as id,
@@ -41,7 +41,7 @@ insert into test.table1
         to_clob('Hi, I''m using CLOB to text') as textclob,
         null as exclude_me,
         null as "CaseSensitive",
-        round(dbms_random.value(1,9)) as country_id
+        decode(round(dbms_random.value(0,9)),0,null,round(dbms_random.value(1,9))) as country_id
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as select * from test.table1;

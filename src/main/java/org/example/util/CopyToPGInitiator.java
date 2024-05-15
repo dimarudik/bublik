@@ -18,11 +18,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.UUID;
+import java.util.*;
 
 import static org.example.util.ColumnUtil.convertBlobToBytes;
 import static org.example.util.ColumnUtil.convertClobToString;
@@ -72,6 +68,7 @@ public class CopyToPGInitiator {
         List<String> tmpTargetColumns = new ArrayList<>();
         neededColumnsToDB.values().forEach(i -> tmpTargetColumns.add(i.getColumnName()));
         String[] columnNames = new ArrayList<>(tmpTargetColumns).toArray(new String[0]);
+//        System.out.println(neededColumnsToDB);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(config.toSchemaName(), config.toTableName(), columnNames);
         start = System.currentTimeMillis();

@@ -41,6 +41,14 @@ public class ColumnUtil {
                     }
                 }
 
+                if (config.expressionToColumn() != null) {
+                    for (Map.Entry<String, String> entry : config.expressionToColumn().entrySet()) {
+                        if (entry.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName)) {
+                            columnMap.put(columnName, new PGColumn(entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
+                        }
+                    }
+                }
+
             }
             resultSet.close();
         } catch (SQLException e) {

@@ -16,6 +16,9 @@
       "gender"      : "gender",
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
+    },
+    "expressionToColumn" : {
+      "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
     }
   },
   {

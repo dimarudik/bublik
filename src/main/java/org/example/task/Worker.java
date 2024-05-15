@@ -21,7 +21,6 @@ public class Worker implements Callable<LogMessage> {
     private final Map<String, Integer> columnsFromDB;
 
     private LogMessage logMessage;
-//    private static final Logger logger = LoggerFactory.getLogger(Worker.class);
 
     public Worker(Chunk chunk,
                   Map<String, Integer> columnsFromDB) {

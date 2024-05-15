@@ -7,7 +7,8 @@ create table table1 (
     gender boolean,
     byteablob bytea,
     textclob text,
-    "CaseSensitive" varchar(20)
+    "CaseSensitive" varchar(20),
+    country_name varchar(256)
 );
 create table table2 (
     id bigint,
