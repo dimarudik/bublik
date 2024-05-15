@@ -31,19 +31,31 @@ git clone https://github.com/dimarudik/bublik.git
 cd ./bublik
 ```
 
+arm64:
 ```
 docker run --name oracle \
     -p 1521:1521 -p 5500:5500 \
     -e ORACLE_PWD=oracle_4U \
     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-    -d dimarudik/oracle
+    -d dimarudik/oracle_arm64:19.3.0-ee
 ```
+
+x86_64:
+```
+docker run --name oracle \
+    -p 1521:1521 -p 5500:5500 \
+    -e ORACLE_PWD=oracle_4U \
+    -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
+    -d dimarudik/oracle_x86_64:19.3.0-ee
+```
+
+
 >  **WARNING**: The source table `TEST.TABLE1` will be created and fulfilled during oracle docker container startup
 
 <ul><li>How to connect</li></ul>
 
 ```
-sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
+sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
 ```
 
 <ul><li>Prepare PostgreSQL environment</li></ul>
@@ -83,7 +95,7 @@ psql postgresql://test:test@localhost/postgres
 threadCount: 10
 
 fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=xepdb1)))
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
   user: test
   password: test
 toProperties:

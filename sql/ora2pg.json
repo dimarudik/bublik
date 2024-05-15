@@ -9,13 +9,14 @@
     "fromTaskName" : "TABLE1_TASK",
     "fromTaskWhereClause" : " 1 = 1 ",
     "columnToColumn" : {
-      "id"          : "id",
-      "name"        : "name",
-      "create_at"   : "create_at",
-      "update_at"   : "update_at",
-      "gender"      : "gender",
-      "byteablob"   : "byteablob",
-      "textclob"    : "textclob"
+      "id"                : "id",
+      "name"              : "name",
+      "create_at"         : "create_at",
+      "update_at"         : "update_at",
+      "gender"            : "gender",
+      "byteablob"         : "byteablob",
+      "textclob"          : "textclob",
+      "\"CaseSensitive\"" : "\"CaseSensitive\""
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"

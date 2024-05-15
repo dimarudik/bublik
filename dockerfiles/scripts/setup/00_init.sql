@@ -1,4 +1,4 @@
-alter session set container = XEPDB1;
+alter session set container = ORCLPDB1;
 create user test identified by test;
 alter user test quota unlimited on users;
 grant connect, resource to test;
