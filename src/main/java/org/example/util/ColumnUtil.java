@@ -19,7 +19,6 @@ import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 
 @Slf4j
 public class ColumnUtil {
-//    private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);
 
     public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Config config) {
         Map<String, PGColumn> columnMap = new HashMap<>();

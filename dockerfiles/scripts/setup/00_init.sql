@@ -12,8 +12,24 @@ create table test.table1 (
     textclob clob,
     exclude_me int,
     "CaseSensitive" varchar2(20),
+    country_id int,
     primary key (id)
 );
+create table test.countries (
+    id int,
+    name varchar2(256) not null,
+    primary key (id)
+);
+insert into test.countries values
+    (1, 'Brazil'),
+    (2, 'China'),
+    (3, 'Egypt'),
+    (4, 'Ethiopia'),
+    (5, 'India'),
+    (6, 'Iran'),
+    (7, 'Russia'),
+    (8, 'South Africa'),
+    (9, 'United Arab Emirates');
 insert into test.table1
     (select
         rownum as id,
@@ -24,7 +40,8 @@ insert into test.table1
         utl_raw.cast_to_raw('Hi, I''m using CLOB to bytea') as byteablob,
         to_clob('Hi, I''m using CLOB to text') as textclob,
         null as exclude_me,
-        null as "CaseSensitive"
+        null as "CaseSensitive",
+        round(dbms_random.value(1,9)) as country_id
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as select * from test.table1;

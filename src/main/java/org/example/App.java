@@ -116,7 +116,8 @@ public class App {
                         "1 = 1",
                         t.getTaskName(),
                         null,
-                        t.getColumnToColumn(connection)
+                        t.getColumnToColumn(connection),
+                        null
                 ));
             } else {
                 mapper.writeValue(Paths.get(outputFileName).toFile(), null);
