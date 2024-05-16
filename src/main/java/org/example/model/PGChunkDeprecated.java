@@ -9,10 +9,10 @@ import java.util.*;
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
 @Deprecated
-public record PGChunkDerpicated(Integer chunkId,
+public record PGChunkDeprecated(Integer chunkId,
                                 Long startPage,
                                 Long endPage,
-                                Config config) implements ChunkDerpicated {
+                                Config config) implements ChunkDeprecated {
 
     @Override
     public String startRowId() {

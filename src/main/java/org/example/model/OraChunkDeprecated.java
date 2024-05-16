@@ -8,12 +8,12 @@ import java.util.Map;
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 @Deprecated
-public record OraChunkDerpicated(Integer chunkId,
+public record OraChunkDeprecated(Integer chunkId,
                                  String startRowId,
                                  String endRowId,
                                  Long startId,
                                  Long endId,
-                                 Config config) implements ChunkDerpicated {
+                                 Config config) implements ChunkDeprecated {
 /*
 @AllArgsConstructor
 public class OraChunk extends C {

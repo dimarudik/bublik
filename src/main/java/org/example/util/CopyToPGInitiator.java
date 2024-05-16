@@ -29,24 +29,24 @@ public class CopyToPGInitiator {
     private StringBuffer tmpString = new StringBuffer();
 
     public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet,
-                                                  ChunkDerpicated chunkDerpicated) {
+                                                  ChunkDeprecated chunkDeprecated) {
         LogMessage logMessage = null;
         try (Connection connection = DatabaseUtil.getConnectionDbTo()) {
             if (fetchResultSet.next()) {
-                Table table = TableService.getTable(connection, chunkDerpicated.config().fromSchemaName(), chunkDerpicated.config().fromTableName());
+                Table table = TableService.getTable(connection, chunkDeprecated.config().fromSchemaName(), chunkDeprecated.config().fromTableName());
 //                if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
                 if (table.exists(connection)) {
-                    logMessage = fetchAndCopy(connection, fetchResultSet, chunkDerpicated.config(), chunkDerpicated);
+                    logMessage = fetchAndCopy(connection, fetchResultSet, chunkDeprecated.config(), chunkDeprecated);
                 }
             } else {
                 logMessage = saveToLogger(
-                        chunkDerpicated,
+                        chunkDeprecated,
                         0,
                         System.currentTimeMillis(),
                         "NO ROWS FETCH");
             }
         } catch (SQLException e) {
-            log.error("{} \t {}", chunkDerpicated.config().fromTableName(), e);
+            log.error("{} \t {}", chunkDeprecated.config().fromTableName(), e);
             e.printStackTrace();
             return new RunnerResult(logMessage, e);
         }
@@ -56,7 +56,7 @@ public class CopyToPGInitiator {
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
                                     Config config,
-                                    ChunkDerpicated chunkDerpicated) {
+                                    ChunkDeprecated chunkDeprecated) {
         int rowCount = 0;
 //        Map<String, String> neededColumnsToDB = readPGTargetColumns(connection, config);
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, config);
@@ -302,9 +302,9 @@ public class CopyToPGInitiator {
                                         break;
                                     }
                                     byte[] bytes = new byte[0];
-                                    if (chunkDerpicated instanceof OraChunkDerpicated) {
+                                    if (chunkDeprecated instanceof OraChunkDeprecated) {
                                         bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
-                                    } else if (chunkDerpicated instanceof PGChunkDerpicated) {
+                                    } else if (chunkDeprecated instanceof PGChunkDeprecated) {
                                         bytes = fetchResultSet.getBytes(sourceColumn);
                                     }
                                     row.setByteArray(targetColumn, bytes);
@@ -351,7 +351,7 @@ public class CopyToPGInitiator {
             log.error(e.getMessage(), e);
             return null;
         }
-        return saveToLogger(chunkDerpicated, rowCount, start, "COPY");
+        return saveToLogger(chunkDeprecated, rowCount, start, "COPY");
 /*
         return new LogMessage(
                 chunk.config().fromTaskName(),
@@ -363,17 +363,17 @@ public class CopyToPGInitiator {
 */
     }
 
-    public LogMessage saveToLogger(ChunkDerpicated chunkDerpicated,
+    public LogMessage saveToLogger(ChunkDeprecated chunkDeprecated,
                                    int recordCount,
                                    long start,
                                    String operation) {
         LogMessage logMessage = new LogMessage(
-                chunkDerpicated.config().fromTaskName(),
-                chunkDerpicated.config().fromTableName(),
+                chunkDeprecated.config().fromTaskName(),
+                chunkDeprecated.config().fromTableName(),
                 recordCount,
-                chunkDerpicated.startRowId(),
-                chunkDerpicated.endRowId(),
-                chunkDerpicated.chunkId());
+                chunkDeprecated.startRowId(),
+                chunkDeprecated.endRowId(),
+                chunkDeprecated.chunkId());
         log.info("\t{} {}\t {} sec",
                 operation,
                 logMessage,

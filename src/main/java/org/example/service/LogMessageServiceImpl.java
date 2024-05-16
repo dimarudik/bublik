@@ -1,6 +1,6 @@
 package org.example.service;
 
-import org.example.model.ChunkDerpicated;
+import org.example.model.ChunkDeprecated;
 import org.example.model.LogMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,14 +11,14 @@ public class LogMessageServiceImpl implements LogMessageService{
     private static final Logger logger = LoggerFactory.getLogger(LogMessageServiceImpl.class);
 
     @Override
-    public void saveToLogger(ChunkDerpicated chunkDerpicated, int recordCount, long start, String operation) {
+    public void saveToLogger(ChunkDeprecated chunkDeprecated, int recordCount, long start, String operation) {
         LogMessage logMessage = new LogMessage(
-                chunkDerpicated.config().fromTaskName(),
-                chunkDerpicated.config().fromTableName(),
+                chunkDeprecated.config().fromTaskName(),
+                chunkDeprecated.config().fromTableName(),
                 recordCount,
-                chunkDerpicated.startRowId(),
-                chunkDerpicated.endRowId(),
-                chunkDerpicated.chunkId());
+                chunkDeprecated.startRowId(),
+                chunkDeprecated.endRowId(),
+                chunkDeprecated.chunkId());
 //        Instant instant = Instant.now().getEpochSecond();
         logger.info(" {} :\t\t{} {}\t {} sec",
                 logMessage.fromTableName(),

@@ -3,7 +3,7 @@ package org.example.util;
 import lombok.extern.slf4j.Slf4j;
 import org.example.constants.SourceContextHolder;
 import org.example.exception.TableNotExistsException;
-import org.example.model.ChunkDerpicated;
+import org.example.model.ChunkDeprecated;
 import org.example.model.Config;
 import org.example.model.LogMessage;
 import org.example.model.Table;
@@ -36,7 +36,7 @@ public class ProcessUtil {
             List<Future<LogMessage>> tasks = new ArrayList<>();
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
-                Map<Integer, ChunkDerpicated> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
+                Map<Integer, ChunkDeprecated> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
 //                if (!chunkMap.isEmpty()) return;
                 chunkMap.forEach((key, chunk) -> {
                         try {
@@ -65,7 +65,7 @@ public class ProcessUtil {
                     fillPGChunks(connection, configs);
                 }
                 if (copyPGChunks) {
-                    Map<Integer, ChunkDerpicated> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
+                    Map<Integer, ChunkDeprecated> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
                     chunkMap.forEach((key, chunk) -> {
                             try {
                                 Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());

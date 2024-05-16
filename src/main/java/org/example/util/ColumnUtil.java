@@ -2,8 +2,8 @@ package org.example.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.model.Config;
-import org.example.model.OraChunkDerpicated;
-import org.example.model.PGChunkDerpicated;
+import org.example.model.OraChunkDeprecated;
+import org.example.model.PGChunkDeprecated;
 import org.example.model.PGColumn;
 
 import java.sql.*;
@@ -79,8 +79,8 @@ public class ColumnUtil {
     }
 */
 
-    public static Map<Integer, OraChunkDerpicated> getStartEndRowIdMap(Connection connection, List<Config> configs) {
-        Map<Integer, OraChunkDerpicated> chunkHashMap = new TreeMap<>();
+    public static Map<Integer, OraChunkDeprecated> getStartEndRowIdMap(Connection connection, List<Config> configs) {
+        Map<Integer, OraChunkDeprecated> chunkHashMap = new TreeMap<>();
         try {
             String sql = buildStartEndRowIdOfOracleChunk(configs);
 //            System.out.println(sql);
@@ -94,7 +94,7 @@ public class ColumnUtil {
 */
                 while (resultSet.next()) {
                     chunkHashMap.put(resultSet.getInt(1),
-                            new OraChunkDerpicated(
+                            new OraChunkDeprecated(
                                     resultSet.getInt(2),
                                     resultSet.getString(3),
                                     resultSet.getString(4),
@@ -113,8 +113,8 @@ public class ColumnUtil {
         return chunkHashMap;
     }
 
-    public static Map<Integer, PGChunkDerpicated> getStartEndCTIDMap(Connection connection, List<Config> configs) {
-        Map<Integer, PGChunkDerpicated> chunkHashMap = new TreeMap<>();
+    public static Map<Integer, PGChunkDeprecated> getStartEndCTIDMap(Connection connection, List<Config> configs) {
+        Map<Integer, PGChunkDeprecated> chunkHashMap = new TreeMap<>();
         try {
             String sql = buildStartEndPageOfPGChunk(configs);
             PreparedStatement statement = connection.prepareStatement(sql);
@@ -124,7 +124,7 @@ public class ColumnUtil {
                         configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
             } else while (resultSet.next()) {
                 chunkHashMap.put(resultSet.getInt("rownum"),
-                        new PGChunkDerpicated(
+                        new PGChunkDeprecated(
                                 resultSet.getInt("chunk_id"),
                                 resultSet.getLong("start_page"),
                                 resultSet.getLong("end_page"),
