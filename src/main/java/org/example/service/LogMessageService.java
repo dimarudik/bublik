@@ -1,7 +1,7 @@
 package org.example.service;
 
-import org.example.model.Chunk;
+import org.example.model.ChunkDerpicated;
 
 public interface LogMessageService {
-    void saveToLogger(Chunk chunk, int recordCount, long start, String operation);
+    void saveToLogger(ChunkDerpicated chunkDerpicated, int recordCount, long start, String operation);
 }

@@ -1,6 +1,5 @@
 package org.example.util;
 
-import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -24,31 +23,30 @@ import static org.example.util.ColumnUtil.convertBlobToBytes;
 import static org.example.util.ColumnUtil.convertClobToString;
 import static org.example.util.ColumnUtil.getColumnIndexByColumnName;
 import static org.example.util.ColumnUtil.readTargetColumnsAndTypes;
-import static org.example.util.TableUtil.tableExists;
 
 @Slf4j
 public class CopyToPGInitiator {
     private StringBuffer tmpString = new StringBuffer();
 
     public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet,
-                                                  Chunk chunk) {
+                                                  ChunkDerpicated chunkDerpicated) {
         LogMessage logMessage = null;
         try (Connection connection = DatabaseUtil.getConnectionDbTo()) {
             if (fetchResultSet.next()) {
-                Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
+                Table table = TableService.getTable(connection, chunkDerpicated.config().fromSchemaName(), chunkDerpicated.config().fromTableName());
 //                if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
                 if (table.exists(connection)) {
-                    logMessage = fetchAndCopy(connection, fetchResultSet, chunk.config(), chunk);
+                    logMessage = fetchAndCopy(connection, fetchResultSet, chunkDerpicated.config(), chunkDerpicated);
                 }
             } else {
                 logMessage = saveToLogger(
-                        chunk,
+                        chunkDerpicated,
                         0,
                         System.currentTimeMillis(),
                         "NO ROWS FETCH");
             }
         } catch (SQLException e) {
-            log.error("{} \t {}", chunk.config().fromTableName(), e);
+            log.error("{} \t {}", chunkDerpicated.config().fromTableName(), e);
             e.printStackTrace();
             return new RunnerResult(logMessage, e);
         }
@@ -58,7 +56,7 @@ public class CopyToPGInitiator {
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
                                     Config config,
-                                    Chunk chunk) {
+                                    ChunkDerpicated chunkDerpicated) {
         int rowCount = 0;
 //        Map<String, String> neededColumnsToDB = readPGTargetColumns(connection, config);
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, config);
@@ -304,9 +302,9 @@ public class CopyToPGInitiator {
                                         break;
                                     }
                                     byte[] bytes = new byte[0];
-                                    if (chunk instanceof OraChunk) {
+                                    if (chunkDerpicated instanceof OraChunkDerpicated) {
                                         bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
-                                    } else if (chunk instanceof PGChunk) {
+                                    } else if (chunkDerpicated instanceof PGChunkDerpicated) {
                                         bytes = fetchResultSet.getBytes(sourceColumn);
                                     }
                                     row.setByteArray(targetColumn, bytes);
@@ -353,7 +351,7 @@ public class CopyToPGInitiator {
             log.error(e.getMessage(), e);
             return null;
         }
-        return saveToLogger(chunk, rowCount, start, "COPY");
+        return saveToLogger(chunkDerpicated, rowCount, start, "COPY");
 /*
         return new LogMessage(
                 chunk.config().fromTaskName(),
@@ -365,17 +363,17 @@ public class CopyToPGInitiator {
 */
     }
 
-    public LogMessage saveToLogger(Chunk chunk,
+    public LogMessage saveToLogger(ChunkDerpicated chunkDerpicated,
                                    int recordCount,
                                    long start,
                                    String operation) {
         LogMessage logMessage = new LogMessage(
-                chunk.config().fromTaskName(),
-                chunk.config().fromTableName(),
+                chunkDerpicated.config().fromTaskName(),
+                chunkDerpicated.config().fromTableName(),
                 recordCount,
-                chunk.startRowId(),
-                chunk.endRowId(),
-                chunk.chunkId());
+                chunkDerpicated.startRowId(),
+                chunkDerpicated.endRowId(),
+                chunkDerpicated.chunkId());
         log.info("\t{} {}\t {} sec",
                 operation,
                 logMessage,

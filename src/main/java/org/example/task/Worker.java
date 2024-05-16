@@ -1,7 +1,7 @@
 package org.example.task;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.model.Chunk;
+import org.example.model.ChunkDerpicated;
 import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
 import org.example.util.CopyToPGInitiator;
@@ -12,36 +12,35 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.Callable;
 
 @Slf4j
 public class Worker implements Callable<LogMessage> {
-    private final Chunk chunk;
+    private final ChunkDerpicated chunkDerpicated;
     private final Map<String, Integer> columnsFromDB;
 
     private LogMessage logMessage;
 
-    public Worker(Chunk chunk,
+    public Worker(ChunkDerpicated chunkDerpicated,
                   Map<String, Integer> columnsFromDB) {
-        this.chunk = chunk;
+        this.chunkDerpicated = chunkDerpicated;
         this.columnsFromDB = columnsFromDB;
     }
 
     @Override
     public LogMessage call() {
-        var mdcToTableName = MDC.putCloseable("toTableName", chunk.config().toTableName());
+        var mdcToTableName = MDC.putCloseable("toTableName", chunkDerpicated.config().toTableName());
         try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
-            String query = chunk.buildFetchStatement(columnsFromDB);
+            String query = chunkDerpicated.buildFetchStatement(columnsFromDB);
 //            System.out.println(query);
-            ResultSet fetchResultSet = chunk.getData(connection, query);
+            ResultSet fetchResultSet = chunkDerpicated.getData(connection, query);
             RunnerResult runnerResult =
                     new CopyToPGInitiator()
-                            .initiateProcessToDatabase(fetchResultSet, chunk);
+                            .initiateProcessToDatabase(fetchResultSet, chunkDerpicated);
             logMessage = runnerResult.logMessage();
             fetchResultSet.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-                chunk.markChunkAsProceed(connection);
+                chunkDerpicated.markChunkAsProceed(connection);
             }
         } catch (SQLException e) {
             log.error(e.getMessage(), e);

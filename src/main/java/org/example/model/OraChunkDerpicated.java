@@ -7,12 +7,13 @@ import java.util.Map;
 
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
-public record OraChunk(Integer chunkId,
-                       String startRowId,
-                       String endRowId,
-                       Long startId,
-                       Long endId,
-                       Config config) implements Chunk {
+@Deprecated
+public record OraChunkDerpicated(Integer chunkId,
+                                 String startRowId,
+                                 String endRowId,
+                                 Long startId,
+                                 Long endId,
+                                 Config config) implements ChunkDerpicated {
 /*
 @AllArgsConstructor
 public class OraChunk extends C {
