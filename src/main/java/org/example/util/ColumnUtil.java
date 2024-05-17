@@ -1,10 +1,9 @@
 package org.example.util;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.model.Config;
-import org.example.model.OraChunkDeprecated;
-import org.example.model.PGChunkDeprecated;
-import org.example.model.PGColumn;
+import org.example.model.*;
+import org.example.service.TableService;
+import org.postgresql.PGConnection;
 
 import java.sql.*;
 import java.util.HashMap;
@@ -79,32 +78,78 @@ public class ColumnUtil {
     }
 */
 
-    public static Map<Integer, OraChunkDeprecated> getStartEndRowIdMap(Connection connection, List<Config> configs) {
-        Map<Integer, OraChunkDeprecated> chunkHashMap = new TreeMap<>();
-        try {
-            String sql = buildStartEndRowIdOfOracleChunk(configs);
-//            System.out.println(sql);
-            PreparedStatement statement = connection.prepareStatement(sql);
-            ResultSet resultSet = statement.executeQuery();
-/*
-            if (!resultSet.isBeforeFirst()) {
-                log.warn("No unprocessed chunks found in USER_PARALLEL_EXECUTE_CHUNKS for : " +
-                        configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
-            } else {
-*/
+    public static <T> Map<Integer, Chunk<T>> getChunkMap(Connection connection, List<Config> configs) throws SQLException {
+        if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
+            Map<Integer, Chunk<T>> chunkHashMap = new TreeMap<>();
+            try {
+                String sql = buildStartEndRowIdOfOracleChunk(configs);
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery();
                 while (resultSet.next()) {
                     chunkHashMap.put(resultSet.getInt(1),
-                            new OraChunkDeprecated(
+                            new OraChunk(
                                     resultSet.getInt(2),
                                     resultSet.getString(3),
                                     resultSet.getString(4),
-                                    resultSet.getLong(5),
-                                    resultSet.getLong(6),
                                     findByTaskName(configs, resultSet.getString(7))
                             )
                     );
                 }
-//            }
+                resultSet.close();
+                statement.close();
+            } catch (SQLException e) {
+                log.error(e.getMessage(), e);
+            }
+            return chunkHashMap;
+        } else if (connection.isWrapperFor(PGConnection.class)) {
+            Map<Integer, Chunk<T>> chunkHashMap = new TreeMap<>();
+            try {
+                String sql = buildStartEndPageOfPGChunk(configs);
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery();
+                if (!resultSet.isBeforeFirst()) {
+                    log.error("No chunk definition found in CTID_CHUNKS for : " +
+                            configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
+                } else while (resultSet.next()) {
+                    chunkHashMap.put(resultSet.getInt("rownum"),
+                            new PGChunk(
+                                    resultSet.getInt("chunk_id"),
+                                    resultSet.getLong("start_page"),
+                                    resultSet.getLong("end_page"),
+                                    findByTaskName(configs, resultSet.getString("task_name"))
+                            )
+                    );
+                }
+                resultSet.close();
+                statement.close();
+            } catch (SQLException e) {
+                log.error(e.getMessage(), e);
+            }
+            return chunkHashMap;
+        }
+        return null;
+    }
+
+/*
+    @Deprecated
+    public static Map<Integer, OraChunkDeprecated> getStartEndRowIdMap(Connection connection, List<Config> configs) {
+        Map<Integer, OraChunkDeprecated> chunkHashMap = new TreeMap<>();
+        try {
+            String sql = buildStartEndRowIdOfOracleChunk(configs);
+            PreparedStatement statement = connection.prepareStatement(sql);
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                chunkHashMap.put(resultSet.getInt(1),
+                        new OraChunkDeprecated(
+                                resultSet.getInt(2),
+                                resultSet.getString(3),
+                                resultSet.getString(4),
+                                resultSet.getLong(5),
+                                resultSet.getLong(6),
+                                findByTaskName(configs, resultSet.getString(7))
+                        )
+                );
+            }
             resultSet.close();
             statement.close();
         } catch (SQLException e) {
@@ -112,7 +157,9 @@ public class ColumnUtil {
         }
         return chunkHashMap;
     }
+*/
 
+/*
     public static Map<Integer, PGChunkDeprecated> getStartEndCTIDMap(Connection connection, List<Config> configs) {
         Map<Integer, PGChunkDeprecated> chunkHashMap = new TreeMap<>();
         try {
@@ -132,15 +179,14 @@ public class ColumnUtil {
                         )
                 );
             }
-//            chunkHashMap.forEach((k,v) -> System.out.println(k + " : " + v));
             resultSet.close();
             statement.close();
         } catch (SQLException e) {
             log.error(e.getMessage(), e);
-//            logger.error(e.getMessage(), e);
         }
         return chunkHashMap;
     }
+*/
 
     public static void fillPGChunks(Connection connection, List<Config> configs) {
         try {
@@ -207,6 +253,7 @@ public class ColumnUtil {
                         chunkInsert.close();
                     }
                 } catch (SQLException e) {
+//                    System.out.println("Here...");
                     log.error(e.getMessage(), e);
                 }
             });

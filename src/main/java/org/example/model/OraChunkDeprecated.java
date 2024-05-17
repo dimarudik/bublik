@@ -14,17 +14,6 @@ public record OraChunkDeprecated(Integer chunkId,
                                  Long startId,
                                  Long endId,
                                  Config config) implements ChunkDeprecated {
-/*
-@AllArgsConstructor
-public class OraChunk extends C {
-    Integer chunkId;
-    String startRowId;
-    String endRowId;
-    Long startId;
-    Long endId;
-    Config config;
-*/
-
 
     @Override
     public Long startPage() {

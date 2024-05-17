@@ -50,38 +50,9 @@ public record PGChunkDeprecated(Integer chunkId,
         return preparedStatement.executeQuery();
     }
 
-/*
-    @Override
-    public Map<String, Integer> readSourceColumns(Connection connection) throws SQLException {
-        Map<String, Integer> columnMap = new TreeMap<>();
-        ResultSet resultSet;
-        resultSet = connection.getMetaData().getColumns(
-                null,
-                config.fromSchemaName().toLowerCase(),
-                config.toTableName().toLowerCase(),
-                null
-        );
-        while (resultSet.next()) {
-            String columnName = resultSet.getString(4);
-            String columnType = resultSet.getString(6);
-            columnMap.put(columnName.toUpperCase(), 0);
-        }
-        resultSet.close();
-        return columnMap;
-    }
-*/
-
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
-/*
-        if (config.excludedSourceColumns() != null) {
-            Set<String> excludedSourceColumns = new HashSet<>(config.excludedSourceColumns());
-            Map<String, Integer> neededSourceColumnsMap = new TreeMap<>(columnsFromDB);
-            neededSourceColumnsMap.keySet().removeAll(excludedSourceColumns);
-            neededSourceColumns = new ArrayList<>(neededSourceColumnsMap.keySet());
-        }
-*/
         return "select " +
                 String.join(", ", neededSourceColumns) +
                 " from " +

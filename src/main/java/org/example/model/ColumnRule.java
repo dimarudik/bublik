@@ -1,6 +1,7 @@
 package org.example.model;
 
 //@Data
+@Deprecated
 public class ColumnRule implements Comparable<ColumnRule>{
     private String columnName;
     private String columnType;

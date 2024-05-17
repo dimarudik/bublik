@@ -29,24 +29,23 @@ public class CopyToPGInitiator {
     private StringBuffer tmpString = new StringBuffer();
 
     public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet,
-                                                  ChunkDeprecated chunkDeprecated) {
+                                                  Chunk<?> chunk) {
         LogMessage logMessage = null;
         try (Connection connection = DatabaseUtil.getConnectionDbTo()) {
             if (fetchResultSet.next()) {
-                Table table = TableService.getTable(connection, chunkDeprecated.config().fromSchemaName(), chunkDeprecated.config().fromTableName());
-//                if (tableExists(connection, chunk.config().toSchemaName(), chunk.config().toTableName())) {
+                Table table = TableService.getTable(connection, chunk.getConfig().fromSchemaName(), chunk.getConfig().fromTableName());
                 if (table.exists(connection)) {
-                    logMessage = fetchAndCopy(connection, fetchResultSet, chunkDeprecated.config(), chunkDeprecated);
+                    logMessage = fetchAndCopy(connection, fetchResultSet, chunk.getConfig(), chunk);
                 }
             } else {
                 logMessage = saveToLogger(
-                        chunkDeprecated,
+                        chunk,
                         0,
                         System.currentTimeMillis(),
                         "NO ROWS FETCH");
             }
         } catch (SQLException e) {
-            log.error("{} \t {}", chunkDeprecated.config().fromTableName(), e);
+            log.error("{} \t {}", chunk.getConfig().fromTableName(), e);
             e.printStackTrace();
             return new RunnerResult(logMessage, e);
         }
@@ -56,17 +55,14 @@ public class CopyToPGInitiator {
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
                                     Config config,
-                                    ChunkDeprecated chunkDeprecated) {
+                                    Chunk<?> chunk) {
         int rowCount = 0;
-//        Map<String, String> neededColumnsToDB = readPGTargetColumns(connection, config);
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, config);
         long start = System.currentTimeMillis();
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
-//        String[] columnNames = neededColumnsToDB.keySet().toArray(new String[0]);
         List<String> tmpTargetColumns = new ArrayList<>();
         neededColumnsToDB.values().forEach(i -> tmpTargetColumns.add(i.getColumnName()));
         String[] columnNames = new ArrayList<>(tmpTargetColumns).toArray(new String[0]);
-//        System.out.println(neededColumnsToDB);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(config.toSchemaName(), config.toTableName(), columnNames);
         start = System.currentTimeMillis();
@@ -302,9 +298,9 @@ public class CopyToPGInitiator {
                                         break;
                                     }
                                     byte[] bytes = new byte[0];
-                                    if (chunkDeprecated instanceof OraChunkDeprecated) {
+                                    if (chunk instanceof OraChunk<?>) {
                                         bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
-                                    } else if (chunkDeprecated instanceof PGChunkDeprecated) {
+                                    } else if (chunk instanceof PGChunk<?>) {
                                         bytes = fetchResultSet.getBytes(sourceColumn);
                                     }
                                     row.setByteArray(targetColumn, bytes);
@@ -351,7 +347,7 @@ public class CopyToPGInitiator {
             log.error(e.getMessage(), e);
             return null;
         }
-        return saveToLogger(chunkDeprecated, rowCount, start, "COPY");
+        return saveToLogger(chunk, rowCount, start, "COPY");
 /*
         return new LogMessage(
                 chunk.config().fromTaskName(),
@@ -363,17 +359,17 @@ public class CopyToPGInitiator {
 */
     }
 
-    public LogMessage saveToLogger(ChunkDeprecated chunkDeprecated,
+    public LogMessage saveToLogger(Chunk<?> chunk,
                                    int recordCount,
                                    long start,
                                    String operation) {
         LogMessage logMessage = new LogMessage(
-                chunkDeprecated.config().fromTaskName(),
-                chunkDeprecated.config().fromTableName(),
+                chunk.getConfig().fromTaskName(),
+                chunk.getConfig().fromTableName(),
                 recordCount,
-                chunkDeprecated.startRowId(),
-                chunkDeprecated.endRowId(),
-                chunkDeprecated.chunkId());
+                chunk.getStart().toString(),
+                chunk.getEnd().toString(),
+                chunk.getId());
         log.info("\t{} {}\t {} sec",
                 operation,
                 logMessage,

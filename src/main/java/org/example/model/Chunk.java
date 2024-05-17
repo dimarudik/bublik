@@ -1,13 +1,13 @@
 package org.example.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.example.service.ChunkService;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Data
+@Getter
 public abstract class Chunk<T> implements ChunkService {
     private Integer id;
     private T start;

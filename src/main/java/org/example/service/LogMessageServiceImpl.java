@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.model.Chunk;
 import org.example.model.ChunkDeprecated;
 import org.example.model.LogMessage;
 import org.slf4j.Logger;
@@ -11,14 +12,14 @@ public class LogMessageServiceImpl implements LogMessageService{
     private static final Logger logger = LoggerFactory.getLogger(LogMessageServiceImpl.class);
 
     @Override
-    public void saveToLogger(ChunkDeprecated chunkDeprecated, int recordCount, long start, String operation) {
+    public void saveToLogger(Chunk<?> chunk, int recordCount, long start, String operation) {
         LogMessage logMessage = new LogMessage(
-                chunkDeprecated.config().fromTaskName(),
-                chunkDeprecated.config().fromTableName(),
+                chunk.getConfig().fromTaskName(),
+                chunk.getConfig().fromTableName(),
                 recordCount,
-                chunkDeprecated.startRowId(),
-                chunkDeprecated.endRowId(),
-                chunkDeprecated.chunkId());
+                chunk.getStart().toString(),
+                chunk.getEnd().toString(),
+                chunk.getId());
 //        Instant instant = Instant.now().getEpochSecond();
         logger.info(" {} :\t\t{} {}\t {} sec",
                 logMessage.fromTableName(),

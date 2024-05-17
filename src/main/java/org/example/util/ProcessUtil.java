@@ -3,10 +3,7 @@ package org.example.util;
 import lombok.extern.slf4j.Slf4j;
 import org.example.constants.SourceContextHolder;
 import org.example.exception.TableNotExistsException;
-import org.example.model.ChunkDeprecated;
-import org.example.model.Config;
-import org.example.model.LogMessage;
-import org.example.model.Table;
+import org.example.model.*;
 import org.example.service.LogMessageService;
 import org.example.service.LogMessageServiceImpl;
 import org.example.service.TableService;
@@ -36,54 +33,13 @@ public class ProcessUtil {
             List<Future<LogMessage>> tasks = new ArrayList<>();
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
-                Map<Integer, ChunkDeprecated> chunkMap = new TreeMap<>(getStartEndRowIdMap(connection, configs));
-//                if (!chunkMap.isEmpty()) return;
-                chunkMap.forEach((key, chunk) -> {
-                        try {
-                            Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
-                            if (table.exists(connection)) {
-                                Map<String, Integer> orderedColumns = new HashMap<>();
-                                chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
-                                tasks.add(
-                                        executorService.
-                                                submit(new Worker(
-                                                        chunk,
-                                                        orderedColumns
-                                                ))
-                                );
-                            } else {
-                                throw new TableNotExistsException("Table " + chunk.config().fromSchemaName() + "."
-                                        + chunk.config().fromTableName() + " does not exist.");
-                            }
-                        } catch (SQLException e) {
-                            log.error(e.getMessage(), e);
-                        }
-                    }
-                );
+                initiateTargetThread(connection, configs, executorService, tasks);
             } else if (sourceContextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
                 if (initPGChunks) {
                     fillPGChunks(connection, configs);
                 }
                 if (copyPGChunks) {
-                    Map<Integer, ChunkDeprecated> chunkMap = new TreeMap<>(getStartEndCTIDMap(connection, configs));
-                    chunkMap.forEach((key, chunk) -> {
-                            try {
-                                Table table = TableService.getTable(connection, chunk.config().fromSchemaName(), chunk.config().fromTableName());
-                                if (table.exists(connection)) {
-                                    Map<String, Integer> orderedColumns = new HashMap<>();
-                                    chunk.config().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
-                                    tasks.add(
-                                            executorService.submit(new Worker(chunk, orderedColumns))
-                                    );
-                                } else {
-                                    throw new TableNotExistsException("Table " + chunk.config().fromSchemaName() + "."
-                                            + chunk.config().fromTableName() + " does not exist.");
-                                }
-                            } catch (SQLException e) {
-                                log.error(e.getMessage(), e);
-                            }
-                        }
-                    );
+                    initiateTargetThread(connection, configs, executorService, tasks);
                 } else {
                     return;
                 }
@@ -112,5 +68,29 @@ public class ProcessUtil {
             }
             Thread.sleep(1);
         }
+    }
+
+    private void initiateTargetThread(Connection connection,
+                                      List<Config> configs,
+                                      ExecutorService executorService,
+                                      List<Future<LogMessage>> tasks) throws SQLException {
+        Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(connection,configs));
+        chunkMap.forEach((key, chunk) -> {
+                try {
+                    Table table = TableService.getTable(connection, chunk.getConfig().fromSchemaName(), chunk.getConfig().fromTableName());
+                    if (table.exists(connection)) {
+                        Map<String, Integer> orderedColumns = new HashMap<>();
+                        chunk.getConfig().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
+                        tasks.add(executorService.submit(new Worker(chunk, orderedColumns)));
+                    } else {
+                        throw new TableNotExistsException("Table "
+                                + chunk.getConfig().fromSchemaName() + "."
+                                + chunk.getConfig().fromTableName() + " does not exist.");
+                    }
+                } catch (SQLException e) {
+                    log.error(e.getMessage(), e);
+                }
+            }
+        );
     }
 }

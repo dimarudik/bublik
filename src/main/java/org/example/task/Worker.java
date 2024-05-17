@@ -1,6 +1,7 @@
 package org.example.task;
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.model.Chunk;
 import org.example.model.ChunkDeprecated;
 import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
@@ -16,31 +17,31 @@ import java.util.concurrent.Callable;
 
 @Slf4j
 public class Worker implements Callable<LogMessage> {
-    private final ChunkDeprecated chunkDeprecated;
+    private final Chunk<?> chunk;
     private final Map<String, Integer> columnsFromDB;
 
     private LogMessage logMessage;
 
-    public Worker(ChunkDeprecated chunkDeprecated,
+    public Worker(Chunk<?> chunk,
                   Map<String, Integer> columnsFromDB) {
-        this.chunkDeprecated = chunkDeprecated;
+        this.chunk = chunk;
         this.columnsFromDB = columnsFromDB;
     }
 
     @Override
     public LogMessage call() {
-        var mdcToTableName = MDC.putCloseable("toTableName", chunkDeprecated.config().toTableName());
+        var mdcToTableName = MDC.putCloseable("toTableName", chunk.getConfig().toTableName());
         try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
-            String query = chunkDeprecated.buildFetchStatement(columnsFromDB);
+            String query = chunk.buildFetchStatement(columnsFromDB);
 //            System.out.println(query);
-            ResultSet fetchResultSet = chunkDeprecated.getData(connection, query);
+            ResultSet fetchResultSet = chunk.getData(connection, query);
             RunnerResult runnerResult =
                     new CopyToPGInitiator()
-                            .initiateProcessToDatabase(fetchResultSet, chunkDeprecated);
+                            .initiateProcessToDatabase(fetchResultSet, chunk);
             logMessage = runnerResult.logMessage();
             fetchResultSet.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-                chunkDeprecated.markChunkAsProceed(connection);
+                chunk.markChunkAsProceed(connection);
             }
         } catch (SQLException e) {
             log.error(e.getMessage(), e);
