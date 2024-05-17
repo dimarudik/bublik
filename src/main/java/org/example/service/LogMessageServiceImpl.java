@@ -1,7 +1,6 @@
 package org.example.service;
 
 import org.example.model.Chunk;
-import org.example.model.ChunkDeprecated;
 import org.example.model.LogMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

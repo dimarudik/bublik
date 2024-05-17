@@ -2,6 +2,7 @@ package org.example.model;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.constants.PGKeywords;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -13,8 +14,8 @@ import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 @NoArgsConstructor
 @Getter
 public class OraChunk<T extends String> extends Chunk<T> {
-    public OraChunk(Integer id, T start, T end, Config config) {
-        super(id, start, end, config);
+    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable) {
+        super(id, start, end, config, sourceTable);
     }
 
     @Override
@@ -43,15 +44,15 @@ public class OraChunk<T extends String> extends Chunk<T> {
         if (getConfig().expressionToColumn() != null) {
             expressionToColumn = ", " + String.join(", ", getConfig().expressionToColumn().keySet());
         }
-        return "select " +
+        return  PGKeywords.SELECT + " " +
                 getConfig().fetchHintClause() +
                 String.join(", ", neededSourceColumns) +
-                expressionToColumn +
-                " from " +
+                expressionToColumn + " " +
+                PGKeywords.FROM + " " +
                 getConfig().fromSchemaName() +
                 "." +
-                getConfig().fromTableName() +
-                " where " +
+                getConfig().fromTableName() + " " +
+                PGKeywords.WHERE + " " +
                 getConfig().fetchWhereClause() +
                 " and rowid between ? and ?";
     }

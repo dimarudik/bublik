@@ -3,9 +3,10 @@ package org.example.util;
 import lombok.extern.slf4j.Slf4j;
 import org.example.constants.SourceContextHolder;
 import org.example.exception.TableNotExistsException;
-import org.example.model.*;
-import org.example.service.LogMessageService;
-import org.example.service.LogMessageServiceImpl;
+import org.example.model.Chunk;
+import org.example.model.Config;
+import org.example.model.LogMessage;
+import org.example.model.Table;
 import org.example.service.TableService;
 import org.example.task.Worker;
 
@@ -19,7 +20,8 @@ import java.util.concurrent.Future;
 
 import static org.example.constants.SQLConstants.LABEL_ORACLE;
 import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
-import static org.example.util.ColumnUtil.*;
+import static org.example.util.ColumnUtil.fillPGChunks;
+import static org.example.util.ColumnUtil.getChunkMap;
 
 @Slf4j
 public class ProcessUtil {
@@ -55,7 +57,7 @@ public class ProcessUtil {
 
     private void futureProceed(List<Future<LogMessage>> tasks) throws InterruptedException, ExecutionException {
         Iterator<Future<LogMessage>> futureIterator = tasks.listIterator();
-        LogMessageService logMessageService = new LogMessageServiceImpl();
+//        LogMessageService logMessageService = new LogMessageServiceImpl();
         while (futureIterator.hasNext()) {
             Future<LogMessage> future = futureIterator.next();
             if (future.isDone()) {
@@ -84,8 +86,8 @@ public class ProcessUtil {
                         tasks.add(executorService.submit(new Worker(chunk, orderedColumns)));
                     } else {
                         throw new TableNotExistsException("Table "
-                                + chunk.getConfig().fromSchemaName() + "."
-                                + chunk.getConfig().fromTableName() + " does not exist.");
+                                + chunk.getSourceTable().getSchemaName() + "."
+                                + chunk.getSourceTable().getTableName() + " does not exist.");
                     }
                 } catch (SQLException e) {
                     log.error(e.getMessage(), e);

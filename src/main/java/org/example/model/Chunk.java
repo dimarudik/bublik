@@ -13,4 +13,5 @@ public abstract class Chunk<T> implements ChunkService {
     private T start;
     private T end;
     private Config config;
+    private Table sourceTable;
 }

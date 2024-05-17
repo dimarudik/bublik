@@ -2,7 +2,6 @@ package org.example.task;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.model.Chunk;
-import org.example.model.ChunkDeprecated;
 import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
 import org.example.util.CopyToPGInitiator;
@@ -30,10 +29,9 @@ public class Worker implements Callable<LogMessage> {
 
     @Override
     public LogMessage call() {
-        var mdcToTableName = MDC.putCloseable("toTableName", chunk.getConfig().toTableName());
-        try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
+        try (var mdcToTableName = MDC.putCloseable("toTableName", chunk.getConfig().toTableName());
+             Connection connection = DatabaseUtil.getConnectionDbFrom()) {
             String query = chunk.buildFetchStatement(columnsFromDB);
-//            System.out.println(query);
             ResultSet fetchResultSet = chunk.getData(connection, query);
             RunnerResult runnerResult =
                     new CopyToPGInitiator()
@@ -45,8 +43,6 @@ public class Worker implements Callable<LogMessage> {
             }
         } catch (SQLException e) {
             log.error(e.getMessage(), e);
-        } finally {
-            mdcToTableName.close();
         }
         return logMessage;
     }

@@ -2,6 +2,7 @@ package org.example.model;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.constants.PGKeywords;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,8 +17,8 @@ import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 @NoArgsConstructor
 @Getter
 public class PGChunk<T extends Long> extends Chunk<T> {
-    public PGChunk(Integer id, T start, T end, Config config) {
-        super(id, start, end, config);
+    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable) {
+        super(id, start, end, config, sourceTable);
     }
 
     @Override
@@ -39,13 +40,13 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
-        return "select " +
-                String.join(", ", neededSourceColumns) +
-                " from " +
+        return PGKeywords.SELECT + " " +
+                String.join(", ", neededSourceColumns) + " " +
+                PGKeywords.FROM + " " +
                 getConfig().fromSchemaName() +
                 "." +
-                getConfig().fromTableName() +
-                " where " +
+                getConfig().fromTableName() + " " +
+                PGKeywords.WHERE + " " +
                 getConfig().fetchWhereClause() +
                 " and ctid >= '(" + getStart() + ",1)' and ctid < '(" + getEnd() + ",1)'";
     }

@@ -56,28 +56,6 @@ public class ColumnUtil {
         return columnMap;
     }
 
-
-/*
-    public static Map<Integer, ColumnRule> getColumn2RuleMap(SQLStatement sqlStatement) {
-        Map<Integer, ColumnRule> ruleMap = new HashMap<>();
-        int i = 1;
-        for (String fieldName: SQLUtil.getNeededSourceColumns(sqlStatement)) {
-            Optional<ColumnRule> columnRule = Optional.empty();
-            if (sqlStatement.transformToRule() != null) {
-                columnRule =
-                        sqlStatement.transformToRule()
-                                .stream()
-                                .filter(rule -> rule.getColumnName().equalsIgnoreCase(fieldName))
-                                .findFirst();
-            }
-            assert Objects.requireNonNull(columnRule).isPresent();
-            ruleMap.put(i, columnRule.orElse(null));
-            i++;
-        }
-        return ruleMap;
-    }
-*/
-
     public static <T> Map<Integer, Chunk<T>> getChunkMap(Connection connection, List<Config> configs) throws SQLException {
         if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
             Map<Integer, Chunk<T>> chunkHashMap = new TreeMap<>();
@@ -86,12 +64,15 @@ public class ColumnUtil {
                 PreparedStatement statement = connection.prepareStatement(sql);
                 ResultSet resultSet = statement.executeQuery();
                 while (resultSet.next()) {
-                    chunkHashMap.put(resultSet.getInt(1),
+                    Config config = findByTaskName(configs, resultSet.getString("task_name"));
+                    assert config != null;
+                    chunkHashMap.put(resultSet.getInt("rownum"),
                             new OraChunk(
-                                    resultSet.getInt(2),
-                                    resultSet.getString(3),
-                                    resultSet.getString(4),
-                                    findByTaskName(configs, resultSet.getString(7))
+                                    resultSet.getInt("chunk_id"),
+                                    resultSet.getString("start_rowid"),
+                                    resultSet.getString("end_rowid"),
+                                    config,
+                                    TableService.getTable(connection, config.fromSchemaName(), config.fromTableName())
                             )
                     );
                 }
@@ -111,12 +92,15 @@ public class ColumnUtil {
                     log.error("No chunk definition found in CTID_CHUNKS for : " +
                             configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
                 } else while (resultSet.next()) {
+                    Config config = findByTaskName(configs, resultSet.getString("task_name"));
+                    assert config != null;
                     chunkHashMap.put(resultSet.getInt("rownum"),
                             new PGChunk(
                                     resultSet.getInt("chunk_id"),
                                     resultSet.getLong("start_page"),
                                     resultSet.getLong("end_page"),
-                                    findByTaskName(configs, resultSet.getString("task_name"))
+                                    config,
+                                    TableService.getTable(connection, config.fromSchemaName(), config.fromTableName())
                             )
                     );
                 }
@@ -130,77 +114,19 @@ public class ColumnUtil {
         return null;
     }
 
-/*
-    @Deprecated
-    public static Map<Integer, OraChunkDeprecated> getStartEndRowIdMap(Connection connection, List<Config> configs) {
-        Map<Integer, OraChunkDeprecated> chunkHashMap = new TreeMap<>();
-        try {
-            String sql = buildStartEndRowIdOfOracleChunk(configs);
-            PreparedStatement statement = connection.prepareStatement(sql);
-            ResultSet resultSet = statement.executeQuery();
-            while (resultSet.next()) {
-                chunkHashMap.put(resultSet.getInt(1),
-                        new OraChunkDeprecated(
-                                resultSet.getInt(2),
-                                resultSet.getString(3),
-                                resultSet.getString(4),
-                                resultSet.getLong(5),
-                                resultSet.getLong(6),
-                                findByTaskName(configs, resultSet.getString(7))
-                        )
-                );
-            }
-            resultSet.close();
-            statement.close();
-        } catch (SQLException e) {
-            log.error(e.getMessage(), e);
-        }
-        return chunkHashMap;
-    }
-*/
-
-/*
-    public static Map<Integer, PGChunkDeprecated> getStartEndCTIDMap(Connection connection, List<Config> configs) {
-        Map<Integer, PGChunkDeprecated> chunkHashMap = new TreeMap<>();
-        try {
-            String sql = buildStartEndPageOfPGChunk(configs);
-            PreparedStatement statement = connection.prepareStatement(sql);
-            ResultSet resultSet = statement.executeQuery();
-            if (!resultSet.isBeforeFirst()) {
-                log.error("No chunk definition found in CTID_CHUNKS for : " +
-                        configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
-            } else while (resultSet.next()) {
-                chunkHashMap.put(resultSet.getInt("rownum"),
-                        new PGChunkDeprecated(
-                                resultSet.getInt("chunk_id"),
-                                resultSet.getLong("start_page"),
-                                resultSet.getLong("end_page"),
-                                findByTaskName(configs, resultSet.getString("task_name"))
-                        )
-                );
-            }
-            resultSet.close();
-            statement.close();
-        } catch (SQLException e) {
-            log.error(e.getMessage(), e);
-        }
-        return chunkHashMap;
-    }
-*/
-
     public static void fillPGChunks(Connection connection, List<Config> configs) {
         try {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
-            configs.forEach(sqlStatement -> {
+            configs.forEach(config -> {
                 try {
                     long reltuples = 0;
                     long relpages = 0;
                     long max_end_page = 0;
                     long heap_blks_total = 0;
                     PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
-                    preparedStatement.setString(1, sqlStatement.fromSchemaName().toLowerCase());
-                    preparedStatement.setString(2, sqlStatement.fromTableName().toLowerCase());
+                    preparedStatement.setString(1, config.fromSchemaName().toLowerCase());
+                    preparedStatement.setString(2, config.fromTableName().toLowerCase());
                     ResultSet resultSet = preparedStatement.executeQuery();
                     while(resultSet.next()) {
                         reltuples = resultSet.getLong("reltuples");
@@ -209,8 +135,8 @@ public class ColumnUtil {
                     resultSet.close();
                     preparedStatement.close();
                     preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
-                    preparedStatement.setString(1, sqlStatement.fromSchemaName() + "." +
-                            sqlStatement.fromTableName());
+                    preparedStatement.setString(1, config.fromSchemaName() + "." +
+                            config.fromTableName());
                     resultSet = preparedStatement.executeQuery();
                     while(resultSet.next()) {
                         heap_blks_total = resultSet.getLong("heap_blks_total");
@@ -222,8 +148,8 @@ public class ColumnUtil {
                             (int) Math.round(relpages / (reltuples / rowsInChunk));
                     long pagesInChunk = Math.min(v, relpages + 1);
                     log.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
-                            sqlStatement.fromSchemaName(),
-                            sqlStatement.fromTableName(),
+                            config.fromSchemaName(),
+                            config.fromTableName(),
                             relpages,
                             heap_blks_total,
                             reltuples,
@@ -231,13 +157,13 @@ public class ColumnUtil {
                             pagesInChunk);
                     PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
                     chunkInsert.setLong(1, pagesInChunk);
-                    chunkInsert.setString(2, sqlStatement.fromTaskName());
+                    chunkInsert.setString(2, config.fromTaskName());
                     chunkInsert.setLong(3, relpages);
                     chunkInsert.setLong(4, pagesInChunk);
                     int rows = chunkInsert.executeUpdate();
                     chunkInsert.close();
                     preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
-                    preparedStatement.setString(1, sqlStatement.fromTaskName());
+                    preparedStatement.setString(1, config.fromTaskName());
                     resultSet = preparedStatement.executeQuery();
                     while(resultSet.next()) {
                         max_end_page = resultSet.getLong("max_end_page");
@@ -248,7 +174,7 @@ public class ColumnUtil {
                         chunkInsert = connection.prepareStatement(DML_INSERT_CTID_CHUNKS);
                         chunkInsert.setLong(1, max_end_page);
                         chunkInsert.setLong(2, heap_blks_total);
-                        chunkInsert.setString(3, sqlStatement.fromTaskName());
+                        chunkInsert.setString(3, config.fromTaskName());
                         rows = chunkInsert.executeUpdate();
                         chunkInsert.close();
                     }
