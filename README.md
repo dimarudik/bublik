@@ -24,7 +24,7 @@ The objective is to migrate tables `TABLE1` `Table2` from an Oracle schema `TEST
 
 ### Step 1
 
-<ul><li>Prepare Oracle environment in docker for testing</li></ul>
+<ul><li>Prepare Oracle environment</li></ul>
 
 arm64:
 ```
@@ -52,6 +52,12 @@ docker run --name oracle \
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
 ```
+> [!TIP]
+> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
+
+
+> [!TIP]
+> Optional information to help a user be more successful.
 
 <ul><li>Prepare PostgreSQL environment</li></ul>
 
