@@ -26,11 +26,6 @@ The objective is to migrate tables `TABLE1` `Table2` from an Oracle schema `TEST
 
 <ul><li>Prepare Oracle environment in docker for testing</li></ul>
 
-```
-git clone https://github.com/dimarudik/bublik.git
-cd ./bublik
-```
-
 arm64:
 ```
 docker run --name oracle \
@@ -55,7 +50,7 @@ docker run --name oracle \
 <ul><li>How to connect</li></ul>
 
 ```
-sqlplus test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
 ```
 
 <ul><li>Prepare PostgreSQL environment</li></ul>
