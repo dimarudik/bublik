@@ -53,7 +53,7 @@ docker run --name oracle \
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
 ```
 > [!TIP]
-> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html){:target="_blank"}
+> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 
 <ul><li>Prepare PostgreSQL environment</li></ul>
 
