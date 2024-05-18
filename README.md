@@ -1,5 +1,8 @@
+* [Introduction](#tool-for-data-transfer-from-oracle-to-postgreSQL-or-from-PostgreSQL-to-PostgreSQL)
+    * [1. Oracle To PostgreSQL](#1-Oracle-To-PostgreSQL)
 
 # Tool for Data Transfer from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL
+
 
 This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
@@ -17,7 +20,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
-## 1. Oracle To PostgreSQL
+## 1 Oracle To PostgreSQL
 The objective is to migrate tables `TABLE1` `Table2` from an Oracle schema `TEST` to a PostgreSQL database.
 
 
