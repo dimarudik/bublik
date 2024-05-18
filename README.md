@@ -45,14 +45,16 @@ docker run --name oracle \
 ```
 
 
->  **WARNING**: The source table `TEST.TABLE1` will be created and fulfilled during oracle docker container startup
+> [!IMPORTANT] 
+> The source table `TEST.TABLE1` will be created and fulfilled during oracle docker container startup
 
 <ul><li>How to connect</li></ul>
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
 ```
-> [!TIP] [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
+> [!TIP] 
+> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 
 <ul><li>Prepare PostgreSQL environment</li></ul>
 
@@ -194,7 +196,8 @@ select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct
 
 ## 2. PostgreSQL To PostgreSQL
 The objective is to migrate table SOURCE to table TARGET from one PostgreSQL database to another.
->  **WARNING**: To simplify test case we're using same database
+> [!TIP] 
+> To simplify test case we're using same database
 
 ### Step 1
 <ul><li>Prepare PostgreSQL environment</li></ul>
