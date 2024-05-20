@@ -5,10 +5,16 @@ The quickest method for extracting data from Oracle is by using `ROWID` (employi
 In case of PostgreSQL, we should split a table into chunks by `CTID`.<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
-* [Oracle-To-PostgreSQL](#Oracle-To-PostgreSQL)
-    * [1. Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
+* [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
+    * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
+* [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
+  * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 
-## Supported Types
+## Oracle To PostgreSQL
+<p>The objective is to migrate tables `TABLE1`, `Table2`, `PARTED` from an Oracle schema `TEST` to a PostgreSQL database.</p>
+
+<strong>Supported types:</strong>
+
 | ORACLE                   | Postgresql (possible types)                          |
 |:-------------------------|:-----------------------------------------------------|
 | char, varchar, varchar2  | char, bpchar, varchar, text                          |
@@ -19,14 +25,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
-## Oracle To PostgreSQL
-The objective is to migrate tables `TABLE1`, `Table2`, `PARTED` from an Oracle schema `TEST` to a PostgreSQL database.
-
-
-
-### Step 1
-
-<ul><li>Prepare Oracle environment</li></ul>
+### Prepare Oracle To PostgreSQL environment
 
 arm64:
 ```
@@ -226,13 +225,12 @@ select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct
     from user_parallel_execute_chunks group by status;
 ```
 
-## 2. PostgreSQL To PostgreSQL
+## PostgreSQL To PostgreSQL
 The objective is to migrate table SOURCE to table TARGET from one PostgreSQL database to another.
 > [!TIP] 
 > To simplify test case we're using same database
 
-### Step 1
-<ul><li>Prepare PostgreSQL environment</li></ul>
+### Prepare PostgreSQL To PostgreSQL environment
 
 ```
 docker run --name postgres \
