@@ -52,10 +52,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
   >     -d dimarudik/oracle_x86_64:19.3.0-ee
   > ```
-
-
-> [!NOTE]
-> Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
+  
+>  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
 
 <p>How to connect to Oracle:</p>
 
@@ -89,7 +87,7 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
->  **WARNING**: Tables `public.Source`, `public.target`, `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
+>  **WARNING**: Tables `public.Source`, `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
 <p>How to connect to PostgreSQL:</p>
 
