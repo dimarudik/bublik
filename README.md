@@ -55,7 +55,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 > [!NOTE]
 > Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
 
-<p>How to connect to Orcle:</p>
+<p>How to connect to Oracle:</p>
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
@@ -87,9 +87,9 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
->  **WARNING**: The empty target tables `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
+>  **WARNING**: Tables `public.Source`, `public.target`, `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
-<ul><li>How to connect</li></ul>
+<p>How to connect</p>
 
 ```
 psql postgresql://test:test@localhost/postgres
