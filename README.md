@@ -117,7 +117,7 @@ psql postgresql://test:test@localhost/postgres
 
 ### Prepare Oracle To PostgreSQL Mapping File 
 
-#### ./sql/ora2pg.json</li></ul>
+#### ./sql/ora2pg.json
 
 ```json
 [
@@ -179,6 +179,12 @@ psql postgresql://test:test@localhost/postgres
   }
 ]
 ```
+
+> [!IMPORTANT]
+> The case-sensitive words must be quoted with double quotation and backslashes  
+
+> [!NOTE]
+> **expressionToColumn** might be used for declaration of subquery  
 
 <ul><li>Build the jar file</li></ul>
 
