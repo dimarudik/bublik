@@ -57,11 +57,12 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 
 <p>How to connect to Orcle:</p>
 
-  > ```
-  > sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
-  > ```
+```
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
+```
 
-> **WARNING**: [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
+> [!NOTE]
+> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 
 #### Prepare PostgreSQL environment
 
