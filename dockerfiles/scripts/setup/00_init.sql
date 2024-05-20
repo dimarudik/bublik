@@ -45,3 +45,25 @@ insert into test.table1
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as select * from test.table1;
+create table test.parted (
+    id number(19,0) primary key,
+    create_at timestamp(6) not null,
+    name varchar2(1000))
+  partition by range (create_at)
+(
+  partition parted_p0 values less than (to_date('01/01/2019', 'DD/MM/YYYY')),
+  partition parted_p1 values less than (to_date('01/01/2020', 'DD/MM/YYYY')),
+  partition parted_p2 values less than (to_date('01/01/2021', 'DD/MM/YYYY')),
+  partition parted_p3 values less than (to_date('01/01/2022', 'DD/MM/YYYY')),
+  partition parted_p4 values less than (to_date('01/01/2023', 'DD/MM/YYYY')),
+  partition parted_p5 values less than (to_date('01/01/2024', 'DD/MM/YYYY')),
+  partition parted_p6 values less than (to_date('01/01/2025', 'DD/MM/YYYY'))
+);
+create index parted_at_idx on test.parted (create_at);
+insert into test.parted
+    (select
+        rownum as id,
+        to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2024)), 'DD/MM/YYYY') as update_at,
+        rpad('*', round(dbms_random.value(0,1000)),'*') as name
+    from dual connect by level < 1000000);
+commit;

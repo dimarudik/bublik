@@ -20,7 +20,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | number                   | numeric, smallint, bigint, integer, double precision |
 
 ## 1 Oracle To PostgreSQL
-The objective is to migrate tables `TABLE1` `Table2` from an Oracle schema `TEST` to a PostgreSQL database.
+The objective is to migrate tables `TABLE1`, `Table2`, `PARTED` from an Oracle schema `TEST` to a PostgreSQL database.
 
 
 
@@ -48,7 +48,7 @@ docker run --name oracle \
 
 
 > [!IMPORTANT] 
-> The source table `TEST.TABLE1` will be created and fulfilled during oracle docker container startup
+> The source tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
 
 <ul><li>How to connect</li></ul>
 
@@ -81,7 +81,7 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
->  **WARNING**: The empty target table `PUBLIC.TABLE1` will be created during postgre docker container startup
+>  **WARNING**: The empty target tables `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
 <ul><li>How to connect</li></ul>
 
@@ -117,19 +117,24 @@ toProperties:
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
+    "fromTaskWhereClause" : " 1 = 1 ",
     "columnToColumn" : {
-      "id"          : "id",
-      "name"        : "name",
-      "create_at"   : "create_at",
-      "update_at"   : "update_at",
-      "gender"      : "gender",
-      "byteablob"   : "byteablob",
-      "textclob"    : "textclob"
+      "id"                : "id",
+      "name"              : "name",
+      "create_at"         : "create_at",
+      "update_at"         : "update_at",
+      "gender"            : "gender",
+      "byteablob"         : "byteablob",
+      "textclob"          : "textclob",
+      "\"CaseSensitive\"" : "\"CaseSensitive\""
+    },
+    "expressionToColumn" : {
+      "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
     }
   },
   {
     "fromSchemaName" : "TEST",
-    "fromTableName" : "TABLE2",
+    "fromTableName" : "\"Table2\"",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE2",
     "fetchHintClause" : "/*+ no_index(TABLE2) */",
@@ -143,6 +148,21 @@ toProperties:
       "gender"      : "gender",
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
+    }
+  },
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "PARTED",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "PARTED",
+    "fetchHintClause" : "/*+ no_index(PARTED) */",
+    "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
+    "fromTaskName" : "PARTED_TASK",
+    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN (73021,73022) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN (73021,73022)",
+    "columnToColumn" : {
+      "id"        : "id",
+      "create_at" : "create_at",
+      "name"      : "name"
     }
   }
 ]
@@ -161,7 +181,7 @@ Prepare data chunks in Oracle using the same user credentials specified in `bubl
 ```
 exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
 exec dbms_parallel_execute.create_task (task_name => 'TABLE1_TASK');
-begin 
+begin
     dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
                                                     table_owner => 'TEST',
                                                     table_name  => 'TABLE1',
@@ -171,12 +191,22 @@ end;
 /
 exec dbms_parallel_execute.drop_task(task_name => 'TABLE2_TASK');
 exec dbms_parallel_execute.create_task (task_name => 'TABLE2_TASK');
-begin 
+begin
     dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE2_TASK',
                                                     table_owner => 'TEST',
                                                     table_name  => 'Table2',
                                                     by_row => TRUE,
                                                     chunk_size  => 100000 );
+end;
+/
+exec dbms_parallel_execute.drop_task(task_name => 'PARTED_TASK');
+exec dbms_parallel_execute.create_task (task_name => 'PARTED_TASK');
+begin
+    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'PARTED_TASK',
+                                                    table_owner => 'TEST',
+                                                    table_name  => 'PARTED',
+                                                    by_row => TRUE,
+                                                    chunk_size  => 20000 );
 end;
 /
 ```

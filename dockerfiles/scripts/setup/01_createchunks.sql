@@ -20,3 +20,13 @@ begin
                                                     chunk_size  => 100000 );
 end;
 /
+exec dbms_parallel_execute.drop_task(task_name => 'PARTED_TASK');
+exec dbms_parallel_execute.create_task (task_name => 'PARTED_TASK');
+begin
+    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'PARTED_TASK',
+                                                    table_owner => 'TEST',
+                                                    table_name  => 'PARTED',
+                                                    by_row => TRUE,
+                                                    chunk_size  => 20000 );
+end;
+/

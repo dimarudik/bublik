@@ -68,3 +68,8 @@ insert into "Source" (uuid, "Primary", boolean,
         end image
     from generate_series(1,100000) as n;
 vacuum "Source";
+create table parted (
+    id bigint,
+    create_at timestamp(6) not null,
+    name varchar(1000));
+
