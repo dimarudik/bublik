@@ -52,8 +52,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   > ```
 
 
-    > [!NOTE]
-    > Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
+> [!NOTE]
+> Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
 
 <p>How to connect:</p>
 
