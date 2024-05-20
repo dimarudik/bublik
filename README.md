@@ -184,7 +184,10 @@ psql postgresql://test:test@localhost/postgres
 > The case-sensitive words must be quoted with double quotation and backslashes  
 
 > [!NOTE]
-> **expressionToColumn** might be used for declaration of subquery  
+> **expressionToColumn** might be used for declaration of subquery for enrichment of data 
+
+> [!NOTE]
+> To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above 
 
 <ul><li>Build the jar file</li></ul>
 
