@@ -7,6 +7,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
     * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
+    * [Prepare Config File](#)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 
@@ -89,26 +90,28 @@ docker run --name postgres \
 
 >  **WARNING**: Tables `public.Source`, `public.target`, `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
-<p>How to connect</p>
+<p>How to connect to PostgreSQL:</p>
 
 ```
 psql postgresql://test:test@localhost/postgres
 ```
 
-<ul><li>Prepare the connection parameters file ./sql/ora2pg.yaml</li></ul>
+### Prepare the connection parameters file 
 
-```yaml
-threadCount: 10
+- ./sql/ora2pg.yaml
 
-fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
-  user: test
-  password: test
-toProperties:
-  url: jdbc:postgresql://localhost:5432/postgres
-  user: test
-  password: test
-```
+  > ```yaml
+  > threadCount: 10
+  > 
+  > fromProperties:
+  >   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+  >   user: test
+  >   password: test
+  > toProperties:
+  >   url: jdbc:postgresql://localhost:5432/postgres
+  >   user: test
+  >   password: test
+  > ```
 
 
 <ul><li>Prepare the table parameters file ./sql/ora2pg.json</li></ul>
