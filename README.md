@@ -187,7 +187,8 @@ psql postgresql://test:test@localhost/postgres
 > **expressionToColumn** might be used for declaration of subquery for enrichment of data 
 
 > [!NOTE]
-> To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above 
+> To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
+> It allows to exclude excessive workload
 
 <ul><li>Build the jar file</li></ul>
 
