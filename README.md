@@ -31,6 +31,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 
 <p>All activities are reproducible in docker containers</p>
 
+```
+git clone https://github.com/dimarudik/bublik.git
+cd bublik/
+```
+
 #### Prepare Oracle environment
 
 - arm64:
@@ -87,7 +92,7 @@ docker run --name postgres \
         -c auto_explain.log_analyze=true
 ```
 
->  **WARNING**: Tables `public.Source`, `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
+>  **WARNING**: Tables `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
 <p>How to connect to PostgreSQL:</p>
 
