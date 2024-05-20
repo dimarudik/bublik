@@ -6,8 +6,9 @@ In case of PostgreSQL, we should split a table into chunks by `CTID`.<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
-    * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
-    * [Prepare Config File](#)
+  * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
+  * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
+  * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 
@@ -96,9 +97,9 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-### Prepare the connection parameters file 
+### Prepare Oracle To PostgreSQL Config File 
 
-- ./sql/ora2pg.yaml
+#### ./sql/ora2pg.yaml
 
   > ```yaml
   > threadCount: 10
@@ -114,7 +115,9 @@ psql postgresql://test:test@localhost/postgres
   > ```
 
 
-<ul><li>Prepare the table parameters file ./sql/ora2pg.json</li></ul>
+### Prepare Oracle To PostgreSQL Mapping File 
+
+#### ./sql/ora2pg.json</li></ul>
 
 ```json
 [
