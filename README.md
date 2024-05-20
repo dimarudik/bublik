@@ -5,8 +5,8 @@ The quickest method for extracting data from Oracle is by using `ROWID` (employi
 In case of PostgreSQL, we should split a table into chunks by `CTID`.<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
-* [Supported Types](#Supported-Types)
-    * [1. Oracle To PostgreSQL](#1-Oracle-To-PostgreSQL)
+* [Oracle-To-PostgreSQL](#Oracle-To-PostgreSQL)
+    * [1. Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
 
 ## Supported Types
 | ORACLE                   | Postgresql (possible types)                          |
@@ -19,7 +19,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
-## 1 Oracle To PostgreSQL
+## Oracle To PostgreSQL
 The objective is to migrate tables `TABLE1`, `Table2`, `PARTED` from an Oracle schema `TEST` to a PostgreSQL database.
 
 
