@@ -9,6 +9,9 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
+  * [Build the jar](#Build-the-jar)
+  * [Create chunks](#Create-chunks)
+  * [Run the tool](#Run-the-tool)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 
@@ -193,15 +196,16 @@ psql postgresql://test:test@localhost/postgres
 > To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
 > It allows to exclude excessive workload
 
-<ul><li>Build the jar file</li></ul>
+### Build the jar
 
 ```shell
 mvn clean package -DskipTests
 ```
 
-### Step 2
+### Create chunks
+
 Halt any changes to the movable tables in the source database (Oracle)<br>
-Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `props.yaml`):
+Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
 
 ```
 exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
@@ -236,20 +240,20 @@ end;
 /
 ```
 
-### Step 3
-Run the tool
+### Run the tool
+
 ```
 java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
 ```
 
-<ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
-<ul><li>Monitor the logs at `logs/app.log`.</li></ul>
-<ul><li>Track progress in Oracle:</li></ul>
+- To prevent heap pressure, use `-Xmx16g`
+- Monitor the logs at `logs/app.log`
+- Track progress in Oracle:
 
-```
-select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-    from user_parallel_execute_chunks group by status;
-```
+  > ```
+  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
+  >     from user_parallel_execute_chunks group by status;
+  > ```
 
 ## PostgreSQL To PostgreSQL
 
