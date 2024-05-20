@@ -11,9 +11,9 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 
 ## Oracle To PostgreSQL
-<p>The objective is to migrate tables `TABLE1`, `Table2`, `PARTED` from an Oracle schema `TEST` to a PostgreSQL database.</p>
+> <p>The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from an Oracle schema <strong>TEST</strong> to a PostgreSQL database.</p>
 
-<strong>Supported types:</strong>
+<p><strong>Supported types:</strong></p>
 
 | ORACLE                   | Postgresql (possible types)                          |
 |:-------------------------|:-----------------------------------------------------|
@@ -27,37 +27,40 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 
 ### Prepare Oracle To PostgreSQL environment
 
-arm64:
-```
-docker run --name oracle \
-    -p 1521:1521 -p 5500:5500 \
-    -e ORACLE_PWD=oracle_4U \
-    -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-    -d dimarudik/oracle_arm64:19.3.0-ee
-```
+<p>All activities are reproducible in docker containers</p>
 
-x86_64:
-```
-docker run --name oracle \
-    -p 1521:1521 -p 5500:5500 \
-    -e ORACLE_PWD=oracle_4U \
-    -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-    -d dimarudik/oracle_x86_64:19.3.0-ee
-```
+#### Prepare Oracle environment
 
+- arm64:
 
-> [!IMPORTANT] 
-> The source tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
+  > ```
+  > docker run --name oracle \
+  > -p 1521:1521 -p 5500:5500 \
+  >     -e ORACLE_PWD=oracle_4U \
+  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
+  >     -d dimarudik/oracle_arm64:19.3.0-ee
+  > ```
 
-<ul><li>How to connect</li></ul>
+- x86_64:
+
+  > ```
+  > docker run --name oracle \
+  >     -p 1521:1521 -p 5500:5500 \
+  >     -e ORACLE_PWD=oracle_4U \
+  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
+  >     -d dimarudik/oracle_x86_64:19.3.0-ee
+  > ```
+
+> WARNING : Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
+
+<p>How to connect:</p>
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
 ```
-> [!TIP] 
-> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
+> **WARNING**: [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 
-<ul><li>Prepare PostgreSQL environment</li></ul>
+#### Prepare PostgreSQL environment
 
 ```
 docker run --name postgres \
@@ -226,9 +229,9 @@ select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct
 ```
 
 ## PostgreSQL To PostgreSQL
-The objective is to migrate table SOURCE to table TARGET from one PostgreSQL database to another.
-> [!TIP] 
-> To simplify test case we're using same database
+
+> <p>The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database</p>
+
 
 ### Prepare PostgreSQL To PostgreSQL environment
 
