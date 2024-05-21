@@ -1,3 +1,4 @@
+![Bublik](/sql/bublik.png)
 # Tool for Data Transfer from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL
 
 This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>

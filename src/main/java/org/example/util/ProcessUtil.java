@@ -20,7 +20,7 @@ import java.util.concurrent.Future;
 
 import static org.example.constants.SQLConstants.LABEL_ORACLE;
 import static org.example.constants.SQLConstants.LABEL_POSTGRESQL;
-import static org.example.util.ColumnUtil.fillPGChunks;
+import static org.example.util.ColumnUtil.fillCtidChunks;
 import static org.example.util.ColumnUtil.getChunkMap;
 
 @Slf4j
@@ -38,7 +38,7 @@ public class ProcessUtil {
                 initiateTargetThread(connection, configs, executorService, tasks);
             } else if (sourceContextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
                 if (initPGChunks) {
-                    fillPGChunks(connection, configs);
+                    fillCtidChunks(connection, configs);
                 }
                 if (copyPGChunks) {
                     initiateTargetThread(connection, configs, executorService, tasks);

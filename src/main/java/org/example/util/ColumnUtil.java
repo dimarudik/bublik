@@ -114,7 +114,7 @@ public class ColumnUtil {
         return null;
     }
 
-    public static void fillPGChunks(Connection connection, List<Config> configs) {
+    public static void fillCtidChunks(Connection connection, List<Config> configs) {
         try {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
