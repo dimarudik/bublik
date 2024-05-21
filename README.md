@@ -238,6 +238,9 @@ end;
 /
 ```
 
+> [!NOTE]
+> [How to build and run the tool](#Build-the-jar)
+
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
