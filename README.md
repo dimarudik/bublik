@@ -259,6 +259,7 @@ java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
   > ```
 
 ## PostgreSQL To PostgreSQL
+![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
 > <p>The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database</p>
 
