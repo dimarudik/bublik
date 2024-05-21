@@ -1,5 +1,7 @@
 package org.example;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -27,9 +29,20 @@ import static org.example.constants.StringConstant.MAPPING_FILE_CREATED;
 public class App {
 
     public static void main(String[] args) throws IOException, SQLException {
-        Options options = new Options();
+/*
+        String serverIP = "localhost";
+        String keyspace = "store";
+        Cluster cluster = Cluster.builder()
+                .addContactPoints(serverIP)
+                .withoutJMXReporting()
+                .build();
+        Session session = cluster.connect(keyspace);
+        session.close();
+        cluster.close();
+*/
 
-        Option configOption = createOption("c", "config", "yaml file", "file name of properties");
+        Options options = new Options();
+        Option configOption = createOption("c", "config", "yaml file", "file name of prop.erties");
         Option tableDefOption = createOption("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
         Option initOption = createOption("i", "init", "json file", "file name with a list of tables");
         Option outputOption = createOption("o", "output", "json file", "create new mapping definitions file");
