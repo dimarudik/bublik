@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.model.Chunk;
 import org.example.model.LogMessage;
 import org.example.model.RunnerResult;
+import org.example.service.ChunkService;
 import org.example.util.CopyToPGInitiator;
 import org.example.util.DatabaseUtil;
 import org.slf4j.MDC;
@@ -33,9 +34,10 @@ public class Worker implements Callable<LogMessage> {
              Connection connection = DatabaseUtil.getConnectionDbFrom()) {
             String query = chunk.buildFetchStatement(columnsFromDB);
             ResultSet fetchResultSet = chunk.getData(connection, query);
+            ChunkService.set(chunk);
             RunnerResult runnerResult =
                     new CopyToPGInitiator()
-                            .initiateProcessToDatabase(fetchResultSet, chunk);
+                            .initiateProcessToDatabase(fetchResultSet);
             logMessage = runnerResult.logMessage();
             fetchResultSet.close();
             if (runnerResult.logMessage() != null && runnerResult.e() == null) {

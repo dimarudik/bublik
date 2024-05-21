@@ -48,7 +48,7 @@
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
     "fromTaskName" : "PARTED_TASK",
-    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN (73021,73022) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN (73021,73022)",
+    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN (73052,73053) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN (73052,73053)",
     "columnToColumn" : {
       "id"        : "id",
       "create_at" : "create_at",

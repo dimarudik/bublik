@@ -72,7 +72,8 @@ public class ColumnUtil {
                                     resultSet.getString("start_rowid"),
                                     resultSet.getString("end_rowid"),
                                     config,
-                                    TableService.getTable(connection, config.fromSchemaName(), config.fromTableName())
+                                    TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
+                                    null
                             )
                     );
                 }
@@ -100,7 +101,8 @@ public class ColumnUtil {
                                     resultSet.getLong("start_page"),
                                     resultSet.getLong("end_page"),
                                     config,
-                                    TableService.getTable(connection, config.fromSchemaName(), config.fromTableName())
+                                    TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
+                                    null
                             )
                     );
                 }
