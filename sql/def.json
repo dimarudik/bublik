@@ -9,6 +9,7 @@
   "fromTaskName" : "TABLE1_TASK",
   "fromTaskWhereClause" : null,
   "columnToColumn" : {
+    "COUNTRY_ID" : "COUNTRY_ID",
     "UPDATE_AT" : "UPDATE_AT",
     "TEXTCLOB" : "TEXTCLOB",
     "CREATE_AT" : "CREATE_AT",
@@ -18,7 +19,8 @@
     "ID" : "ID",
     "BYTEABLOB" : "BYTEABLOB",
     "NAME" : "NAME"
-  }
+  },
+  "expressionToColumn" : null
 }, {
   "numberColumn" : null,
   "fromSchemaName" : "TEST",
@@ -30,6 +32,7 @@
   "fromTaskName" : "TABLE2_TASK",
   "fromTaskWhereClause" : null,
   "columnToColumn" : {
+    "COUNTRY_ID" : "COUNTRY_ID",
     "UPDATE_AT" : "UPDATE_AT",
     "TEXTCLOB" : "TEXTCLOB",
     "CREATE_AT" : "CREATE_AT",
@@ -39,5 +42,22 @@
     "ID" : "ID",
     "BYTEABLOB" : "BYTEABLOB",
     "NAME" : "NAME"
-  }
+  },
+  "expressionToColumn" : null
+}, {
+  "numberColumn" : null,
+  "fromSchemaName" : "TEST",
+  "fromTableName" : "PARTED",
+  "toSchemaName" : "test",
+  "toTableName" : "parted",
+  "fetchHintClause" : "/*+ no_index(PARTED) */",
+  "fetchWhereClause" : "1 = 1",
+  "fromTaskName" : "PARTED_TASK",
+  "fromTaskWhereClause" : null,
+  "columnToColumn" : {
+    "CREATE_AT" : "CREATE_AT",
+    "ID" : "ID",
+    "NAME" : "NAME"
+  },
+  "expressionToColumn" : null
 } ]
