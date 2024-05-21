@@ -19,9 +19,9 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
 
-<p>The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from an Oracle schema <strong>TEST</strong> to a PostgreSQL database.</p>
+The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from an Oracle schema <strong>TEST</strong> to a PostgreSQL database.
 
-<p><strong>Supported types:</strong></p>
+**Supported types:**
 
 | ORACLE                   | Postgresql (possible types)                          |
 |:-------------------------|:-----------------------------------------------------|
@@ -35,7 +35,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 
 ### Prepare Oracle To PostgreSQL environment
 
-<p>All activities are reproducible in docker containers</p>
+All activities are reproducible in docker containers
 
 ```
 git clone https://github.com/dimarudik/bublik.git
@@ -66,7 +66,7 @@ cd bublik/
   
 >  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
 
-<p>How to connect to Oracle:</p>
+How to connect to Oracle:
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
@@ -100,7 +100,7 @@ docker run --name postgres \
 
 >  **WARNING**: Tables `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
-<p>How to connect to PostgreSQL:</p>
+How to connect to PostgreSQL:
 
 ```
 psql postgresql://test:test@localhost/postgres
@@ -261,7 +261,7 @@ java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
-> <p>The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database</p>
+The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database
 
 
 ### Prepare PostgreSQL To PostgreSQL environment
