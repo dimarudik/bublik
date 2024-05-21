@@ -10,11 +10,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Build the jar](#Build-the-jar)
   * [Create chunks](#Create-chunks)
-  * [Run the tool](#Run-the-tool)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
+* [Build the jar](#Build-the-jar)
+* [Run the tool](#Run-the-tool)
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
@@ -199,11 +199,6 @@ psql postgresql://test:test@localhost/postgres
 > To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
 > It allows to exclude excessive workload
 
-### Build the jar
-
-```shell
-mvn clean package -DskipTests
-```
 
 ### Create chunks
 
@@ -242,21 +237,6 @@ begin
 end;
 /
 ```
-
-### Run the tool
-
-```
-java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
-```
-
-- To prevent heap pressure, use `-Xmx16g`
-- Monitor the logs at `logs/app.log`
-- Track progress in Oracle:
-
-  > ```
-  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-  >     from user_parallel_execute_chunks group by status;
-  > ```
 
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
@@ -348,20 +328,34 @@ toProperties:
 
 >  **WARNING**: The names of columns might be different at source and target
 
-### Step 2
+### Build the jar
+
+```shell
+mvn clean package -DskipTests
+```
+
+### Run the tool
 Halt any changes to the movable tables in the source database
 
-### Step 3
-Run the tool
-```
-java -jar ./target/bublik-1.2.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
-```
+- Oracle:
+  > ```
+  > java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
+  > ```
+- PostgreSQL
+  > ```
+  > java -jar ./target/bublik-1.2.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
+  > ```
 
-<ul><li>To prevent heap pressure, use `-Xmx16g`</li></ul>
-<ul><li>Monitor the logs at `logs/app.log`.</li></ul>
-<ul><li>Track progress at source:</li></ul>
+- To prevent heap pressure, use `-Xmx16g`
+- Monitor the logs at `logs/app.log`
+- Track progress in Oracle:
+  > ```
+  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
+  >     from user_parallel_execute_chunks group by status;
+  > ```
+- Track progress in PostgreSQL:
+  > ```
+  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
+  >     from ctid_chunks group by status;
+  > ```
 
-```
-select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-    from ctid_chunks group by status;
-```
