@@ -331,6 +331,7 @@ public class CopyToPGInitiator {
                                                 break;
                                             // LONG RAW
                                             case -4:
+                                                bytes = fetchResultSet.getBytes(sourceColumn);
                                                 break;
                                             // BLOB
                                             case 2004:

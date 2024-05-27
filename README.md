@@ -19,7 +19,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
 
-The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from an Oracle schema <strong>TEST</strong> to a PostgreSQL database.
+The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from Oracle schema <strong>TEST</strong> to a PostgreSQL database.
 
 **Supported types:**
 
