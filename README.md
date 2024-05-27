@@ -28,12 +28,13 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 | char, varchar, varchar2  | char, bpchar, varchar, text                          |
 | CLOB                     | varchar, text                                        |
 | BLOB                     | bytea                                                |
+| RAW                      | bytea                                                |
 | date                     | date, timestamp, timestamptz                         |
 | timestamp                | timestamp, timestamptz                               |
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
-https://docs.oracle.com/cd/A87860_01/doc/java.817/a83724/basic3.htm
+[Java Datatype Mappings](https://docs.oracle.com/cd/A87860_01/doc/java.817/a83724/basic3.htm)
 
 ### Prepare Oracle To PostgreSQL environment
 
