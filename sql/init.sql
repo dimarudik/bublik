@@ -8,7 +8,8 @@ create table table1 (
     byteablob bytea,
     textclob text,
     "CaseSensitive" varchar(20),
-    country_name varchar(256)
+    country_name varchar(256),
+    rawbytea bytea
 );
 create table table2 (
     id bigint,

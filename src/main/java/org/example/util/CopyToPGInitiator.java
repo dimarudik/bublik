@@ -3,6 +3,7 @@ package org.example.util;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
+import oracle.jdbc.OracleConnection;
 import org.example.model.*;
 import org.example.service.ChunkService;
 import org.example.service.TableService;
@@ -59,14 +60,13 @@ public class CopyToPGInitiator {
                                     Chunk<?> chunk) {
         int rowCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk.getConfig());
-        long start = System.currentTimeMillis();
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
         List<String> tmpTargetColumns = new ArrayList<>();
         neededColumnsToDB.values().forEach(i -> tmpTargetColumns.add(i.getColumnName()));
         String[] columnNames = new ArrayList<>(tmpTargetColumns).toArray(new String[0]);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName(), columnNames);
-        start = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
         try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
             do {
                 writer.startRow((row) -> {
@@ -246,6 +246,21 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     log.error("{} {}", entry.getKey(), e);
                                 }
+                            case "time":
+                                try {
+                                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
+                                    if (timestamp == null) {
+                                        row.setTimeStamp(targetColumn, null);
+                                        break;
+                                    }
+                                    long l = timestamp.getTime();
+                                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
+                                            TimeZone.getDefault().toZoneId());
+                                    row.setTimeStamp(targetColumn, localDateTime);
+                                    break;
+                                } catch (SQLException e) {
+                                    log.error("{} {}", entry.getKey(), e);
+                                }
                             case "timestamp":
                                 try {
                                     Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
@@ -293,6 +308,12 @@ public class CopyToPGInitiator {
                                 }
                             case "bytea":
                                 try {
+/*
+                                    System.out.println("Here...");
+                                    int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
+                                    int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                                    System.out.println(columnType);
+*/
                                     Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
                                         row.setByteArray(targetColumn, null);
@@ -300,7 +321,24 @@ public class CopyToPGInitiator {
                                     }
                                     byte[] bytes = new byte[0];
                                     if (chunk instanceof OraChunk<?>) {
-                                        bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
+//                                        bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
+                                        int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
+                                        int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                                        switch (columnType) {
+                                            // RAW
+                                            case -3:
+                                                bytes = fetchResultSet.getBytes(sourceColumn);
+                                                break;
+                                            // LONG RAW
+                                            case -4:
+                                                break;
+                                            // BLOB
+                                            case 2004:
+                                                bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
+                                                break;
+                                            default:
+                                                break;
+                                        }
                                     } else if (chunk instanceof PGChunk<?>) {
                                         bytes = fetchResultSet.getBytes(sourceColumn);
                                     }

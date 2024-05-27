@@ -16,7 +16,8 @@
       "gender"            : "gender",
       "byteablob"         : "byteablob",
       "textclob"          : "textclob",
-      "\"CaseSensitive\"" : "\"CaseSensitive\""
+      "\"CaseSensitive\"" : "\"CaseSensitive\"",
+      "rawbytea"          : "rawbytea"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"

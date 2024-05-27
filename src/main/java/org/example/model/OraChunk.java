@@ -42,8 +42,8 @@ public class OraChunk<T extends String> extends Chunk<T> {
         if (getConfig().expressionToColumn() != null) {
             expressionToColumn = ", " + String.join(", ", getConfig().expressionToColumn().keySet());
         }
-        return  PGKeywords.SELECT + " " +
-                getConfig().fetchHintClause() +
+        return  PGKeywords.SELECT + " /* bublik */ " +
+                getConfig().fetchHintClause() + " " +
                 String.join(", ", neededSourceColumns) +
                 expressionToColumn + " " +
                 PGKeywords.FROM + " " +

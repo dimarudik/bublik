@@ -13,6 +13,7 @@ create table test.table1 (
     exclude_me int,
     "CaseSensitive" varchar2(20),
     country_id int,
+    rawbytea raw(16),
     primary key (id)
 );
 create table test.countries (
@@ -41,10 +42,13 @@ insert into test.table1
         to_clob('Hi, I''m using CLOB to text') as textclob,
         null as exclude_me,
         null as "CaseSensitive",
-        decode(round(dbms_random.value(0,9)),0,null,round(dbms_random.value(1,9))) as country_id
+        decode(round(dbms_random.value(0,9)),0,null,round(dbms_random.value(1,9))) as country_id,
+        utl_raw.cast_to_raw('ABC' || rownum) as rawbytea
     from dual connect by level < 1000000);
 commit;
-create table test."Table2" as select * from test.table1;
+create table test."Table2" as
+select id, name, create_at, update_at, gender, byteablob, textclob, exclude_me, "CaseSensitive", country_id
+from test.table1;
 create table test.parted (
     id number(19,0) primary key,
     create_at timestamp(6) not null,

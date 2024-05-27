@@ -33,6 +33,8 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
+https://docs.oracle.com/cd/A87860_01/doc/java.817/a83724/basic3.htm
+
 ### Prepare Oracle To PostgreSQL environment
 
 All activities are reproducible in docker containers

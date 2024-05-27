@@ -1,7 +1,5 @@
 package org.example;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -37,6 +35,7 @@ public class App {
                 .withoutJMXReporting()
                 .build();
         Session session = cluster.connect(keyspace);
+
         session.close();
         cluster.close();
 */
