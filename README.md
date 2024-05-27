@@ -34,7 +34,7 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
 
-[Java Datatype Mappings](https://docs.oracle.com/cd/A87860_01/doc/java.817/a83724/basic3.htm)
+[Java Datatype Mappings](https://docs.oracle.com/en/database/oracle/oracle-database/23/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-1AF80C90-DFE6-4A3E-A407-52E805726778)
 
 ### Prepare Oracle To PostgreSQL environment
 
