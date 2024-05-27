@@ -54,11 +54,9 @@ public class ProcessUtil {
 
     private void futureProceed(List<Future<LogMessage>> tasks) throws InterruptedException, ExecutionException {
         Iterator<Future<LogMessage>> futureIterator = tasks.listIterator();
-//        LogMessageService logMessageService = new LogMessageServiceImpl();
         while (futureIterator.hasNext()) {
             Future<LogMessage> future = futureIterator.next();
             if (future.isDone()) {
-//                logMessageService.saveToLogger(future.get());
                 LogMessage logMessage = future.get();
                 futureIterator.remove();
             }

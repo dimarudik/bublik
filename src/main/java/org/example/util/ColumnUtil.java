@@ -69,8 +69,8 @@ public class ColumnUtil {
                     chunkHashMap.put(resultSet.getInt("rownum"),
                             new OraChunk(
                                     resultSet.getInt("chunk_id"),
-                                    resultSet.getString("start_rowid"),
-                                    resultSet.getString("end_rowid"),
+                                    resultSet.getRowId("start_rowid"),
+                                    resultSet.getRowId("end_rowid"),
                                     config,
                                     TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
                                     null
@@ -181,7 +181,6 @@ public class ColumnUtil {
                         chunkInsert.close();
                     }
                 } catch (SQLException e) {
-//                    System.out.println("Here...");
                     log.error(e.getMessage(), e);
                 }
             });

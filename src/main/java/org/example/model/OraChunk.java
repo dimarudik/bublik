@@ -11,7 +11,7 @@ import java.util.Map;
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 @Getter
-public class OraChunk<T extends String> extends Chunk<T> {
+public class OraChunk<T extends RowId> extends Chunk<T> {
     public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
         super(id, start, end, config, sourceTable, targetTable);
     }
@@ -29,8 +29,8 @@ public class OraChunk<T extends String> extends Chunk<T> {
     @Override
     public ResultSet getData(Connection connection, String query) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(query);
-        statement.setString(1, this.getStart());
-        statement.setString(2, this.getEnd());
+        statement.setRowId(1, this.getStart());
+        statement.setRowId(2, this.getEnd());
         statement.setFetchSize(10000);
         return statement.executeQuery();
     }
