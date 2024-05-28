@@ -4,7 +4,7 @@ alter user test quota unlimited on users;
 grant connect, resource to test;
 create table test.table1 (
     id number(19,0),
-    name varchar2(255),
+    "LEVEL" varchar2(255),
     create_at timestamp(6) with time zone,
     update_at timestamp(6) with time zone,
     gender number(1,0) check (gender in (0,1)),
@@ -34,7 +34,7 @@ commit;
 insert into test.table1
     (select
         rownum as id,
-        'Hi, I''m using varchar2 to varchar' as name,
+        'Hi, I''m using varchar2 to varchar' as "LEVEL",
         sysdate as create_at,
         systimestamp as update_at,
         mod(rownum, 2) as gender,
@@ -47,7 +47,7 @@ insert into test.table1
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as
-select id, name, create_at, update_at, gender, byteablob, textclob, exclude_me, "CaseSensitive", country_id
+select id, "LEVEL", create_at, update_at, gender, byteablob, textclob, exclude_me, "CaseSensitive", country_id
 from test.table1;
 create table test.parted (
     id number(19,0) primary key,

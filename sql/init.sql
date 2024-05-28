@@ -2,7 +2,7 @@ create role test with login superuser password 'test';
 create table table1 (
     id bigint,
     create_at timestamp(6) with time zone,
-    name character varying(255),
+    level character varying(255),
     update_at timestamp(6) with time zone,
     gender boolean,
     byteablob bytea,
@@ -14,7 +14,7 @@ create table table1 (
 create table table2 (
     id bigint,
     create_at timestamp(6) with time zone,
-    name character varying(255),
+    level character varying(255),
     update_at timestamp(6) with time zone,
     gender boolean,
     byteablob bytea,

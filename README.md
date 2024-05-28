@@ -144,7 +144,7 @@ psql postgresql://test:test@localhost/postgres
     "fromTaskWhereClause" : " 1 = 1 ",
     "columnToColumn" : {
       "id"                : "id",
-      "name"              : "name",
+      "\"LEVEL\""         : "level",
       "create_at"         : "create_at",
       "update_at"         : "update_at",
       "gender"            : "gender",
@@ -166,7 +166,7 @@ psql postgresql://test:test@localhost/postgres
     "fromTaskName" : "TABLE2_TASK",
     "columnToColumn" : {
       "id"          : "id",
-      "name"        : "name",
+      "\"LEVEL\""   : "level",
       "create_at"   : "create_at",
       "update_at"   : "update_at",
       "gender"      : "gender",
@@ -193,7 +193,7 @@ psql postgresql://test:test@localhost/postgres
 ```
 
 > [!IMPORTANT]
-> The case-sensitive words must be quoted with double quotation and backslashes  
+> The case-sensitive or reserved words must be quoted with double quotation and backslashes  
 
 > [!NOTE]
 > **expressionToColumn** might be used for declaration of subquery for enrichment of data 
