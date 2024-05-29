@@ -27,7 +27,7 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 |:-------------------------|:-----------------------------------------------------|
 | char, varchar, varchar2  | char, bpchar, varchar, text, uuid                    |
 | varchar2                 | jsonb                                                |
-| CLOB                     | varchar, text                                        |
+| CLOB                     | varchar, text, jsonb                                 |
 | BLOB                     | bytea                                                |
 | RAW                      | bytea                                                |
 | date                     | date, timestamp, timestamptz                         |
