@@ -4,8 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @AllArgsConstructor
-@Data
-public class PGColumn {
-    private String columnName;
-    private String columnType;
+public class PGColumn extends Column {
+    public PGColumn(Integer columnPosition, String columnName, String columnType) {
+        super(columnPosition, columnName, columnType);
+    }
 }

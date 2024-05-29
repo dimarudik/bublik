@@ -1,6 +1,5 @@
 package org.example.util;
 
-import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.example.model.*;
 import org.example.service.TableService;
@@ -22,7 +21,6 @@ public class ColumnUtil {
 
     public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Chunk<?> chunk) {
         Map<String, PGColumn> columnMap = new HashMap<>();
-        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
         ResultSet resultSet;
         try {
             resultSet = connection.getMetaData().getColumns(
@@ -35,17 +33,18 @@ public class ColumnUtil {
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
+                Integer columnPosition = resultSet.getInt(17);
 
                 for (Map.Entry<String, String> entry : fromConfig.entrySet()) {
                     if (entry.getValue().replaceAll("\"","").equalsIgnoreCase(columnName)) {
-                        columnMap.put(entry.getKey(), new PGColumn(entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
+                        columnMap.put(entry.getKey(), new PGColumn(columnPosition, entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
                     }
                 }
 
                 if (chunk.getConfig().expressionToColumn() != null) {
                     for (Map.Entry<String, String> entry : chunk.getConfig().expressionToColumn().entrySet()) {
                         if (entry.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName)) {
-                            columnMap.put(columnName, new PGColumn(entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
+                            columnMap.put(columnName, new PGColumn(columnPosition, entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
                         }
                     }
                 }

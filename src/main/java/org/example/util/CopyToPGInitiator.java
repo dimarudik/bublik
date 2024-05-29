@@ -3,7 +3,6 @@ package org.example.util;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
-import oracle.jdbc.OracleConnection;
 import org.example.model.*;
 import org.example.service.ChunkService;
 import org.example.service.TableService;
@@ -13,18 +12,12 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.util.*;
+import java.time.*;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.UUID;
 
-import static org.example.util.ColumnUtil.convertBlobToBytes;
-import static org.example.util.ColumnUtil.convertClobToString;
-import static org.example.util.ColumnUtil.getColumnIndexByColumnName;
-import static org.example.util.ColumnUtil.readTargetColumnsAndTypes;
+import static org.example.util.ColumnUtil.*;
 
 @Slf4j
 public class CopyToPGInitiator {
@@ -60,12 +53,15 @@ public class CopyToPGInitiator {
         int rowCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk);
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
-        List<String> tmpTargetColumns = new ArrayList<>();
-        neededColumnsToDB.values().forEach(i -> tmpTargetColumns.add(i.getColumnName()));
-        String[] columnNames = new ArrayList<>(tmpTargetColumns).toArray(new String[0]);
+        String[] columnNames = neededColumnsToDB
+                .values()
+                .stream()
+                .map(PGColumn::getColumnName)
+                .toList()
+                .toArray(new String[0]);
         SimpleRowWriter.Table table =
-                new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getFinalTableName(true), columnNames);
-//                new SimpleRowWriter.Table(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName(), columnNames);
+                new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
+                        chunk.getTargetTable().getFinalTableName(true), columnNames);
         long start = System.currentTimeMillis();
         try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
             do {
@@ -380,15 +376,6 @@ public class CopyToPGInitiator {
             return null;
         }
         return saveToLogger(chunk, rowCount, start, "COPY");
-/*
-        return new LogMessage(
-                chunk.config().fromTaskName(),
-                chunk.config().fromTableName(),
-                rowCount,
-                chunk.startRowId(),
-                chunk.endRowId(),
-                chunk.chunkId());
-*/
     }
 
     public LogMessage saveToLogger(Chunk<?> chunk,
