@@ -1,7 +1,6 @@
 package org.example.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
 
 @AllArgsConstructor
 public class PGColumn extends Column {

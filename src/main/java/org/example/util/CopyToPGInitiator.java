@@ -125,6 +125,18 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     log.error("{} {}", entry.getKey(), e);
                                 }
+                            case "jsonb":
+                                try {
+                                    String s = fetchResultSet.getString(sourceColumn);
+                                    if (s == null) {
+                                        row.setText(targetColumn, null);
+                                        break;
+                                    }
+                                    row.setJsonb(targetColumn, s);
+                                    break;
+                                } catch (SQLException e) {
+                                    log.error("{} {}", entry.getKey(), e);
+                                }
                             case "smallserial":
                                 try {
                                     Object o = fetchResultSet.getObject(sourceColumn);

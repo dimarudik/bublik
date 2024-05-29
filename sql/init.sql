@@ -9,7 +9,8 @@ create table table1 (
     textclob text,
     "CaseSensitive" varchar(20),
     country_name varchar(256),
-    rawbytea bytea
+    rawbytea bytea,
+    doc jsonb
 );
 create table "TABLE2" (
     id bigint,
