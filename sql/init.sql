@@ -11,7 +11,7 @@ create table table1 (
     country_name varchar(256),
     rawbytea bytea
 );
-create table table2 (
+create table "TABLE2" (
     id bigint,
     create_at timestamp(6) with time zone,
     level character varying(255),

@@ -1,5 +1,6 @@
 package org.example.util;
 
+import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.example.model.*;
 import org.example.service.TableService;
@@ -19,17 +20,18 @@ import static org.example.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 @Slf4j
 public class ColumnUtil {
 
-    public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Config config) {
+    public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Chunk<?> chunk) {
         Map<String, PGColumn> columnMap = new HashMap<>();
+        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
         ResultSet resultSet;
         try {
             resultSet = connection.getMetaData().getColumns(
                     null,
-                    config.toSchemaName().toLowerCase(),
-                    config.toTableName().toLowerCase(),
+                    chunk.getTargetTable().getSchemaName().toLowerCase(),
+                    chunk.getTargetTable().getFinalTableName(false),
                     null
             );
-            Map<String, String> fromConfig = config.columnToColumn();
+            Map<String, String> fromConfig = chunk.getConfig().columnToColumn();
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
@@ -40,8 +42,8 @@ public class ColumnUtil {
                     }
                 }
 
-                if (config.expressionToColumn() != null) {
-                    for (Map.Entry<String, String> entry : config.expressionToColumn().entrySet()) {
+                if (chunk.getConfig().expressionToColumn() != null) {
+                    for (Map.Entry<String, String> entry : chunk.getConfig().expressionToColumn().entrySet()) {
                         if (entry.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName)) {
                             columnMap.put(columnName, new PGColumn(entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
                         }

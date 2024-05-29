@@ -49,7 +49,6 @@ public class CopyToPGInitiator {
             }
         } catch (SQLException e) {
             log.error("{} \t {}", chunk.getConfig().fromTableName(), e);
-            e.printStackTrace();
             return new RunnerResult(logMessage, e);
         }
         return new RunnerResult(logMessage, null);
@@ -59,13 +58,14 @@ public class CopyToPGInitiator {
                                     ResultSet fetchResultSet,
                                     Chunk<?> chunk) {
         int rowCount = 0;
-        Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk.getConfig());
+        Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk);
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
         List<String> tmpTargetColumns = new ArrayList<>();
         neededColumnsToDB.values().forEach(i -> tmpTargetColumns.add(i.getColumnName()));
         String[] columnNames = new ArrayList<>(tmpTargetColumns).toArray(new String[0]);
         SimpleRowWriter.Table table =
-                new SimpleRowWriter.Table(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName(), columnNames);
+                new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getFinalTableName(true), columnNames);
+//                new SimpleRowWriter.Table(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName(), columnNames);
         long start = System.currentTimeMillis();
         try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
             do {
@@ -98,7 +98,6 @@ public class CopyToPGInitiator {
                                         break;
                                     }
                                     row.setText(targetColumn, s.replaceAll("\u0000", ""));
-//                                    row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
                                     log.error("{} {}", entry.getKey(), e);
@@ -308,12 +307,6 @@ public class CopyToPGInitiator {
                                 }
                             case "bytea":
                                 try {
-/*
-                                    System.out.println("Here...");
-                                    int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
-                                    int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                                    System.out.println(columnType);
-*/
                                     Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
                                         row.setByteArray(targetColumn, null);
@@ -321,7 +314,6 @@ public class CopyToPGInitiator {
                                     }
                                     byte[] bytes = new byte[0];
                                     if (chunk instanceof OraChunk<?>) {
-//                                        bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
                                         int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
                                         int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
                                         switch (columnType) {
