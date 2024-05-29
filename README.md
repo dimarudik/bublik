@@ -25,7 +25,7 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 
 | ORACLE                   | Postgresql (possible types)                          |
 |:-------------------------|:-----------------------------------------------------|
-| char, varchar, varchar2  | char, bpchar, varchar, text                          |
+| char, varchar, varchar2  | char, bpchar, varchar, text, uuid                    |
 | varchar2                 | jsonb                                                |
 | CLOB                     | varchar, text                                        |
 | BLOB                     | bytea                                                |
@@ -153,7 +153,8 @@ psql postgresql://test:test@localhost/postgres
       "textclob"          : "textclob",
       "\"CaseSensitive\"" : "\"CaseSensitive\"",
       "rawbytea"          : "rawbytea",
-      "doc"               : "doc"
+      "doc"               : "doc",
+      "uuid"              : "uuid"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
