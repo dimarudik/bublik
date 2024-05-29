@@ -11,7 +11,8 @@ create table table1 (
     country_name varchar(256),
     rawbytea bytea,
     doc jsonb,
-    uuid uuid
+    uuid uuid,
+    clobjsonb jsonb
 );
 create table "TABLE2" (
     id bigint,

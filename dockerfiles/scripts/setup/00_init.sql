@@ -16,6 +16,7 @@ create table test.table1 (
     rawbytea raw(16),
     doc VARCHAR2(4000) check (doc is json),
     uuid char(36),
+    clobjsonb clob,
     primary key (id)
 );
 create table test.countries (
@@ -47,7 +48,8 @@ insert into test.table1
         decode(round(dbms_random.value(0,9)),0,null,round(dbms_random.value(1,9))) as country_id,
         utl_raw.cast_to_raw('ABC' || rownum) as rawbytea,
         JSON_OBJECT('name' value 'Foo') as doc,
-        '026cebda-a9f3-46da-80c9-d89bdd4841b3' as uuid
+        '026cebda-a9f3-46da-80c9-d89bdd4841b3' as uuid,
+        to_clob(JSON_OBJECT('name' value 'Foo')) as clobjsonb
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as

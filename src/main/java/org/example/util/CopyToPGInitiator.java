@@ -127,10 +127,26 @@ public class CopyToPGInitiator {
                                 }
                             case "jsonb":
                                 try {
-                                    String s = fetchResultSet.getString(sourceColumn);
-                                    if (s == null) {
-                                        row.setText(targetColumn, null);
+                                    Object o = fetchResultSet.getObject(sourceColumn);
+                                    if (o == null) {
+                                        row.setJsonb(targetColumn, null);
                                         break;
+                                    }
+                                    String s = null;
+                                    if (chunk instanceof OraChunk<?>) {
+                                        int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
+                                        int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                                        switch (columnType) {
+                                            // CLOB
+                                            case 2005:
+                                                s = convertClobToString(fetchResultSet, sourceColumn);
+                                                break;
+                                            default:
+                                                s = fetchResultSet.getString(sourceColumn);
+                                                break;
+                                        }
+                                    } else if (chunk instanceof PGChunk<?>) {
+                                        s = fetchResultSet.getString(sourceColumn);
                                     }
                                     row.setJsonb(targetColumn, s);
                                     break;

@@ -154,7 +154,8 @@ psql postgresql://test:test@localhost/postgres
       "\"CaseSensitive\"" : "\"CaseSensitive\"",
       "rawbytea"          : "rawbytea",
       "doc"               : "doc",
-      "uuid"              : "uuid"
+      "uuid"              : "uuid",
+      "clobjsonb"         : "clobjsonb"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
