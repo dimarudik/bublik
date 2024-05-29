@@ -10,7 +10,8 @@ create table table1 (
     "CaseSensitive" varchar(20),
     country_name varchar(256),
     rawbytea bytea,
-    doc jsonb
+    doc jsonb,
+    uuid uuid
 );
 create table "TABLE2" (
     id bigint,

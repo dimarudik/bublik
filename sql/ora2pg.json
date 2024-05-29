@@ -18,7 +18,8 @@
       "textclob"          : "textclob",
       "\"CaseSensitive\"" : "\"CaseSensitive\"",
       "rawbytea"          : "rawbytea",
-      "doc"               : "doc"
+      "doc"               : "doc",
+      "uuid"              : "uuid"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"

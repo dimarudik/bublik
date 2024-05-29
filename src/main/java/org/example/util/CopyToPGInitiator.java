@@ -368,7 +368,12 @@ public class CopyToPGInitiator {
                                         row.setUUID(targetColumn, null);
                                         break;
                                     }
-                                    UUID uuid = (UUID) o;
+                                    UUID uuid = null;
+                                    try {
+                                        uuid = (UUID) o;
+                                    } catch (ClassCastException e) {
+                                        uuid = UUID.fromString((String) o);
+                                    }
                                     row.setUUID(targetColumn, uuid);
                                     break;
                                 } catch (SQLException e) {
