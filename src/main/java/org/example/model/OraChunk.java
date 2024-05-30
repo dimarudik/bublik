@@ -1,6 +1,5 @@
 package org.example.model;
 
-import lombok.Getter;
 import org.example.constants.PGKeywords;
 
 import java.sql.*;
@@ -10,7 +9,6 @@ import java.util.Map;
 
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
-@Getter
 public class OraChunk<T extends RowId> extends Chunk<T> {
     public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
         super(id, start, end, config, sourceTable, targetTable);

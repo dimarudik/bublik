@@ -1,14 +1,11 @@
 package org.example.model;
 
-import lombok.NoArgsConstructor;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-@NoArgsConstructor
 public class PGTable extends Table {
     public PGTable(String schemaName, String tableName) {
         super(schemaName, tableName);

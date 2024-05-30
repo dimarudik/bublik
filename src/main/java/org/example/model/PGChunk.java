@@ -1,6 +1,5 @@
 package org.example.model;
 
-import lombok.Getter;
 import org.example.constants.PGKeywords;
 
 import java.sql.Connection;
@@ -13,7 +12,6 @@ import java.util.Map;
 
 import static org.example.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
-@Getter
 public class PGChunk<T extends Long> extends Chunk<T> {
     public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
         super(id, start, end, config, sourceTable, targetTable);

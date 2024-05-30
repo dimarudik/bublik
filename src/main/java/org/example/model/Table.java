@@ -1,17 +1,15 @@
 package org.example.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 import org.example.service.SQLSyntaxService;
 import org.example.service.TableService;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-@NoArgsConstructor
 @AllArgsConstructor
-@Data
+@Getter
 public abstract class Table implements TableService, SQLSyntaxService {
     private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
     private String schemaName;
