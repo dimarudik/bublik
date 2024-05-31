@@ -29,26 +29,24 @@ public class ColumnUtil {
                     chunk.getTargetTable().getFinalTableName(false),
                     null
             );
-            Map<String, String> fromConfig = chunk.getConfig().columnToColumn();
+            Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
+            Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
                 Integer columnPosition = resultSet.getInt(17);
 
-                for (Map.Entry<String, String> entry : fromConfig.entrySet()) {
-                    if (entry.getValue().replaceAll("\"","").equalsIgnoreCase(columnName)) {
-                        columnMap.put(entry.getKey(), new PGColumn(columnPosition, entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
-                    }
-                }
+                columnToColumnMap.entrySet()
+                        .stream()
+                        .filter(s -> s.getValue().replaceAll("\"","").equalsIgnoreCase(columnName))
+                        .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
 
                 if (chunk.getConfig().expressionToColumn() != null) {
-                    for (Map.Entry<String, String> entry : chunk.getConfig().expressionToColumn().entrySet()) {
-                        if (entry.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName)) {
-                            columnMap.put(columnName, new PGColumn(columnPosition, entry.getValue(), columnType.equals("bigserial") ? "bigint" : columnType));
-                        }
-                    }
+                    expressionToColumnMap.entrySet()
+                            .stream()
+                            .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
                 }
-
             }
             resultSet.close();
         } catch (SQLException e) {

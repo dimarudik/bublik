@@ -44,7 +44,7 @@ insert into test.table1
         utl_raw.cast_to_raw('Hi, I''m using CLOB to bytea') as byteablob,
         to_clob('Hi, I''m using CLOB to text') as textclob,
         null as exclude_me,
-        null as "CaseSensitive",
+        'Foo' as "CaseSensitive",
         decode(round(dbms_random.value(0,9)),0,null,round(dbms_random.value(1,9))) as country_id,
         utl_raw.cast_to_raw('ABC' || rownum) as rawbytea,
         JSON_OBJECT('name' value 'Foo') as doc,

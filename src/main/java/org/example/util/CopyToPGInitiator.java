@@ -58,7 +58,7 @@ public class CopyToPGInitiator {
                 .stream()
                 .map(PGColumn::getColumnName)
                 .toList()
-                .toArray(new String[0]);
+                .toArray(String[]::new);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), columnNames);
