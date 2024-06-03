@@ -2,7 +2,6 @@ package org.example.util;
 
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
-import lombok.extern.slf4j.Slf4j;
 import org.example.model.*;
 import org.example.service.ChunkService;
 import org.example.service.TableService;
@@ -19,38 +18,34 @@ import java.util.UUID;
 
 import static org.example.util.ColumnUtil.*;
 
-@Slf4j
 public class CopyToPGInitiator {
-    private StringBuffer tmpString = new StringBuffer();
+//    private StringBuffer tmpString = new StringBuffer();
 
-    public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet) {
-        LogMessage logMessage = null;
+    public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet) throws SQLException {
         Chunk<?> chunk = ChunkService.get();
-        try (Connection connection = DatabaseUtil.getConnectionDbTo()) {
-            if (fetchResultSet.next()) {
-                Table table = TableService.getTable(connection, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-                if (table.exists(connection)) {
-                    Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
-                    logMessage = fetchAndCopy(connection, fetchResultSet, ch);
-                }
-            } else {
-                logMessage = saveToLogger(
-                        chunk,
-                        0,
-                        System.currentTimeMillis(),
-                        "NO ROWS FETCH");
+        LogMessage logMessage = null;
+        if (fetchResultSet.next()) {
+            Connection connection = DatabaseUtil.getConnectionDbTo();
+            Table table = TableService.getTable(connection, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+            if (table.exists(connection)) {
+                Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
+                logMessage = fetchAndCopy(connection, fetchResultSet, ch);
             }
-        } catch (SQLException e) {
-            log.error("{} \t {}", chunk.getConfig().fromTableName(), e);
-            return new RunnerResult(logMessage, e);
+            connection.close();
+        } else {
+             logMessage = new LogMessage(
+                    0,
+                    System.currentTimeMillis(),
+                    "NO ROWS FETCH",
+                    chunk);
         }
         return new RunnerResult(logMessage, null);
     }
 
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
-                                    Chunk<?> chunk) {
-        int rowCount = 0;
+                                    Chunk<?> chunk) throws SQLException {
+        int recordCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk);
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
         String[] columnNames = neededColumnsToDB
@@ -63,10 +58,11 @@ public class CopyToPGInitiator {
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), columnNames);
         long start = System.currentTimeMillis();
-        try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
+//        try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
+        SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
             do {
                 writer.startRow((row) -> {
-                    tmpString.setLength(0);
+//                    tmpString.setLength(0);
                     for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
                         String sourceColumn = entry.getKey().replaceAll("\"", "");
                         String targetColumn = entry.getValue().getColumnName();
@@ -96,7 +92,7 @@ public class CopyToPGInitiator {
                                     row.setText(targetColumn, s.replaceAll("\u0000", ""));
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "bpchar":
                                 try {
@@ -104,7 +100,7 @@ public class CopyToPGInitiator {
                                     row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "text":
                                 try {
@@ -123,7 +119,7 @@ public class CopyToPGInitiator {
                                     row.setText(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "jsonb":
                                 try {
@@ -151,7 +147,7 @@ public class CopyToPGInitiator {
                                     row.setJsonb(targetColumn, s);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "smallserial":
                                 try {
@@ -164,7 +160,7 @@ public class CopyToPGInitiator {
                                     row.setShort(targetColumn, aShort);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "serial":
                                 try {
@@ -177,7 +173,7 @@ public class CopyToPGInitiator {
                                     row.setInteger(targetColumn, i);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "bigint":
                                 try {
@@ -190,7 +186,7 @@ public class CopyToPGInitiator {
                                     row.setLong(targetColumn, l);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "numeric":
                                 try {
@@ -202,7 +198,7 @@ public class CopyToPGInitiator {
                                     row.setNumeric(targetColumn, (Number) o);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "int2":
                                 try {
@@ -215,7 +211,7 @@ public class CopyToPGInitiator {
                                     row.setShort(targetColumn, aShort);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "int4":
                                 try {
@@ -228,7 +224,7 @@ public class CopyToPGInitiator {
                                     row.setInteger(targetColumn, i);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "int8":
                                 try {
@@ -241,7 +237,7 @@ public class CopyToPGInitiator {
                                     row.setLong(targetColumn, l);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "float4":
                                 try {
@@ -254,7 +250,7 @@ public class CopyToPGInitiator {
                                     row.setFloat(targetColumn, aFloat);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "float8":
                                 try {
@@ -267,7 +263,7 @@ public class CopyToPGInitiator {
                                     row.setDouble(targetColumn, aDouble);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "time":
                                 try {
@@ -282,7 +278,7 @@ public class CopyToPGInitiator {
                                     row.setTimeStamp(targetColumn, localDateTime);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "timestamp":
                                 try {
@@ -297,7 +293,7 @@ public class CopyToPGInitiator {
                                     row.setTimeStamp(targetColumn, localDateTime);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "timestamptz":
                                 try {
@@ -312,7 +308,7 @@ public class CopyToPGInitiator {
                                     row.setTimeStampTz(targetColumn, zonedDateTime);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "date":
                                 try {
@@ -327,7 +323,7 @@ public class CopyToPGInitiator {
                                     row.setDate(targetColumn, localDate);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "bytea":
                                 try {
@@ -362,7 +358,7 @@ public class CopyToPGInitiator {
                                     row.setByteArray(targetColumn, bytes);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "bool":
                                 try {
@@ -375,7 +371,7 @@ public class CopyToPGInitiator {
                                     row.setBoolean(targetColumn, b);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             case "uuid":
                                 try {
@@ -393,51 +389,26 @@ public class CopyToPGInitiator {
                                     row.setUUID(targetColumn, uuid);
                                     break;
                                 } catch (SQLException e) {
-                                    log.error("{} {}", entry.getKey(), e);
+                                    throw new RuntimeException(e);
                                 }
                             default:
                                 throw new RuntimeException("There is no handler for type : " + entry.getValue());
                         }
                     }
                 });
-                rowCount++;
+                recordCount++;
             } while (fetchResultSet.next());
-        } catch (SQLException | RuntimeException e) {
-            System.out.println(tmpString);
-            e.printStackTrace();
-            log.error(e.getMessage(), e);
-            return null;
-        }
-        return saveToLogger(chunk, rowCount, start, "COPY");
-    }
-
-    public LogMessage saveToLogger(Chunk<?> chunk,
-                                   int recordCount,
-                                   long start,
-                                   String operation) {
-        LogMessage logMessage = new LogMessage(
-                chunk.getConfig().fromTaskName(),
-                chunk.getConfig().fromTableName(),
-                recordCount,
-                chunk.getStart().toString(),
-                chunk.getEnd().toString(),
-                chunk.getId());
-        log.info("\t{} {}\t {} sec",
-                operation,
-                logMessage,
-                Math.round((float) (System.currentTimeMillis() - start) / 10) / 100.0);
-        return logMessage;
-    }
-
+            writer.close();
 /*
-    private Boolean hasLOB(ResultSet fetchResultSet) throws SQLException {
-        for (int i = 1; i <= fetchResultSet.getMetaData().getColumnCount(); i++) {
-            int columnType = fetchResultSet.getMetaData().getColumnType(i);
-            if (columnType == 2004 || columnType == 2005) {
-                return true;
-            }
+        } catch (SQLException | RuntimeException e) {
+//            System.out.println(tmpString);
+            log.error(e.getMessage(), e);
         }
-        return false;
-    }
 */
+        return new LogMessage(
+                recordCount,
+                start,
+                "COPY",
+                chunk);
+    }
 }

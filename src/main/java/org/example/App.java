@@ -11,7 +11,7 @@ import org.example.model.SourceTargetProperties;
 import org.example.model.Table;
 import org.example.service.TableService;
 import org.example.util.DatabaseUtil;
-import org.example.util.ProcessUtil;
+import org.example.util.Bublik;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -93,11 +93,9 @@ public class App {
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
             DatabaseUtil.initializeConnectionPools(properties);
-//            Thread.sleep(10000);
-            new ProcessUtil()
+            Bublik bublik = Bublik.getInstance(properties.getThreadCount(), configList);
+            bublik
                     .initiateProcessFromDatabase(
-                            configList,
-                            properties.getThreadCount(),
                             properties.getInitPGChunks(),
                             properties.getCopyPGChunks());
         } catch (Exception e) {

@@ -2,7 +2,10 @@
 <Configuration status="WARN">
     <Appenders>
         <File name="MainLog" fileName="logs/app.log" immediateFlush="true" append="false">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+<!--
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} %X - %msg%n"/>
+-->
         </File>
     </Appenders>
     <Loggers>
@@ -15,8 +18,6 @@
             <level value="error"/>
         </Logger>
 -->
-<!--
         <Logger name="org.postgresql" level="all"/>
--->
     </Loggers>
 </Configuration>

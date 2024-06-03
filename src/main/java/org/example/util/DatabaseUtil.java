@@ -19,32 +19,28 @@ public class DatabaseUtil {
     private static DataSource fromDataSource;
     private static DataSource toDataSource;
 
-    public static Connection getConnectionDbFrom() {
+    public static Connection getConnectionDbFrom() throws SQLException {
         return getConnection(fromDataSource);
     }
 
-    public static Connection getConnectionDbTo() {
+    public static Connection getConnectionDbTo() throws SQLException {
         return getConnection(toDataSource);
     }
 
-    public static void closeConnection(Connection connection) {
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            log.error(e.getMessage(), e);
-        }
+    public static void closeConnection(Connection connection) throws SQLException {
+        connection.close();
     }
 
     public static void initializeConnectionPools(SourceTargetProperties properties) {
-        var maxPoolSize = properties.getThreadCount() + 2;
-        var fromConfiguration = buildConfiguration(
+        int maxPoolSize = properties.getThreadCount() + 1;
+        HikariConfig fromConfiguration = buildConfiguration(
                 properties.getFromProperty(),
                 maxPoolSize,
                 "from-db-hikari-pool"
         );
         fromDataSource = new HikariDataSource(fromConfiguration);
 
-        var toConfiguration = buildConfiguration(
+        HikariConfig toConfiguration = buildConfiguration(
                 properties.getToProperty(),
                 maxPoolSize,
                 "to-db-hikari-pool"
@@ -52,13 +48,8 @@ public class DatabaseUtil {
         toDataSource = new HikariDataSource(toConfiguration);
     }
 
-    private static Connection getConnection(DataSource dataSource) {
-        try {
-            return dataSource.getConnection();
-        } catch (SQLException e) {
-            log.error("Failed to get connection from pool: {}", e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
+    private static Connection getConnection(DataSource dataSource) throws SQLException {
+        return dataSource.getConnection();
     }
 
     private static HikariConfig buildConfiguration(Properties property, int maxPoolSize, String poolName) {
@@ -68,6 +59,7 @@ public class DatabaseUtil {
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(maxPoolSize);
         hikariConfig.setPoolName(poolName);
+        hikariConfig.setConnectionTimeout(3000);
         return hikariConfig;
     }
 

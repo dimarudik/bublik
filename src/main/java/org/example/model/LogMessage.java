@@ -1,16 +1,18 @@
 package org.example.model;
 
-public record LogMessage (String fromTaskName,
-                          String fromTableName,
+public record LogMessage (
                           int rowCount,
-                          String startRowId,
-                          String endRowId,
-                          Integer chunkId) {
+                          long start,
+                          String operation,
+                          Chunk<?> chunk) {
     @Override
     public String toString() {
-        return " of " + rowCount +
-                " rows from ROWID " + startRowId +
-                " to ROWID " + endRowId +
-                " of chunk_id " + chunkId;
+        String toTableName = chunk.getTargetTable() == null ? "" : " to " + chunk.getTargetTable().getTableName();
+        return  "from " + chunk.getSourceTable().getTableName() +
+                toTableName +
+                " of " + rowCount +
+                " rows (start:" + chunk.getStart() +
+                ", end:" + chunk.getEnd() +
+                ") chunk_id:" + chunk.getId();
     }
 }
