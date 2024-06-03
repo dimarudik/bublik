@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.*;
-import org.bublikcli.exception.TableNotExistsException;
-import org.bublikcli.model.Config;
-import org.bublikcli.model.SourceTargetProperties;
-import org.bublikcli.model.Table;
-import org.bublikcli.service.TableService;
-import org.bublikcli.util.DatabaseUtil;
-import org.bublikcli.util.Bublik;
+import org.bublik.exception.TableNotExistsException;
+import org.bublik.model.Config;
+import org.bublik.model.SourceTargetProperties;
+import org.bublik.model.Table;
+import org.bublik.service.TableService;
+import org.bublik.util.DatabaseUtil;
+import org.bublik.Bublik;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -20,8 +20,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
-import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
+import static org.bublik.constants.StringConstant.HELP_MESSAGE;
+import static org.bublik.constants.StringConstant.MAPPING_FILE_CREATED;
 
 @Slf4j
 public class App {
