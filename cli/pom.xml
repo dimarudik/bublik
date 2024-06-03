@@ -122,7 +122,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>libs/</classpathPrefix>
-                            <mainClass>org.bublik.App</mainClass>
+                            <mainClass>org.bublikcli.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
