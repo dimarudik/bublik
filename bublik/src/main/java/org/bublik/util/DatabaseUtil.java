@@ -2,10 +2,9 @@ package org.bublik.util;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import lombok.extern.slf4j.Slf4j;
-import org.bublik.model.SourceTargetProperties;
 import org.bublik.constants.SourceContext;
 import org.bublik.constants.SourceContextHolder;
+import org.bublik.model.SourceTargetProperties;
 import org.postgresql.PGConnection;
 
 import javax.sql.DataSource;
@@ -13,7 +12,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 
-@Slf4j
 public class DatabaseUtil {
 
     private static DataSource fromDataSource;

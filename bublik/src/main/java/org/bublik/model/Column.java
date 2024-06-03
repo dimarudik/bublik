@@ -1,14 +1,30 @@
 package org.bublik.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import org.bublik.service.ColumnService;
 import org.bublik.service.SQLSyntaxService;
 
-@AllArgsConstructor
-@Getter
+//@AllArgsConstructor
+//@Getter
 public abstract class Column implements SQLSyntaxService, ColumnService {
-    private Integer columnPosition;
-    private String columnName;
-    private String columnType;
+    private final Integer columnPosition;
+    private final String columnName;
+    private final String columnType;
+
+    public Column(Integer columnPosition, String columnName, String columnType) {
+        this.columnPosition = columnPosition;
+        this.columnName = columnName;
+        this.columnType = columnType;
+    }
+
+    public Integer getColumnPosition() {
+        return columnPosition;
+    }
+
+    public String getColumnName() {
+        return columnName;
+    }
+
+    public String getColumnType() {
+        return columnType;
+    }
 }
