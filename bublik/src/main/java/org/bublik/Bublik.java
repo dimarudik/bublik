@@ -26,7 +26,7 @@ public class Bublik {
     private static Bublik INSTANCE;
     private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
     private final List<Config> configs;
-    private final ExecutorService executorService;
+//    private final ExecutorService executorService;
     private final ConnectionProperty connectionProperty;
 
     private final List<Future<LogMessage>> futures = new ArrayList<>();
@@ -34,22 +34,23 @@ public class Bublik {
     private Bublik(ConnectionProperty connectionProperty, List<Config> configs) {
         this.connectionProperty = connectionProperty;
         this.configs = configs;
-        this.executorService = Executors.newFixedThreadPool(connectionProperty.getThreadCount());
+//        this.executorService = Executors.newFixedThreadPool(connectionProperty.getThreadCount());
     }
 
     public void start() {
+        ExecutorService executorService = Executors.newFixedThreadPool(connectionProperty.getThreadCount());
         LOGGER.info("Bublik starting...");
         DatabaseUtil.initializeConnectionPools(connectionProperty);
         try (Connection connection = DatabaseUtil.getPoolConnectionDbFrom()) {
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
-                initiateTargetThread(connection, configs);
+                initiateTargetThread(connection, configs, executorService);
             } else if (sourceContextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
                 if (connectionProperty.getInitPGChunks()) {
                     fillCtidChunks(connection, configs);
                 }
                 if (connectionProperty.getCopyPGChunks()) {
-                    initiateTargetThread(connection, configs);
+                    initiateTargetThread(connection, configs, executorService);
                 } else {
                     return;
                 }
@@ -57,6 +58,7 @@ public class Bublik {
             futureProceed(futures);
 
             executorService.shutdown();
+            executorService.close();
             DatabaseUtil.stopConnectionPools();
             LOGGER.info("All Bublik's tasks have been done.");
         } catch (SQLException | InterruptedException | ExecutionException e) {
@@ -86,7 +88,8 @@ public class Bublik {
     }
 
     private void initiateTargetThread(Connection connection,
-                                      List<Config> configs) throws SQLException, InterruptedException {
+                                      List<Config> configs,
+                                      ExecutorService executorService) throws SQLException, InterruptedException {
         Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(connection,configs));
         for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
             Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
