@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class OraTable extends Table {
+    public OraTable(){}
     public OraTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }

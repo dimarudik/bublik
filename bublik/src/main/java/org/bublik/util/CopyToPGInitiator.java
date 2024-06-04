@@ -21,11 +21,11 @@ import static org.bublik.util.ColumnUtil.*;
 public class CopyToPGInitiator {
 //    private StringBuffer tmpString = new StringBuffer();
 
-    public RunnerResult initiateProcessToDatabase(ResultSet fetchResultSet) throws SQLException {
+    public LogMessage start(ResultSet fetchResultSet) throws SQLException {
         Chunk<?> chunk = ChunkService.get();
         LogMessage logMessage = null;
         if (fetchResultSet.next()) {
-            Connection connection = DatabaseUtil.getConnectionDbTo();
+            Connection connection = DatabaseUtil.getPoolConnectionDbTo();
             Table table = TableService.getTable(connection, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connection)) {
                 Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
@@ -39,7 +39,7 @@ public class CopyToPGInitiator {
                     "NO ROWS FETCH",
                     chunk);
         }
-        return new RunnerResult(logMessage, null);
+        return logMessage;
     }
 
     private LogMessage fetchAndCopy(Connection connection,

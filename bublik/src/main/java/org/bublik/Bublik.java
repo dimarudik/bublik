@@ -2,10 +2,7 @@ package org.bublik;
 
 import org.bublik.constants.SourceContextHolder;
 import org.bublik.exception.TableNotExistsException;
-import org.bublik.model.Chunk;
-import org.bublik.model.Config;
-import org.bublik.model.RunnerResult;
-import org.bublik.model.Table;
+import org.bublik.model.*;
 import org.bublik.service.TableService;
 import org.bublik.task.Worker;
 import org.bublik.util.DatabaseUtil;
@@ -30,24 +27,28 @@ public class Bublik {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
     private final List<Config> configs;
     private final ExecutorService executorService;
+    private final ConnectionProperty connectionProperty;
 
-    private final List<Future<RunnerResult>> futures = new ArrayList<>();
+    private final List<Future<LogMessage>> futures = new ArrayList<>();
 
-    private Bublik(int threads, List<Config> configs){
+    private Bublik(ConnectionProperty connectionProperty, List<Config> configs) {
+        this.connectionProperty = connectionProperty;
         this.configs = configs;
-        this.executorService = Executors.newFixedThreadPool(threads);
+        this.executorService = Executors.newFixedThreadPool(connectionProperty.getThreadCount());
     }
 
-    public void start(Boolean initPGChunks, Boolean copyPGChunks) {
-        try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
+    public void start() {
+        DatabaseUtil.initializeConnectionPools(connectionProperty);
+        try (Connection connection = DatabaseUtil.getPoolConnectionDbFrom()) {
+            LOGGER.info("Bublik started..");
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
                 initiateTargetThread(connection, configs);
             } else if (sourceContextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
-                if (initPGChunks) {
+                if (connectionProperty.getInitPGChunks()) {
                     fillCtidChunks(connection, configs);
                 }
-                if (copyPGChunks) {
+                if (connectionProperty.getCopyPGChunks()) {
                     initiateTargetThread(connection, configs);
                 } else {
                     return;
@@ -56,6 +57,8 @@ public class Bublik {
             futureProceed(futures);
 
             executorService.shutdown();
+            DatabaseUtil.stopConnectionPools();
+            LOGGER.info("All Bublik's tasks have been done.");
         } catch (SQLException | InterruptedException | ExecutionException e) {
             e.printStackTrace();
             LOGGER.error(e.getMessage(), e);
@@ -63,16 +66,16 @@ public class Bublik {
         }
     }
 
-    private void futureProceed(List<Future<RunnerResult>> tasks) throws InterruptedException, ExecutionException {
-        Iterator<Future<RunnerResult>> futureIterator = tasks.listIterator();
+    private void futureProceed(List<Future<LogMessage>> tasks) throws InterruptedException, ExecutionException {
+        Iterator<Future<LogMessage>> futureIterator = tasks.listIterator();
         while (futureIterator.hasNext()) {
-            Future<RunnerResult> future = futureIterator.next();
+            Future<LogMessage> future = futureIterator.next();
             if (future.isDone()) {
-                RunnerResult runnerResult = future.get();
+                LogMessage logMessage = future.get();
                 LOGGER.info("{} {}\t {} sec",
-                        runnerResult.logMessage().operation(),
-                        runnerResult.logMessage(),
-                        Math.round((float) (System.currentTimeMillis() - runnerResult.logMessage().start()) / 10) / 100.0);
+                        logMessage.operation(),
+                        logMessage,
+                        Math.round((float) (System.currentTimeMillis() - logMessage.start()) / 10) / 100.0);
                 futureIterator.remove();
             }
             if (!futureIterator.hasNext()) {
@@ -99,9 +102,9 @@ public class Bublik {
         }
     }
 
-    public static synchronized Bublik getInstance(int threads, List<Config> configs) {
+    public static synchronized Bublik getInstance(ConnectionProperty connectionProperty, List<Config> configs) {
         if(INSTANCE == null) {
-            INSTANCE = new Bublik(threads, configs);
+            INSTANCE = new Bublik(connectionProperty, configs);
         }
         return INSTANCE;
     }

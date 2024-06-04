@@ -5,18 +5,20 @@ plugins {
 }
 
 group = 'org.bublik'
-version = '0.0.1-SNAPSHOT'
+version = '1.2.0'
 
 java {
 	sourceCompatibility = '21'
 }
 
 repositories {
+	mavenLocal()
 	mavenCentral()
 }
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation group: 'org.bublik', name: 'bublik', version: '1.2.0'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

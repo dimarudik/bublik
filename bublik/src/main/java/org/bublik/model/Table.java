@@ -8,8 +8,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class Table implements TableService, SQLSyntaxService {
     private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
-    private final String schemaName;
-    private final String tableName;
+    private String schemaName;
+    private String tableName;
+
+    public Table(){}
 
     public Table(String schemaName, String tableName) {
         this.schemaName = schemaName;

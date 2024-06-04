@@ -17,11 +17,11 @@ public class DatabaseUtil {
     private static DataSource fromDataSource;
     private static DataSource toDataSource;
 
-    public static Connection getConnectionDbFrom() throws SQLException {
+    public static Connection getPoolConnectionDbFrom() throws SQLException {
         return getConnection(fromDataSource);
     }
 
-    public static Connection getConnectionDbTo() throws SQLException {
+    public static Connection getPoolConnectionDbTo() throws SQLException {
         return getConnection(toDataSource);
     }
 
@@ -46,6 +46,10 @@ public class DatabaseUtil {
         toDataSource = new HikariDataSource(toConfiguration);
     }
 
+    public static void stopConnectionPools() throws SQLException {
+        fromDataSource.unwrap(HikariDataSource.class).close();
+        toDataSource.unwrap(HikariDataSource.class).close();
+    }
     private static Connection getConnection(DataSource dataSource) throws SQLException {
         return dataSource.getConnection();
     }

@@ -1,7 +1,7 @@
 package org.bublik.task;
 
 import org.bublik.model.Chunk;
-import org.bublik.model.RunnerResult;
+import org.bublik.model.LogMessage;
 import org.bublik.service.ChunkService;
 import org.bublik.util.CopyToPGInitiator;
 import org.bublik.util.DatabaseUtil;
@@ -12,9 +12,10 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
-public class Worker implements Callable<RunnerResult> {
+public class Worker implements Callable<LogMessage> {
     private final Chunk<?> chunk;
     private final Map<String, Integer> columnsFromDB;
+    private LogMessage logMessage;
 
     public Worker(Chunk<?> chunk,
                   Map<String, Integer> columnsFromDB) {
@@ -23,19 +24,21 @@ public class Worker implements Callable<RunnerResult> {
     }
 
     @Override
-    public RunnerResult call() throws SQLException {
-        Connection connection = DatabaseUtil.getConnectionDbFrom();
+    public LogMessage call() throws SQLException {
+        Connection connection = DatabaseUtil.getPoolConnectionDbFrom();
         String query = chunk.buildFetchStatement(columnsFromDB);
         ResultSet fetchResultSet = chunk.getData(connection, query);
         ChunkService.set(chunk);
-        RunnerResult runnerResult =
-                new CopyToPGInitiator()
-                        .initiateProcessToDatabase(fetchResultSet);
-        fetchResultSet.close();
-        if (runnerResult.logMessage() != null && runnerResult.e() == null) {
-            chunk.markChunkAsProceed(connection);
+        try {
+            CopyToPGInitiator copyToPGInitiator = new CopyToPGInitiator();
+            logMessage = copyToPGInitiator.start(fetchResultSet);
+        } catch (SQLException e) {
+            fetchResultSet.close();
+            connection.close();
         }
+        fetchResultSet.close();
+        chunk.markChunkAsProceed(connection);
         connection.close();
-        return runnerResult;
+        return logMessage;
     }
 }

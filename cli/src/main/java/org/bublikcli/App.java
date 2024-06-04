@@ -16,6 +16,7 @@ import org.bublik.util.DatabaseUtil;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,13 +89,12 @@ public class App {
     private static void run(String configFileName, String tableDefFileName) {
         try {
             ObjectMapper mapperJSON = new ObjectMapper();
-            ConnectionProperty properties = connectionProperty(configFileName);
+            ConnectionProperty connectionProperty = connectionProperty(configFileName);
             List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
-            DatabaseUtil.initializeConnectionPools(properties);
-            Bublik bublik = Bublik.getInstance(properties.getThreadCount(), configList);
-            bublik.start(properties.getInitPGChunks(), properties.getCopyPGChunks());
+            Bublik bublik = Bublik.getInstance(connectionProperty, configList);
+            bublik.start();
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
@@ -103,8 +103,8 @@ public class App {
     private static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
         ConnectionProperty properties = connectionProperty(configFileName);
         ObjectMapper mapperJSON = new ObjectMapper();
-        DatabaseUtil.initializeConnectionPools(properties);
-        Connection connection = DatabaseUtil.getConnectionDbFrom();
+        Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
+                properties.getFromProperty());
         List<Table> tableList =
                 List.of(mapperJSON.readValue(Paths.get(listOfTablesFileName).toFile(),
                         TableService.getTableArrayClass(connection)
@@ -128,13 +128,13 @@ public class App {
                 ));
             } else {
                 mapper.writeValue(Paths.get(outputFileName).toFile(), null);
+                connection.close();
                 throw new TableNotExistsException(t.getSchemaName(), t.getTableName());
             }
         }
         mapper.writeValue(Paths.get(outputFileName).toFile(), configList);
         System.out.println(MAPPING_FILE_CREATED + outputFileName);
-
-        DatabaseUtil.closeConnection(connection);
+        connection.close();
     }
 
     private static ConnectionProperty connectionProperty(String configFileName) throws IOException {

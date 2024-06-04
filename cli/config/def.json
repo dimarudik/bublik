@@ -1,0 +1,67 @@
+[ {
+  "numberColumn" : null,
+  "fromSchemaName" : "TEST",
+  "fromTableName" : "TABLE1",
+  "toSchemaName" : "test",
+  "toTableName" : "table1",
+  "fetchHintClause" : "/*+ no_index(TABLE1) */",
+  "fetchWhereClause" : "1 = 1",
+  "fromTaskName" : "TABLE1_TASK",
+  "fromTaskWhereClause" : null,
+  "columnToColumn" : {
+    "COUNTRY_ID" : "COUNTRY_ID",
+    "UPDATE_AT" : "UPDATE_AT",
+    "\"CaseSensitive\"" : "\"CaseSensitive\"",
+    "RAWBYTEA" : "RAWBYTEA",
+    "LEVEL" : "LEVEL",
+    "TEXTCLOB" : "TEXTCLOB",
+    "CREATE_AT" : "CREATE_AT",
+    "CLOBJSONB" : "CLOBJSONB",
+    "GENDER" : "GENDER",
+    "EXCLUDE_ME" : "EXCLUDE_ME",
+    "DOC" : "DOC",
+    "ID" : "ID",
+    "BYTEABLOB" : "BYTEABLOB",
+    "UUID" : "UUID"
+  },
+  "expressionToColumn" : null
+}, {
+  "numberColumn" : null,
+  "fromSchemaName" : "TEST",
+  "fromTableName" : "\"Table2\"",
+  "toSchemaName" : "test",
+  "toTableName" : "\"Table2\"",
+  "fetchHintClause" : "/*+ no_index(Table2) */",
+  "fetchWhereClause" : "1 = 1",
+  "fromTaskName" : "TABLE2_TASK",
+  "fromTaskWhereClause" : null,
+  "columnToColumn" : {
+    "COUNTRY_ID" : "COUNTRY_ID",
+    "UPDATE_AT" : "UPDATE_AT",
+    "TEXTCLOB" : "TEXTCLOB",
+    "CREATE_AT" : "CREATE_AT",
+    "\"CaseSensitive\"" : "\"CaseSensitive\"",
+    "GENDER" : "GENDER",
+    "EXCLUDE_ME" : "EXCLUDE_ME",
+    "ID" : "ID",
+    "LEVEL" : "LEVEL",
+    "BYTEABLOB" : "BYTEABLOB"
+  },
+  "expressionToColumn" : null
+}, {
+  "numberColumn" : null,
+  "fromSchemaName" : "TEST",
+  "fromTableName" : "PARTED",
+  "toSchemaName" : "test",
+  "toTableName" : "parted",
+  "fetchHintClause" : "/*+ no_index(PARTED) */",
+  "fetchWhereClause" : "1 = 1",
+  "fromTaskName" : "PARTED_TASK",
+  "fromTaskWhereClause" : null,
+  "columnToColumn" : {
+    "CREATE_AT" : "CREATE_AT",
+    "ID" : "ID",
+    "NAME" : "NAME"
+  },
+  "expressionToColumn" : null
+} ]
