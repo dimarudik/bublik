@@ -2,8 +2,6 @@ package org.bublik.model;
 
 import org.bublik.service.ChunkService;
 
-//@AllArgsConstructor
-//@Getter
 public abstract class Chunk<T> implements ChunkService {
     private final Integer id;
     private final T start;

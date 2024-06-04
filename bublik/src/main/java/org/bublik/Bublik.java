@@ -38,8 +38,7 @@ public class Bublik {
         this.executorService = Executors.newFixedThreadPool(threads);
     }
 
-    public void initiateProcessFromDatabase(Boolean initPGChunks,
-                                            Boolean copyPGChunks) {
+    public void start(Boolean initPGChunks, Boolean copyPGChunks) {
         try (Connection connection = DatabaseUtil.getConnectionDbFrom()) {
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){

@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bublik.constants.SourceContext;
 import org.bublik.constants.SourceContextHolder;
-import org.bublik.model.SourceTargetProperties;
+import org.bublik.model.ConnectionProperty;
 import org.postgresql.PGConnection;
 
 import javax.sql.DataSource;
@@ -29,17 +29,17 @@ public class DatabaseUtil {
         connection.close();
     }
 
-    public static void initializeConnectionPools(SourceTargetProperties properties) {
-        int maxPoolSize = properties.getThreadCount() + 1;
+    public static void initializeConnectionPools(ConnectionProperty property) {
+        int maxPoolSize = property.getThreadCount() + 1;
         HikariConfig fromConfiguration = buildConfiguration(
-                properties.getFromProperty(),
+                property.getFromProperty(),
                 maxPoolSize,
                 "from-db-hikari-pool"
         );
         fromDataSource = new HikariDataSource(fromConfiguration);
 
         HikariConfig toConfiguration = buildConfiguration(
-                properties.getToProperty(),
+                property.getToProperty(),
                 maxPoolSize,
                 "to-db-hikari-pool"
         );

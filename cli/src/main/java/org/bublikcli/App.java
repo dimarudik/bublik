@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.*;
+import org.bublik.Bublik;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
-import org.bublik.model.SourceTargetProperties;
+import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
 import org.bublik.util.DatabaseUtil;
-import org.bublik.Bublik;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -88,23 +88,20 @@ public class App {
     private static void run(String configFileName, String tableDefFileName) {
         try {
             ObjectMapper mapperJSON = new ObjectMapper();
-            SourceTargetProperties properties = sourceTargetProperties(configFileName);
+            ConnectionProperty properties = connectionProperty(configFileName);
             List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
             DatabaseUtil.initializeConnectionPools(properties);
             Bublik bublik = Bublik.getInstance(properties.getThreadCount(), configList);
-            bublik
-                    .initiateProcessFromDatabase(
-                            properties.getInitPGChunks(),
-                            properties.getCopyPGChunks());
+            bublik.start(properties.getInitPGChunks(), properties.getCopyPGChunks());
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
     }
 
     private static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
-        SourceTargetProperties properties = sourceTargetProperties(configFileName);
+        ConnectionProperty properties = connectionProperty(configFileName);
         ObjectMapper mapperJSON = new ObjectMapper();
         DatabaseUtil.initializeConnectionPools(properties);
         Connection connection = DatabaseUtil.getConnectionDbFrom();
@@ -140,9 +137,9 @@ public class App {
         DatabaseUtil.closeConnection(connection);
     }
 
-    private static SourceTargetProperties sourceTargetProperties(String configFileName) throws IOException {
+    private static ConnectionProperty connectionProperty(String configFileName) throws IOException {
         ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
         mapperYAML.findAndRegisterModules();
-        return mapperYAML.readValue(Paths.get(configFileName).toFile(), SourceTargetProperties.class);
+        return mapperYAML.readValue(Paths.get(configFileName).toFile(), ConnectionProperty.class);
     }
 }

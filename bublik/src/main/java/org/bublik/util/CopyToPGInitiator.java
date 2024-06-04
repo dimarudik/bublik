@@ -149,7 +149,7 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     throw new RuntimeException(e);
                                 }
-                            case "smallserial":
+                            case "smallserial", "int2":
                                 try {
                                     Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
@@ -162,7 +162,7 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     throw new RuntimeException(e);
                                 }
-                            case "serial":
+                            case "serial", "int4":
                                 try {
                                     Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
@@ -175,7 +175,7 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     throw new RuntimeException(e);
                                 }
-                            case "bigint":
+                            case "bigint", "int8":
                                 try {
                                     Object o = fetchResultSet.getObject(sourceColumn);
                                     if (o == null) {
@@ -196,45 +196,6 @@ public class CopyToPGInitiator {
                                         break;
                                     }
                                     row.setNumeric(targetColumn, (Number) o);
-                                    break;
-                                } catch (SQLException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            case "int2":
-                                try {
-                                    Object o = fetchResultSet.getObject(sourceColumn);
-                                    if (o == null) {
-                                        row.setShort(targetColumn, null);
-                                        break;
-                                    }
-                                    Short aShort = fetchResultSet.getShort(sourceColumn);
-                                    row.setShort(targetColumn, aShort);
-                                    break;
-                                } catch (SQLException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            case "int4":
-                                try {
-                                    Object o = fetchResultSet.getObject(sourceColumn);
-                                    if (o == null) {
-                                        row.setInteger(targetColumn, null);
-                                        break;
-                                    }
-                                    int i = fetchResultSet.getInt(sourceColumn);
-                                    row.setInteger(targetColumn, i);
-                                    break;
-                                } catch (SQLException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            case "int8":
-                                try {
-                                    Object o = fetchResultSet.getObject(sourceColumn);
-                                    if (o == null) {
-                                        row.setLong(targetColumn, null);
-                                        break;
-                                    }
-                                    long l = fetchResultSet.getLong(sourceColumn);
-                                    row.setLong(targetColumn, l);
                                     break;
                                 } catch (SQLException e) {
                                     throw new RuntimeException(e);
@@ -265,22 +226,7 @@ public class CopyToPGInitiator {
                                 } catch (SQLException e) {
                                     throw new RuntimeException(e);
                                 }
-                            case "time":
-                                try {
-                                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-                                    if (timestamp == null) {
-                                        row.setTimeStamp(targetColumn, null);
-                                        break;
-                                    }
-                                    long l = timestamp.getTime();
-                                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
-                                            TimeZone.getDefault().toZoneId());
-                                    row.setTimeStamp(targetColumn, localDateTime);
-                                    break;
-                                } catch (SQLException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            case "timestamp":
+                            case "time", "timestamp":
                                 try {
                                     Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
                                     if (timestamp == null) {

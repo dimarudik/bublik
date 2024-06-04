@@ -53,7 +53,6 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
                 " and rowid between ? and ?";
     }
 
-
     @Override
     public Chunk<?> buildChunkWithTargetTable(Chunk<?> chunk, Table targetTable) {
         return new OraChunk<>(
