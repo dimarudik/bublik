@@ -21,6 +21,8 @@ public class BublikController {
         this.connectionConfig = connectionConfig;
     }
 
+    // https://medium.com/@electronicelif/asynchronous-programming-with-spring-e07be2a19cfc
+
     @RequestMapping(value = "/start", method = RequestMethod.POST)
     @Async
     public void startBublik(@RequestBody List<Config> configs) {

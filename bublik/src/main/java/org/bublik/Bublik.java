@@ -38,9 +38,9 @@ public class Bublik {
     }
 
     public void start() {
+        LOGGER.info("Bublik starting...");
         DatabaseUtil.initializeConnectionPools(connectionProperty);
         try (Connection connection = DatabaseUtil.getPoolConnectionDbFrom()) {
-            LOGGER.info("Bublik started..");
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
                 initiateTargetThread(connection, configs);
