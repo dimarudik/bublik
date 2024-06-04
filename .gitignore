@@ -7,3 +7,4 @@ mvnw*
 .mvn*
 HELP.md
 /logs
+/service/.gradle
