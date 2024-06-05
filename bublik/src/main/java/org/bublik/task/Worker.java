@@ -32,9 +32,10 @@ public class Worker implements Callable<LogMessage> {
         try {
             CopyToPGInitiator copyToPGInitiator = new CopyToPGInitiator();
             logMessage = copyToPGInitiator.start(fetchResultSet);
-        } catch (SQLException e) {
+        } catch (SQLException | RuntimeException e) {
             fetchResultSet.close();
             connection.close();
+            throw e;
         }
         fetchResultSet.close();
         chunk.markChunkAsProceed(connection);

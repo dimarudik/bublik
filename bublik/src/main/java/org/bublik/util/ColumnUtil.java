@@ -104,9 +104,12 @@ public class ColumnUtil {
         return null;
     }
 
-    public static void fillCtidChunks(Connection connection, List<Config> configs) throws SQLException {
+    public static String fillCtidChunks(Connection connection, List<Config> configs) throws SQLException {
+//        String message;
         Statement createTable = connection.createStatement();
         createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
+        createTable.close();
+        connection.commit();
         for (Config config : configs) {
             long reltuples = 0;
             long relpages = 0;
@@ -169,7 +172,8 @@ public class ColumnUtil {
                 chunkInsert.close();
             }
         }
-        createTable.close();
+        connection.commit();
+        return "";
     }
 
     public static byte[] convertBlobToBytes(ResultSet resultSet, int i) throws SQLException {

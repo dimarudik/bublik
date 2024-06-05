@@ -65,6 +65,12 @@ public class Bublik {
             e.printStackTrace();
             LOGGER.error(e.getMessage(), e);
             executorService.shutdown();
+            try {
+                DatabaseUtil.stopConnectionPools();
+            } catch (SQLException ex) {
+                LOGGER.error(e.getMessage(), e);
+//                throw new RuntimeException(ex);
+            }
         }
     }
 
@@ -106,9 +112,12 @@ public class Bublik {
     }
 
     public static synchronized Bublik getInstance(ConnectionProperty connectionProperty, List<Config> configs) {
+/*
         if(INSTANCE == null) {
             INSTANCE = new Bublik(connectionProperty, configs);
         }
         return INSTANCE;
+*/
+        return new Bublik(connectionProperty, configs);
     }
 }
