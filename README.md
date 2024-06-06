@@ -14,8 +14,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 * [Usage](#Usage)
-  * [Usage as cli](#Usage-as-cli)
-  * [Usage as service](#Usage-as-service)
+  * [Usage as a cli](#Usage-as-a-cli)
+  * [Usage as a service](#Usage-as-a-service)
   * [Run the tool](#Run-the-tool)
 
 ## Oracle To PostgreSQL
@@ -344,6 +344,7 @@ toProperties:
 ## Usage
 
 Bublik library might be used as a part of cli utility or as a part of service
+
 Before usage build the jar fail and put it in local maven repository
 
 ```shell
@@ -351,7 +352,7 @@ cd ./bublik
 mvn clean install -DskipTests
 ```
 
-### Usage as cli
+### Usage as a cli
 
 Build the cli
 
