@@ -1,5 +1,6 @@
 package org.bublik.util;
 
+import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.row.SimpleRow;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
@@ -328,7 +329,9 @@ public class CopyToPGInitiator {
                     row.setUUID(targetColumn, uuid);
                     break;
                 default:
+/*
                     try {
+                        System.out.println(targetType);
                         String s = fetchResultSet.getString(sourceColumn);
                         if (s == null) {
                             row.setText(targetColumn, null);
@@ -341,6 +344,10 @@ public class CopyToPGInitiator {
                         writer.close();
                         connection.close();
                     }
+*/
+                    LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
+                    writer.close();
+                    connection.close();
             }
         }
     }

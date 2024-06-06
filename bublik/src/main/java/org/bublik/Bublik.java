@@ -26,7 +26,6 @@ public class Bublik {
     private static Bublik INSTANCE;
     private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
     private final List<Config> configs;
-//    private final ExecutorService executorService;
     private final ConnectionProperty connectionProperty;
 
     private final List<Future<LogMessage>> futures = new ArrayList<>();
@@ -34,7 +33,6 @@ public class Bublik {
     private Bublik(ConnectionProperty connectionProperty, List<Config> configs) {
         this.connectionProperty = connectionProperty;
         this.configs = configs;
-//        this.executorService = Executors.newFixedThreadPool(connectionProperty.getThreadCount());
     }
 
     public void start() {

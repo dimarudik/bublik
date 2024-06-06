@@ -1,4 +1,5 @@
 create role test with login superuser password 'test';
+create type mood AS ENUM ('sad', 'ok', 'happy');
 create table table1 (
     id bigint,
     create_at timestamp(6) with time zone,
@@ -12,7 +13,8 @@ create table table1 (
     rawbytea bytea,
     doc jsonb,
     uuid uuid,
-    clobjsonb jsonb
+    clobjsonb jsonb,
+    current_mood mood
 );
 create table "TABLE2" (
     id bigint,

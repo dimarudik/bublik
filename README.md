@@ -13,8 +13,9 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Create chunks](#Create-chunks)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
-* [Build the jar](#Build-the-jar)
-* [Run the tool](#Run-the-tool)
+* [Usage](#Usage)
+  * [Build the cli jar](#Build-the-cli-jar)
+  * [Run the tool](#Run-the-tool)
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
@@ -339,9 +340,15 @@ toProperties:
 
 >  **WARNING**: The names of columns might be different at source and target
 
-### Build the jar
+## Usage
+
+Bublik library might be used as a part of cli utility or as a part of service
+
+
+### Build the cli jar
 
 ```shell
+cd ./cli
 mvn clean package -DskipTests
 ```
 
