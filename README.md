@@ -16,7 +16,6 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
-  * [Run the tool](#Run-the-tool)
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
@@ -345,7 +344,7 @@ toProperties:
 
 Bublik library might be used as a part of cli utility or as a part of service
 
-Before usage build the jar fail and put it in local maven repository
+Before usage build the jar and put it in a local maven repository
 
 ```shell
 cd ./bublik
@@ -403,6 +402,8 @@ Run the service:
 ```java
 java -jar ./build/libs/service-1.2.0.jar
 ```
+
+Consume the service:
 
 ```shell
 newman run ./postman/postman_collection.json
