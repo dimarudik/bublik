@@ -360,8 +360,9 @@ cd ./cli
 mvn clean package -DskipTests
 ```
 
-Run the cli
-Halt any changes to the movable tables in the source database
+Halt any changes to the movable tables in the source database.
+
+Run the cli:
 
 - Oracle:
   > ```
@@ -387,13 +388,16 @@ Halt any changes to the movable tables in the source database
 
 ### Usage as a service
 
+Build the service
+
 ```shell
 cd ./service
 ./gradlew clean build -x test
 ```
 
-Run the cli
 Halt any changes to the movable tables in the source database
+
+Run the service:
 
 ```java
 java -jar ./build/libs/service-1.2.0.jar
