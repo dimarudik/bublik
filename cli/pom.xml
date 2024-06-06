@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.bublik</groupId>
-    <artifactId>bublikcli</artifactId>
+    <artifactId>bublik-cli</artifactId>
     <version>1.2.0</version>
     <packaging>jar</packaging>
 
@@ -19,23 +19,6 @@
     </properties>
 
     <dependencies>
-<!--
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-core</artifactId>
-            <version>4.17.0</version>
-        </dependency>
--->
-<!--
-        <dependency>
-            <groupId>com.datastax.cassandra</groupId>
-            <artifactId>cassandra-driver-mapping</artifactId>
-            <version>3.11.5</version>
-        </dependency>
--->
-
-
-
         <!-- apache commons -->
         <dependency>
             <groupId>commons-cli</groupId>

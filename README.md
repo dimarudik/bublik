@@ -14,7 +14,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
 * [Usage](#Usage)
-  * [Build the cli jar](#Build-the-cli-jar)
+  * [Usage as cli](#Usage-as-cli)
+  * [Usage as service](#Usage-as-service)
   * [Run the tool](#Run-the-tool)
 
 ## Oracle To PostgreSQL
@@ -343,25 +344,32 @@ toProperties:
 ## Usage
 
 Bublik library might be used as a part of cli utility or as a part of service
+Before usage build the jar fail and put it in local maven repository
 
+```shell
+cd ./bublik
+mvn clean install -DskipTests
+```
 
-### Build the cli jar
+### Usage as cli
+
+Build the cli
 
 ```shell
 cd ./cli
 mvn clean package -DskipTests
 ```
 
-### Run the tool
+Run the cli
 Halt any changes to the movable tables in the source database
 
 - Oracle:
   > ```
-  > java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
+  > java -jar ./target/bublik-cli-1.2.0.jar -c ./config/ora2pg.yaml -m ./config/ora2pg.json
   > ```
 - PostgreSQL
   > ```
-  > java -jar ./target/bublik-1.2.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
+  > java -jar ./target/bublik-cli-1.2.0.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`
@@ -377,3 +385,16 @@ Halt any changes to the movable tables in the source database
   >     from ctid_chunks group by status;
   > ```
 
+### Usage as a service
+
+```shell
+cd ./service
+./gradlew clean build -x test
+```
+
+Run the cli
+Halt any changes to the movable tables in the source database
+
+```java
+java -jar ./build/libs/service-1.2.0.jar
+```
