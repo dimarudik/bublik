@@ -314,7 +314,7 @@ toProperties:
 [
   {
     "fromSchemaName" : "PUBLIC",
-    "fromTableName" : "SOURCE",
+    "fromTableName" : "\"Source\"",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
