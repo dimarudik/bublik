@@ -403,3 +403,7 @@ Run the service:
 ```java
 java -jar ./build/libs/service-1.2.0.jar
 ```
+
+```shell
+newman run ./postman/postman_collection.json
+```
