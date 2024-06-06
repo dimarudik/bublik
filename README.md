@@ -13,6 +13,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Create chunks](#Create-chunks)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
+  * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
+  * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
@@ -287,7 +289,8 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-<ul><li>Prepare the connection parameters file ./sql/pg2pg.yaml</li></ul>
+
+### Prepare PostgreSQL To PostgreSQL Config File
 
 ```yaml
 threadCount: 10
@@ -305,7 +308,7 @@ toProperties:
 ```
 
 
-<ul><li>Prepare the table parameters file ./sql/pg2pg.json</li></ul>
+### Prepare PostgreSQL To PostgreSQL Mapping File
 
 ```json
 [
