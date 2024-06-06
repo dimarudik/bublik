@@ -343,9 +343,10 @@ toProperties:
 
 >  **WARNING**: The names of columns might be different at source and target
 
-![Bublik](/sql/bublik.png)
 
 ## Usage
+
+![Bublik](/sql/bublik.png)
 
 Bublik library might be used as a part of cli utility or as a part of service
 
