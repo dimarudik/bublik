@@ -1,4 +1,3 @@
-.DS_Store
 .idea
 /target
 *.iml
@@ -7,4 +6,3 @@ mvnw*
 .mvn*
 HELP.md
 /logs
-/service/.gradle

@@ -13,8 +13,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Create chunks](#Create-chunks)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
-* [Build the jar](#Build-the-jar)
-* [Run the tool](#Run-the-tool)
+  * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
+  * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
+* [Usage](#Usage)
+  * [Usage as a cli](#Usage-as-a-cli)
+  * [Usage as a service](#Usage-as-a-service)
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
@@ -286,7 +289,8 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-<ul><li>Prepare the connection parameters file ./sql/pg2pg.yaml</li></ul>
+
+### Prepare PostgreSQL To PostgreSQL Config File
 
 ```yaml
 threadCount: 10
@@ -304,13 +308,13 @@ toProperties:
 ```
 
 
-<ul><li>Prepare the table parameters file ./sql/pg2pg.json</li></ul>
+### Prepare PostgreSQL To PostgreSQL Mapping File
 
 ```json
 [
   {
     "fromSchemaName" : "PUBLIC",
-    "fromTableName" : "SOURCE",
+    "fromTableName" : "\"Source\"",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
@@ -339,22 +343,37 @@ toProperties:
 
 >  **WARNING**: The names of columns might be different at source and target
 
-### Build the jar
+## Usage
+
+Bublik library might be used as a part of cli utility or as a part of service
+
+Before usage build the jar and put it in a local maven repository
 
 ```shell
+cd ./bublik
+mvn clean install -DskipTests
+```
+
+### Usage as a cli
+
+Build the cli
+
+```shell
+cd ./cli
 mvn clean package -DskipTests
 ```
 
-### Run the tool
-Halt any changes to the movable tables in the source database
+Halt any changes to the movable tables in the source database.
+
+Run the cli:
 
 - Oracle:
   > ```
-  > java -jar ./target/bublik-1.2.jar -c ./sql/ora2pg.yaml -m ./sql/ora2pg.json
+  > java -jar ./target/bublik-cli-1.2.0.jar -c ./config/ora2pg.yaml -m ./config/ora2pg.json
   > ```
 - PostgreSQL
   > ```
-  > java -jar ./target/bublik-1.2.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
+  > java -jar ./target/bublik-cli-1.2.0.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`
@@ -370,3 +389,25 @@ Halt any changes to the movable tables in the source database
   >     from ctid_chunks group by status;
   > ```
 
+### Usage as a service
+
+Build the service
+
+```shell
+cd ./service
+./gradlew clean build -x test
+```
+
+Halt any changes to the movable tables in the source database
+
+Run the service:
+
+```java
+java -jar ./build/libs/service-1.2.0.jar
+```
+
+Consume the service:
+
+```shell
+newman run ./postman/postman_collection.json
+```

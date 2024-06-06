@@ -14,9 +14,10 @@ create table test.table1 (
     "CaseSensitive" varchar2(20),
     country_id int,
     rawbytea raw(16),
-    doc VARCHAR2(4000) check (doc is json),
+    doc varchar2(4000) check (doc is json),
     uuid char(36),
     clobjsonb clob,
+    current_mood varchar2(256),
     primary key (id)
 );
 create table test.countries (
@@ -49,7 +50,8 @@ insert into test.table1
         utl_raw.cast_to_raw('ABC' || rownum) as rawbytea,
         JSON_OBJECT('name' value 'Foo') as doc,
         '026cebda-a9f3-46da-80c9-d89bdd4841b3' as uuid,
-        to_clob(JSON_OBJECT('name' value 'Foo')) as clobjsonb
+        to_clob(JSON_OBJECT('name' value 'Foo')) as clobjsonb,
+        decode(round(dbms_random.value(0,3)),1,'sad',2,'ok',3,'happy',null) as current_mood
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as
