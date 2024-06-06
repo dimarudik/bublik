@@ -2,7 +2,6 @@ package org.bublik.util;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import com.zaxxer.hikari.pool.HikariPool;
 import org.bublik.constants.SourceContext;
 import org.bublik.constants.SourceContextHolder;
 import org.bublik.model.ConnectionProperty;
@@ -11,7 +10,6 @@ import org.postgresql.PGConnection;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLRecoverableException;
 import java.util.Properties;
 
 public class DatabaseUtil {

@@ -15,7 +15,6 @@ import java.util.concurrent.Callable;
 public class Worker implements Callable<LogMessage> {
     private final Chunk<?> chunk;
     private final Map<String, Integer> columnsFromDB;
-    private LogMessage logMessage;
 
     public Worker(Chunk<?> chunk,
                   Map<String, Integer> columnsFromDB) {
@@ -29,6 +28,7 @@ public class Worker implements Callable<LogMessage> {
         String query = chunk.buildFetchStatement(columnsFromDB);
         ResultSet fetchResultSet = chunk.getData(connection, query);
         ChunkService.set(chunk);
+        LogMessage logMessage;
         try {
             CopyToPGInitiator copyToPGInitiator = new CopyToPGInitiator();
             logMessage = copyToPGInitiator.start(fetchResultSet);

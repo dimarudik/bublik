@@ -13,12 +13,12 @@ public class PGTable extends Table {
 
     @Override
     public boolean exists(Connection connection) throws SQLException {
-        if (tableExistsCache().contains(this.getTableName())) {
+        if (tableExistsCache().contains(getFinalTableName(false))) {
             return true;
         }
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
-                this.getSchemaName().toLowerCase(),
+                getSchemaName().toLowerCase(),
                 getFinalTableName(false),
                 null);
         if (!tablesLowCase.next()) {
@@ -26,7 +26,7 @@ public class PGTable extends Table {
             return false;
         }
         tablesLowCase.close();
-        tableExistsCache().add(this.getTableName());
+        tableExistsCache().add(getFinalTableName(false));
         return true;
     }
 

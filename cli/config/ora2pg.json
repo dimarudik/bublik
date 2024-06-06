@@ -20,7 +20,8 @@
       "rawbytea"          : "rawbytea",
       "doc"               : "doc",
       "uuid"              : "uuid",
-      "clobjsonb"         : "clobjsonb"
+      "clobjsonb"         : "clobjsonb",
+      "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"

@@ -104,7 +104,9 @@ public class Bublik {
                 i.getValue().getConfig().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
                 futures.add(executorService.submit(new Worker(i.getValue(), orderedColumns)));
             } else {
-                throw new TableNotExistsException("Table "
+                LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
+                        i.getValue().getSourceTable().getTableName());
+                throw new TableNotExistsException("The Source Table "
                         + i.getValue().getSourceTable().getSchemaName() + "."
                         + i.getValue().getSourceTable().getTableName() + " does not exist.");
             }
