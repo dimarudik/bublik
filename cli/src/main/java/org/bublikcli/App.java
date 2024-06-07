@@ -123,6 +123,7 @@ public class App {
                         "1 = 1",
                         t.getTaskName(),
                         null,
+                        null,
                         t.getColumnToColumn(connection),
                         null
                 ));

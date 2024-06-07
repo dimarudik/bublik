@@ -324,6 +324,7 @@ toProperties:
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
+    "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
       "id"            : "id",
       "uuid"          : "uuid",
@@ -340,13 +341,22 @@ toProperties:
       "timestamp"     : "timestamp",
       "timestamptz"   : "timestamptz",
       "description"   : "rem",
-      "image"         : "image"
+      "image"         : "image",
+      "current_mood"  : "current_mood"
     }
   }
 ]
 ```
 
->  **WARNING**: The names of columns might be different at source and target
+> [!IMPORTANT]
+> The case-sensitive or reserved words must be quoted with double quotation and backslashes
+
+> [!NOTE]
+> **expressionToColumn** might be used for declaration of subquery for enrichment of data
+
+> [!NOTE]
+> If the target column type doesn't support by tool you can try to use Character  
+> by using declaration of column's name in **tryCharIfAny** array
 
 
 ## Usage

@@ -6,6 +6,7 @@
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
+    "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
       "id"            : "id",
       "uuid"          : "uuid",
@@ -22,7 +23,8 @@
       "timestamp"     : "timestamp",
       "timestamptz"   : "timestamptz",
       "description"   : "rem",
-      "image"         : "image"
+      "image"         : "image",
+      "current_mood"  : "current_mood"
     }
   }
 ]
