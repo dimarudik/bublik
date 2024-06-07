@@ -15,6 +15,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
+  * [Create CTID chunks](#Create-CTID-chunks)
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
@@ -358,6 +359,22 @@ toProperties:
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
+### Create CTID chunks
+
+To begin the transferring of data from source to target you should prepare the CTID table fulfilled by info of chunks
+
+```
+create table if not exists public.ctid_chunks (
+    chunk_id int generated always as identity primary key,
+    start_page bigint,
+    end_page bigint,
+    task_name varchar(128),
+    status varchar(20)  default 'UNASSIGNED',
+    unique (start_page, end_page, task_name, status));
+```
+
+> [!IMPORTANT]
+> If parameter **initPGChunks** has the true value, the CTID table will be created and fulfilled automatically
 
 ## Usage
 
