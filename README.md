@@ -375,6 +375,7 @@ create table if not exists public.ctid_chunks (
 
 > [!IMPORTANT]
 > If parameter **initPGChunks** has the true value, the CTID table will be created and fulfilled automatically
+> To begin the process **copyPGChunks** must be true
 
 ## Usage
 
