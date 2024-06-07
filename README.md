@@ -373,9 +373,12 @@ create table if not exists public.ctid_chunks (
     unique (start_page, end_page, task_name, status));
 ```
 
-> [!IMPORTANT]
+> [!NOTE]
 > If parameter **initPGChunks** has the true value, the CTID table will be created and fulfilled automatically.
 > To begin the process **copyPGChunks** must be true
+
+> [!IMPORTANT]
+> If you are doing repeated transferring you should truncate CTID table or delete unnecessary chunks
 
 ## Usage
 
