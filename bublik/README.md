@@ -1,5 +1,0 @@
-
-
-```
-mvn clean install -DskipTests
-```

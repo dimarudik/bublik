@@ -329,9 +329,7 @@ public class CopyToPGInitiator {
                     row.setUUID(targetColumn, uuid);
                     break;
                 default:
-/*
-                    try {
-                        System.out.println(targetType);
+                    if (chunk.getConfig().tryCharIfAny().contains(targetColumn)) {
                         String s = fetchResultSet.getString(sourceColumn);
                         if (s == null) {
                             row.setText(targetColumn, null);
@@ -339,15 +337,11 @@ public class CopyToPGInitiator {
                         }
                         row.setText(targetColumn, s.replaceAll("\u0000", ""));
                         break;
-                    } catch (Exception e) {
+                    } else {
                         LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
                         writer.close();
                         connection.close();
                     }
-*/
-                    LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
-                    writer.close();
-                    connection.close();
             }
         }
     }
