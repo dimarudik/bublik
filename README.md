@@ -146,6 +146,7 @@ psql postgresql://test:test@localhost/postgres
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
     "fromTaskWhereClause" : " 1 = 1 ",
+    "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
       "id"                : "id",
       "\"LEVEL\""         : "level",
@@ -158,7 +159,8 @@ psql postgresql://test:test@localhost/postgres
       "rawbytea"          : "rawbytea",
       "doc"               : "doc",
       "uuid"              : "uuid",
-      "clobjsonb"         : "clobjsonb"
+      "clobjsonb"         : "clobjsonb",
+      "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
@@ -210,7 +212,10 @@ psql postgresql://test:test@localhost/postgres
 > To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
 > It allows to exclude excessive workload
 
-
+> [!NOTE]
+> If the target column type doesn't support by tool you can try to use Character  
+> by using declaration of column's name in **tryCharIfAny** array
+ 
 ### Create chunks
 
 Halt any changes to the movable tables in the source database (Oracle)<br>

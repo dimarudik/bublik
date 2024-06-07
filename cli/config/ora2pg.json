@@ -8,6 +8,7 @@
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
     "fromTaskWhereClause" : " 1 = 1 ",
+    "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
       "id"                : "id",
       "\"LEVEL\""         : "level",
@@ -20,7 +21,8 @@
       "rawbytea"          : "rawbytea",
       "doc"               : "doc",
       "uuid"              : "uuid",
-      "clobjsonb"         : "clobjsonb"
+      "clobjsonb"         : "clobjsonb",
+      "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
       "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
