@@ -36,8 +36,13 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     @Override
     public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
         List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
+        String expressionToColumn = "";
+        if (getConfig().expressionToColumn() != null) {
+            expressionToColumn = ", " + String.join(", ", getConfig().expressionToColumn().keySet());
+        }
         return PGKeywords.SELECT + " " +
                 String.join(", ", neededSourceColumns) + " " +
+                expressionToColumn + " " +
                 PGKeywords.FROM + " " +
                 getConfig().fromSchemaName() +
                 "." +

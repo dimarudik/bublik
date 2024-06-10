@@ -325,7 +325,7 @@ toProperties:
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
-    "tryCharIfAny" : ["current_mood"],
+    "tryCharIfAny" : ["current_mood", "gender"],
     "columnToColumn" : {
       "id"            : "id",
       "uuid"          : "uuid",
@@ -344,6 +344,9 @@ toProperties:
       "description"   : "rem",
       "image"         : "image",
       "current_mood"  : "current_mood"
+    },
+    "expressionToColumn" : {
+      "(select 'male') as gender" : "gender"
     }
   }
 ]

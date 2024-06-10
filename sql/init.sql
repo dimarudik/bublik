@@ -1,5 +1,6 @@
 create role test with login superuser password 'test';
 create type mood AS ENUM ('sad', 'ok', 'happy');
+create type gender AS ENUM ('male', 'female', 'NA');
 create table table1 (
     id bigint,
     create_at timestamp(6) with time zone,
@@ -65,6 +66,7 @@ select
     image,
     current_mood
  from "Source" where 0 = 1;
+alter table target add column gender gender;
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, image, current_mood)
