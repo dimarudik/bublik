@@ -1,8 +1,11 @@
 package org.bublik.util;
 
+import org.bublik.Bublik;
 import org.bublik.model.*;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.HashMap;
@@ -16,6 +19,7 @@ import static org.bublik.util.SQLUtil.buildStartEndPageOfPGChunk;
 import static org.bublik.util.SQLUtil.buildStartEndRowIdOfOracleChunk;
 
 public class ColumnUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
 
     public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Chunk<?> chunk) {
         Map<String, PGColumn> columnMap = new HashMap<>();
@@ -116,8 +120,10 @@ public class ColumnUtil {
             long max_end_page = 0;
             long heap_blks_total = 0;
             PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
-            preparedStatement.setString(1, config.fromSchemaName().toLowerCase());
-            preparedStatement.setString(2, config.fromTableName().toLowerCase());
+            Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
+            preparedStatement.setString(1, table.getSchemaName().toLowerCase());
+            preparedStatement.setString(2, table.getFinalTableName(false));
+//            System.out.println(table.getSchemaName() + " " + table.getFinalTableName(false));
             ResultSet resultSet = preparedStatement.executeQuery();
             while(resultSet.next()) {
                 reltuples = resultSet.getLong("reltuples");
@@ -138,8 +144,7 @@ public class ColumnUtil {
             long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                     (int) Math.round(relpages / (reltuples / rowsInChunk));
             long pagesInChunk = Math.min(v, relpages + 1);
-/*
-            log.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+            LOGGER.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
                     config.fromSchemaName(),
                     config.fromTableName(),
                     relpages,
@@ -147,7 +152,6 @@ public class ColumnUtil {
                     reltuples,
                     rowsInChunk,
                     pagesInChunk);
-*/
             PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
             chunkInsert.setLong(1, pagesInChunk);
             chunkInsert.setString(2, config.fromTaskName());

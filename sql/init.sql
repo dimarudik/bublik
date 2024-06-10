@@ -81,6 +81,19 @@ insert into "Source" (uuid, "Primary", boolean,
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
             else null end as current_mood
     from generate_series(1,100000) as n;
+insert into "Source" (uuid, "Primary", boolean,
+        int2, int4, int8, smallint, bigint, numeric, float8,
+        date, timestamp, timestamptz, description, current_mood)
+    select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
+        0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
+        current_date, current_timestamp, current_timestamp,
+        rpad('PostgreSQL', 1000, '*') description,
+        case
+            when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
+            when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
+            when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
+            else null end as current_mood
+    from generate_series(1,900000) as n;
 vacuum "Source";
 create table parted (
     id bigint,

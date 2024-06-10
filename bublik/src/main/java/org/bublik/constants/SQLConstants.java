@@ -23,6 +23,12 @@ public abstract class SQLConstants {
             "task_name varchar(128), " +
             "status varchar(20)  default 'UNASSIGNED', " +
             "unique (start_page, end_page, task_name, status) )";
+    public static final String DDL_CREATE_POSTGRESQL_TABLE_OUTBOX =
+            "create table if not exists public.bublik_outbox (" +
+            "msg_id int generated always as identity primary key, " +
+            "chunk_id int, " +
+            "start varchar(32), " +
+            "end varchar(32)) ";
     public static final String DML_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, task_name) " +
             "values (?, ?, ?)";
