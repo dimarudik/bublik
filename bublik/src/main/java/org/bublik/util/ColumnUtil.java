@@ -132,8 +132,8 @@ public class ColumnUtil {
             resultSet.close();
             preparedStatement.close();
             preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
-            preparedStatement.setString(1, config.fromSchemaName() + "." +
-                    config.fromTableName());
+            preparedStatement.setString(1, table.getSchemaName().toLowerCase() + "." +
+                    table.getTableName());
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()) {
                 heap_blks_total = resultSet.getLong("heap_blks_total");
