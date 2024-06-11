@@ -25,9 +25,11 @@ public class DatabaseUtil {
         return getConnection(toDataSource);
     }
 
+/*
     public static void closeConnection(Connection connection) throws SQLException {
         connection.close();
     }
+*/
 
     public static void initializeConnectionPools(ConnectionProperty property) {
         int maxPoolSize = property.getThreadCount() + 1;

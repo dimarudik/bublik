@@ -26,6 +26,7 @@ public class Worker implements Callable<LogMessage> {
     public LogMessage call() throws SQLException {
         Connection connection = DatabaseUtil.getPoolConnectionDbFrom();
         String query = chunk.buildFetchStatement(columnsFromDB);
+//        System.out.println(query);
         ResultSet fetchResultSet = chunk.getData(connection, query);
         ChunkService.set(chunk);
         LogMessage logMessage;
