@@ -1,2 +1,37 @@
-docker run --rm -d --name cassandra -p 9042:9042 cassandra
+docker network list
+docker network create \
+  --driver=bridge \
+  --subnet=172.28.0.0/16 \
+  --gateway=172.28.5.254 \
+  bublik-network
+
+docker run -d -h cs1 --ip 172.28.0.1 \
+    --name cs1 --network bublik-network -p 9042:9042 \
+    -v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+    -e CASSANDRA_SEEDS=172.28.0.1 \
+    -e CASSANDRA_DC=dc1 \
+    -e CASSANDRA_CLUSTER_NAME=bublik \
+    cassandra
+
+docker run -d -h cs2 --ip 172.28.0.2 \
+    --name cs2 --network bublik-network \
+    -v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+    -e CASSANDRA_SEEDS=172.28.0.1 \
+    -e CASSANDRA_DC=dc1 \
+    -e CASSANDRA_CLUSTER_NAME=bublik \
+    cassandra
+
+docker run -d -h cs3 --ip 172.28.0.3 \
+    --name cs3 --network bublik-network \
+    -v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+    -e CASSANDRA_SEEDS=172.28.0.1,172.28.0.2 \
+    -e CASSANDRA_DC=dc1 \
+    -e CASSANDRA_CLUSTER_NAME=bublik \
+    cassandra
+
+docker exec cs3 nodetool status
 cqlsh -f ./sql/data.cql
+cqlsh
+select token(userid), userid, item_count, last_update_timestamp from store.shopping_cart;
+
+docker network rm bublik-network

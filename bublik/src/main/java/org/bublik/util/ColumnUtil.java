@@ -141,6 +141,7 @@ public class ColumnUtil {
             resultSet.close();
             preparedStatement.close();
             double rowsInChunk = reltuples >= 500000 ? 100000d : 10000d;
+//            double rowsInChunk = 10000d;
             long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                     (int) Math.round(relpages / (reltuples / rowsInChunk));
             long pagesInChunk = Math.min(v, relpages + 1);
