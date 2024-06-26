@@ -35,3 +35,13 @@ cqlsh
 select token(userid), userid, item_count, last_update_timestamp from store.shopping_cart;
 
 docker network rm bublik-network
+
+docker run -d --name ydb -h localhost \
+  --platform linux/amd64 \
+  -p 2135:2135 -p 2136:2136 -p 8765:8765 \
+  -v $(pwd)/ydb_certs:/ydb_certs -v $(pwd)/ydb_data:/ydb_data \
+  -e GRPC_TLS_PORT=2135 -e GRPC_PORT=2136 -e MON_PORT=8765 \
+  -e YDB_USE_IN_MEMORY_PDISKS=true \
+  cr.yandex/yc/yandex-docker-local-ydb:latest
+
+ydb -e grpc://localhost:2136 -d $PWD/ydb_data

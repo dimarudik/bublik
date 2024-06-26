@@ -1,5 +1,5 @@
 threadCount: 10
-initPGChunks: true
+initPGChunks: false
 copyPGChunks: true
 
 fromProperties:

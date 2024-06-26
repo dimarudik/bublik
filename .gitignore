@@ -8,3 +8,4 @@ mvnw*
 HELP.md
 /logs
 /service/.gradle
+ydb*

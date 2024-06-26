@@ -1,29 +1,25 @@
 package org.bublik;
 
-import org.bublik.constants.SourceContextHolder;
-import org.bublik.exception.TableNotExistsException;
-import org.bublik.model.*;
-import org.bublik.service.TableService;
-import org.bublik.task.Worker;
+import org.bublik.model.Config;
+import org.bublik.model.ConnectionProperty;
+import org.bublik.model.LogMessage;
+import org.bublik.service.StorageService;
+import org.bublik.storage.Storage;
 import org.bublik.util.DatabaseUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.bublik.constants.SQLConstants.LABEL_ORACLE;
-import static org.bublik.constants.SQLConstants.LABEL_POSTGRESQL;
-import static org.bublik.util.ColumnUtil.fillCtidChunks;
-import static org.bublik.util.ColumnUtil.getChunkMap;
-
 public class Bublik {
-    private static Bublik INSTANCE;
+//    private static Bublik INSTANCE;
     private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
     private final List<Config> configs;
     private final ConnectionProperty connectionProperty;
@@ -38,7 +34,24 @@ public class Bublik {
     public void start() {
         ExecutorService executorService = Executors.newFixedThreadPool(connectionProperty.getThreadCount());
         LOGGER.info("Bublik starting...");
-        DatabaseUtil.initializeConnectionPools(connectionProperty);
+        Storage sourceStorage, targetStorage;
+        try {
+            sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
+            DatabaseUtil.initializeConnectionPools(connectionProperty);
+            assert sourceStorage != null;
+            sourceStorage.initiateTargetThread(futures, configs, executorService);
+            futureProceed(futures);
+            executorService.shutdown();
+            executorService.close();
+            LOGGER.info("All Bublik's tasks have been done.");
+//            targetStorage = StorageService.getStorage(connectionProperty.getToProperty());
+//            Thread.sleep(10000);
+        } catch (SQLException | InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+
+
+/*
         try (Connection connection = DatabaseUtil.getPoolConnectionDbFrom()) {
             SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
             if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
@@ -67,9 +80,9 @@ public class Bublik {
                 DatabaseUtil.stopConnectionPools();
             } catch (SQLException ex) {
                 LOGGER.error(e.getMessage(), e);
-//                throw new RuntimeException(ex);
             }
         }
+*/
     }
 
     private void futureProceed(List<Future<LogMessage>> tasks) throws InterruptedException, ExecutionException {
@@ -91,6 +104,7 @@ public class Bublik {
         }
     }
 
+/*
     private void initiateTargetThread(Connection connection,
                                       List<Config> configs,
                                       ExecutorService executorService) throws SQLException, InterruptedException {
@@ -110,6 +124,7 @@ public class Bublik {
             }
         }
     }
+*/
 
     public static synchronized Bublik getInstance(ConnectionProperty connectionProperty, List<Config> configs) {
 /*

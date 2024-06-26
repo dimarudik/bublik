@@ -1,11 +1,8 @@
 package org.bublik.util;
 
-import org.bublik.model.Config;
-
-import java.util.*;
-
 public class SQLUtil {
 
+/*
     public static String buildStartEndRowIdOfOracleChunk(List<Config> configs) {
         List<String> taskAndWhere = new ArrayList<>();
         configs.forEach(sqlStatement -> {
@@ -24,7 +21,9 @@ public class SQLUtil {
                 part2
                 + part3;
     }
+*/
 
+/*
     public static String buildStartEndPageOfPGChunk(List<Config> configs) {
         List<String> taskNames = new ArrayList<>();
         configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
@@ -32,4 +31,5 @@ public class SQLUtil {
                 String.join("', '", taskNames) + "') " +
                 "and status <> 'PROCESSED' ";
     }
+*/
 }

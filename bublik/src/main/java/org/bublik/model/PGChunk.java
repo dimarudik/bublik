@@ -1,6 +1,7 @@
 package org.bublik.model;
 
 import org.bublik.constants.PGKeywords;
+import org.bublik.storage.Storage;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,8 +14,8 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
-    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
-        super(id, start, end, config, sourceTable, targetTable);
+    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage) {
+        super(id, start, end, config, sourceTable, targetTable, sourceStorage);
     }
 
     @Override
@@ -24,6 +25,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         updateStatus.setString(2, this.getConfig().fromTaskName());
         int rows = updateStatus.executeUpdate();
         updateStatus.close();
+        connection.commit();
     }
 
     @Override
@@ -60,7 +62,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 this.getEnd(),
                 this.getConfig(),
                 this.getSourceTable(),
-                targetTable
+                targetTable,
+                getSourceStorage()
         );
     }
 }

@@ -1,6 +1,7 @@
 package org.bublik.model;
 
 import org.bublik.constants.PGKeywords;
+import org.bublik.storage.Storage;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -10,8 +11,8 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
-        super(id, start, end, config, sourceTable, targetTable);
+    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage) {
+        super(id, start, end, config, sourceTable, targetTable, sourceStorage);
     }
 
     @Override
@@ -22,6 +23,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         callableStatement.setInt(2, this.getId());
         callableStatement.execute();
         callableStatement.close();
+//        connection.commit();
     }
 
     @Override
@@ -50,7 +52,6 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
                 getConfig().fromTableName() + " " +
                 PGKeywords.WHERE + " " +
                 (getConfig().fetchWhereClause() == null ? " " : getConfig().fetchWhereClause() + " and ") +
-//                getConfig().fetchWhereClause() +
                 " rowid between ? and ?";
     }
 
@@ -62,7 +63,8 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
                 this.getEnd(),
                 this.getConfig(),
                 this.getSourceTable(),
-                targetTable
+                targetTable,
+                getSourceStorage()
         );
     }
 }

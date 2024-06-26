@@ -4,7 +4,6 @@ import org.bublik.model.Chunk;
 import org.bublik.model.LogMessage;
 import org.bublik.service.ChunkService;
 import org.bublik.util.CopyToPGInitiator;
-import org.bublik.util.DatabaseUtil;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -24,9 +23,9 @@ public class Worker implements Callable<LogMessage> {
 
     @Override
     public LogMessage call() throws SQLException {
-        Connection connection = DatabaseUtil.getPoolConnectionDbFrom();
+//        Connection connection = DatabaseUtil.getPoolConnectionDbFrom();
+        Connection connection = chunk.getSourceStorage().getConnection();
         String query = chunk.buildFetchStatement(columnsFromDB);
-//        System.out.println(query);
         ResultSet fetchResultSet = chunk.getData(connection, query);
         ChunkService.set(chunk);
         LogMessage logMessage;

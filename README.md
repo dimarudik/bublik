@@ -193,7 +193,7 @@ psql postgresql://test:test@localhost/postgres
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
     "fromTaskName" : "PARTED_TASK",
-    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN (73021,73022) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN (73021,73022)",
+    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1))",
     "columnToColumn" : {
       "id"        : "id",
       "create_at" : "create_at",
@@ -415,7 +415,7 @@ Run the cli:
   > ```
 - PostgreSQL
   > ```
-  > java -jar ./target/bublik-cli-1.2.0.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
+  > java -jar ./target/bublik-cli-1.2.0.jar -c ./config/pg2pg.yaml -m ./config/pg2pg.json
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`

@@ -14,31 +14,29 @@ import java.util.Properties;
 
 public class DatabaseUtil {
 
-    private static DataSource fromDataSource;
+//    private static DataSource fromDataSource;
     private static DataSource toDataSource;
 
+/*
     public static Connection getPoolConnectionDbFrom() throws SQLException {
         return getConnection(fromDataSource);
     }
+*/
 
     public static Connection getPoolConnectionDbTo() throws SQLException {
         return getConnection(toDataSource);
     }
 
-/*
-    public static void closeConnection(Connection connection) throws SQLException {
-        connection.close();
-    }
-*/
-
     public static void initializeConnectionPools(ConnectionProperty property) {
         int maxPoolSize = property.getThreadCount() + 1;
+/*
         HikariConfig fromConfiguration = buildConfiguration(
                 property.getFromProperty(),
                 maxPoolSize,
                 "from-db-hikari-pool"
         );
         fromDataSource = new HikariDataSource(fromConfiguration);
+*/
 
         HikariConfig toConfiguration = buildConfiguration(
                 property.getToProperty(),
@@ -49,7 +47,7 @@ public class DatabaseUtil {
     }
 
     public static void stopConnectionPools() throws SQLException {
-        fromDataSource.unwrap(HikariDataSource.class).close();
+//        fromDataSource.unwrap(HikariDataSource.class).close();
         toDataSource.unwrap(HikariDataSource.class).close();
     }
     private static Connection getConnection(DataSource dataSource) throws SQLException {

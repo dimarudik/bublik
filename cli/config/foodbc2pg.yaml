@@ -1,0 +1,10 @@
+threadCount: 10
+
+fromProperties:
+  url: grpc://localhost:2136?database=/local
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
