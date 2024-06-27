@@ -11,8 +11,9 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage) {
-        super(id, start, end, config, sourceTable, targetTable, sourceStorage);
+    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable,
+                    Storage sourceStorage, Storage targetStorage) {
+        super(id, start, end, config, sourceTable, targetTable, sourceStorage, targetStorage);
     }
 
     @Override
@@ -64,7 +65,8 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
                 this.getConfig(),
                 this.getSourceTable(),
                 targetTable,
-                getSourceStorage()
+                getSourceStorage(),
+                getTargetStorage()
         );
     }
 }

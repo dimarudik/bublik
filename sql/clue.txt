@@ -29,7 +29,7 @@ docker run -d -h cs3 --ip 172.28.0.3 \
     -e CASSANDRA_CLUSTER_NAME=bublik \
     cassandra
 
-docker exec cs3 nodetool status
+docker exec cs2 nodetool status
 cqlsh -f ./sql/data.cql
 cqlsh
 select token(userid), userid, item_count, last_update_timestamp from store.shopping_cart;

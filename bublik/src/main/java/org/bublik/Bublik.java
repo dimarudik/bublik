@@ -5,7 +5,6 @@ import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
 import org.bublik.service.StorageService;
 import org.bublik.storage.Storage;
-import org.bublik.util.DatabaseUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +36,9 @@ public class Bublik {
         Storage sourceStorage, targetStorage;
         try {
             sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
-            DatabaseUtil.initializeConnectionPools(connectionProperty);
+//            DatabaseUtil.initializeConnectionPools(connectionProperty);
             assert sourceStorage != null;
-            sourceStorage.initiateTargetThread(futures, configs, executorService);
+            sourceStorage.startWorker(futures, configs, executorService);
             futureProceed(futures);
             executorService.shutdown();
             executorService.close();

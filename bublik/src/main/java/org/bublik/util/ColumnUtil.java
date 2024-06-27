@@ -2,15 +2,12 @@ package org.bublik.util;
 
 import org.bublik.model.Chunk;
 import org.bublik.model.PGColumn;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ColumnUtil {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ColumnUtil.class);
 
     public static Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Chunk<?> chunk) {
         Map<String, PGColumn> columnMap = new HashMap<>();

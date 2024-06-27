@@ -1,24 +1,24 @@
 package org.bublik.service;
 
 import com.datastax.driver.core.Cluster;
+import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
 import org.bublik.storage.*;
 
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 public interface StorageService {
-
-    Connection getConnection() throws SQLException;
-    void initiateTargetThread(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException;
+    void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException;
+    LogMessage callWorker(Chunk<?> chunk, Map<String, Integer> columnsFromDB) throws SQLException;
+//    Connection getConnection() throws SQLException;
+    LogMessage transferToTarget(ResultSet resultSet) throws SQLException;
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) throws SQLException {
         StorageClass storageClass = StorageService.getStorageClass(properties);

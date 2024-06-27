@@ -1,37 +1,14 @@
 package org.bublik.util;
 
-import de.bytefish.pgbulkinsert.row.SimpleRow;
-import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
-import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
-import org.bublik.Bublik;
-import org.bublik.exception.TableNotExistsException;
-import org.bublik.model.*;
-import org.bublik.service.ChunkService;
-import org.bublik.service.TableService;
-import org.postgresql.PGConnection;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.*;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.UUID;
-import java.util.function.Consumer;
-
-import static org.bublik.util.ColumnUtil.*;
-
 public class CopyToPGInitiator {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
+//    private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
 
+/*
     public LogMessage start(ResultSet fetchResultSet) throws SQLException {
         Chunk<?> chunk = ChunkService.get();
         LogMessage logMessage;
         if (fetchResultSet.next()) {
-            Connection connection = DatabaseUtil.getPoolConnectionDbTo();
+            Connection connection = chunk.getTargetStorage().getConnection();
             Table table = TableService.getTable(connection, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connection)) {
                 Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
@@ -58,7 +35,9 @@ public class CopyToPGInitiator {
         }
         return logMessage;
     }
+*/
 
+/*
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
                                     Chunk<?> chunk) throws SQLException {
@@ -75,7 +54,6 @@ public class CopyToPGInitiator {
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), columnNames);
         long start = System.currentTimeMillis();
-//        try (SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection)) {
         SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
         Consumer<SimpleRow> simpleRowConsumer =
                 s -> {
@@ -97,7 +75,9 @@ public class CopyToPGInitiator {
                 "COPY",
                 chunk);
     }
+*/
 
+/*
     private void simpleRowConsume(SimpleRow row,
                                   Map<String, PGColumn> neededColumnsToDB,
                                   ResultSet fetchResultSet,
@@ -108,19 +88,6 @@ public class CopyToPGInitiator {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetColumn = entry.getValue().getColumnName();
             String targetType = entry.getValue().getColumnType();
-
-    /*
-                try {
-                    tmpString
-                            .append(targetType)
-                            .append(" : ")
-                            .append(targetColumn)
-                            .append(" : ")
-                            .append(fetchResultSet.getString(sourceColumn)).append("\n");
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-    */
 
             switch (targetType) {
                 case "varchar": {
@@ -344,4 +311,5 @@ public class CopyToPGInitiator {
             }
         }
     }
+*/
 }

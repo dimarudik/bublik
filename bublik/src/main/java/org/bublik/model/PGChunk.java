@@ -14,8 +14,9 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
-    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage) {
-        super(id, start, end, config, sourceTable, targetTable, sourceStorage);
+    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable,
+                   Storage sourceStorage, Storage targetStorage) {
+        super(id, start, end, config, sourceTable, targetTable, sourceStorage, targetStorage);
     }
 
     @Override
@@ -63,7 +64,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 this.getConfig(),
                 this.getSourceTable(),
                 targetTable,
-                getSourceStorage()
+                getSourceStorage(),
+                getTargetStorage()
         );
     }
 }

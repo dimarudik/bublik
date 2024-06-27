@@ -3,6 +3,7 @@ package org.bublik.storage;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
+import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
 import org.bublik.task.Worker;
 import org.slf4j.Logger;
@@ -15,15 +16,17 @@ import java.util.concurrent.Future;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
+    private final Connection connection;
 
-    public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
+    public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
+        connection = this.getConnection();
     }
 
     @Override
-    public void initiateTargetThread(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
-        Connection connection = this.getConnection();
-        Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(connection,configs));
+    public void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
+        hook(configs);
+        Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
         for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
             Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
             if (table.exists(connection)) {
@@ -41,32 +44,46 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         connection.close();
     }
 
-    private Map<Integer, Chunk<RowId>> getChunkMap(Connection connection, List<Config> configs) throws SQLException {
+    @Override
+    public void hook(List<Config> configs) {
+    }
+
+    @Override
+    public LogMessage transferToTarget(ResultSet resultSet) throws SQLException {
+        return null;
+    }
+
+    private Map<Integer, Chunk<RowId>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<RowId>> chunkHashMap = new TreeMap<>();
-        String sql = buildStartEndRowIdOfOracleChunk(configs);
+        String sql = buildStartEndOfChunk(configs);
         PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
-        while (resultSet.next()) {
-            Config config = findByTaskName(configs, resultSet.getString("task_name"));
-            assert config != null;
-            chunkHashMap.put(resultSet.getInt("rownum"),
-                    new OraChunk<>(
-                            resultSet.getInt("chunk_id"),
-                            resultSet.getRowId("start_rowid"),
-                            resultSet.getRowId("end_rowid"),
-                            config,
-                            TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
-                            null,
-                            this
-                    )
-            );
+        if (resultSet.isBeforeFirst()) {
+            setTargetStorage(StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty()));
+            while (resultSet.next()) {
+                Config config = findByTaskName(configs, resultSet.getString("task_name"));
+                assert config != null;
+                chunkHashMap.put(resultSet.getInt("rownum"),
+                        new OraChunk<>(
+                                resultSet.getInt("chunk_id"),
+                                resultSet.getRowId("start_rowid"),
+                                resultSet.getRowId("end_rowid"),
+                                config,
+                                TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
+                                null,
+                                this,
+                                getTargetStorage()
+                        )
+                );
+            }
         }
         resultSet.close();
         statement.close();
         return chunkHashMap;
     }
 
-    private String buildStartEndRowIdOfOracleChunk(List<Config> configs) {
+    @Override
+    public String buildStartEndOfChunk(List<Config> configs) {
         List<String> taskAndWhere = new ArrayList<>();
         configs.forEach(sqlStatement -> {
             String tmp = sqlStatement.fromTaskWhereClause() == null ? "'" : "' and " + sqlStatement.fromTaskWhereClause();
