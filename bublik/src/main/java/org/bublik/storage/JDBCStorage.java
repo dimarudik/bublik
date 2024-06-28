@@ -19,7 +19,6 @@ import java.util.Properties;
 
 public abstract class JDBCStorage extends Storage implements StorageService {
     private final DataSource dataSource;
-    private Storage targetStorage;
 
     public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
@@ -60,14 +59,6 @@ public abstract class JDBCStorage extends Storage implements StorageService {
         return null;
     }
 
-    public void setTargetStorage(Storage targetStorage) {
-        this.targetStorage = targetStorage;
-    }
-
-    public Storage getTargetStorage() {
-        return targetStorage;
-    }
-
     @Override
     public LogMessage callWorker(Chunk<?> chunk, Map<String, Integer> columnsFromDB) throws SQLException {
         Connection chunkConnection = getConnection();
@@ -86,5 +77,10 @@ public abstract class JDBCStorage extends Storage implements StorageService {
         chunk.markChunkAsProceed(chunkConnection);
         chunkConnection.close();
         return logMessage;
+    }
+
+    @Override
+    public void closeStorage(){
+
     }
 }

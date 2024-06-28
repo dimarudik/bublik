@@ -87,6 +87,9 @@ sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=152
 
 ```
 docker run --name postgres \
+        --ip 172.28.0.4 \
+        -h postgres \
+        --network bublik-network \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
         -e POSTGRES_DB=postgres \

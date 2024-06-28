@@ -18,7 +18,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class Bublik {
-//    private static Bublik INSTANCE;
     private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
     private final List<Config> configs;
     private final ConnectionProperty connectionProperty;
@@ -36,52 +35,19 @@ public class Bublik {
         Storage sourceStorage, targetStorage;
         try {
             sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
-//            DatabaseUtil.initializeConnectionPools(connectionProperty);
             assert sourceStorage != null;
             sourceStorage.startWorker(futures, configs, executorService);
             futureProceed(futures);
+            targetStorage = StorageService.get();
+            if (targetStorage != null) {
+                targetStorage.closeStorage();
+            }
             executorService.shutdown();
             executorService.close();
             LOGGER.info("All Bublik's tasks have been done.");
-//            targetStorage = StorageService.getStorage(connectionProperty.getToProperty());
-//            Thread.sleep(10000);
         } catch (SQLException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
-
-
-/*
-        try (Connection connection = DatabaseUtil.getPoolConnectionDbFrom()) {
-            SourceContextHolder sourceContextHolder = DatabaseUtil.sourceContextHolder(connection);
-            if (sourceContextHolder.sourceContext().toString().equals(LABEL_ORACLE)){
-                initiateTargetThread(connection, configs, executorService);
-            } else if (sourceContextHolder.sourceContext().toString().equals(LABEL_POSTGRESQL)){
-                if (connectionProperty.getInitPGChunks()) {
-                    fillCtidChunks(connection, configs);
-                }
-                if (connectionProperty.getCopyPGChunks()) {
-                    initiateTargetThread(connection, configs, executorService);
-                } else {
-                    return;
-                }
-            } else return;
-            futureProceed(futures);
-
-            executorService.shutdown();
-            executorService.close();
-            DatabaseUtil.stopConnectionPools();
-            LOGGER.info("All Bublik's tasks have been done.");
-        } catch (SQLException | InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-            LOGGER.error(e.getMessage(), e);
-            executorService.shutdown();
-            try {
-                DatabaseUtil.stopConnectionPools();
-            } catch (SQLException ex) {
-                LOGGER.error(e.getMessage(), e);
-            }
-        }
-*/
     }
 
     private void futureProceed(List<Future<LogMessage>> tasks) throws InterruptedException, ExecutionException {
@@ -103,35 +69,7 @@ public class Bublik {
         }
     }
 
-/*
-    private void initiateTargetThread(Connection connection,
-                                      List<Config> configs,
-                                      ExecutorService executorService) throws SQLException, InterruptedException {
-        Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(connection,configs));
-        for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
-            Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-            if (table.exists(connection)) {
-                Map<String, Integer> orderedColumns = new HashMap<>();
-                i.getValue().getConfig().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
-                futures.add(executorService.submit(new Worker(i.getValue(), orderedColumns)));
-            } else {
-                LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
-                        i.getValue().getSourceTable().getTableName());
-                throw new TableNotExistsException("The Source Table "
-                        + i.getValue().getSourceTable().getSchemaName() + "."
-                        + i.getValue().getSourceTable().getTableName() + " does not exist.");
-            }
-        }
-    }
-*/
-
-    public static synchronized Bublik getInstance(ConnectionProperty connectionProperty, List<Config> configs) {
-/*
-        if(INSTANCE == null) {
-            INSTANCE = new Bublik(connectionProperty, configs);
-        }
-        return INSTANCE;
-*/
+    public static Bublik getInstance(ConnectionProperty connectionProperty, List<Config> configs) {
         return new Bublik(connectionProperty, configs);
     }
 }

@@ -67,7 +67,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
-            setTargetStorage(StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty()));
+            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
+            StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 assert config != null;
@@ -80,7 +81,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
                                 null,
                                 this,
-                                getTargetStorage()
+                                targetStorage
                         )
                 );
             }
@@ -244,7 +245,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return new LogMessage(
                 recordCount,
                 start,
-                "COPY",
+                "PostgreSQL COPY",
                 chunk);
     }
 

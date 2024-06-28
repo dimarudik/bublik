@@ -15,10 +15,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 public interface StorageService {
+    ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
+
     void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException;
     LogMessage callWorker(Chunk<?> chunk, Map<String, Integer> columnsFromDB) throws SQLException;
-//    Connection getConnection() throws SQLException;
     LogMessage transferToTarget(ResultSet resultSet) throws SQLException;
+    void closeStorage();
+
+    static void set(Storage storage) {
+        STORAGE_THREAD_LOCAL.set(storage);
+    }
+
+    static Storage get() {
+        return STORAGE_THREAD_LOCAL.get();
+    }
+
+    static void remove() {
+        STORAGE_THREAD_LOCAL.remove();
+    }
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) throws SQLException {
         StorageClass storageClass = StorageService.getStorageClass(properties);

@@ -3,21 +3,23 @@
     <Appenders>
         <File name="MainLog" fileName="logs/app.log" immediateFlush="true" append="false">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
-<!--
-            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} %X - %msg%n"/>
--->
         </File>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
     </Appenders>
     <Loggers>
-        <Root level="trace">
+        <Root level="all">
             <AppenderRef ref="MainLog"/>
+            <AppenderRef ref="Console"/>
+<!--            <AppenderRef ref="Console" level="error"/>-->
         </Root>
         <Logger name="com.zaxxer.hikari" level="error"/>
-<!--
-        <Logger name="com.zaxxer.hikari">
-            <level value="error"/>
-        </Logger>
--->
+        <Logger name="com.datastax.driver.core" level="error"/>
+        <Logger name="io.netty.channel.nio" level="error"/>
+        <Logger name="io.netty.util" level="error"/>
+        <Logger name="io.netty.buffer" level="error"/>
+        <Logger name="io.netty.channel" level="error"/>
         <Logger name="org.postgresql" level="all"/>
     </Loggers>
 </Configuration>
