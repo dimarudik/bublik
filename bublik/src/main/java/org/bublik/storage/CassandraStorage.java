@@ -1,7 +1,9 @@
 package org.bublik.storage;
 
+import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SimpleStatement;
 import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
@@ -52,6 +54,10 @@ public class CassandraStorage extends Storage implements StorageService {
     public LogMessage transferToTarget(ResultSet resultSet) throws SQLException {
         Chunk<?> chunk = ChunkService.get();
         long start = System.currentTimeMillis();
+        session.execute("insert into store.target (id, boolean) values (1, true);");
+//        BatchStatement batchStatement = new BatchStatement();
+//        SimpleStatement simpleStatement = new SimpleStatement("insert into store.target ");
+//        batchStatement.
         return new LogMessage(
                 0,
                 start,

@@ -26,4 +26,4 @@ COPY --from=cli /usr/src/app/target /usr/app/target
 ENTRYPOINT ["java", "-jar", "/usr/app/target/bublik-cli-1.2.0.jar", "-c", "/usr/app/config/pg2cs.yaml", "-m", "/usr/app/config/pg2cs.json"]
 
 #docker build --no-cache -t cli .
-#docker run -h cli --ip 172.28.0.5 --network bublik-network --name cli cli:latest
+#docker run -h cli --network bublik-network --name cli cli:latest
