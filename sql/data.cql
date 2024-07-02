@@ -24,13 +24,15 @@ CREATE TABLE IF NOT EXISTS store.target (
     uuid uuid,
     "Primary" varchar,
     boolean boolean,
-    int2 smallint,
-    int8 int,
     smallint smallint,
+    int8 int,
     bigint bigint,
     numeric decimal,
     float float,
     date date,
     timestamp timestamp,
-    description text,
-    image blob);
+    rem text,
+    image blob,
+    gender varchar);
+
+truncate table store.target;

@@ -9,3 +9,4 @@ HELP.md
 /logs
 /service/.gradle
 ydb*
+.m2

@@ -249,6 +249,41 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 chunk);
     }
 
+    public Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Chunk<?> chunk) {
+        Map<String, PGColumn> columnMap = new HashMap<>();
+        try {
+            ResultSet resultSet;
+            resultSet = connection.getMetaData().getColumns(
+                    null,
+                    chunk.getTargetTable().getSchemaName().toLowerCase(),
+                    chunk.getTargetTable().getFinalTableName(false),
+                    null);
+            Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
+            Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
+            while (resultSet.next()) {
+                String columnName = resultSet.getString(4);
+                String columnType = resultSet.getString(6);
+                Integer columnPosition = resultSet.getInt(17);
+
+                columnToColumnMap.entrySet()
+                        .stream()
+                        .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                        .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+
+                if (chunk.getConfig().expressionToColumn() != null) {
+                    expressionToColumnMap.entrySet()
+                            .stream()
+                            .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                }
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            System.out.println(e);
+        }
+        return columnMap;
+    }
+
     private void simpleRowConsume(SimpleRow row,
                                   Map<String, PGColumn> neededColumnsToDB,
                                   ResultSet fetchResultSet,

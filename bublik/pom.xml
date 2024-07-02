@@ -37,7 +37,7 @@
             <artifactId>orai18n</artifactId>
             <version>21.3.0.0</version>
         </dependency>
-<!--        cassandra-->
+<!--        datastax-->
         <dependency>
             <groupId>com.datastax.oss</groupId>
             <artifactId>java-driver-core</artifactId>
@@ -74,6 +74,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+<!--        cassandra-->
         <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>

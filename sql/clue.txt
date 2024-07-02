@@ -19,7 +19,7 @@ docker run -d -h cs2 --ip 172.28.0.2 \
     -e CASSANDRA_SEEDS=172.28.0.1 \
     -e CASSANDRA_DC=dc1 \
     -e CASSANDRA_CLUSTER_NAME=bublik \
-    cassandra
+    cassandra ; docker cp cs/jmxsh-R5.jar cs2:/root
 
 docker run -d -h cs3 --ip 172.28.0.3 \
     --name cs3 --network bublik-network \
@@ -29,10 +29,19 @@ docker run -d -h cs3 --ip 172.28.0.3 \
     -e CASSANDRA_CLUSTER_NAME=bublik \
     cassandra
 
+mvn -f bublik/pom.xml clean install -DskipTests ; mvn -f cli/pom.xml clean package -DskipTests ; \
+    psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
+    cqlsh -f ./sql/data.cql ; \
+    docker rm cli -f ; \
+    docker build --no-cache -t cli . ; \
+    docker run -h cli --network bublik-network --name cli cli
+
+nodetool sjk mx -mg -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold
+docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
+docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
+docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
+
 docker exec cs2 nodetool status
-cqlsh -f ./sql/data.cql
-cqlsh
-select token(userid), userid, item_count, last_update_timestamp from store.shopping_cart;
 
 docker network rm bublik-network
 

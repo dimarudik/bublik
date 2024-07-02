@@ -13,3 +13,4 @@ toProperties:
   keyspace: store
   user: test
   password: test
+  batchSize: 2000
