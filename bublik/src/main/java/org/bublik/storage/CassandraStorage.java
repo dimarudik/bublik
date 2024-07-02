@@ -14,6 +14,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class CassandraStorage extends Storage implements StorageService {
@@ -65,8 +66,9 @@ public class CassandraStorage extends Storage implements StorageService {
         long start = System.currentTimeMillis();
         String insertString = buildInsertStatement(chunk);
         LOGGER.info(insertString);
+        readTargetColumnsAndTypes(chunk).forEach((k, v) -> System.out.println(k + " " + v.getColumnPosition() + "." + v.getColumnName() + "." + v.getColumnType()));
+/*
         BatchStatement batchStatement = new BatchStatement();
-//        PreparedStatement preparedStatement = session.prepare("insert into store.target (id, boolean) values (?, true)");
         PreparedStatement preparedStatement = session.prepare(insertString);
         while (resultSet.next()) {
             batchStatement.add(preparedStatement.bind(resultSet.getInt("ID")));
@@ -78,6 +80,7 @@ public class CassandraStorage extends Storage implements StorageService {
             }
         }
         session.execute(batchStatement);
+*/
         executorService.shutdown();
         executorService.close();
         return new LogMessage(
@@ -113,38 +116,25 @@ public class CassandraStorage extends Storage implements StorageService {
                 ")";
     }
 
-    public Map<String, PGColumn> readTargetColumnsAndTypes(Chunk<?> chunk) {
-        Map<String, PGColumn> columnMap = new HashMap<>();
+    public Map<String, CassandraColumn> readTargetColumnsAndTypes(Chunk<?> chunk) {
+        Map<String, CassandraColumn> columnMap = new HashMap<>();
         Config config = chunk.getConfig();
         List<ColumnMetadata> columnMetadata = metadata.getKeyspace(config.toSchemaName()).getTable(config.toTableName()).getColumns();
-        columnMetadata.forEach(c -> System.out.println(c.getType().getName()));
-/*
-        try {
-            List<ColumnMetadata> columnMetadata = metadata.getKeyspace(config.toSchemaName()).getTable(config.toTableName()).getColumns();
-            Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
-            Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
-            while (resultSet.next()) {
-                String columnName = resultSet.getString(4);
-                String columnType = resultSet.getString(6);
-                Integer columnPosition = resultSet.getInt(17);
+        Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
+        Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
 
-                columnToColumnMap.entrySet()
+        for (ColumnMetadata c : columnMetadata) {
+            columnToColumnMap.entrySet()
+                    .stream()
+                    .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName()))
+                    .forEach(v -> columnMap.put(v.getKey(), new CassandraColumn(0, c.getName(), c.getType().getName().toString())));
+            if (chunk.getConfig().expressionToColumn() != null) {
+                expressionToColumnMap.entrySet()
                         .stream()
-                        .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                        .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
-
-                if (chunk.getConfig().expressionToColumn() != null) {
-                    expressionToColumnMap.entrySet()
-                            .stream()
-                            .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
-                }
+                        .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName()))
+                        .forEach(v -> columnMap.put(c.getName(), new CassandraColumn(0, c.getName(), c.getType().getName().toString())));
             }
-            resultSet.close();
-        } catch (SQLException e) {
-            System.out.println(e);
         }
-*/
         return columnMap;
     }
 }

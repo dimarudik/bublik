@@ -42,7 +42,6 @@ docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageS
 docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
 
 docker exec cs2 nodetool status
-
 docker network rm bublik-network
 
 docker run -d --name ydb -h localhost \
