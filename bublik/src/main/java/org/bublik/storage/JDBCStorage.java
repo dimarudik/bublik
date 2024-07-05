@@ -8,6 +8,8 @@ import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
 import org.bublik.service.ChunkService;
 import org.bublik.service.StorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -19,6 +21,7 @@ import java.util.Properties;
 
 public abstract class JDBCStorage extends Storage implements StorageService {
     private final DataSource dataSource;
+    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
 
     public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
@@ -61,21 +64,23 @@ public abstract class JDBCStorage extends Storage implements StorageService {
 
     @Override
     public LogMessage callWorker(Chunk<?> chunk, Map<String, Integer> columnsFromDB) throws SQLException {
-        Connection chunkConnection = getConnection();
-        String query = chunk.buildFetchStatement(columnsFromDB);
-        ResultSet resultSet = chunk.getData(chunkConnection, query);
         ChunkService.set(chunk);
         LogMessage logMessage;
-        try {
+        try (Connection chunkConnection = getConnection();
+             ResultSet resultSet = chunk.getData(chunkConnection, chunk.buildFetchStatement(columnsFromDB))) {
             logMessage = chunk.getTargetStorage().transferToTarget(resultSet);
+            chunk.markChunkAsProceed(chunkConnection);
         } catch (SQLException | RuntimeException e) {
-            resultSet.close();
-            chunkConnection.close();
-            throw e;
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            return new LogMessage (
+                    0,
+                    System.currentTimeMillis(),
+                    " UNREACHABLE TASK ",
+                    chunk);
         }
-        resultSet.close();
-        chunk.markChunkAsProceed(chunkConnection);
-        chunkConnection.close();
         return logMessage;
     }
 

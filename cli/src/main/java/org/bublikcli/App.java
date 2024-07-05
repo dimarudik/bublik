@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.*;
+import org.apache.log4j.Level;
+import org.apache.log4j.LogManager;
 import org.bublik.Bublik;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
@@ -89,10 +91,6 @@ public class App {
         try {
             ObjectMapper mapperJSON = new ObjectMapper();
             ConnectionProperty connectionProperty = connectionProperty(configFileName);
-/*
-            System.out.println(connectionProperty.getThreadCount());
-            connectionProperty.getToProperties().forEach((k,v) -> System.out.println(k + " " + v));
-*/
             List<Config> configList =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));

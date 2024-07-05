@@ -189,7 +189,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
                 try {
                     logMessage = fetchAndCopy(connectionTo, fetchResultSet, ch);
-                } catch (SQLException | RuntimeException e) {
+                } catch (RuntimeException e) {
                     connectionTo.close();
                     throw e;
                 }
@@ -213,7 +213,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     private LogMessage fetchAndCopy(Connection connection,
                                     ResultSet fetchResultSet,
-                                    Chunk<?> chunk) throws SQLException {
+                                    Chunk<?> chunk) {
         int recordCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk);
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
@@ -227,21 +227,23 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), columnNames);
         long start = System.currentTimeMillis();
-        SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
-        Consumer<SimpleRow> simpleRowConsumer =
-                s -> {
-                    try {
-                        simpleRowConsume(s, neededColumnsToDB, fetchResultSet, chunk, connection, writer);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                };
-        do {
-            writer.startRow(simpleRowConsumer);
-            recordCount++;
-        } while (fetchResultSet.next());
-        writer.close();
-        connection.commit();
+        Object object;
+        try {
+            SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
+            Consumer<SimpleRow> simpleRowConsumer =
+                    s -> {
+                            simpleRowConsume(s, neededColumnsToDB, fetchResultSet, chunk, connection, writer);
+                    };
+            do {
+                writer.startRow(simpleRowConsumer);
+                recordCount++;
+            } while (fetchResultSet.next());
+            writer.close();
+            connection.commit();
+        } catch (Exception e) {
+            LOGGER.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+            throw new RuntimeException(e);
+        }
         return new LogMessage(
                 recordCount,
                 start,
@@ -279,7 +281,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             resultSet.close();
         } catch (SQLException e) {
-            System.out.println(e);
+            LOGGER.error("{}", e.getMessage());
         }
         return columnMap;
     }
@@ -289,7 +291,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                   ResultSet fetchResultSet,
                                   Chunk<?> chunk,
                                   Connection connection,
-                                  SimpleRowWriter writer) throws SQLException {
+                                  SimpleRowWriter writer) {
         for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetColumn = entry.getValue().getColumnName();
@@ -310,211 +312,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
             switch (targetType) {
                 case "varchar": {
-                    String s = fetchResultSet.getString(sourceColumn);
-                    if (s == null) {
-                        row.setText(targetColumn, null);
-                        break;
-                    }
-                    row.setText(targetColumn, s.replaceAll("\u0000", ""));
-                    break;
-                }
-                case "bpchar":
-                    String string = fetchResultSet.getString(sourceColumn);
-                    row.setText(targetColumn, string);
-                    break;
-                case "text": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setText(targetColumn, null);
-                        break;
-                    }
-                    String text;
-                    int cIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn);
-                    if (cIndex != 0 && fetchResultSet.getMetaData().getColumnType(cIndex) == 2005) {
-                        text = convertClobToString(fetchResultSet, sourceColumn);
-                    } else {
-                        text = fetchResultSet.getString(sourceColumn);
-                    }
-                    row.setText(targetColumn, text);
-                    break;
-                }
-                case "jsonb": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setJsonb(targetColumn, null);
-                        break;
-                    }
-                    String s = null;
-                    if (chunk instanceof OraChunk<?>) {
-                        int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
-                        int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                        switch (columnType) {
-                            // CLOB
-                            case 2005:
-                                s = convertClobToString(fetchResultSet, sourceColumn);
-                                break;
-                            default:
-                                s = fetchResultSet.getString(sourceColumn);
-                                break;
-                        }
-                    } else if (chunk instanceof PGChunk<?>) {
-                        s = fetchResultSet.getString(sourceColumn);
-                    }
-                    row.setJsonb(targetColumn, s);
-                    break;
-                }
-                case "smallserial", "int2": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setShort(targetColumn, null);
-                        break;
-                    }
-                    Short aShort = fetchResultSet.getShort(sourceColumn);
-                    row.setShort(targetColumn, aShort);
-                    break;
-                }
-                case "serial", "int4": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setInteger(targetColumn, null);
-                        break;
-                    }
-                    int i = fetchResultSet.getInt(sourceColumn);
-                    row.setInteger(targetColumn, i);
-                    break;
-                }
-                case "bigint", "int8": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setLong(targetColumn, null);
-                        break;
-                    }
-                    long l = fetchResultSet.getLong(sourceColumn);
-                    row.setLong(targetColumn, l);
-                    break;
-                }
-                case "numeric": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setNumeric(targetColumn, null);
-                        break;
-                    }
-                    row.setNumeric(targetColumn, (Number) o);
-                    break;
-                }
-                case "float4": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setDouble(targetColumn, null);
-                        break;
-                    }
-                    Float aFloat = fetchResultSet.getFloat(sourceColumn);
-                    row.setFloat(targetColumn, aFloat);
-                    break;
-                }
-                case "float8": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setDouble(targetColumn, null);
-                        break;
-                    }
-                    Double aDouble = fetchResultSet.getDouble(sourceColumn);
-                    row.setDouble(targetColumn, aDouble);
-                    break;
-                }
-                case "time", "timestamp": {
-                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-                    if (timestamp == null) {
-                        row.setTimeStamp(targetColumn, null);
-                        break;
-                    }
-                    long l = timestamp.getTime();
-                    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
-                            TimeZone.getDefault().toZoneId());
-                    row.setTimeStamp(targetColumn, localDateTime);
-                    break;
-                }
-                case "timestamptz": {
-                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-                    if (timestamp == null) {
-                        row.setTimeStamp(targetColumn, null);
-                        break;
-                    }
-                    ZonedDateTime zonedDateTime =
-                            ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp.getTime()),
-                                    ZoneOffset.UTC);
-                    row.setTimeStampTz(targetColumn, zonedDateTime);
-                    break;
-                }
-                case "date":
-                    Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-                    if (timestamp == null) {
-                        row.setDate(targetColumn, null);
-                        break;
-                    }
-                    long l = timestamp.getTime();
-                    LocalDate localDate = Instant.ofEpochMilli(l)
-                            .atZone(ZoneId.systemDefault()).toLocalDate();
-                    row.setDate(targetColumn, localDate);
-                    break;
-                case "bytea": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setByteArray(targetColumn, null);
-                        break;
-                    }
-                    byte[] bytes = new byte[0];
-                    if (chunk instanceof OraChunk<?>) {
-                        int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
-                        int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                        switch (columnType) {
-                            // RAW
-                            case -3:
-                                bytes = fetchResultSet.getBytes(sourceColumn);
-                                break;
-                            // LONG RAW
-                            case -4:
-                                bytes = fetchResultSet.getBytes(sourceColumn);
-                                break;
-                            // BLOB
-                            case 2004:
-                                bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
-                                break;
-                            default:
-                                break;
-                        }
-                    } else if (chunk instanceof PGChunk<?>) {
-                        bytes = fetchResultSet.getBytes(sourceColumn);
-                    }
-                    row.setByteArray(targetColumn, bytes);
-                    break;
-                }
-                case "bool": {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setBoolean(targetColumn, null);
-                        break;
-                    }
-                    boolean b = fetchResultSet.getBoolean(sourceColumn);
-                    row.setBoolean(targetColumn, b);
-                    break;
-                }
-                case "uuid":
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setUUID(targetColumn, null);
-                        break;
-                    }
-                    UUID uuid = null;
                     try {
-                        uuid = (UUID) o;
-                    } catch (ClassCastException e) {
-                        uuid = UUID.fromString((String) o);
-                    }
-                    row.setUUID(targetColumn, uuid);
-                    break;
-                default:
-                    if (chunk.getConfig().tryCharIfAny().contains(targetColumn)) {
                         String s = fetchResultSet.getString(sourceColumn);
                         if (s == null) {
                             row.setText(targetColumn, null);
@@ -522,10 +320,287 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         }
                         row.setText(targetColumn, s.replaceAll("\u0000", ""));
                         break;
-                    } else {
-                        LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
-                        writer.close();
-                        connection.close();
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "bpchar":
+                    try {
+                        String string = fetchResultSet.getString(sourceColumn);
+                        row.setText(targetColumn, string);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                case "text": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setText(targetColumn, null);
+                            break;
+                        }
+                        String text;
+                        int cIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn);
+                        if (cIndex != 0 && fetchResultSet.getMetaData().getColumnType(cIndex) == 2005) {
+                            text = convertClobToString(fetchResultSet, sourceColumn);
+                        } else {
+                            text = fetchResultSet.getString(sourceColumn);
+                        }
+                        row.setText(targetColumn, text.replaceAll("\u0000", ""));
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "jsonb": {
+                    try {
+                    Object o = fetchResultSet.getObject(sourceColumn);
+                    if (o == null) {
+                        row.setJsonb(targetColumn, null);
+                        break;
+                    }
+                    String s = null;
+                    if (chunk instanceof OraChunk<?>) {
+                            int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
+                            int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                            switch (columnType) {
+                                // CLOB
+                                case 2005:
+                                    s = convertClobToString(fetchResultSet, sourceColumn).replaceAll("\u0000", "");
+                                    break;
+                                // NCLOB
+                                case 2011:
+                                    s = convertClobToString(fetchResultSet, sourceColumn).replaceAll("\u0000", "");
+//                                    System.out.println(s);
+                                    break;
+                                default:
+                                    s = fetchResultSet.getString(sourceColumn).replaceAll("\u0000", "");
+                                    break;
+                            }
+                        } else if (chunk instanceof PGChunk<?>) {
+                            s = fetchResultSet.getString(sourceColumn);
+                        }
+                        row.setJsonb(targetColumn, s);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "smallserial", "int2": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setShort(targetColumn, null);
+                            break;
+                        }
+                        Short aShort = fetchResultSet.getShort(sourceColumn);
+                        row.setShort(targetColumn, aShort);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "serial", "int4": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setInteger(targetColumn, null);
+                            break;
+                        }
+                        int i = fetchResultSet.getInt(sourceColumn);
+                        row.setInteger(targetColumn, i);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "bigint", "int8": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setLong(targetColumn, null);
+                            break;
+                        }
+                        long l = fetchResultSet.getLong(sourceColumn);
+                        row.setLong(targetColumn, l);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "numeric": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setNumeric(targetColumn, null);
+                            break;
+                        }
+                        row.setNumeric(targetColumn, (Number) o);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "float4": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setDouble(targetColumn, null);
+                            break;
+                        }
+                        Float aFloat = fetchResultSet.getFloat(sourceColumn);
+                        row.setFloat(targetColumn, aFloat);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "float8": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setDouble(targetColumn, null);
+                            break;
+                        }
+                        Double aDouble = fetchResultSet.getDouble(sourceColumn);
+                        row.setDouble(targetColumn, aDouble);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "time", "timestamp": {
+                    try {
+                        Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
+                        if (timestamp == null) {
+                            row.setTimeStamp(targetColumn, null);
+                            break;
+                        }
+                        long l = timestamp.getTime();
+                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
+                                TimeZone.getDefault().toZoneId());
+                        row.setTimeStamp(targetColumn, localDateTime);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "timestamptz": {
+                    try {
+                        Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
+                        if (timestamp == null) {
+                            row.setTimeStamp(targetColumn, null);
+                            break;
+                        }
+                        ZonedDateTime zonedDateTime =
+                                ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp.getTime()),
+                                        ZoneOffset.UTC);
+                        row.setTimeStampTz(targetColumn, zonedDateTime);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "date":
+                    try {
+                        Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
+                        if (timestamp == null) {
+                            row.setDate(targetColumn, null);
+                            break;
+                        }
+                        long l = timestamp.getTime();
+                        LocalDate localDate = Instant.ofEpochMilli(l)
+                                .atZone(ZoneId.systemDefault()).toLocalDate();
+                        row.setDate(targetColumn, localDate);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                case "bytea": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setByteArray(targetColumn, null);
+                            break;
+                        }
+                        byte[] bytes = new byte[0];
+                        if (chunk instanceof OraChunk<?>) {
+                            int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
+                            int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                            switch (columnType) {
+                                // RAW
+                                case -3:
+                                    bytes = fetchResultSet.getBytes(sourceColumn);
+                                    break;
+                                // LONG RAW
+                                case -4:
+                                    bytes = fetchResultSet.getBytes(sourceColumn);
+                                    break;
+                                // BLOB
+                                case 2004:
+                                    bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        } else if (chunk instanceof PGChunk<?>) {
+                            bytes = fetchResultSet.getBytes(sourceColumn);
+                        }
+                        row.setByteArray(targetColumn, bytes);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "bool": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setBoolean(targetColumn, null);
+                            break;
+                        }
+                        boolean b = fetchResultSet.getBoolean(sourceColumn);
+                        row.setBoolean(targetColumn, b);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "uuid":
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setUUID(targetColumn, null);
+                            break;
+                        }
+                        UUID uuid = null;
+                        try {
+                            uuid = (UUID) o;
+                        } catch (ClassCastException e) {
+                            uuid = UUID.fromString((String) o);
+                        }
+                        row.setUUID(targetColumn, uuid);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                default:
+                    try {
+                        if (chunk.getConfig().tryCharIfAny().contains(targetColumn)) {
+                            String s = fetchResultSet.getString(sourceColumn);
+                            if (s == null) {
+                                row.setText(targetColumn, null);
+                                break;
+                            }
+                            row.setText(targetColumn, s.replaceAll("\u0000", ""));
+                            break;
+                        } else {
+                            LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
+                            writer.close();
+                            connection.close();
+                        }
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
                     }
             }
         }

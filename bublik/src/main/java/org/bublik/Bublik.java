@@ -39,6 +39,14 @@ public class Bublik {
             sourceStorage.startWorker(futures, configs, executorService);
             futureProceed(futures);
             targetStorage = StorageService.get();
+            // переделать на NullPointerException
+/*
+            try {
+                targetStorage.closeStorage();
+            } catch (NullPointerException e) {
+                e.printStackTrace();
+            }
+*/
             if (targetStorage != null) {
                 targetStorage.closeStorage();
             }
