@@ -1,0 +1,14 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "noc2c1",
+    "toSchemaName" : "public",
+    "toTableName" : "noc2c2",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "NOC2C_TASK",
+    "expressionToColumn" : {
+      "(select 1) as id" : "id",
+      "(select 'Hi..') as name" : "name"
+    }
+  }
+]

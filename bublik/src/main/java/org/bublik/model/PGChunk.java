@@ -37,22 +37,26 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
-        List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
-        String expressionToColumn = "";
-        if (getConfig().expressionToColumn() != null) {
-            expressionToColumn = ", " + String.join(", ", getConfig().expressionToColumn().keySet());
+    public String buildFetchStatement() {
+        List<String> strings = new ArrayList<>();
+        Map<String, String> columnToColumnMap = getConfig().columnToColumn();
+        Map<String, String> expressionToColumnMap = getConfig().expressionToColumn();
+        if (columnToColumnMap != null) {
+            strings.addAll(columnToColumnMap.keySet());
         }
+        if (expressionToColumnMap != null) {
+            strings.addAll(expressionToColumnMap.keySet());
+        }
+        String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
-                String.join(", ", neededSourceColumns) + " " +
-                expressionToColumn + " " +
-                PGKeywords.FROM + " " +
-                getConfig().fromSchemaName() +
-                "." +
-                getConfig().fromTableName() + " " +
-                PGKeywords.WHERE + " " +
-                getConfig().fetchWhereClause() +
-                " and ctid >= '(" + getStart() + ",1)' and ctid < '(" + getEnd() + ",1)'";
+            columnToColumn + " " +
+            PGKeywords.FROM + " " +
+            getConfig().fromSchemaName() +
+            "." +
+            getConfig().fromTableName() + " " +
+            PGKeywords.WHERE + " " +
+            getConfig().fetchWhereClause() +
+            " and ctid >= '(" + getStart() + ",1)' and ctid < '(" + getEnd() + ",1)'";
     }
 
     @Override

@@ -40,9 +40,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
             Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
             if (table.exists(connection)) {
-                Map<String, Integer> orderedColumns = new HashMap<>();
-                i.getValue().getConfig().columnToColumn().forEach((k, v) -> orderedColumns.put(k, null));
-                futures.add(executorService.submit(new Worker(i.getValue(), orderedColumns)));
+                futures.add(executorService.submit(new Worker(i.getValue())));
             } else {
                 LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
                         i.getValue().getSourceTable().getTableName());
@@ -267,12 +265,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 String columnType = resultSet.getString(6);
                 Integer columnPosition = resultSet.getInt(17);
 
-                columnToColumnMap.entrySet()
-                        .stream()
-                        .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                        .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                if (columnToColumnMap != null) {
+                    columnToColumnMap.entrySet()
+                            .stream()
+                            .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                }
 
-                if (chunk.getConfig().expressionToColumn() != null) {
+                if (expressionToColumnMap != null) {
                     expressionToColumnMap.entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))

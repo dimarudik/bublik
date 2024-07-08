@@ -54,7 +54,7 @@ public class CassandraStorage extends Storage implements StorageService {
     }
 
     @Override
-    public LogMessage callWorker(Chunk<?> chunk, Map<String, Integer> columnsFromDB) throws SQLException {
+    public LogMessage callWorker(Chunk<?> chunk) throws SQLException {
         return null;
     }
 

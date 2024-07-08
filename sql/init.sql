@@ -1,6 +1,7 @@
 create role test with login superuser password 'test';
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
+
 create table table1 (
     id bigint,
     create_at timestamp(6) with time zone,
@@ -67,6 +68,17 @@ select
     current_mood
  from "Source" where 0 = 1;
 alter table target add column gender gender;
+create table parted (
+    id bigint,
+    create_at timestamp(6) not null,
+    name varchar(1000));
+create table noc2c1 (
+    id bigint primary key generated always as identity,
+    name varchar);
+create table noc2c2 (
+    id bigint,
+    name varchar);
+
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, image, current_mood)
@@ -95,8 +107,6 @@ insert into "Source" (uuid, "Primary", boolean,
             else null end as current_mood
     from generate_series(1,900000) as n;
 vacuum "Source";
-create table parted (
-    id bigint,
-    create_at timestamp(6) not null,
-    name varchar(1000));
+insert into noc2c1 (name)
+    select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;
 

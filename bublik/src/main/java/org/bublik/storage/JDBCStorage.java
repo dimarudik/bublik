@@ -16,7 +16,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 public abstract class JDBCStorage extends Storage implements StorageService {
@@ -63,11 +62,11 @@ public abstract class JDBCStorage extends Storage implements StorageService {
     }
 
     @Override
-    public LogMessage callWorker(Chunk<?> chunk, Map<String, Integer> columnsFromDB) throws SQLException {
+    public LogMessage callWorker(Chunk<?> chunk) throws SQLException {
         ChunkService.set(chunk);
         LogMessage logMessage;
         try (Connection chunkConnection = getConnection();
-             ResultSet resultSet = chunk.getData(chunkConnection, chunk.buildFetchStatement(columnsFromDB))) {
+             ResultSet resultSet = chunk.getData(chunkConnection, chunk.buildFetchStatement())) {
             logMessage = chunk.getTargetStorage().transferToTarget(resultSet);
             chunk.markChunkAsProceed(chunkConnection);
         } catch (SQLException | RuntimeException e) {
