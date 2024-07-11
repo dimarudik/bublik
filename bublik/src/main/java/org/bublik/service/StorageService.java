@@ -17,6 +17,7 @@ public interface StorageService {
     ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
 
     void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException;
+    boolean hook(List<Config> configs) throws SQLException;
     LogMessage callWorker(Chunk<?> chunk) throws SQLException;
     LogMessage transferToTarget(ResultSet resultSet) throws SQLException;
     void closeStorage();

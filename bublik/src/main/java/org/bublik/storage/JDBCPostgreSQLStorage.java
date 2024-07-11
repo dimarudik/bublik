@@ -26,37 +26,40 @@ import static org.bublik.util.ColumnUtil.*;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
-    private final Connection connection;
 
     public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
-        connection = this.getConnection();
     }
 
     @Override
     public void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
-        hook(configs);
-        Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
-        for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
-            Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-            if (table.exists(connection)) {
-                futures.add(executorService.submit(new Worker(i.getValue())));
-            } else {
-                LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
-                        i.getValue().getSourceTable().getTableName());
-                throw new TableNotExistsException("The Source Table "
-                        + i.getValue().getSourceTable().getSchemaName() + "."
-                        + i.getValue().getSourceTable().getTableName() + " does not exist.");
+        if (hook(configs)) {
+            Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
+            for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
+                Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
+                if (table.exists(connection)) {
+                    futures.add(executorService.submit(new Worker(i.getValue())));
+                } else {
+                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
+                            i.getValue().getSourceTable().getTableName());
+                    throw new TableNotExistsException("The Source Table "
+                            + i.getValue().getSourceTable().getSchemaName() + "."
+                            + i.getValue().getSourceTable().getTableName() + " does not exist.");
+                }
             }
         }
         connection.close();
     }
 
     @Override
-    public void hook(List<Config> configs) throws SQLException {
+    public boolean hook(List<Config> configs) throws SQLException {
         if (getConnectionProperty().getInitPGChunks()) {
             fillCtidChunks(configs);
+            if (getConnectionProperty().getRowsStat()) {
+                fillRowsStat(configs);
+            }
         }
+        return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
     }
 
     private Map<Integer, Chunk<Long>> getChunkMap(List<Config> configs) throws SQLException {
@@ -83,11 +86,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         )
                 );
             }
-        } /*else {
-            System.out.println("No chunk definition found in CTID_CHUNKS for : " +
-                    configs.stream().map(Config::fromTaskName).collect(Collectors.joining(", ")));
-
-        }*/
+        }
         resultSet.close();
         statement.close();
         return chunkHashMap;
@@ -120,7 +119,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             resultSet.close();
             preparedStatement.close();
-            double rowsInChunk = reltuples >= 500000 ? 100000d : 10000d;
+            double rowsInChunk = reltuples >= 500000 ? ROWS_IN_CHUNK : 10000d;
 //            double rowsInChunk = 10000d;
             long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                     (int) Math.round(relpages / (reltuples / rowsInChunk));
@@ -135,11 +134,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     pagesInChunk);
             PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
             chunkInsert.setLong(1, pagesInChunk);
-            chunkInsert.setString(2, config.fromTaskName());
-            chunkInsert.setLong(3, relpages);
-            chunkInsert.setLong(4, pagesInChunk);
+            chunkInsert.setLong(2, 0);
+            chunkInsert.setString(3, config.fromTaskName());
+            chunkInsert.setString(4, table.getSchemaName().toLowerCase());
+            chunkInsert.setString(5, table.getFinalTableName(false));
+            chunkInsert.setLong(6, relpages);
+            chunkInsert.setLong(7, pagesInChunk);
+//            System.out.println(chunkInsert);
             int rows = chunkInsert.executeUpdate();
             chunkInsert.close();
+
             preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
             preparedStatement.setString(1, config.fromTaskName());
             resultSet = preparedStatement.executeQuery();
@@ -164,6 +168,39 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         Statement createTable = connection.createStatement();
         createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
         createTable.close();
+    }
+
+    private void fillRowsStat(List<Config> configs) throws SQLException {
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(SQL_CHUNKS);
+        while(resultSet.next()) {
+            int chunk_id = resultSet.getInt("chunk_id");
+            long start_page = resultSet.getLong("start_page");
+            long end_page = resultSet.getLong("end_page");
+            String schema_name = resultSet.getString("schema_name");
+            String table_name = resultSet.getString("table_name");
+            PreparedStatement rowCountSQL = connection.prepareStatement(
+                    SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 +
+                    schema_name + "." +
+                    table_name +
+                    SQL_NUMBER_OF_TUPLES_PER_CHUNK_P2);
+            rowCountSQL.setLong(1, start_page);
+            rowCountSQL.setLong(2, end_page);
+            ResultSet set = rowCountSQL.executeQuery();
+            while(set.next()) {
+                long rows = set.getLong("rows");
+                PreparedStatement updateRowsOfCtid = connection.prepareStatement(DML_UPDATE_CTID_CHUNKS);
+                updateRowsOfCtid.setLong(1, rows);
+                updateRowsOfCtid.setInt(2, chunk_id);
+                updateRowsOfCtid.execute();
+                updateRowsOfCtid.close();
+            }
+            set.close();
+            rowCountSQL.close();
+            connection.commit();
+        }
+        resultSet.close();
+        statement.close();
     }
 
     @Override

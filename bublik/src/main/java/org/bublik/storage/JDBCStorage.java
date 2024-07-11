@@ -21,8 +21,9 @@ import java.util.Properties;
 public abstract class JDBCStorage extends Storage implements StorageService {
     private final DataSource dataSource;
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
+    protected final Connection connection;
 
-    public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
+    public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
         this.dataSource = new HikariDataSource(
                 buildConfiguration(
@@ -30,6 +31,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
                         connectionProperty.getThreadCount() + 1
                 )
         );
+        connection = this.getConnection();
     }
 
     public DataSource getSource() {

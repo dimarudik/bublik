@@ -1,5 +1,6 @@
 package org.bublik.storage;
 
+import com.datastax.driver.core.Row;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
@@ -16,34 +17,34 @@ import java.util.concurrent.Future;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
-    private final Connection connection;
 
     public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
-        connection = this.getConnection();
     }
 
     @Override
     public void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
-        hook(configs);
-        Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
-        for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
-            Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-            if (table.exists(connection)) {
-                futures.add(executorService.submit(new Worker(i.getValue())));
-            } else {
-                LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
-                        i.getValue().getSourceTable().getTableName());
-                throw new TableNotExistsException("The Source Table "
-                        + i.getValue().getSourceTable().getSchemaName() + "."
-                        + i.getValue().getSourceTable().getTableName() + " does not exist.");
+        if (hook(configs)) {
+            Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
+            for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
+                Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
+                if (table.exists(connection)) {
+                    futures.add(executorService.submit(new Worker(i.getValue())));
+                } else {
+                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
+                            i.getValue().getSourceTable().getTableName());
+                    throw new TableNotExistsException("The Source Table "
+                            + i.getValue().getSourceTable().getSchemaName() + "."
+                            + i.getValue().getSourceTable().getTableName() + " does not exist.");
+                }
             }
         }
         connection.close();
     }
 
     @Override
-    public void hook(List<Config> configs) {
+    public boolean hook(List<Config> configs) {
+        return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
     }
 
     @Override

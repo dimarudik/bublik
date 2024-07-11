@@ -87,9 +87,7 @@ sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=152
 
 ```
 docker run --name postgres \
-        --ip 172.28.0.4 \
         -h postgres \
-        --network bublik-network \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
         -e POSTGRES_DB=postgres \
@@ -99,6 +97,7 @@ docker run --name postgres \
         -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
         -d postgres \
         -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c timezone="+03" \
         -c max_connections=200 \
         -c logging_collector=on \
         -c log_directory=pg_log \
@@ -455,4 +454,33 @@ Consume the service:
 
 ```shell
 newman run ./postman/postman_collection.json
+```
+
+## Cassandra
+
+![Cassandra](/sql/cassandra4.png)
+
+```
+docker run --name postgres \
+        --ip 172.28.0.4 \
+        -h postgres \
+        --network bublik-network \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c timezone="+03" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
 ```

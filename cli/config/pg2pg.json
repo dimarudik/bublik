@@ -5,7 +5,7 @@
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
     "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE1_TASK",
+    "fromTaskName" : "SOURCE_TASK",
     "tryCharIfAny" : ["current_mood", "gender"],
     "columnToColumn" : {
       "id"            : "id",
@@ -17,7 +17,7 @@
       "int8"          : "int8",
       "smallint"      : "smallint",
       "bigint"        : "bigint",
-      "numeric"       : "numeric",
+      "numeric"       : "num",
       "float8"        : "float8",
       "date"          : "date",
       "timestamp"     : "timestamp",

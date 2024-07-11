@@ -58,7 +58,7 @@ select
     int8,
     smallint,
     bigint,
-    numeric,
+    numeric num,
     float8,
     date,
     timestamp,
@@ -110,3 +110,30 @@ vacuum "Source";
 insert into noc2c1 (name)
     select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;
 
+create table vacuum_me (
+    id int primary key generated always as identity,
+    uuid uuid,
+    boolean boolean,
+    int2 int2,
+    int4 int4,
+    int8 int8,
+    smallint smallint,
+    bigint bigint,
+    float8 float8,
+    date date,
+    timestamp timestamp,
+    timestamptz timestamptz
+);
+insert into vacuum_me (uuid, boolean,
+        int2, int4, int8, smallint, bigint, float8, date, timestamp, timestamptz)
+    select gen_random_uuid() uuid, case when mod(n, 2) = 0 then false else true end boolean,
+        0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as float8,
+        current_date, current_timestamp, current_timestamp
+    from generate_series(1,9000000) as n;
+
+--vacuum verbose vacuum_me;
+--alter table vacuum_me set (autovacuum_enabled = false);
+--update vacuum_me set int8 = int8 where ctid >= '(0,1)' and ctid < '(43171,1)';
+--vacuum verbose vacuum_me;
+--update vacuum_me set int8 = int8 where ctid >= '(128610,1)';
+--update ctid_chunks c set rows = (select count(1) from vacuum_me where ctid >= concat('(',c.start_page,',1)')::tid and ctid < concat('(',c.end_page,',1)')::tid );

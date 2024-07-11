@@ -1,0 +1,14 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "vacuum_me",
+    "toSchemaName": "public",
+    "toTableName": "foo",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "VACUUM_ME_TASK",
+    "columnToColumn": {
+      "id": "id",
+      "uuid": "uuid"
+    }
+  }
+]

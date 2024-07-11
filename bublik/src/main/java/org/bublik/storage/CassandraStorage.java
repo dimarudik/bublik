@@ -54,6 +54,11 @@ public class CassandraStorage extends Storage implements StorageService {
     }
 
     @Override
+    public boolean hook(List<Config> configs) throws SQLException {
+        return false;
+    }
+
+    @Override
     public LogMessage callWorker(Chunk<?> chunk) throws SQLException {
         return null;
     }
