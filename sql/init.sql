@@ -92,7 +92,7 @@ insert into "Source" (uuid, "Primary", boolean,
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
             else null end as current_mood
-    from generate_series(1,100000) as n;
+    from generate_series(1, 100000) as n;
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, current_mood)
@@ -105,8 +105,8 @@ insert into "Source" (uuid, "Primary", boolean,
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
             else null end as current_mood
-    from generate_series(1,900000) as n;
-vacuum "Source";
+    from generate_series(1,1900000) as n;
+--vacuum "Source";
 insert into noc2c1 (name)
     select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;
 

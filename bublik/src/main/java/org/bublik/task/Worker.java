@@ -6,6 +6,7 @@ import org.bublik.model.LogMessage;
 import java.sql.SQLException;
 import java.util.concurrent.Callable;
 
+@Deprecated
 public class Worker implements Callable<LogMessage> {
     private final Chunk<?> chunk;
 

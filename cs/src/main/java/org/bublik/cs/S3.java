@@ -1,51 +1,63 @@
 package org.bublik.cs;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.PutObjectResult;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class S3 {
-    public static void main(String[] args)  {
-        // https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/examples-s3-objects.html#upload-object
-        AWSCredentials credentials = new BasicAWSCredentials(
-                "1wgTNWFwWXLPp4yQctcV",
-                "SB2pLWCoWOSGWiMzLh8mWzbpfissphUuS6GQD2Bo"
-        );
-        AwsClientBuilder.EndpointConfiguration endpointConfiguration =
-                new AwsClientBuilder.EndpointConfiguration("http://localhost:9000", Regions.DEFAULT_REGION.getName());
-        AmazonS3 amazonS3 = AmazonS3ClientBuilder
-                .standard()
-                .withCredentials(new AWSStaticCredentialsProvider(credentials))
-                .withEndpointConfiguration(endpointConfiguration)
-                .build();
-        amazonS3.listBuckets().forEach(b -> System.out.println(b.getName() + ":" + b.getCreationDate()));
-        // https://docs.ceph.com/en/latest/radosgw/s3/java/
-/*
+    public static void main(String[] args) throws URISyntaxException {
         AwsCredentials credentials = AwsBasicCredentials.create(
-                "1wgTNWFwWXLPp4yQctcV",
-                "SB2pLWCoWOSGWiMzLh8mWzbpfissphUuS6GQD2Bo"
+                "V5f9ndI7xcSGcjIfBe1g",
+                "FTVRCqYJGSCVfTl4A7Gkem1RbrFQkD2TbuxxEdGW"
         );
-        try (S3Client client = S3Client.builder()
-                    .endpointOverride(new URI("http://localhost:9000"))
-                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                    .serviceConfiguration(S3Configuration.Builder::pathStyleAccessEnabled)
-                    .region(Region.US_EAST_1)
-                    .build()) {
-            ListBucketsResponse lbResponse = client.listBuckets();
+        try (S3Client s3 = S3Client.builder()
+                .region(Region.US_EAST_1)
+                .endpointOverride(new URI("http://localhost:9000"))
+                .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .forcePathStyle(true)
+                .build()){
+            ListBucketsResponse lbResponse = s3.listBuckets();
+
             for (Bucket bucket : lbResponse.buckets()) {
                 System.out.println(bucket.name() + "\t" + bucket.creationDate());
             }
-            ByteBuffer input = ByteBuffer.wrap("Hello World!".getBytes());
-            client.putObject(
-                    req -> req.bucket("ddd").key("hello.txt"),
-                    RequestBody.fromByteBuffer(input)
-            );
+
+            PutObjectResponse putObjectResponse = putS3Object(s3, "bbb", "aaa", "/tmp/test");
+
         }
-*/
+    }
+
+    public static PutObjectResponse putS3Object(S3Client s3, String bucketName, String objectKey, String filename) {
+        try {
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("x-amz-meta-myVal", "test");
+            PutObjectRequest putOb = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .metadata(metadata)
+                    .build();
+
+//            PutObjectResponse putObjectResponse = s3.putObject(putOb, RequestBody.fromFile(new File(filename)));
+            RequestBody requestBody = RequestBody.fromString("My Content");
+            //            System.out.println("Successfully placed " + objectKey + " into bucket " + bucketName);
+            return s3.putObject(putOb, requestBody);
+//            return putObjectResponse;
+
+        } catch (S3Exception e) {
+//            System.err.println(e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        return null;
     }
 }

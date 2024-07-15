@@ -10,15 +10,13 @@ import org.bublik.storage.*;
 import java.sql.*;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 public interface StorageService {
     ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
 
-    void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException;
+    void startWorker(List<Config> configs) throws SQLException;
     boolean hook(List<Config> configs) throws SQLException;
-    LogMessage callWorker(Chunk<?> chunk) throws SQLException;
+    LogMessage callWorker(Chunk<?> chunk);
     LogMessage transferToTarget(ResultSet resultSet) throws SQLException;
     void closeStorage();
 

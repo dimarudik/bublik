@@ -49,7 +49,7 @@ public class CassandraStorage extends Storage implements StorageService {
     }
 
     @Override
-    public void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
+    public void startWorker(List<Config> configs) throws SQLException {
 
     }
 
@@ -59,7 +59,7 @@ public class CassandraStorage extends Storage implements StorageService {
     }
 
     @Override
-    public LogMessage callWorker(Chunk<?> chunk) throws SQLException {
+    public LogMessage callWorker(Chunk<?> chunk) {
         return null;
     }
 
@@ -91,6 +91,7 @@ public class CassandraStorage extends Storage implements StorageService {
         return new LogMessage(
                 recordCount,
                 start,
+                0,
                 "Cassandra BATCH APPLY",
                 chunk);
     }

@@ -22,6 +22,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
     private final DataSource dataSource;
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
     protected final Connection connection;
+    protected final int threadCount;
 
     public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
@@ -32,6 +33,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
                 )
         );
         connection = this.getConnection();
+        this.threadCount = connectionProperty.getThreadCount();
     }
 
     public DataSource getSource() {
@@ -64,7 +66,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
     }
 
     @Override
-    public LogMessage callWorker(Chunk<?> chunk) throws SQLException {
+    public LogMessage callWorker(Chunk<?> chunk) {
         ChunkService.set(chunk);
         LogMessage logMessage;
         try (Connection chunkConnection = getConnection();
@@ -78,7 +80,8 @@ public abstract class JDBCStorage extends Storage implements StorageService {
             }
             return new LogMessage (
                     0,
-                    System.currentTimeMillis(),
+                    0,
+                    0,
                     " UNREACHABLE TASK ",
                     chunk);
         }

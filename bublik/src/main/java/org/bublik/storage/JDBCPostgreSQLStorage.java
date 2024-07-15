@@ -9,7 +9,6 @@ import org.bublik.service.ChunkService;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
-import org.bublik.task.Worker;
 import org.postgresql.PGConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +16,9 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import static org.bublik.constants.SQLConstants.*;
@@ -32,14 +32,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
+    public void startWorker(List<Config> configs) throws SQLException {
         if (hook(configs)) {
             Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
             for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
                 Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-                if (table.exists(connection)) {
-                    futures.add(executorService.submit(new Worker(i.getValue())));
-                } else {
+                if (!table.exists(connection)) {
+                    connection.close();
                     LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
                             i.getValue().getSourceTable().getTableName());
                     throw new TableNotExistsException("The Source Table "
@@ -47,8 +46,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             + i.getValue().getSourceTable().getTableName() + " does not exist.");
                 }
             }
+            connection.close();
+            ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            chunkMap.forEach((k, v) ->
+                CompletableFuture
+                        .supplyAsync(() -> callWorker(v), service)
+                        .thenAccept(LogMessage::loggerInfo));
+            service.shutdown();
+            service.close();
         }
-        connection.close();
     }
 
     @Override
@@ -62,7 +68,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
     }
 
-    private Map<Integer, Chunk<Long>> getChunkMap(List<Config> configs) throws SQLException {
+    public Map<Integer, Chunk<Long>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<Long>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
         PreparedStatement statement = connection.prepareStatement(sql);
@@ -215,18 +221,19 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     @Override
     public LogMessage transferToTarget(ResultSet fetchResultSet) throws SQLException {
         Chunk<?> chunk = ChunkService.get();
-        LogMessage logMessage;
+//        LogMessage logMessage;
         if (fetchResultSet.next()) {
-//            Connection connectionTo = chunk.getTargetStorage().getConnection();
             Connection connectionTo = getConnection();
             Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connectionTo)) {
                 Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
                 try {
-                    logMessage = fetchAndCopy(connectionTo, fetchResultSet, ch);
+                    return fetchAndCopy(connectionTo, fetchResultSet, ch);
                 } catch (RuntimeException e) {
                     connectionTo.close();
                     throw e;
+                } finally {
+                    connectionTo.close();
                 }
             } else {
                 LOGGER.error("\u001B[31mThe Target Table: {}.{} does not exist.\u001B[0m", chunk.getConfig().toSchemaName(),
@@ -235,23 +242,24 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         + chunk.getConfig().toSchemaName() + "."
                         + chunk.getConfig().toTableName() + " does not exist.");
             }
-            connectionTo.close();
+//            connectionTo.close();
         } else {
-            logMessage = new LogMessage(
+            return new LogMessage(
                     0,
-                    System.currentTimeMillis(),
+                    0,
+                    0,
                     "NO ROWS FETCH",
                     chunk);
         }
-        return logMessage;
+//        return logMessage;
     }
 
-    private LogMessage fetchAndCopy(Connection connection,
+    private LogMessage fetchAndCopy(Connection connectionTo,
                                     ResultSet fetchResultSet,
                                     Chunk<?> chunk) {
         int recordCount = 0;
-        Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connection, chunk);
-        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connection);
+        Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
+        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
         String[] columnNames = neededColumnsToDB
                 .values()
                 .stream()
@@ -262,35 +270,36 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), columnNames);
         long start = System.currentTimeMillis();
-        Object object;
         try {
             SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
             Consumer<SimpleRow> simpleRowConsumer =
                     s -> {
-                            simpleRowConsume(s, neededColumnsToDB, fetchResultSet, chunk, connection, writer);
+                            simpleRowConsume(s, neededColumnsToDB, fetchResultSet, chunk, connectionTo, writer);
                     };
             do {
                 writer.startRow(simpleRowConsumer);
                 recordCount++;
             } while (fetchResultSet.next());
             writer.close();
-            connection.commit();
+            connectionTo.commit();
         } catch (Exception e) {
             LOGGER.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
             throw new RuntimeException(e);
         }
+        long stop = System.currentTimeMillis();
         return new LogMessage(
                 recordCount,
                 start,
+                stop,
                 "PostgreSQL COPY",
                 chunk);
     }
 
-    public Map<String, PGColumn> readTargetColumnsAndTypes(Connection connection, Chunk<?> chunk) {
+    public Map<String, PGColumn> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
         Map<String, PGColumn> columnMap = new HashMap<>();
         try {
             ResultSet resultSet;
-            resultSet = connection.getMetaData().getColumns(
+            resultSet = connectionTo.getMetaData().getColumns(
                     null,
                     chunk.getTargetTable().getSchemaName().toLowerCase(),
                     chunk.getTargetTable().getFinalTableName(false),
@@ -327,7 +336,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                   Map<String, PGColumn> neededColumnsToDB,
                                   ResultSet fetchResultSet,
                                   Chunk<?> chunk,
-                                  Connection connection,
+                                  Connection connectionTo,
                                   SimpleRowWriter writer) {
         for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
@@ -634,7 +643,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         } else {
                             LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
                             writer.close();
-                            connection.close();
+                            connectionTo.close();
                         }
                     } catch (SQLException e) {
                         LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());

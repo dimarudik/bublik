@@ -1,19 +1,24 @@
 package org.bublik.storage;
 
-import com.datastax.driver.core.Row;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
-import org.bublik.task.Worker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
-import java.util.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.RowId;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.Executors;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
@@ -23,14 +28,13 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void startWorker(List<Future<LogMessage>> futures, List<Config> configs, ExecutorService executorService) throws SQLException {
+    public void startWorker(List<Config> configs) throws SQLException {
         if (hook(configs)) {
             Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
             for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
                 Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-                if (table.exists(connection)) {
-                    futures.add(executorService.submit(new Worker(i.getValue())));
-                } else {
+                if (!table.exists(connection)) {
+                    connection.close();
                     LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
                             i.getValue().getSourceTable().getTableName());
                     throw new TableNotExistsException("The Source Table "
@@ -38,8 +42,15 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                             + i.getValue().getSourceTable().getTableName() + " does not exist.");
                 }
             }
+            connection.close();
+            ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            chunkMap.forEach((k, v) ->
+                    CompletableFuture
+                            .supplyAsync(() -> callWorker(v), service)
+                            .thenAccept(LogMessage::loggerInfo));
+            service.shutdown();
+            service.close();
         }
-        connection.close();
     }
 
     @Override
@@ -52,7 +63,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         return null;
     }
 
-    private Map<Integer, Chunk<RowId>> getChunkMap(List<Config> configs) throws SQLException {
+    public Map<Integer, Chunk<RowId>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<RowId>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
         PreparedStatement statement = connection.prepareStatement(sql);

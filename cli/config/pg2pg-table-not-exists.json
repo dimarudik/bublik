@@ -1,0 +1,45 @@
+[
+  {
+    "fromSchemaName" : "PUBLIC",
+    "fromTableName" : "\"Source\"",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TARGET",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "SOURCE_TASK",
+    "tryCharIfAny" : ["current_mood", "gender"],
+    "columnToColumn" : {
+      "id"            : "id",
+      "uuid"          : "uuid",
+      "\"Primary\""   : "\"Primary\"",
+      "boolean"       : "boolean",
+      "int2"          : "int2",
+      "int4"          : "int4",
+      "int8"          : "int8",
+      "smallint"      : "smallint",
+      "bigint"        : "bigint",
+      "numeric"       : "num",
+      "float8"        : "float8",
+      "date"          : "date",
+      "timestamp"     : "timestamp",
+      "timestamptz"   : "timestamptz",
+      "description"   : "rem",
+      "image"         : "image",
+      "current_mood"  : "current_mood"
+    },
+    "expressionToColumn" : {
+      "(select 'male') as gender" : "gender"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "foo1",
+    "toSchemaName": "public",
+    "toTableName": "foo2",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "SOURCE_TASK",
+    "columnToColumn": {
+      "id": "id",
+      "name": "name"
+    }
+  }
+]
