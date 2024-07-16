@@ -38,6 +38,8 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 | timestamp                | timestamp, timestamptz                               |
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
+| interval year to moth    | interval                                             |
+| interval day to second   | interval                                             |
 
 [Java Datatype Mappings](https://docs.oracle.com/en/database/oracle/oracle-database/23/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-1AF80C90-DFE6-4A3E-A407-52E805726778)
 

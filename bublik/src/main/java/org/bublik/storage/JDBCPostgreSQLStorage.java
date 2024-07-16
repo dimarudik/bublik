@@ -13,6 +13,7 @@ import org.bublik.service.JDBCStorageService;
 import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
+import org.postgresql.util.PGInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -578,8 +579,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         if (chunk instanceof OraChunk<?>) {
                             int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
                             int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                            int HIGH_BIT_FLAG = 0x80000000;
-                            byte[] bytes;
                             switch (columnType) {
                                 // INTERVALYM
                                 case -103:
@@ -589,31 +588,20 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 // INTERVALDS
                                 case -104:
                                     INTERVALDS intervalds = (INTERVALDS) fetchResultSet.getObject(sourceColumn);
-
-                                    bytes = intervalds.toBytes();
-                                    int day = toUnsignedInt(bytes[0]) << 24
-                                            | toUnsignedInt(bytes[1]) << 16
-                                            | toUnsignedInt(bytes[2]) << 8
-                                            | toUnsignedInt(bytes[3]);
-                                    day ^= HIGH_BIT_FLAG;
-                                    int hour = toUnsignedInt(bytes[4]) - 60;
-                                    int minute = toUnsignedInt(bytes[5]) - 60;
-                                    int second = toUnsignedInt(bytes[6]) - 60;
-                                    int nano = toUnsignedInt(bytes[7]) << 24
-                                            | toUnsignedInt(bytes[8]) << 16
-                                            | toUnsignedInt(bytes[9]) << 8
-                                            | toUnsignedInt(bytes[10]);
-                                    nano ^= HIGH_BIT_FLAG;
-                                    interval = new Interval(0,
-                                            day,
-                                            hour,
-                                            minute,
-                                            second,
-                                            nano / 1000);
+                                    interval = intervalDS2Interval(intervalds);
                                     break;
                                 default:
                                     break;
                             }
+                        } else if (chunk instanceof PGChunk<?>) {
+                            PGInterval pgInterval = (PGInterval) fetchResultSet.getObject(sourceColumn);
+                            interval = new Interval(
+                                    pgInterval.getYears() * 12 + pgInterval.getMonths(),
+                                    pgInterval.getDays(),
+                                    pgInterval.getHours(),
+                                    pgInterval.getMinutes(),
+                                    (int) pgInterval.getSeconds(),
+                                    pgInterval.getMicroSeconds());
                         }
                         row.setInterval(targetColumn, interval);
                         break;

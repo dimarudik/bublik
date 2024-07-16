@@ -5,7 +5,7 @@
     "toSchemaName" : "public",
     "toTableName" : "intervals",
     "fetchHintClause" : "/*+ no_index(INTERVALS) */",
-    "fetchWhereClause" : "rownum < 2",
+    "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "INTERVALS_TASK",
     "columnToColumn" : {
       "id"            : "id",
