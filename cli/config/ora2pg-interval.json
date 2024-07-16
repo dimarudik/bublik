@@ -1,0 +1,18 @@
+[
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "INTERVALS",
+    "toSchemaName" : "public",
+    "toTableName" : "intervals",
+    "fetchHintClause" : "/*+ no_index(INTERVALS) */",
+    "fetchWhereClause" : "rownum < 2",
+    "fromTaskName" : "INTERVALS_TASK",
+    "columnToColumn" : {
+      "id"            : "id",
+      "time_period_1" : "time_period_1",
+      "time_period_2" : "time_period_2",
+      "time_period_3" : "time_period_3",
+      "time_period_4" : "time_period_4"
+    }
+  }
+]

@@ -78,12 +78,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
             for (Throwable t : e.getSuppressed()) {
                 LOGGER.error("{}", t.getMessage());
             }
-            return new LogMessage (
-                    0,
-                    0,
-                    0,
-                    " UNREACHABLE TASK ",
-                    chunk);
+            return new LogMessage (0, 0, 0, " UNREACHABLE TASK ", chunk);
         }
         return logMessage;
     }

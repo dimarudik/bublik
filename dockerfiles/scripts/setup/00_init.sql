@@ -79,3 +79,20 @@ insert into test.parted
         rpad('*', round(dbms_random.value(0,1000)),'*') as name
     from dual connect by level < 1000000);
 commit;
+
+create table test.intervals (
+  id             int,
+  time_period_1  INTERVAL YEAR TO MONTH,
+  time_period_2  INTERVAL DAY TO SECOND,
+  time_period_3  INTERVAL YEAR (3) TO MONTH,
+  time_period_4  INTERVAL DAY (2) TO SECOND (6)
+);
+insert into test.intervals
+    (select
+        rownum as id,
+        TO_YMINTERVAL(round(dbms_random.value(1,9))||'-'||round(dbms_random.value(1,9))) as time_period_1,
+        TO_DSINTERVAL(round(dbms_random.value(1,10))||' 10:3:45.123') as time_period_2,
+        TO_YMINTERVAL(round(dbms_random.value(1,9))||'-'||round(dbms_random.value(1,9))) as time_period_3,
+        TO_DSINTERVAL(round(dbms_random.value(1,10))||' 10:3:45.123') as time_period_4
+    from dual connect by level < 1000);
+commit;

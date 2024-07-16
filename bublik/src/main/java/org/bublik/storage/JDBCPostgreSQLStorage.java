@@ -1,8 +1,11 @@
 package org.bublik.storage;
 
+import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
 import de.bytefish.pgbulkinsert.row.SimpleRow;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
+import oracle.sql.INTERVALDS;
+import oracle.sql.INTERVALYM;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.ChunkService;
@@ -13,6 +16,7 @@ import org.postgresql.PGConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
@@ -21,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
+import static java.lang.Byte.toUnsignedInt;
 import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.util.ColumnUtil.*;
 
@@ -51,7 +56,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             chunkMap.forEach((k, v) ->
                 CompletableFuture
                         .supplyAsync(() -> callWorker(v), service)
-                        .thenAccept(LogMessage::loggerInfo));
+                        .thenAccept(LogMessage::loggerChunkInfo));
             service.shutdown();
             service.close();
         }
@@ -558,6 +563,59 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         LocalDate localDate = Instant.ofEpochMilli(l)
                                 .atZone(ZoneId.systemDefault()).toLocalDate();
                         row.setDate(targetColumn, localDate);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                case "interval":
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setDouble(targetColumn, null);
+                            break;
+                        }
+                        Interval interval = null;
+                        if (chunk instanceof OraChunk<?>) {
+                            int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
+                            int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                            int HIGH_BIT_FLAG = 0x80000000;
+                            byte[] bytes;
+                            switch (columnType) {
+                                // INTERVALYM
+                                case -103:
+                                    INTERVALYM intervalym = (INTERVALYM) fetchResultSet.getObject(sourceColumn);
+                                    interval = intervalYM2Interval(intervalym);
+                                    break;
+                                // INTERVALDS
+                                case -104:
+                                    INTERVALDS intervalds = (INTERVALDS) fetchResultSet.getObject(sourceColumn);
+
+                                    bytes = intervalds.toBytes();
+                                    int day = toUnsignedInt(bytes[0]) << 24
+                                            | toUnsignedInt(bytes[1]) << 16
+                                            | toUnsignedInt(bytes[2]) << 8
+                                            | toUnsignedInt(bytes[3]);
+                                    day ^= HIGH_BIT_FLAG;
+                                    int hour = toUnsignedInt(bytes[4]) - 60;
+                                    int minute = toUnsignedInt(bytes[5]) - 60;
+                                    int second = toUnsignedInt(bytes[6]) - 60;
+                                    int nano = toUnsignedInt(bytes[7]) << 24
+                                            | toUnsignedInt(bytes[8]) << 16
+                                            | toUnsignedInt(bytes[9]) << 8
+                                            | toUnsignedInt(bytes[10]);
+                                    nano ^= HIGH_BIT_FLAG;
+                                    interval = new Interval(0,
+                                            day,
+                                            hour,
+                                            minute,
+                                            second,
+                                            nano / 1000);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        row.setInterval(targetColumn, interval);
                         break;
                     } catch (SQLException e) {
                         LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());

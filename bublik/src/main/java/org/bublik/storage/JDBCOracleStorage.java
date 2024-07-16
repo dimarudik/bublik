@@ -47,7 +47,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
             chunkMap.forEach((k, v) ->
                     CompletableFuture
                             .supplyAsync(() -> callWorker(v), service)
-                            .thenAccept(LogMessage::loggerInfo));
+                            .thenAccept(LogMessage::loggerChunkInfo));
             service.shutdown();
             service.close();
         }

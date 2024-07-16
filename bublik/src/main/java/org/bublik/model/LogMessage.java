@@ -22,7 +22,7 @@ public record LogMessage (
                 ") chunk_id:" + chunk.getId();
     }
 
-    public void loggerInfo() {
+    public void loggerChunkInfo() {
         LOGGER.info("{} {}\t {} sec",
                 operation(),
                 this,

@@ -78,6 +78,13 @@ create table noc2c1 (
 create table noc2c2 (
     id bigint,
     name varchar);
+create table intervals (
+  id             int,
+  time_period_1  INTERVAL,
+  time_period_2  INTERVAL,
+  time_period_3  INTERVAL,
+  time_period_4  INTERVAL DAY TO SECOND(6)
+);
 
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
