@@ -5,7 +5,7 @@
     "toSchemaName": "public",
     "toTableName": "foo2",
     "fetchWhereClause": "1 = 1",
-    "fromTaskName": "SOURCE_TASK",
+    "fromTaskName": "TABLE1_TASK",
     "columnToColumn": {
       "id": "id",
       "name": "name"

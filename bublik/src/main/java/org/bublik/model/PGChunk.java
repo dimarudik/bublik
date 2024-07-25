@@ -1,5 +1,6 @@
 package org.bublik.model;
 
+import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
 import org.bublik.storage.Storage;
 
@@ -14,19 +15,21 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
-    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable,
+    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable,
                    Storage sourceStorage, Storage targetStorage) {
-        super(id, start, end, config, sourceTable, targetTable, sourceStorage, targetStorage);
+        super(id, start, end, config, sourceTable, sourceStorage, targetStorage);
     }
 
     @Override
-    public void markChunkAsProceed(Connection connection) throws SQLException {
+    public PGChunk<T> setChunkStatus(Connection connection, ChunkStatus status) throws SQLException {
         PreparedStatement updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
-        updateStatus.setLong(1, this.getId());
-        updateStatus.setString(2, this.getConfig().fromTaskName());
+        updateStatus.setString(1, status.toString());
+        updateStatus.setLong(2, this.getId());
+        updateStatus.setString(3, this.getConfig().fromTaskName());
         int rows = updateStatus.executeUpdate();
         updateStatus.close();
         connection.commit();
+        return this;
     }
 
     @Override
@@ -59,6 +62,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             " and ctid >= '(" + getStart() + ",1)' and ctid < '(" + getEnd() + ",1)'";
     }
 
+/*
     @Override
     public Chunk<?> buildChunkWithTargetTable(Chunk<?> chunk, Table targetTable) {
         return new PGChunk<>(
@@ -72,4 +76,5 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 getTargetStorage()
         );
     }
+*/
 }

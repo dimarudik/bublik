@@ -1,5 +1,6 @@
 package org.bublik.model;
 
+import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
 import org.bublik.storage.Storage;
 
@@ -11,20 +12,21 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable,
+    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable,
                     Storage sourceStorage, Storage targetStorage) {
-        super(id, start, end, config, sourceTable, targetTable, sourceStorage, targetStorage);
+        super(id, start, end, config, sourceTable, sourceStorage, targetStorage);
     }
 
     @Override
-    public void markChunkAsProceed(Connection connection) throws SQLException {
+    public OraChunk<T> setChunkStatus(Connection connection, ChunkStatus status) throws SQLException {
         CallableStatement callableStatement =
                 connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
         callableStatement.setString(1, this.getConfig().fromTaskName());
         callableStatement.setInt(2, this.getId());
+        callableStatement.setInt(3, status.ordinal());
         callableStatement.execute();
         callableStatement.close();
-//        connection.commit();
+        return this;
     }
 
     @Override
@@ -58,19 +60,5 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
                 PGKeywords.WHERE + " " +
                 (getConfig().fetchWhereClause() == null ? " " : getConfig().fetchWhereClause() + " and ") +
                 " rowid between ? and ?";
-    }
-
-    @Override
-    public Chunk<?> buildChunkWithTargetTable(Chunk<?> chunk, Table targetTable) {
-        return new OraChunk<>(
-                this.getId(),
-                this.getStart(),
-                this.getEnd(),
-                this.getConfig(),
-                this.getSourceTable(),
-                targetTable,
-                getSourceStorage(),
-                getTargetStorage()
-        );
     }
 }

@@ -3,24 +3,26 @@ package org.bublik.model;
 import org.bublik.service.ChunkService;
 import org.bublik.storage.Storage;
 
+import java.sql.Connection;
+
 public abstract class Chunk<T> implements ChunkService {
     private final Integer id;
     private final T start;
     private final T end;
     private final Config config;
     private final Table sourceTable;
-    private final Table targetTable;
+    private Table targetTable;
     private final Storage sourceStorage;
     private final Storage targetStorage;
+    private Connection sourceConnection;
 
-    public Chunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable,
+    public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
                  Storage sourceStorage, Storage targetStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
         this.config = config;
         this.sourceTable = sourceTable;
-        this.targetTable = targetTable;
         this.sourceStorage = sourceStorage;
         this.targetStorage = targetStorage;
     }
@@ -53,7 +55,19 @@ public abstract class Chunk<T> implements ChunkService {
         return sourceStorage;
     }
 
+    public void setTargetTable(Table table) {
+        this.targetTable = table;
+    }
+
     public Storage getTargetStorage() {
         return targetStorage;
+    }
+
+    public Connection getSourceConnection() {
+        return sourceConnection;
+    }
+
+    public void setSourceConnection(Connection sourceConnection) {
+        this.sourceConnection = sourceConnection;
     }
 }

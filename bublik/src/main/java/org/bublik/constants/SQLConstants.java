@@ -48,7 +48,7 @@ public abstract class SQLConstants {
             "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
             "(select id start_page, id + ? end_page, ? rows, ? task_name, ? schema_name, ? table_name " +
             "from generate_series(0, ?, ?) as id)";
-    public static final String DML_UPDATE_STATUS_ROWID_CHUNKS = "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,2)";
+    public static final String DML_UPDATE_STATUS_ROWID_CHUNKS = "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,?)";
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS =
-            "update public.ctid_chunks set status = 'PROCESSED' where chunk_id = ? and task_name = ?";
+            "update public.ctid_chunks set status = ? where chunk_id = ? and task_name = ?";
 }

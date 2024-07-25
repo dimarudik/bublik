@@ -17,16 +17,11 @@ import org.postgresql.util.PGInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-import static java.lang.Byte.toUnsignedInt;
 import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.util.ColumnUtil.*;
 
@@ -35,32 +30,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
-    }
-
-    @Override
-    public void startWorker(List<Config> configs) throws SQLException {
-        if (hook(configs)) {
-            Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
-            for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
-                Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-                if (!table.exists(connection)) {
-                    connection.close();
-                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
-                            i.getValue().getSourceTable().getTableName());
-                    throw new TableNotExistsException("The Source Table "
-                            + i.getValue().getSourceTable().getSchemaName() + "."
-                            + i.getValue().getSourceTable().getTableName() + " does not exist.");
-                }
-            }
-            connection.close();
-            ExecutorService service = Executors.newFixedThreadPool(threadCount);
-            chunkMap.forEach((k, v) ->
-                CompletableFuture
-                        .supplyAsync(() -> callWorker(v), service)
-                        .thenAccept(LogMessage::loggerChunkInfo));
-            service.shutdown();
-            service.close();
-        }
     }
 
     @Override
@@ -74,25 +43,31 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
     }
 
-    public Map<Integer, Chunk<Long>> getChunkMap(List<Config> configs) throws SQLException {
-        Map<Integer, Chunk<Long>> chunkHashMap = new TreeMap<>();
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
-        PreparedStatement statement = connection.prepareStatement(sql);
+        PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
             StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                assert config != null;
+                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
+                if (!sourceTable.exists(initialConnection)) {
+                    initialConnection.close();
+                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
+                            sourceTable.getTableName());
+                    throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
+                }
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new PGChunk<>(
                                 resultSet.getInt("chunk_id"),
                                 resultSet.getLong("start_page"),
                                 resultSet.getLong("end_page"),
                                 config,
-                                TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
-                                null,
+                                sourceTable,
                                 this,
                                 targetStorage
                         )
@@ -111,8 +86,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             long relpages = 0;
             long max_end_page = 0;
             long heap_blks_total = 0;
-            PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
-            Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
+            PreparedStatement preparedStatement = initialConnection.prepareStatement(SQL_NUMBER_OF_TUPLES);
+            Table table = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
             preparedStatement.setString(1, table.getSchemaName().toLowerCase());
             preparedStatement.setString(2, table.getFinalTableName(false));
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -122,7 +97,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             resultSet.close();
             preparedStatement.close();
-            preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
+            preparedStatement = initialConnection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
             preparedStatement.setString(1, table.getSchemaName().toLowerCase() + "." +
                     table.getTableName());
             resultSet = preparedStatement.executeQuery();
@@ -144,7 +119,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     reltuples,
                     rowsInChunk,
                     pagesInChunk);
-            PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
+            PreparedStatement chunkInsert = initialConnection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
             chunkInsert.setLong(1, pagesInChunk);
             chunkInsert.setLong(2, 0);
             chunkInsert.setString(3, config.fromTaskName());
@@ -156,7 +131,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             int rows = chunkInsert.executeUpdate();
             chunkInsert.close();
 
-            preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
+            preparedStatement = initialConnection.prepareStatement(SQL_MAX_END_PAGE);
             preparedStatement.setString(1, config.fromTaskName());
             resultSet = preparedStatement.executeQuery();
             while(resultSet.next()) {
@@ -165,7 +140,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             resultSet.close();
             preparedStatement.close();
             if (heap_blks_total > max_end_page) {
-                chunkInsert = connection.prepareStatement(DML_INSERT_CTID_CHUNKS);
+                chunkInsert = initialConnection.prepareStatement(DML_INSERT_CTID_CHUNKS);
                 chunkInsert.setLong(1, max_end_page);
                 chunkInsert.setLong(2, heap_blks_total);
                 chunkInsert.setString(3, config.fromTaskName());
@@ -173,17 +148,17 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 chunkInsert.close();
             }
         }
-        connection.commit();
+        initialConnection.commit();
     }
 
     private void createTableCtidChunks() throws SQLException {
-        Statement createTable = connection.createStatement();
+        Statement createTable = initialConnection.createStatement();
         createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
         createTable.close();
     }
 
     private void fillRowsStat(List<Config> configs) throws SQLException {
-        Statement statement = connection.createStatement();
+        Statement statement = initialConnection.createStatement();
         ResultSet resultSet = statement.executeQuery(SQL_CHUNKS);
         while(resultSet.next()) {
             int chunk_id = resultSet.getInt("chunk_id");
@@ -191,7 +166,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             long end_page = resultSet.getLong("end_page");
             String schema_name = resultSet.getString("schema_name");
             String table_name = resultSet.getString("table_name");
-            PreparedStatement rowCountSQL = connection.prepareStatement(
+            PreparedStatement rowCountSQL = initialConnection.prepareStatement(
                     SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 +
                     schema_name + "." +
                     table_name +
@@ -201,7 +176,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             ResultSet set = rowCountSQL.executeQuery();
             while(set.next()) {
                 long rows = set.getLong("rows");
-                PreparedStatement updateRowsOfCtid = connection.prepareStatement(DML_UPDATE_CTID_CHUNKS);
+                PreparedStatement updateRowsOfCtid = initialConnection.prepareStatement(DML_UPDATE_CTID_CHUNKS);
                 updateRowsOfCtid.setLong(1, rows);
                 updateRowsOfCtid.setInt(2, chunk_id);
                 updateRowsOfCtid.execute();
@@ -209,7 +184,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             set.close();
             rowCountSQL.close();
-            connection.commit();
+            initialConnection.commit();
         }
         resultSet.close();
         statement.close();
@@ -227,14 +202,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     @Override
     public LogMessage transferToTarget(ResultSet fetchResultSet) throws SQLException {
         Chunk<?> chunk = ChunkService.get();
-//        LogMessage logMessage;
         if (fetchResultSet.next()) {
             Connection connectionTo = getConnection();
             Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connectionTo)) {
-                Chunk<?> ch = chunk.buildChunkWithTargetTable(chunk, table);
+                chunk.setTargetTable(table);
                 try {
-                    return fetchAndCopy(connectionTo, fetchResultSet, ch);
+                    return fetchAndCopy(connectionTo, fetchResultSet, chunk);
                 } catch (RuntimeException e) {
                     connectionTo.close();
                     throw e;
@@ -248,7 +222,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         + chunk.getConfig().toSchemaName() + "."
                         + chunk.getConfig().toTableName() + " does not exist.");
             }
-//            connectionTo.close();
         } else {
             return new LogMessage(
                     0,
@@ -257,7 +230,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     "NO ROWS FETCH",
                     chunk);
         }
-//        return logMessage;
     }
 
     private LogMessage fetchAndCopy(Connection connectionTo,

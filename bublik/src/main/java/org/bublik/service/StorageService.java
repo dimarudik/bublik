@@ -9,13 +9,15 @@ import org.bublik.storage.*;
 
 import java.sql.*;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 public interface StorageService {
     ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
 
-    void startWorker(List<Config> configs) throws SQLException;
+    void start(List<Config> configs) throws SQLException;
     boolean hook(List<Config> configs) throws SQLException;
+    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     LogMessage callWorker(Chunk<?> chunk);
     LogMessage transferToTarget(ResultSet resultSet) throws SQLException;
     void closeStorage();

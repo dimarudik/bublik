@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.*;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
 import org.bublik.Bublik;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
@@ -29,18 +27,6 @@ import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 public class App {
 
     public static void main(String[] args) throws IOException, SQLException {
-/*
-        String serverIP = "localhost";
-        String keyspace = "store";
-        Cluster cluster = Cluster.builder()
-                .addContactPoints(serverIP)
-                .withoutJMXReporting()
-                .build();
-        Session session = cluster.connect(keyspace);
-
-        session.close();
-        cluster.close();
-*/
 
         Options options = new Options();
         Option configOption = createOption("c", "config", "yaml file", "file name of prop.erties");

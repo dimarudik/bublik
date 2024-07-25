@@ -13,8 +13,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class CassandraStorage extends Storage implements StorageService {
@@ -49,13 +47,18 @@ public class CassandraStorage extends Storage implements StorageService {
     }
 
     @Override
-    public void startWorker(List<Config> configs) throws SQLException {
+    public void start(List<Config> configs) throws SQLException {
 
     }
 
     @Override
     public boolean hook(List<Config> configs) throws SQLException {
         return false;
+    }
+
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        return Map.of();
     }
 
     @Override

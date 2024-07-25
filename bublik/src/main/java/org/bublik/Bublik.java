@@ -22,12 +22,11 @@ public class Bublik {
 
     public void start() {
         LOGGER.info("Bublik starting...");
-        Storage sourceStorage, targetStorage;
         try {
-            sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
+            Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
             assert sourceStorage != null;
-            sourceStorage.startWorker(configs);
-            targetStorage = StorageService.get();
+            sourceStorage.start(configs);
+            Storage targetStorage = StorageService.get();
             // переделать на NullPointerException
 /*
             try {
@@ -41,6 +40,10 @@ public class Bublik {
             }
             LOGGER.info("All Bublik's tasks have been done.");
         } catch (SQLException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
             throw new RuntimeException(e);
         }
     }

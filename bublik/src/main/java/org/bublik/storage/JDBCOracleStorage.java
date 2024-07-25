@@ -10,47 +10,17 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.RowId;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
 
     public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
-    }
-
-    @Override
-    public void startWorker(List<Config> configs) throws SQLException {
-        if (hook(configs)) {
-            Map<Integer, Chunk<?>> chunkMap = new TreeMap<>(getChunkMap(configs));
-            for (Map.Entry<Integer, Chunk<?>> i : chunkMap.entrySet()) {
-                Table table = TableService.getTable(connection, i.getValue().getConfig().fromSchemaName(), i.getValue().getConfig().fromTableName());
-                if (!table.exists(connection)) {
-                    connection.close();
-                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", i.getValue().getSourceTable().getSchemaName(),
-                            i.getValue().getSourceTable().getTableName());
-                    throw new TableNotExistsException("The Source Table "
-                            + i.getValue().getSourceTable().getSchemaName() + "."
-                            + i.getValue().getSourceTable().getTableName() + " does not exist.");
-                }
-            }
-            connection.close();
-            ExecutorService service = Executors.newFixedThreadPool(threadCount);
-            chunkMap.forEach((k, v) ->
-                    CompletableFuture
-                            .supplyAsync(() -> callWorker(v), service)
-                            .thenAccept(LogMessage::loggerChunkInfo));
-            service.shutdown();
-            service.close();
-        }
     }
 
     @Override
@@ -63,25 +33,31 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         return null;
     }
 
-    public Map<Integer, Chunk<RowId>> getChunkMap(List<Config> configs) throws SQLException {
-        Map<Integer, Chunk<RowId>> chunkHashMap = new TreeMap<>();
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
-        PreparedStatement statement = connection.prepareStatement(sql);
+        PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
             StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                assert config != null;
+                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
+                if (!sourceTable.exists(initialConnection)) {
+                    initialConnection.close();
+                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
+                            sourceTable.getTableName());
+                    throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
+                }
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new OraChunk<>(
                                 resultSet.getInt("chunk_id"),
                                 resultSet.getRowId("start_rowid"),
                                 resultSet.getRowId("end_rowid"),
                                 config,
-                                TableService.getTable(connection, config.fromSchemaName(), config.fromTableName()),
-                                null,
+                                sourceTable,
                                 this,
                                 targetStorage
                         )
