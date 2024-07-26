@@ -72,6 +72,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
             Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
             initialConnection.close();
             ExecutorService service = Executors.newFixedThreadPool(threadCount);
+/*
             chunkMap.forEach((key, chunk) -> service
                     .execute(() -> {
                         Chunk<?> chunk1 = getChunkSourceConnection(chunk);
@@ -83,7 +84,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
                         LogMessage logMessage = chunk6.getLogMessage();
                         logMessage.loggerChunkInfo();
                     }));
-/*
+*/
             chunkMap.forEach((key, chunk) ->
                     CompletableFuture
                             .supplyAsync(() -> getChunkSourceConnection(chunk), service)
@@ -94,19 +95,19 @@ public abstract class JDBCStorage extends Storage implements StorageService {
                             .thenApply(this::closeChunkSourceConnection)
                             .thenApply(Chunk::getLogMessage)
                             .thenAccept(LogMessage::loggerChunkInfo));
-*/
             service.shutdown();
             service.close();
         }
     }
 
     public Chunk<?> getChunkSourceConnection(Chunk<?> chunk) {
-//        LOGGER.info(" ...");
         try {
+            // to avoid of a usage the main thread
+            Thread.sleep(1);
             Connection sourceConnection = getConnection();
             chunk.setSourceConnection(sourceConnection);
             return chunk;
-        } catch (SQLException | RuntimeException e) {
+        } catch (SQLException | RuntimeException | InterruptedException e) {
             LOGGER.error("{}", e.getMessage());
             for (Throwable t : e.getSuppressed()) {
                 LOGGER.error("{}", t.getMessage());
