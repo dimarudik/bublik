@@ -29,7 +29,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public LogMessage transferToTarget(ResultSet resultSet) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
         return null;
     }
 

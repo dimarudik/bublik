@@ -62,14 +62,9 @@ public class CassandraStorage extends Storage implements StorageService {
     }
 
     @Override
-    public LogMessage callWorker(Chunk<?> chunk) {
-        return null;
-    }
-
-    @Override
-    public LogMessage transferToTarget(ResultSet resultSet) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
         ExecutorService executorService = Executors.newFixedThreadPool(tokenRangeSet.size());
-        Chunk<?> chunk = ChunkService.get();
+//        Chunk<?> chunk = ChunkService.get();
         int recordCount = 0;
         long start = System.currentTimeMillis();
         String insertString = buildInsertStatement(chunk);

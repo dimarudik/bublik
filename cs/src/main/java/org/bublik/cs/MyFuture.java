@@ -1,9 +1,10 @@
 package org.bublik.cs;
 
-import java.sql.SQLException;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,6 +17,7 @@ public class MyFuture {
         strings.forEach(s ->
                 CompletableFuture
                         .supplyAsync(() -> getThreadName(s), service)
+                        .thenApply(MyFuture::getConnection)
                         .thenApply(MyFuture::getThreadName)
                         .thenApply(MyFuture::getThreadName)
                         .thenAccept(System.out::println));
@@ -23,7 +25,11 @@ public class MyFuture {
         service.close();
     }
 
-    public static String getThreadName(String string) {
+    public static String getThreadName(Object string) {
         return Thread.currentThread().getName() + " : " + string;
+    }
+
+    public static Objects getConnection(String string) {
+        return null;
     }
 }

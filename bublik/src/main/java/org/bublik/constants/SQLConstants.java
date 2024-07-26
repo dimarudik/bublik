@@ -26,6 +26,8 @@ public abstract class SQLConstants {
             "rows bigint, " +
             "task_name varchar(128), " +
             "status varchar(20)  default 'UNASSIGNED', " +
+            "start_ts timestamp, " +
+            "end_ts timestamp, " +
             "unique (start_page, end_page, task_name, status) )";
     public static final String DDL_CREATE_POSTGRESQL_TABLE_OUTBOX =
             "create table if not exists public.bublik_outbox (" +

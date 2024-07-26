@@ -18,8 +18,7 @@ public interface StorageService {
     void start(List<Config> configs) throws SQLException;
     boolean hook(List<Config> configs) throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
-    LogMessage callWorker(Chunk<?> chunk);
-    LogMessage transferToTarget(ResultSet resultSet) throws SQLException;
+    LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
 
     static void set(Storage storage) {

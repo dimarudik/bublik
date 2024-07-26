@@ -52,7 +52,6 @@ public abstract class JDBCStorage extends Storage implements StorageService {
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(maxPoolSize);
-//        hikariConfig.setPoolName(poolName);
         hikariConfig.setConnectionTimeout(3000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
@@ -73,49 +72,40 @@ public abstract class JDBCStorage extends Storage implements StorageService {
             Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
             initialConnection.close();
             ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            chunkMap.forEach((key, chunk) -> service
+                    .execute(() -> {
+                        Chunk<?> chunk1 = getChunkSourceConnection(chunk);
+                        Chunk<?> chunk2 = setChunkStatus(chunk1, ChunkStatus.ASSIGNED);
+                        Chunk<?> chunk3 = getSourceResultSet(chunk2);
+                        Chunk<?> chunk4 = getChunkLogMessage(chunk3);
+                        Chunk<?> chunk5 = setChunkStatus(chunk4, ChunkStatus.PROCESSED);
+                        Chunk<?> chunk6 = closeChunkSourceConnection(chunk5);
+                        LogMessage logMessage = chunk6.getLogMessage();
+                        logMessage.loggerChunkInfo();
+                    }));
 /*
             chunkMap.forEach((key, chunk) ->
                     CompletableFuture
-                        .supplyAsync(() -> callWorker(chunk), service)
-                        .thenAccept(LogMessage::loggerChunkInfo));
-*/
-            chunkMap.forEach((key, chunk) ->
-                    CompletableFuture
-                            .supplyAsync(() -> getSourceResultSet(chunk), service)
-                            .thenApply(this::getLogMessage)
+                            .supplyAsync(() -> getChunkSourceConnection(chunk), service)
+                            .thenApply(ch -> setChunkStatus(ch, ChunkStatus.ASSIGNED))
+                            .thenApply(this::getSourceResultSet)
+                            .thenApply(this::getChunkLogMessage)
+                            .thenApply(ch -> setChunkStatus(ch, ChunkStatus.PROCESSED))
+                            .thenApply(this::closeChunkSourceConnection)
+                            .thenApply(Chunk::getLogMessage)
                             .thenAccept(LogMessage::loggerChunkInfo));
+*/
             service.shutdown();
             service.close();
         }
     }
 
-    @Override
-    public LogMessage callWorker(Chunk<?> chunk) {
-        ChunkService.set(chunk);
-        LogMessage logMessage;
-        try (Connection sourceConnection = getConnection()) {
-            chunk.setChunkStatus(sourceConnection, ChunkStatus.ASSIGNED);
-            ResultSet resultSet = chunk.getData(sourceConnection, chunk.buildFetchStatement());
-            logMessage = chunk.getTargetStorage().transferToTarget(resultSet);
-            resultSet.close();
-            chunk.setChunkStatus(sourceConnection, ChunkStatus.PROCESSED);
-        } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
-            return new LogMessage (0, 0, 0, " UNREACHABLE TASK ", chunk);
-        }
-        return logMessage;
-    }
-
-    public ResultSet getSourceResultSet(Chunk<?> chunk) {
-        ChunkService.set(chunk);
+    public Chunk<?> getChunkSourceConnection(Chunk<?> chunk) {
+//        LOGGER.info(" ...");
         try {
-            Connection chunkConnection = getConnection();
-            chunk.setSourceConnection(chunkConnection);
-            chunk.setChunkStatus(chunkConnection, ChunkStatus.ASSIGNED);
-            return chunk.getData(chunkConnection, chunk.buildFetchStatement());
+            Connection sourceConnection = getConnection();
+            chunk.setSourceConnection(sourceConnection);
+            return chunk;
         } catch (SQLException | RuntimeException e) {
             LOGGER.error("{}", e.getMessage());
             for (Throwable t : e.getSuppressed()) {
@@ -125,21 +115,61 @@ public abstract class JDBCStorage extends Storage implements StorageService {
         }
     }
 
-    public LogMessage getLogMessage(ResultSet resultSet) {
-        Chunk<?> chunk = ChunkService.get();
+    public Chunk<?> setChunkStatus(Chunk<?> chunk, ChunkStatus status) {
         try {
-            LogMessage logMessage = chunk.getTargetStorage().transferToTarget(resultSet);
-            resultSet.close();
-            Connection sourceConnection = chunk.getSourceConnection();
-            chunk.setChunkStatus(sourceConnection, ChunkStatus.PROCESSED);
-            sourceConnection.close();
-            return logMessage;
+            chunk.setChunkStatus(chunk.getSourceConnection(), status);
+            return chunk;
         } catch (SQLException | RuntimeException e) {
             LOGGER.error("{}", e.getMessage());
             for (Throwable t : e.getSuppressed()) {
                 LOGGER.error("{}", t.getMessage());
             }
-            return new LogMessage (0, 0, 0, " UNREACHABLE TASK ", chunk);
+            throw new RuntimeException();
+        }
+    }
+
+    public Chunk<?> getSourceResultSet(Chunk<?> chunk) {
+        try {
+            ResultSet resultSet = chunk.getData(chunk.getSourceConnection(), chunk.buildFetchStatement());
+            chunk.setResultSet(resultSet);
+            return chunk;
+        } catch (SQLException | RuntimeException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            throw new RuntimeException();
+        }
+    }
+
+    public Chunk<?> getChunkLogMessage(Chunk<?> chunk) {
+        try {
+            LogMessage logMessage = chunk.getTargetStorage().transferToTarget(chunk);
+            chunk.setLogMessage(logMessage);
+            ResultSet resultSet = chunk.getResultSet();
+            resultSet.close();
+            return chunk;
+        } catch (SQLException | RuntimeException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            chunk.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", chunk));
+            return chunk;
+        }
+    }
+
+    public Chunk<?> closeChunkSourceConnection(Chunk<?> chunk) {
+        try {
+            Connection connection = chunk.getSourceConnection();
+            connection.close();
+            return chunk;
+        } catch (SQLException | RuntimeException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            throw new RuntimeException();
         }
     }
 

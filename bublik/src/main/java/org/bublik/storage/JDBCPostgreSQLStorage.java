@@ -8,7 +8,6 @@ import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
-import org.bublik.service.ChunkService;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
@@ -200,8 +199,9 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public LogMessage transferToTarget(ResultSet fetchResultSet) throws SQLException {
-        Chunk<?> chunk = ChunkService.get();
+    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
+//        Chunk<?> chunk = ChunkService.get();
+        ResultSet fetchResultSet = chunk.getResultSet();
         if (fetchResultSet.next()) {
             Connection connectionTo = getConnection();
             Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());

@@ -4,6 +4,7 @@ import org.bublik.service.ChunkService;
 import org.bublik.storage.Storage;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 
 public abstract class Chunk<T> implements ChunkService {
     private final Integer id;
@@ -15,6 +16,8 @@ public abstract class Chunk<T> implements ChunkService {
     private final Storage sourceStorage;
     private final Storage targetStorage;
     private Connection sourceConnection;
+    private LogMessage logMessage;
+    private ResultSet resultSet;
 
     public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
                  Storage sourceStorage, Storage targetStorage) {
@@ -69,5 +72,21 @@ public abstract class Chunk<T> implements ChunkService {
 
     public void setSourceConnection(Connection sourceConnection) {
         this.sourceConnection = sourceConnection;
+    }
+
+    public LogMessage getLogMessage() {
+        return logMessage;
+    }
+
+    public void setLogMessage(LogMessage logMessage) {
+        this.logMessage = logMessage;
+    }
+
+    public ResultSet getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(ResultSet resultSet) {
+        this.resultSet = resultSet;
     }
 }
