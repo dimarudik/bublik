@@ -1,4 +1,4 @@
-package org.bublik.constants;
+package org.bublikcli.constants;
 
 public abstract class StringConstant {
     public static final String MAPPING_FILE_CREATED = "File with mapping definitions has been created:\n";

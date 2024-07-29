@@ -1,0 +1,14 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "foo1",
+    "toSchemaName": "public",
+    "toTableName": "foo2",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "TABLE1_TASK",
+    "columnToColumn": {
+      "id": "id",
+      "name": "name"
+    }
+  }
+]

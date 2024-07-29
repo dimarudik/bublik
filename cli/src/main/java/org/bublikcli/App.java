@@ -11,7 +11,6 @@ import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
-import org.bublik.util.DatabaseUtil;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -21,25 +20,13 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.bublik.constants.StringConstant.HELP_MESSAGE;
-import static org.bublik.constants.StringConstant.MAPPING_FILE_CREATED;
+import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
+import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 
 @Slf4j
 public class App {
 
     public static void main(String[] args) throws IOException, SQLException {
-/*
-        String serverIP = "localhost";
-        String keyspace = "store";
-        Cluster cluster = Cluster.builder()
-                .addContactPoints(serverIP)
-                .withoutJMXReporting()
-                .build();
-        Session session = cluster.connect(keyspace);
-
-        session.close();
-        cluster.close();
-*/
 
         Options options = new Options();
         Option configOption = createOption("c", "config", "yaml file", "file name of prop.erties");
@@ -100,9 +87,16 @@ public class App {
         }
     }
 
+    private static ConnectionProperty connectionProperty(String configFileName) throws IOException {
+        ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
+        mapperYAML.findAndRegisterModules();
+        return mapperYAML.readValue(Paths.get(configFileName).toFile(), ConnectionProperty.class);
+    }
+
     private static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
         ConnectionProperty properties = connectionProperty(configFileName);
         ObjectMapper mapperJSON = new ObjectMapper();
+//        Storage storage = StorageService.getStorage(properties.getFromProperty());
         Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
                 properties.getFromProperty());
         List<Table> tableList =
@@ -136,11 +130,5 @@ public class App {
         mapper.writeValue(Paths.get(outputFileName).toFile(), configList);
         System.out.println(MAPPING_FILE_CREATED + outputFileName);
         connection.close();
-    }
-
-    private static ConnectionProperty connectionProperty(String configFileName) throws IOException {
-        ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
-        mapperYAML.findAndRegisterModules();
-        return mapperYAML.readValue(Paths.get(configFileName).toFile(), ConnectionProperty.class);
     }
 }

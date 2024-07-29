@@ -1,22 +1,39 @@
 package org.bublik.model;
 
 import org.bublik.service.ChunkService;
+import org.bublik.storage.JDBCStorage;
+import org.bublik.storage.Storage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public abstract class Chunk<T> implements ChunkService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
+
     private final Integer id;
     private final T start;
     private final T end;
     private final Config config;
     private final Table sourceTable;
-    private final Table targetTable;
+    private Table targetTable;
+    private final Storage sourceStorage;
+    private final Storage targetStorage;
+    private Connection sourceConnection;
+    private LogMessage logMessage;
+    private ResultSet resultSet;
 
-    public Chunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
+    public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
+                 Storage sourceStorage, Storage targetStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
         this.config = config;
         this.sourceTable = sourceTable;
-        this.targetTable = targetTable;
+        this.sourceStorage = sourceStorage;
+        this.targetStorage = targetStorage;
     }
 
     public Integer getId() {
@@ -41,5 +58,103 @@ public abstract class Chunk<T> implements ChunkService {
 
     public Table getTargetTable() {
         return targetTable;
+    }
+
+    public Storage getSourceStorage() {
+        return sourceStorage;
+    }
+
+    public void setTargetTable(Table table) {
+        this.targetTable = table;
+    }
+
+    public Storage getTargetStorage() {
+        return targetStorage;
+    }
+
+    public Connection getSourceConnection() {
+        return sourceConnection;
+    }
+
+    public void setSourceConnection(Connection sourceConnection) {
+        this.sourceConnection = sourceConnection;
+    }
+
+    public LogMessage getLogMessage() {
+        return logMessage;
+    }
+
+    public void setLogMessage(LogMessage logMessage) {
+        this.logMessage = logMessage;
+    }
+
+    public ResultSet getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(ResultSet resultSet) {
+        this.resultSet = resultSet;
+    }
+
+    public Chunk<?> assignSourceConnection() {
+        if (getSourceStorage() instanceof JDBCStorage) {
+            try {
+                Connection sourceConnection = getSourceStorage().getConnection();
+                setSourceConnection(sourceConnection);
+                return this;
+            } catch (SQLException | RuntimeException e) {
+                LOGGER.error("{}", e.getMessage());
+                for (Throwable t : e.getSuppressed()) {
+                    LOGGER.error("{}", t.getMessage());
+                }
+                throw new RuntimeException();
+            }
+        }
+        return null;
+    }
+
+    public Chunk<?> assignSourceResultSet() {
+        try {
+            ResultSet resultSet = getData(getSourceConnection(), buildFetchStatement());
+            setResultSet(resultSet);
+            return this;
+        } catch (SQLException | RuntimeException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            throw new RuntimeException();
+        }
+    }
+
+    public Chunk<?> assignResultLogMessage() {
+        try {
+            LogMessage logMessage = this.getTargetStorage().transferToTarget(this);
+            this.setLogMessage(logMessage);
+            ResultSet resultSet = this.getResultSet();
+            resultSet.close();
+            return this;
+        } catch (SQLException | RuntimeException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));
+            return this;
+        }
+    }
+
+    public Chunk<?> closeChunkSourceConnection() {
+        try {
+            Connection connection = getSourceConnection();
+            connection.close();
+            return this;
+        } catch (SQLException | RuntimeException e) {
+            LOGGER.error("{}", e.getMessage());
+            for (Throwable t : e.getSuppressed()) {
+                LOGGER.error("{}", t.getMessage());
+            }
+            throw new RuntimeException();
+        }
     }
 }

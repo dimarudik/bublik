@@ -18,3 +18,21 @@ VALUES ('1234', 5, toTimeStamp(now()));
 
 -- BEGIN UNLOGGED BATCH;
 -- APPLY BATCH;
+
+CREATE TABLE IF NOT EXISTS store.target (
+    id int primary key,
+    uuid uuid,
+    "Primary" varchar,
+    boolean boolean,
+    smallint smallint,
+    int8 int,
+    bigint bigint,
+    numeric decimal,
+    float float,
+    date date,
+    timestamp timestamp,
+    rem text,
+    image blob,
+    gender varchar);
+
+truncate table store.target;

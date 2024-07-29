@@ -1,0 +1,13 @@
+threadCount: 10
+
+fromProperties:
+  type: cassandra
+  host: localhost
+  port: 9042
+  keyspace: store
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test

@@ -6,6 +6,7 @@ import java.util.Properties;
 public class ConnectionProperty {
     private int threadCount;
     private Boolean initPGChunks = true;
+    private Boolean rowsStat = false;
     private Boolean copyPGChunks = true;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
@@ -13,11 +14,13 @@ public class ConnectionProperty {
     public ConnectionProperty(){}
     public ConnectionProperty(int threadCount,
                               Boolean initPGChunks,
+                              Boolean rowsStat,
                               Boolean copyPGChunks,
                               Map<String, String> fromProperties,
                               Map<String, String> toProperties) {
         this.threadCount = threadCount;
         this.initPGChunks = initPGChunks;
+        this.rowsStat = rowsStat;
         this.copyPGChunks = copyPGChunks;
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
@@ -37,6 +40,14 @@ public class ConnectionProperty {
 
     public void setInitPGChunks(Boolean initPGChunks) {
         this.initPGChunks = initPGChunks;
+    }
+
+    public Boolean getRowsStat() {
+        return rowsStat;
+    }
+
+    public void setRowsStat(Boolean rowsStat) {
+        this.rowsStat = rowsStat;
     }
 
     public Boolean getCopyPGChunks() {

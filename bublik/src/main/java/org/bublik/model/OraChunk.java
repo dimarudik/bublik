@@ -1,6 +1,8 @@
 package org.bublik.model;
 
+import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
+import org.bublik.storage.Storage;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -10,18 +12,26 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable) {
-        super(id, start, end, config, sourceTable, targetTable);
+    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable,
+                    Storage sourceStorage, Storage targetStorage) {
+        super(id, start, end, config, sourceTable, sourceStorage, targetStorage);
     }
 
     @Override
-    public void markChunkAsProceed(Connection connection) throws SQLException {
-        CallableStatement callableStatement =
-                connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
-        callableStatement.setString(1, this.getConfig().fromTaskName());
-        callableStatement.setInt(2, this.getId());
-        callableStatement.execute();
-        callableStatement.close();
+    public OraChunk<T> setChunkStatus(ChunkStatus status) {
+        try {
+            Connection connection = this.getSourceConnection();
+            CallableStatement callableStatement =
+                    connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
+            callableStatement.setString(1, this.getConfig().fromTaskName());
+            callableStatement.setInt(2, this.getId());
+            callableStatement.setInt(3, status.ordinal());
+            callableStatement.execute();
+            callableStatement.close();
+        } catch (SQLException e) {
+            throw  new RuntimeException(e);
+        }
+        return this;
     }
 
     @Override
@@ -34,35 +44,26 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public String buildFetchStatement(Map<String, Integer> columnsFromDB) {
-        List<String> neededSourceColumns = new ArrayList<>(columnsFromDB.keySet());
-        String expressionToColumn = "";
-        if (getConfig().expressionToColumn() != null) {
-            expressionToColumn = ", " + String.join(", ", getConfig().expressionToColumn().keySet());
+    public String buildFetchStatement() {
+        List<String> strings = new ArrayList<>();
+        Map<String, String> columnToColumnMap = getConfig().columnToColumn();
+        Map<String, String> expressionToColumnMap = getConfig().expressionToColumn();
+        if (columnToColumnMap != null) {
+            strings.addAll(columnToColumnMap.keySet());
         }
+        if (expressionToColumnMap != null) {
+            strings.addAll(expressionToColumnMap.keySet());
+        }
+        String columnToColumn = String.join(", ", strings);
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (getConfig().fetchHintClause() == null ? "" : getConfig().fetchHintClause()) + " " +
-                String.join(", ", neededSourceColumns) +
-                expressionToColumn + " " +
+                columnToColumn + " " +
                 PGKeywords.FROM + " " +
                 getConfig().fromSchemaName() +
                 "." +
                 getConfig().fromTableName() + " " +
                 PGKeywords.WHERE + " " +
                 (getConfig().fetchWhereClause() == null ? " " : getConfig().fetchWhereClause() + " and ") +
-//                getConfig().fetchWhereClause() +
                 " rowid between ? and ?";
-    }
-
-    @Override
-    public Chunk<?> buildChunkWithTargetTable(Chunk<?> chunk, Table targetTable) {
-        return new OraChunk<>(
-                this.getId(),
-                this.getStart(),
-                this.getEnd(),
-                this.getConfig(),
-                this.getSourceTable(),
-                targetTable
-        );
     }
 }

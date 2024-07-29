@@ -16,6 +16,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
   * [Create CTID chunks](#Create-CTID-chunks)
+* [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
+  * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
@@ -38,6 +40,8 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 | timestamp                | timestamp, timestamptz                               |
 | timestamp with time zone | timestamptz                                          |
 | number                   | numeric, smallint, bigint, integer, double precision |
+| interval year to moth    | interval                                             |
+| interval day to second   | interval                                             |
 
 [Java Datatype Mappings](https://docs.oracle.com/en/database/oracle/oracle-database/23/jjdbc/accessing-and-manipulating-Oracle-data.html#GUID-1AF80C90-DFE6-4A3E-A407-52E805726778)
 
@@ -87,6 +91,7 @@ sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=152
 
 ```
 docker run --name postgres \
+        -h postgres \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
         -e POSTGRES_DB=postgres \
@@ -96,6 +101,7 @@ docker run --name postgres \
         -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
         -d postgres \
         -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c timezone="+03" \
         -c max_connections=200 \
         -c logging_collector=on \
         -c log_directory=pg_log \
@@ -193,7 +199,7 @@ psql postgresql://test:test@localhost/postgres
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
     "fromTaskName" : "PARTED_TASK",
-    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN (73021,73022) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN (73021,73022)",
+    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1))",
     "columnToColumn" : {
       "id"        : "id",
       "create_at" : "create_at",
@@ -383,6 +389,86 @@ create table if not exists public.ctid_chunks (
 > [!IMPORTANT]
 > If you are doing repeated transferring you should truncate CTID table or delete unnecessary chunks
 
+## PostgreSQL To Cassandra
+
+![Cassandra](/sql/cassandra4.png)
+
+### Prepare PostgreSQL To Cassandra environment
+
+```shell
+docker network create \
+  --driver=bridge \
+  --subnet=172.28.0.0/16 \
+  --gateway=172.28.5.254 \
+  bublik-network
+```
+
+```shell
+docker run \
+        --name postgres \
+        --ip 172.28.0.4 \
+        -h postgres \
+        --network bublik-network \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c timezone="+03" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
+```
+
+```shell
+docker run -d -h cs1 --ip 172.28.0.1 \
+--name cs1 --network bublik-network -p 9042:9042 \
+-v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+-e CASSANDRA_SEEDS=172.28.0.1 \
+-e CASSANDRA_DC=dc1 \
+-e CASSANDRA_CLUSTER_NAME=bublik \
+cassandra
+```
+
+```shell
+docker run -d -h cs2 --ip 172.28.0.2 \
+--name cs2 --network bublik-network \
+-v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+-e CASSANDRA_SEEDS=172.28.0.1 \
+-e CASSANDRA_DC=dc1 \
+-e CASSANDRA_CLUSTER_NAME=bublik \
+cassandra
+```
+
+```shell
+docker run -d -h cs3 --ip 172.28.0.3 \
+--name cs3 --network bublik-network \
+-v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+-e CASSANDRA_SEEDS=172.28.0.1,172.28.0.2 \
+-e CASSANDRA_DC=dc1 \
+-e CASSANDRA_CLUSTER_NAME=bublik \
+cassandra
+```
+
+```shell
+docker exec cs2 nodetool status
+```
+
+```shell
+docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
+docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
+docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
+```
+
 ## Usage
 
 ![Bublik](/sql/bublik.png)
@@ -415,7 +501,7 @@ Run the cli:
   > ```
 - PostgreSQL
   > ```
-  > java -jar ./target/bublik-cli-1.2.0.jar -c ./sql/pg2pg.yaml -m ./sql/pg2pg.json
+  > java -jar ./target/bublik-cli-1.2.0.jar -c ./config/pg2pg.yaml -m ./config/pg2pg.json
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`
@@ -453,3 +539,4 @@ Consume the service:
 ```shell
 newman run ./postman/postman_collection.json
 ```
+

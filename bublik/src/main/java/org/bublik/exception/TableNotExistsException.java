@@ -8,6 +8,6 @@ public class TableNotExistsException extends SQLException {
     }
 
     public TableNotExistsException(String schemaName, String tableName) {
-        super("Table " + schemaName + "." + tableName + " doesn't exists");
+        super("\u001B[31mTable " + schemaName + "." + tableName + " doesn't exists\u001B[0m");
     }
 }

@@ -1,10 +1,12 @@
 threadCount: 10
 
 fromProperties:
+  type: oracle
   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
   user: test
   password: test
 toProperties:
+  type: cassandra
   host: localhost
   port: 9042
   keyspace: store

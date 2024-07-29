@@ -1,0 +1,28 @@
+[
+  {
+    "fromSchemaName" : "PUBLIC",
+    "fromTableName" : "\"Source\"",
+    "toSchemaName" : "store",
+    "toTableName" : "TARGET",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE1_TASK",
+    "columnToColumn" : {
+      "id"            : "id",
+      "uuid"          : "uuid",
+      "\"Primary\""   : "\"Primary\"",
+      "boolean"       : "boolean",
+      "int2"          : "smallint",
+      "int8"          : "int8",
+      "bigint"        : "bigint",
+      "numeric"       : "numeric",
+      "float8"        : "float",
+      "date"          : "date",
+      "timestamp"     : "timestamp",
+      "description"   : "rem",
+      "image"         : "image"
+    },
+    "expressionToColumn" : {
+      "(select 'male') as gender" : "gender"
+    }
+  }
+]
