@@ -446,7 +446,7 @@ docker run -d -h cs2 --ip 172.28.0.2 \
 -e CASSANDRA_SEEDS=172.28.0.1 \
 -e CASSANDRA_DC=dc1 \
 -e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra ; docker cp ./cs/jmxsh-R5.jar cs2:/root
+cassandra
 ```
 
 ```shell
@@ -457,6 +457,10 @@ docker run -d -h cs3 --ip 172.28.0.3 \
 -e CASSANDRA_DC=dc1 \
 -e CASSANDRA_CLUSTER_NAME=bublik \
 cassandra
+```
+
+```shell
+docker exec cs2 nodetool status
 ```
 
 ```shell
