@@ -469,6 +469,14 @@ docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageS
 docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
 ```
 
+```shell
+cqlsh -f ./sql/data.cql
+```
+
+```shell
+docker rmi cli ; docker rm cli -f ; docker build -t cli . ; docker run -h cli --network bublik-network --name cli cli:latest
+```
+
 ## Usage
 
 ![Bublik](/sql/bublik.png)
