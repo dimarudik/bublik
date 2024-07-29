@@ -3,12 +3,11 @@ package org.bublik.storage;
 import com.datastax.driver.core.*;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
-import org.bublik.service.ChunkService;
 import org.bublik.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.ResultSet;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -59,6 +58,11 @@ public class CassandraStorage extends Storage implements StorageService {
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         return Map.of();
+    }
+
+    @Override
+    public Connection getConnection() throws SQLException {
+        return null;
     }
 
     @Override

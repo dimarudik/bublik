@@ -21,14 +21,19 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public PGChunk<T> setChunkStatus(Connection connection, ChunkStatus status) throws SQLException {
-        PreparedStatement updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
-        updateStatus.setString(1, status.toString());
-        updateStatus.setLong(2, this.getId());
-        updateStatus.setString(3, this.getConfig().fromTaskName());
-        int rows = updateStatus.executeUpdate();
-        updateStatus.close();
-        connection.commit();
+    public PGChunk<T> setChunkStatus(ChunkStatus status) {
+        try {
+            Connection connection = this.getSourceConnection();
+            PreparedStatement updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
+            updateStatus.setString(1, status.toString());
+            updateStatus.setLong(2, this.getId());
+            updateStatus.setString(3, this.getConfig().fromTaskName());
+            int rows = updateStatus.executeUpdate();
+            updateStatus.close();
+            connection.commit();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         return this;
     }
 
@@ -61,20 +66,4 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             getConfig().fetchWhereClause() +
             " and ctid >= '(" + getStart() + ",1)' and ctid < '(" + getEnd() + ",1)'";
     }
-
-/*
-    @Override
-    public Chunk<?> buildChunkWithTargetTable(Chunk<?> chunk, Table targetTable) {
-        return new PGChunk<>(
-                this.getId(),
-                this.getStart(),
-                this.getEnd(),
-                this.getConfig(),
-                this.getSourceTable(),
-                targetTable,
-                getSourceStorage(),
-                getTargetStorage()
-        );
-    }
-*/
 }

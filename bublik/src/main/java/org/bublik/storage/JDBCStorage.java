@@ -3,26 +3,24 @@ package org.bublik.storage;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bublik.constants.ChunkStatus;
-import org.bublik.model.*;
-import org.bublik.service.ChunkService;
+import org.bublik.model.Chunk;
+import org.bublik.model.Config;
+import org.bublik.model.ConnectionProperty;
+import org.bublik.model.LogMessage;
 import org.bublik.service.StorageService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public abstract class JDBCStorage extends Storage implements StorageService {
     private final DataSource dataSource;
-    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
     protected final Connection initialConnection;
     protected final int threadCount;
 
@@ -42,6 +40,7 @@ public abstract class JDBCStorage extends Storage implements StorageService {
         return dataSource;
     }
 
+    @Override
     public Connection getConnection() throws SQLException {
         return getSource().getConnection();
     }
@@ -72,105 +71,22 @@ public abstract class JDBCStorage extends Storage implements StorageService {
             Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
             initialConnection.close();
             ExecutorService service = Executors.newFixedThreadPool(threadCount);
-/*
-            chunkMap.forEach((key, chunk) -> service
-                    .execute(() -> {
-                        Chunk<?> chunk1 = getChunkSourceConnection(chunk);
-                        Chunk<?> chunk2 = setChunkStatus(chunk1, ChunkStatus.ASSIGNED);
-                        Chunk<?> chunk3 = getSourceResultSet(chunk2);
-                        Chunk<?> chunk4 = getChunkLogMessage(chunk3);
-                        Chunk<?> chunk5 = setChunkStatus(chunk4, ChunkStatus.PROCESSED);
-                        Chunk<?> chunk6 = closeChunkSourceConnection(chunk5);
-                        LogMessage logMessage = chunk6.getLogMessage();
+            List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
+            chunkList.forEach(chunk -> service
+                    .submit(() -> {
+                        Chunk<?> c = chunk
+                                .assignSourceConnection()
+                                .setChunkStatus(ChunkStatus.ASSIGNED)
+                                .assignSourceResultSet()
+                                .assignResultLogMessage()
+                                .setChunkStatus(ChunkStatus.PROCESSED)
+                                .closeChunkSourceConnection();
+                        LogMessage logMessage = c.getLogMessage();
                         logMessage.loggerChunkInfo();
+                        return c;
                     }));
-*/
-            chunkMap.forEach((key, chunk) ->
-                    CompletableFuture
-                            .supplyAsync(() -> getChunkSourceConnection(chunk), service)
-                            .thenApply(ch -> setChunkStatus(ch, ChunkStatus.ASSIGNED))
-                            .thenApply(this::getSourceResultSet)
-                            .thenApply(this::getChunkLogMessage)
-                            .thenApply(ch -> setChunkStatus(ch, ChunkStatus.PROCESSED))
-                            .thenApply(this::closeChunkSourceConnection)
-                            .thenApply(Chunk::getLogMessage)
-                            .thenAccept(LogMessage::loggerChunkInfo));
             service.shutdown();
             service.close();
-        }
-    }
-
-    public Chunk<?> getChunkSourceConnection(Chunk<?> chunk) {
-        try {
-            // to avoid of a usage the main thread
-            Thread.sleep(1);
-            Connection sourceConnection = getConnection();
-            chunk.setSourceConnection(sourceConnection);
-            return chunk;
-        } catch (SQLException | RuntimeException | InterruptedException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
-            throw new RuntimeException();
-        }
-    }
-
-    public Chunk<?> setChunkStatus(Chunk<?> chunk, ChunkStatus status) {
-        try {
-            chunk.setChunkStatus(chunk.getSourceConnection(), status);
-            return chunk;
-        } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
-            throw new RuntimeException();
-        }
-    }
-
-    public Chunk<?> getSourceResultSet(Chunk<?> chunk) {
-        try {
-            ResultSet resultSet = chunk.getData(chunk.getSourceConnection(), chunk.buildFetchStatement());
-            chunk.setResultSet(resultSet);
-            return chunk;
-        } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
-            throw new RuntimeException();
-        }
-    }
-
-    public Chunk<?> getChunkLogMessage(Chunk<?> chunk) {
-        try {
-            LogMessage logMessage = chunk.getTargetStorage().transferToTarget(chunk);
-            chunk.setLogMessage(logMessage);
-            ResultSet resultSet = chunk.getResultSet();
-            resultSet.close();
-            return chunk;
-        } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
-            chunk.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", chunk));
-            return chunk;
-        }
-    }
-
-    public Chunk<?> closeChunkSourceConnection(Chunk<?> chunk) {
-        try {
-            Connection connection = chunk.getSourceConnection();
-            connection.close();
-            return chunk;
-        } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
-            throw new RuntimeException();
         }
     }
 

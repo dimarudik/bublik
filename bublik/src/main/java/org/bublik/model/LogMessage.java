@@ -3,8 +3,7 @@ package org.bublik.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public record LogMessage (
-                          int rowCount,
+public record LogMessage (int rowCount,
                           long start,
                           long stop,
                           String operation,

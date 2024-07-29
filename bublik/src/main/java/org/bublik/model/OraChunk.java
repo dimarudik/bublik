@@ -18,14 +18,19 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public OraChunk<T> setChunkStatus(Connection connection, ChunkStatus status) throws SQLException {
-        CallableStatement callableStatement =
-                connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
-        callableStatement.setString(1, this.getConfig().fromTaskName());
-        callableStatement.setInt(2, this.getId());
-        callableStatement.setInt(3, status.ordinal());
-        callableStatement.execute();
-        callableStatement.close();
+    public OraChunk<T> setChunkStatus(ChunkStatus status) {
+        try {
+            Connection connection = this.getSourceConnection();
+            CallableStatement callableStatement =
+                    connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
+            callableStatement.setString(1, this.getConfig().fromTaskName());
+            callableStatement.setInt(2, this.getId());
+            callableStatement.setInt(3, status.ordinal());
+            callableStatement.execute();
+            callableStatement.close();
+        } catch (SQLException e) {
+            throw  new RuntimeException(e);
+        }
         return this;
     }
 

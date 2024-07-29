@@ -1,35 +1,22 @@
 package org.bublik.cs;
 
-import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MyFuture {
     public static void main(String[] args) {
-        List<String> strings = new ArrayList<>(Arrays.asList(
-                "a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"));
         ExecutorService service = Executors.newFixedThreadPool(4);
-        strings.forEach(s ->
+        List<String> chunks = new ArrayList<>(Arrays.asList(
+                "a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"));
+        chunks.forEach(chunk ->
                 CompletableFuture
-                        .supplyAsync(() -> getThreadName(s), service)
-                        .thenApply(MyFuture::getConnection)
-                        .thenApply(MyFuture::getThreadName)
-                        .thenApply(MyFuture::getThreadName)
-                        .thenAccept(System.out::println));
+                        .supplyAsync(() -> chunk + Thread.currentThread().getName(), service)
+                        .thenAccept(s -> System.out.println(s + "; thenAccept: " + Thread.currentThread().getName())));
         service.shutdown();
         service.close();
-    }
-
-    public static String getThreadName(Object string) {
-        return Thread.currentThread().getName() + " : " + string;
-    }
-
-    public static Objects getConnection(String string) {
-        return null;
     }
 }
