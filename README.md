@@ -389,9 +389,11 @@ create table if not exists public.ctid_chunks (
 > [!IMPORTANT]
 > If you are doing repeated transferring you should truncate CTID table or delete unnecessary chunks
 
-## Cassandra
+## PostgreSQL To Cassandra
 
 ![Cassandra](/sql/cassandra4.png)
+
+### Prepare PostgreSQL To Cassandra environment
 
 ```shell
 docker network create \
