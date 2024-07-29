@@ -7,7 +7,6 @@ import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
-import org.bublik.service.StorageService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -19,7 +18,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public abstract class JDBCStorage extends Storage implements StorageService {
+public abstract class JDBCStorage extends Storage {
     private final DataSource dataSource;
     protected final Connection initialConnection;
     protected final int threadCount;

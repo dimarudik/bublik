@@ -16,6 +16,8 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
   * [Create CTID chunks](#Create-CTID-chunks)
+* [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
+  * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
@@ -387,6 +389,80 @@ create table if not exists public.ctid_chunks (
 > [!IMPORTANT]
 > If you are doing repeated transferring you should truncate CTID table or delete unnecessary chunks
 
+## Cassandra
+
+![Cassandra](/sql/cassandra4.png)
+
+```shell
+docker network create \
+  --driver=bridge \
+  --subnet=172.28.0.0/16 \
+  --gateway=172.28.5.254 \
+  bublik-network
+```
+
+```shell
+docker run \
+        --name postgres \
+        --ip 172.28.0.4 \
+        -h postgres \
+        --network bublik-network \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c timezone="+03" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
+```
+
+```shell
+docker run -d -h cs1 --ip 172.28.0.1 \
+--name cs1 --network bublik-network -p 9042:9042 \
+-v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+-e CASSANDRA_SEEDS=172.28.0.1 \
+-e CASSANDRA_DC=dc1 \
+-e CASSANDRA_CLUSTER_NAME=bublik \
+cassandra
+```
+
+```shell
+docker run -d -h cs2 --ip 172.28.0.2 \
+--name cs2 --network bublik-network \
+-v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+-e CASSANDRA_SEEDS=172.28.0.1 \
+-e CASSANDRA_DC=dc1 \
+-e CASSANDRA_CLUSTER_NAME=bublik \
+cassandra ; docker cp ./cs/jmxsh-R5.jar cs2:/root
+```
+
+```shell
+docker run -d -h cs3 --ip 172.28.0.3 \
+--name cs3 --network bublik-network \
+-v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
+-e CASSANDRA_SEEDS=172.28.0.1,172.28.0.2 \
+-e CASSANDRA_DC=dc1 \
+-e CASSANDRA_CLUSTER_NAME=bublik \
+cassandra
+```
+
+```shell
+docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
+docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
+docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
+```
+
 ## Usage
 
 ![Bublik](/sql/bublik.png)
@@ -458,31 +534,3 @@ Consume the service:
 newman run ./postman/postman_collection.json
 ```
 
-## Cassandra
-
-![Cassandra](/sql/cassandra4.png)
-
-```
-docker run --name postgres \
-        --ip 172.28.0.4 \
-        -h postgres \
-        --network bublik-network \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=postgres \
-        -e POSTGRES_DB=postgres \
-        -p 5432:5432 \
-        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
-        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
-        -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
-        -c timezone="+03" \
-        -c max_connections=200 \
-        -c logging_collector=on \
-        -c log_directory=pg_log \
-        -c log_filename=%u_%a.log \
-        -c log_min_duration_statement=3 \
-        -c log_statement=all \
-        -c auto_explain.log_min_duration=0 \
-        -c auto_explain.log_analyze=true
-```

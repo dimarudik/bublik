@@ -200,7 +200,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
-//        Chunk<?> chunk = ChunkService.get();
         ResultSet fetchResultSet = chunk.getResultSet();
         if (fetchResultSet.next()) {
             Connection connectionTo = getConnection();

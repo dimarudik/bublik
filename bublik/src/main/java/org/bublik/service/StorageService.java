@@ -7,7 +7,10 @@ import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
 import org.bublik.storage.*;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;

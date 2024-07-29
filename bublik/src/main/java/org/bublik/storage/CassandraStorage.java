@@ -3,7 +3,6 @@ package org.bublik.storage;
 import com.datastax.driver.core.*;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
-import org.bublik.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-public class CassandraStorage extends Storage implements StorageService {
+public class CassandraStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
     private final Cluster cluster;
     private final Session session;
@@ -39,10 +38,6 @@ public class CassandraStorage extends Storage implements StorageService {
         this.session = cluster.connect();
         this.batchSize = getBatchSize(connectionProperty);
 //        this.configuration = cluster.getConfiguration();
-    }
-
-    public Cluster getCluster() {
-        return cluster;
     }
 
     @Override
