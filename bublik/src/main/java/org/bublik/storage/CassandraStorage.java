@@ -79,15 +79,14 @@ public class CassandraStorage extends Storage {
         BatchStatement batchStatement = new BatchStatement();
         PreparedStatement preparedStatement = session.prepare(insertString);
         while (chunk.getResultSet().next()) {
-            batchStatement.add(preparedStatement.bind(chunk.getResultSet().getInt("ID")));
+            getBatchStatement(chunk, batchStatement, preparedStatement);
             recordCount++;
             // batch_size_fail_threshold_in_kb: 50
             if (recordCount % batchSize == 0) {
-                session.execute(batchStatement);
+//                session.execute(batchStatement);
                 batchStatement.clear();
             }
         }
-        System.out.println(batchStatement);
 //        session.execute(batchStatement);
         return new LogMessage(
                 recordCount,
@@ -95,6 +94,13 @@ public class CassandraStorage extends Storage {
                 0,
                 "Cassandra BATCH APPLY",
                 chunk);
+    }
+
+    private BatchStatement getBatchStatement(Chunk<?> chunk,
+                                             BatchStatement batchStatement,
+                                             PreparedStatement preparedStatement) throws SQLException {
+        batchStatement.add(preparedStatement.bind(chunk.getResultSet().getInt("ID")));
+        return batchStatement;
     }
 
     @Override
