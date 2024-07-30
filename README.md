@@ -483,6 +483,7 @@ cqlsh -f ./sql/data.cql
 ```shell
 mvn -f bublik/pom.xml clean install -DskipTests ; \ 
   mvn -f cli/pom.xml clean package -DskipTests ; \
+  psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
   docker rmi cli -f ; \
   docker rm cli -f ; \
   docker build -t cli . ; \
