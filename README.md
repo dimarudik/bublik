@@ -459,15 +459,22 @@ docker run -d -h cs3 --ip 172.28.0.3 \
 cassandra
 ```
 
+> [!IMPORTANT]
+> Wait until all nodes start. To check the status you can use nodetool as shown below 
+
 ```shell
 docker exec cs2 nodetool status
 ```
+
+Adjust the batch size Cassandra parameter
 
 ```shell
 docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
 docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
 docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
 ```
+
+Prepare the Keyspace and tables
 
 ```shell
 cqlsh -f ./sql/data.cql
