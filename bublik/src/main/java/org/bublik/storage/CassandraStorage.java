@@ -62,18 +62,24 @@ public class CassandraStorage extends Storage {
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
-        ExecutorService executorService = Executors.newFixedThreadPool(tokenRangeSet.size());
+//        ExecutorService executorService = Executors.newFixedThreadPool(tokenRangeSet.size());
+//        executorService.shutdown();
+//        executorService.close();
+        return simpleInsert(chunk);
+    }
+
+    public LogMessage simpleInsert(Chunk<?> chunk) throws SQLException {
 //        Chunk<?> chunk = ChunkService.get();
         int recordCount = 0;
         long start = System.currentTimeMillis();
         String insertString = buildInsertStatement(chunk);
         LOGGER.info(insertString);
-        readTargetColumnsAndTypes(chunk).forEach((k, v) -> System.out.println(k + " " + v.getColumnPosition() + "." + v.getColumnName() + "." + v.getColumnType()));
-/*
+//        readTargetColumnsAndTypes(chunk)
+//                .forEach((k, v) -> System.out.println(k + " " + v.getColumnPosition() + "." + v.getColumnName() + "." + v.getColumnType()));
         BatchStatement batchStatement = new BatchStatement();
         PreparedStatement preparedStatement = session.prepare(insertString);
-        while (resultSet.next()) {
-            batchStatement.add(preparedStatement.bind(resultSet.getInt("ID")));
+        while (chunk.getResultSet().next()) {
+            batchStatement.add(preparedStatement.bind(chunk.getResultSet().getInt("ID")));
             recordCount++;
             // batch_size_fail_threshold_in_kb: 50
             if (recordCount % batchSize == 0) {
@@ -81,10 +87,8 @@ public class CassandraStorage extends Storage {
                 batchStatement.clear();
             }
         }
-        session.execute(batchStatement);
-*/
-        executorService.shutdown();
-        executorService.close();
+        System.out.println(batchStatement);
+//        session.execute(batchStatement);
         return new LogMessage(
                 recordCount,
                 start,

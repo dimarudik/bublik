@@ -466,7 +466,7 @@ cassandra
 docker exec cs2 nodetool status
 ```
 
-Adjust the batch size Cassandra parameter
+Adjust the ``batch_size_fail_threshold_in_kb`` parameter
 
 ```shell
 docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
@@ -484,8 +484,8 @@ cqlsh -f ./sql/data.cql
 mvn -f bublik/pom.xml clean install -DskipTests ; \ 
   mvn -f cli/pom.xml clean package -DskipTests ; \
   psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
-  docker rmi cli -f ; \
   docker rm cli -f ; \
+  docker rmi cli -f ; \
   docker build -t cli . ; \
   docker run -h cli --network bublik-network --name cli cli:latest
 ```
