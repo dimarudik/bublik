@@ -481,7 +481,12 @@ cqlsh -f ./sql/data.cql
 ```
 
 ```shell
-docker rmi cli ; docker rm cli -f ; docker build -t cli . ; docker run -h cli --network bublik-network --name cli cli:latest
+mvn -f bublik/pom.xml clean install -DskipTests ; \ 
+  mvn -f cli/pom.xml clean package -DskipTests ; \
+  docker rmi cli ; \
+  docker rm cli -f ; \
+  docker build -t cli . ; \
+  docker run -h cli --network bublik-network --name cli cli:latest
 ```
 
 ## Usage
