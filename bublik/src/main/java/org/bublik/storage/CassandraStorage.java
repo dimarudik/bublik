@@ -83,15 +83,16 @@ public class CassandraStorage extends Storage {
             recordCount++;
             // batch_size_fail_threshold_in_kb: 50
             if (recordCount % batchSize == 0) {
-//                session.execute(batchStatement);
+                session.execute(batchStatement);
                 batchStatement.clear();
             }
         }
-//        session.execute(batchStatement);
+        session.execute(batchStatement);
+        long stop = System.currentTimeMillis();
         return new LogMessage(
                 recordCount,
                 start,
-                0,
+                stop,
                 "Cassandra BATCH APPLY",
                 chunk);
     }

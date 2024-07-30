@@ -482,14 +482,14 @@ cqlsh -f ./sql/data.cql
 
 ```shell
 mvn -f bublik/pom.xml clean install -DskipTests ; \ 
-  mvn -f cli/pom.xml clean package -DskipTests ; \
-  psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
-  docker rm cli -f ; \
-  docker rmi cli -f ; \
-  docker rmi $(docker images -f "dangling=true" -q) ; \
-  docker volume prune -f ; \
-  docker build --no-cache -t cli . ; \
-  docker run -h cli --network bublik-network --name cli cli:latest
+mvn -f cli/pom.xml clean package -DskipTests ; \
+psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
+docker rm cli -f ; \
+docker rmi cli -f ; \
+docker rmi $(docker images -f "dangling=true" -q) ; \
+docker volume prune -f ; \
+docker build --no-cache -t cli . ; \
+docker run -h cli --network bublik-network --name cli cli:latest
 ```
 
 ## Usage
