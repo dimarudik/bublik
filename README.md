@@ -454,7 +454,7 @@ docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3
 > If a node fails to start, re-create the broken container.
 
 ```shell
-docker exec cs2 nodetool status
+docker exec cs1 nodetool status
 ```
 
 Adjust the ``batch_size_fail_threshold_in_kb`` parameter
@@ -469,6 +469,12 @@ Prepare the Keyspace and tables
 
 ```shell
 cqlsh -u cassandra -p cassandra -f ./sql/data.cql
+```
+
+```shell
+docker exec -it cs1 nodetool repair ; \
+docker exec -it cs2 nodetool repair ; \
+docker exec -it cs3 nodetool repair
 ```
 
 ```shell
