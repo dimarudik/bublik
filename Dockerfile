@@ -35,3 +35,6 @@ ENTRYPOINT ["java", "-jar", "/usr/app/target/bublik-cli-1.2.0.jar", "-c", "/usr/
 # https://support.datastax.com/s/article/Change-CompactionStrategy-and-subproperties-via-JMX
 # java -jar jmxsh-R5.jar -h localhost -p 7199
 
+# docker exec cs1 nodetool removenode <id>
+# docker build ./k8s -t dimarudik/flights -f ./k8s/Dockerfile-flights --no-cache --progress=plain
+

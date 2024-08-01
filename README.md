@@ -393,6 +393,8 @@ create table if not exists public.ctid_chunks (
 
 ![Cassandra](/sql/cassandra4.png)
 
+[Java Datatype Mappings](https://documentation.softwareag.com/webmethods/adapters_estandards/Adapters/Apache_Cassandra/Apache_for_Cassandra_10-2/10-2-0_Apache_Cassandra_webhelp/index.html#page/cassandra-webhelp/co-cql_data_type_to_jdbc_data_type.html)
+
 ### Prepare PostgreSQL To Cassandra environment
 
 ```shell
@@ -430,37 +432,26 @@ docker run \
 ```
 
 ```shell
-docker run -d -h cs1 --ip 172.28.0.1 \
---name cs1 --network bublik-network -p 9042:9042 \
--v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
--e CASSANDRA_SEEDS=172.28.0.1 \
--e CASSANDRA_DC=dc1 \
--e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra
+docker build ./dockerfiles/cs1 -t cs1 ; \
+docker build ./dockerfiles/cs2 -t cs2 ; \
+docker build ./dockerfiles/cs3 -t cs3
 ```
 
 ```shell
-docker run -d -h cs2 --ip 172.28.0.2 \
---name cs2 --network bublik-network \
--v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
--e CASSANDRA_SEEDS=172.28.0.1 \
--e CASSANDRA_DC=dc1 \
--e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra
+docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1
 ```
 
 ```shell
-docker run -d -h cs3 --ip 172.28.0.3 \
---name cs3 --network bublik-network \
--v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
--e CASSANDRA_SEEDS=172.28.0.1,172.28.0.2 \
--e CASSANDRA_DC=dc1 \
--e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra
+docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2
+```
+
+```shell
+docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3
 ```
 
 > [!IMPORTANT]
-> Wait until all nodes start. To check the status you can use nodetool as shown below 
+> Wait until all nodes start. To check the status you can use nodetool as shown below.
+> If a node fails to start, re-create the broken container.
 
 ```shell
 docker exec cs2 nodetool status
@@ -477,7 +468,7 @@ docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageS
 Prepare the Keyspace and tables
 
 ```shell
-cqlsh -f ./sql/data.cql
+cqlsh -u cassandra -p cassandra -f ./sql/data.cql
 ```
 
 ```shell
