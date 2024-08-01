@@ -1,7 +1,6 @@
 package org.bublik.storage;
 
 import com.datastax.driver.core.*;
-import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
 import org.bublik.storage.cassandraaddons.LongTokenRange;
@@ -10,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.sql.Array;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
@@ -36,6 +34,7 @@ public class CassandraStorage extends Storage {
                 .withPort(Integer.parseInt(getStorageClass().getProperties().getProperty("port")))
                 .withQueryOptions(queryOptions)
                 .withoutJMXReporting()
+                .withCredentials(getStorageClass().getProperties().getProperty("user"), getStorageClass().getProperties().getProperty("password"))
                 .build();
         this.metadata = cluster.getMetadata();
         this.tokenRangeSet = metadata.getTokenRanges();
@@ -66,9 +65,9 @@ public class CassandraStorage extends Storage {
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
-//        return simpleBatch(chunk);
+        return simpleBatch(chunk);
 //        return simpleInsert(chunk);
-        return rangedBatch(chunk);
+//        return rangedBatch(chunk);
     }
 
     public LogMessage simpleInsert(Chunk<?> chunk) throws SQLException {
@@ -186,6 +185,7 @@ public class CassandraStorage extends Storage {
             switch (targetType) {
                 case "int": {
                     int v = resultSet.getInt(sourceColumn);
+/*
                     if (entry.getValue().getColumnName().equals("id")) {
                         MM3 mm3 = new MM3(String.valueOf(v));
                         System.out.println(v + " : " + mm3.getTokenLong());
@@ -195,6 +195,7 @@ public class CassandraStorage extends Storage {
                             e.printStackTrace();
                         }
                     }
+*/
                     objectList.add(v);
 //                    objectList.add(resultSet.getInt(sourceColumn));
                     break;

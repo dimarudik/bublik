@@ -115,6 +115,7 @@ public abstract class Chunk<T> implements ChunkService {
 
     public Chunk<?> assignSourceResultSet() {
         try {
+//            System.out.println(buildFetchStatement());
             ResultSet resultSet = getData(getSourceConnection(), buildFetchStatement());
             setResultSet(resultSet);
             return this;

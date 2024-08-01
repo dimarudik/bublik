@@ -111,6 +111,7 @@ public class App {
                         null,
                         t.getFinalSchemaName(),
                         t.getFinalTableName(true),
+                        null,
                         t.getSchemaName(),
                         t.getTableName(),
                         t.getHintClause(),
