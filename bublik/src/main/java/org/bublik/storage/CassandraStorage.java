@@ -65,9 +65,9 @@ public class CassandraStorage extends Storage {
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
-        return simpleBatch(chunk);
+//        return simpleBatch(chunk);
 //        return simpleInsert(chunk);
-//        return rangedBatch(chunk);
+        return rangedBatch(chunk);
     }
 
     public LogMessage simpleInsert(Chunk<?> chunk) throws SQLException {
@@ -185,17 +185,15 @@ public class CassandraStorage extends Storage {
             switch (targetType) {
                 case "int": {
                     int v = resultSet.getInt(sourceColumn);
-/*
                     if (entry.getValue().getColumnName().equals("id")) {
-                        MM3 mm3 = new MM3(String.valueOf(v));
-                        System.out.println(v + " : " + mm3.getTokenLong());
+                        MM3 mm3 = new MM3(v);
                         try {
                             LongTokenRange longTokenRange = mm3.getLongTokenRange(tokenRangeSet);
+                            System.out.println(v + " : " + mm3.getTokenLong() + " - between " + longTokenRange.getStart() + " and " + longTokenRange.getEnd());
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
-*/
                     objectList.add(v);
 //                    objectList.add(resultSet.getInt(sourceColumn));
                     break;

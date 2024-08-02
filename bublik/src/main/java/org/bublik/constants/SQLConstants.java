@@ -36,8 +36,8 @@ public abstract class SQLConstants {
             "start varchar(32), " +
             "end varchar(32)) ";
     public static final String DML_INSERT_CTID_CHUNKS =
-            "insert into public.ctid_chunks (start_page, end_page, task_name) " +
-            "values (?, ?, ?)";
+            "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
+            "values (?, ?, ?, ?, ?, ?)";
     public static final String SQL_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks";
     public static final String SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 =
@@ -48,8 +48,8 @@ public abstract class SQLConstants {
             "update public.ctid_chunks set rows = ? where chunk_id = ?";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
-            "(select id start_page, id + ? end_page, ? rows, ? task_name, ? schema_name, ? table_name " +
-            "from generate_series(0, ?, ?) as id)";
+            "(select n start_page, n + ? end_page, ? rows, ? task_name, ? schema_name, ? table_name " +
+            "from generate_series(0, ?, ?) as n)";
     public static final String DML_UPDATE_STATUS_ROWID_CHUNKS = "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,?)";
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS =
             "update public.ctid_chunks set status = ? where chunk_id = ? and task_name = ?";

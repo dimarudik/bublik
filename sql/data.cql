@@ -2,20 +2,25 @@ ALTER KEYSPACE system_auth WITH replication = {'class': 'NetworkTopologyStrategy
 CREATE ROLE test WITH PASSWORD = 'test' AND SUPERUSER = true AND LOGIN = true;
 CREATE KEYSPACE IF NOT EXISTS store WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', 'replication_factor' : '3' };
 
--- Create a table
 CREATE TABLE IF NOT EXISTS store.shopping_cart (
 userid text PRIMARY KEY,
 item_count int,
 last_update_timestamp timestamp
 );
 
--- Insert some data
 INSERT INTO store.shopping_cart (userid, item_count, last_update_timestamp) VALUES ('9876', 2, toTimeStamp(now()));
 INSERT INTO store.shopping_cart (userid, item_count, last_update_timestamp) VALUES ('1234', 5, toTimeStamp(now()));
 INSERT INTO store.shopping_cart (userid, item_count, last_update_timestamp) VALUES ('27', 27, toTimeStamp(now()));
 
--- BEGIN UNLOGGED BATCH;
--- APPLY BATCH;
+CREATE TABLE IF NOT EXISTS store.ckey (
+name text,
+id int,
+item_count int,
+last_update_timestamp timestamp,
+primary key ((name, id))
+);
+insert into ckey (name, id) VALUES ('a', 1);
+insert into ckey (name, id) VALUES ('b', 2);
 
 CREATE TABLE IF NOT EXISTS store.target (
     id int primary key,
