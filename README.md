@@ -147,6 +147,7 @@ psql postgresql://test:test@localhost/postgres
   {
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
+    "fromTableNameAdds" : "t",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
@@ -170,14 +171,14 @@ psql postgresql://test:test@localhost/postgres
       "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
-      "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
+      "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
     }
   },
   {
     "fromSchemaName" : "TEST",
     "fromTableName" : "\"Table2\"",
     "toSchemaName" : "PUBLIC",
-    "toTableName" : "TABLE2",
+    "toTableName" : "\"TABLE2\"",
     "fetchHintClause" : "/*+ no_index(TABLE2) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE2_TASK",
@@ -199,7 +200,7 @@ psql postgresql://test:test@localhost/postgres
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
     "fromTaskName" : "PARTED_TASK",
-    "fromTaskWhereClause" : "DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1))",
+    "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)))",
     "columnToColumn" : {
       "id"        : "id",
       "create_at" : "create_at",
@@ -393,6 +394,8 @@ create table if not exists public.ctid_chunks (
 
 ![Cassandra](/sql/cassandra4.png)
 
+[Java Datatype Mappings](https://documentation.softwareag.com/webmethods/adapters_estandards/Adapters/Apache_Cassandra/Apache_for_Cassandra_10-2/10-2-0_Apache_Cassandra_webhelp/index.html#page/cassandra-webhelp/co-cql_data_type_to_jdbc_data_type.html)
+
 ### Prepare PostgreSQL To Cassandra environment
 
 ```shell
@@ -430,43 +433,61 @@ docker run \
 ```
 
 ```shell
-docker run -d -h cs1 --ip 172.28.0.1 \
---name cs1 --network bublik-network -p 9042:9042 \
--v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
--e CASSANDRA_SEEDS=172.28.0.1 \
--e CASSANDRA_DC=dc1 \
--e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra
+docker build ./dockerfiles/cs1 -t cs1 ; \
+docker build ./dockerfiles/cs2 -t cs2 ; \
+docker build ./dockerfiles/cs3 -t cs3
 ```
 
 ```shell
-docker run -d -h cs2 --ip 172.28.0.2 \
---name cs2 --network bublik-network \
--v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
--e CASSANDRA_SEEDS=172.28.0.1 \
--e CASSANDRA_DC=dc1 \
--e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra
+docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1
 ```
 
 ```shell
-docker run -d -h cs3 --ip 172.28.0.3 \
---name cs3 --network bublik-network \
--v ./dockerfiles/jvm-server.options:/etc/cassandra/jvm-server.options \
--e CASSANDRA_SEEDS=172.28.0.1,172.28.0.2 \
--e CASSANDRA_DC=dc1 \
--e CASSANDRA_CLUSTER_NAME=bublik \
-cassandra
+docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2
 ```
 
 ```shell
-docker exec cs2 nodetool status
+docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3
 ```
+
+> [!IMPORTANT]
+> Wait until all nodes start. To check the status you can use nodetool as shown below.
+> If a node fails to start, re-create the broken container.
+
+```shell
+docker exec cs1 nodetool status
+```
+
+Adjust the ``batch_size_fail_threshold_in_kb`` parameter
 
 ```shell
 docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
 docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500 ; \
 docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
+```
+
+Prepare the Keyspace and tables
+
+```shell
+cqlsh -u cassandra -p cassandra -f ./sql/data.cql
+```
+
+```shell
+docker exec -it cs1 nodetool repair ; \
+docker exec -it cs2 nodetool repair ; \
+docker exec -it cs3 nodetool repair
+```
+
+```shell
+mvn -f bublik/pom.xml clean install -DskipTests ; \ 
+mvn -f cli/pom.xml clean package -DskipTests ; \
+psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
+docker rm cli -f ; \
+docker image rm cli ; \
+docker rmi $(docker images -f "dangling=true" -q) ; \
+docker volume prune -f ; \
+docker build --no-cache -t cli . ; \
+docker run -h cli --network bublik-network --name cli cli:latest
 ```
 
 ## Usage

@@ -142,7 +142,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 chunkInsert = initialConnection.prepareStatement(DML_INSERT_CTID_CHUNKS);
                 chunkInsert.setLong(1, max_end_page);
                 chunkInsert.setLong(2, heap_blks_total);
-                chunkInsert.setString(3, config.fromTaskName());
+                chunkInsert.setLong(3, 0);
+                chunkInsert.setString(4, config.fromTaskName());
+                chunkInsert.setString(5, table.getSchemaName().toLowerCase());
+                chunkInsert.setString(6, table.getFinalTableName(false));
                 rows = chunkInsert.executeUpdate();
                 chunkInsert.close();
             }

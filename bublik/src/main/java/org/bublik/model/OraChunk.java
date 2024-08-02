@@ -62,6 +62,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
                 getConfig().fromSchemaName() +
                 "." +
                 getConfig().fromTableName() + " " +
+                (getConfig().fromTableNameAdds() == null ? "" : getConfig().fromTableNameAdds()) + " " +
                 PGKeywords.WHERE + " " +
                 (getConfig().fetchWhereClause() == null ? " " : getConfig().fetchWhereClause() + " and ") +
                 " rowid between ? and ?";

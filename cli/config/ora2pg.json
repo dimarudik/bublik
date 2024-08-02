@@ -2,6 +2,7 @@
   {
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
+    "fromTableNameAdds" : "t",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
@@ -25,7 +26,7 @@
       "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
-      "(select name from test.countries where countries.id = table1.country_id) as country_name" : "country_name"
+      "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
     }
   },
   {

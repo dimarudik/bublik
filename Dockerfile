@@ -27,12 +27,14 @@ COPY ./cli/target/bublik-cli-1.2.0.jar /usr/app/target/bublik-cli-1.2.0.jar
 #ENTRYPOINT ["cat", "/usr/app/config/pg2cs.yaml"]
 ENTRYPOINT ["java", "-jar", "/usr/app/target/bublik-cli-1.2.0.jar", "-c", "/usr/app/config/pg2cs.yaml", "-m", "/usr/app/config/pg2cs.json"]
 
-#java -jar jmxsh-R5.jar -h localhost -p 7199
-#docker run -h cli --network bublik-network --name cli cli:latest
+# docker rmi cli ; docker build -t cli . ; docker run -h cli --network bublik-network --name cli cli:latest
+
 #docker rmi $(docker images -f "dangling=true" -q)
-#docker volume prune
+#docker volume prune -f
 
 # https://support.datastax.com/s/article/Change-CompactionStrategy-and-subproperties-via-JMX
 # java -jar jmxsh-R5.jar -h localhost -p 7199
 
-#
+# docker exec cs1 nodetool removenode <id>
+# docker build ./k8s -t dimarudik/flights -f ./k8s/Dockerfile-flights --no-cache --progress=plain
+

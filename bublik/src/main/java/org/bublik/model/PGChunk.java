@@ -62,6 +62,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             getConfig().fromSchemaName() +
             "." +
             getConfig().fromTableName() + " " +
+            (getConfig().fromTableNameAdds() == null ? "" : getConfig().fromTableNameAdds()) + " " +
             PGKeywords.WHERE + " " +
             getConfig().fetchWhereClause() +
             " and ctid >= '(" + getStart() + ",1)' and ctid < '(" + getEnd() + ",1)'";

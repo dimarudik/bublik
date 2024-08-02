@@ -7,6 +7,7 @@ public record Config(
         String numberColumn,
         String fromSchemaName,
         String fromTableName,
+        String fromTableNameAdds,
         String toSchemaName,
         String toTableName,
         String fetchHintClause,
