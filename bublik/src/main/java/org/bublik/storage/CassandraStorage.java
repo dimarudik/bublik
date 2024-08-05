@@ -3,7 +3,6 @@ package org.bublik.storage;
 import com.datastax.driver.core.*;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
-import org.bublik.storage.cassandraaddons.LongTokenRange;
 import org.bublik.storage.cassandraaddons.MM3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,12 +186,9 @@ public class CassandraStorage extends Storage {
                     int v = resultSet.getInt(sourceColumn);
                     if (entry.getValue().getColumnName().equals("id")) {
                         MM3 mm3 = new MM3(v);
-                        try {
-                            LongTokenRange longTokenRange = mm3.getLongTokenRange(tokenRangeSet);
-                            System.out.println(v + " : " + mm3.getTokenLong() + " - between " + longTokenRange.getStart() + " and " + longTokenRange.getEnd());
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        TokenRange tokenRange = mm3.getTokenRange(tokenRangeSet);
+//                            LongTokenRange longTokenRange = mm3.getLongTokenRange(tokenRangeSet);
+//                            System.out.println(v + " : " + mm3.getMurmur3Token() + " - between " + longTokenRange.getStart() + " and " + longTokenRange.getEnd());
                     }
                     objectList.add(v);
 //                    objectList.add(resultSet.getInt(sourceColumn));

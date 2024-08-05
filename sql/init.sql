@@ -45,7 +45,8 @@ create table "Source" (
     timestamptz timestamptz,
     description text,
     image bytea,
-    current_mood mood
+    current_mood mood,
+    time time
 );
 create table target as
 select
@@ -65,7 +66,8 @@ select
     timestamptz,
     description as rem,
     image,
-    current_mood
+    current_mood,
+    time time
  from "Source" where 0 = 1;
 alter table target add column gender gender;
 create table parted (
@@ -88,7 +90,7 @@ create table intervals (
 
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
-        date, timestamp, timestamptz, description, image, current_mood)
+        date, timestamp, timestamptz, description, image, current_mood, time)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
@@ -98,11 +100,12 @@ insert into "Source" (uuid, "Primary", boolean,
             when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
-            else null end as current_mood
+            else null end as current_mood,
+        now() time
     from generate_series(1, 100000) as n;
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
-        date, timestamp, timestamptz, description, current_mood)
+        date, timestamp, timestamptz, description, current_mood, time)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
@@ -111,7 +114,8 @@ insert into "Source" (uuid, "Primary", boolean,
             when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
-            else null end as current_mood
+            else null end as current_mood,
+        now() time
     from generate_series(1,900000) as n;
 --vacuum "Source";
 insert into noc2c1 (name)
