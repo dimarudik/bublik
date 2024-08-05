@@ -1,5 +1,6 @@
 package org.bublik.storage;
 
+import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
 import de.bytefish.pgbulkinsert.row.SimpleRow;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
@@ -495,7 +496,23 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
                     }
                 }
-                case "time", "timestamp": {
+                case "time": {
+                    try {
+                        Time time = fetchResultSet.getTime(sourceColumn);
+                        if (time == null) {
+                            row.setTimeStamp(targetColumn, null);
+                            break;
+                        }
+                        long l = time.getTime();
+                        LocalTime localTime = LocalTime.ofInstant(Instant.ofEpochMilli(l),
+                                TimeZone.getDefault().toZoneId());
+                        row.setValue(targetColumn, DataType.Time, localTime);
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                }
+                case "timestamp": {
                     try {
                         Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
                         if (timestamp == null) {

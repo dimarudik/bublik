@@ -24,7 +24,8 @@
       "timestamptz"   : "timestamptz",
       "description"   : "rem",
       "image"         : "image",
-      "current_mood"  : "current_mood"
+      "current_mood"  : "current_mood",
+      "time"          : "time"
     },
     "expressionToColumn" : {
       "(select 'male') as gender" : "gender"
