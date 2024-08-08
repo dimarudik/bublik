@@ -21,25 +21,36 @@ public class MM3Batch {
         return tokenRangeMap;
     }
 
-    public void putTokenRangeMap(TokenRange tokenRange) {
-        BatchEntity batchEntity = getCounter(tokenRange);
+    public BatchEntity putTokenRange(TokenRange tokenRange) {
+        BatchEntity batchEntity = getBatchEntity(tokenRange);
         if (batchEntity == null) {
             batchEntity = new BatchEntity(0, BatchStatement.builder(DefaultBatchType.LOGGED));
         } else {
             int counter = batchEntity.getCounter() + 1;
             batchEntity.setCounter(counter);
         }
-        tokenRangeMap.put(tokenRange, batchEntity);
+        return tokenRangeMap.put(tokenRange, batchEntity);
     }
 
-    private BatchEntity getCounter(TokenRange tokenRange) {
+    private BatchEntity getBatchEntity(TokenRange tokenRange) {
         return getTokenRangeMap().get(tokenRange);
+    }
+
+    public BatchEntity getMaxBatchEntity() {
+        Map.Entry<TokenRange, BatchEntity> maxEntry = null;
+        for (Map.Entry<TokenRange, BatchEntity> entry : tokenRangeMap.entrySet()) {
+            if (maxEntry == null || entry.getValue().getCounter().compareTo(maxEntry.getValue().getCounter()) > 0) {
+                maxEntry = entry;
+            }
+        }
+        assert maxEntry != null;
+        return maxEntry.getValue();
     }
 
     public static MM3Batch initMM3Batch(Set<TokenRange> tokenRangeSet) {
         MM3Batch mm3Batch = new MM3Batch();
-        mm3Batch.putTokenRangeMap(defaultTokenRange());
-        tokenRangeSet.forEach(mm3Batch::putTokenRangeMap);
+        mm3Batch.putTokenRange(defaultTokenRange());
+        tokenRangeSet.forEach(mm3Batch::putTokenRange);
         return mm3Batch;
     }
 

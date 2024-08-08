@@ -13,9 +13,11 @@ public class PGTable extends Table {
 
     @Override
     public boolean exists(Connection connection) throws SQLException {
+/*
         if (tableExistsCache().contains(getFinalTableName(false))) {
             return true;
         }
+*/
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
                 getSchemaName().toLowerCase(),

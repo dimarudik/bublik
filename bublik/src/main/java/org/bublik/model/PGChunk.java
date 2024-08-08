@@ -2,7 +2,10 @@ package org.bublik.model;
 
 import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
+import org.bublik.storage.JDBCPostgreSQLStorage;
 import org.bublik.storage.Storage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -15,6 +18,7 @@ import java.util.Map;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PGChunk.class);
     public PGChunk(Integer id, T start, T end, Config config, Table sourceTable,
                    Storage sourceStorage, Storage targetStorage) {
         super(id, start, end, config, sourceTable, sourceStorage, targetStorage);
@@ -32,6 +36,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             updateStatus.close();
             connection.commit();
         } catch (SQLException e) {
+            LOGGER.error("{}", e.getMessage());
             throw new RuntimeException(e);
         }
         return this;
