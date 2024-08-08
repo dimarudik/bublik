@@ -22,6 +22,8 @@
         <Logger name="io.netty.util" level="error"/>
         <Logger name="io.netty.buffer" level="error"/>
         <Logger name="io.netty.channel" level="error"/>
+        <Logger name="com.datastax.oss.driver.internal.core" level="error"/>
+        <Logger name="com.datastax.dse.driver.internal.core.type.codec" level="error"/>
         <Logger name="org.bublik" level="all"/>
         <Logger name="org.postgresql" level="all"/>
     </Loggers>

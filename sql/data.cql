@@ -19,8 +19,8 @@ item_count int,
 last_update_timestamp timestamp,
 primary key ((name, id))
 );
-insert into ckey (name, id) VALUES ('a', 1);
-insert into ckey (name, id) VALUES ('b', 2);
+insert into store.ckey (name, id) VALUES ('a', 1);
+insert into store.ckey (name, id) VALUES ('b', 2);
 
 CREATE TABLE IF NOT EXISTS store.target (
     id int primary key,
