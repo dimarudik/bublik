@@ -44,6 +44,8 @@
             <version>21.3.0.0</version>
         </dependency>
 <!--        datastax-->
+
+        <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
         <dependency>
             <groupId>com.datastax.oss</groupId>
             <artifactId>java-driver-core</artifactId>
@@ -80,7 +82,13 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.datastax.cassandra</groupId>
+            <artifactId>cassandra-driver-extras</artifactId>
+            <version>3.11.5</version>
+        </dependency>
 <!--        cassandra-->
+<!--
         <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>
@@ -132,6 +140,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+-->
 <!--        ydb-->
         <dependency>
             <groupId>tech.ydb</groupId>

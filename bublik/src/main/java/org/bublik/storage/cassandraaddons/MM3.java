@@ -1,8 +1,9 @@
 package org.bublik.storage.cassandraaddons;
 
-import com.datastax.driver.core.TokenRange;
+import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenFactory;
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -15,7 +16,6 @@ public class MM3 {
         this.key = key;
     }
 
-    // select token(id), id, "Primary" from target where id = 27;
     public Murmur3Token getMurmur3Token() {
         Murmur3TokenFactory murmur3TokenFactory = new Murmur3TokenFactory();
         byte[] bytes = new byte[0];
@@ -26,34 +26,20 @@ public class MM3 {
             bytes = stringToBytes(key.toString());
         }
         ByteBuffer bb = ByteBuffer.wrap(bytes);
-/*
-        Murmur3Partitioner murmur3Partitioner = new Murmur3Partitioner();
-        Murmur3Partitioner.LongToken longToken = null;
-        if (key instanceof String) {
-            String keyString = key.toString();
-            longToken = murmur3Partitioner.getToken(ByteBuffer.wrap(keyString.getBytes(StandardCharsets.UTF_8)));
-        }
-        if (key instanceof Number) {
-            int keyInteger = ((Number) key).intValue();
-            longToken = murmur3Partitioner.getToken(ByteBuffer.wrap(toBytes(keyInteger)));
-        }
-        assert longToken != null;
-*/
         return (Murmur3Token) murmur3TokenFactory.hash(bb);
     }
 
     public TokenRange getTokenRange(Set<TokenRange> tokenRangeSet) {
-        try {
-            return tokenRangeSet
-                    .stream()
-                    .filter(tRange -> (Long) tRange.getStart().getValue() >= this.getMurmur3Token().getValue() &&
-                            this.getMurmur3Token().getValue() < (Long) tRange.getStart().getValue())
-                    .findAny()
-                    .orElseThrow();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        return tokenRangeSet
+                .stream()
+                .filter(tRange -> ((Murmur3Token)tRange.getStart()).getValue() >= this.getMurmur3Token().getValue() &&
+                        this.getMurmur3Token().getValue() < ((Murmur3Token)tRange.getEnd()).getValue())
+                .findAny()
+                .orElse(defaultTokenRange());
+    }
+
+    public static TokenRange defaultTokenRange(){
+        return new Murmur3TokenRange(Murmur3TokenFactory.MIN_TOKEN, Murmur3TokenFactory.MAX_TOKEN);
     }
 
     // https://stackoverflow.com/questions/1936857/convert-integer-into-byte-array-java
@@ -88,3 +74,17 @@ public class MM3 {
         return r;
     }
 }
+
+/*
+        Murmur3Partitioner murmur3Partitioner = new Murmur3Partitioner();
+        Murmur3Partitioner.LongToken longToken = null;
+        if (key instanceof String) {
+            String keyString = key.toString();
+            longToken = murmur3Partitioner.getToken(ByteBuffer.wrap(keyString.getBytes(StandardCharsets.UTF_8)));
+        }
+        if (key instanceof Number) {
+            int keyInteger = ((Number) key).intValue();
+            longToken = murmur3Partitioner.getToken(ByteBuffer.wrap(toBytes(keyInteger)));
+        }
+        assert longToken != null;
+*/
