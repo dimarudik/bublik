@@ -14,6 +14,7 @@ import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
 import org.bublik.storage.cassandraaddons.MM3;
@@ -58,8 +59,8 @@ public class CassandraStorage extends Storage {
                 .build();
         this.metadata = cqlSession.getMetadata();
         this.tokenRangeSet = metadata.getTokenMap().orElseThrow().getTokenRanges();
-//        tokenRangeSet.forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
-//        ((Murmur3Token)tokenRange.getEnd()).getValue()));
+        tokenRangeSet.forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
+        ((Murmur3Token)tokenRange.getEnd()).getValue()));
         this.batchSize = getBatchSize(connectionProperty);
     }
 
@@ -172,7 +173,7 @@ public class CassandraStorage extends Storage {
                 batchApply(entry.getValue().getBatchStatementBuilder(), entry.getValue().getCounter());
             }
         }
-//        mm3Batch.getTokenRangeMap().forEach((k, v) -> System.out.println(k + ":" + v.getCounter()));
+        mm3Batch.getTokenRangeMap().forEach((k, v) -> System.out.println(k + ":" + v.getCounter()));
 //        System.out.println(mm3Batch.getMaxBatchEntity().getCounter());
         long stop = System.currentTimeMillis();
         return new LogMessage(

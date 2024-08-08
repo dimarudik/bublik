@@ -409,7 +409,7 @@ docker network create \
 ```shell
 docker run \
         --name postgres \
-        --ip 172.28.0.4 \
+        --ip 172.28.0.7 \
         -h postgres \
         --network bublik-network \
         -e POSTGRES_USER=postgres \

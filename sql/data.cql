@@ -8,9 +8,11 @@ item_count int,
 last_update_timestamp timestamp
 );
 
+BEGIN BATCH
 INSERT INTO store.shopping_cart (userid, item_count, last_update_timestamp) VALUES ('9876', 2, toTimeStamp(now()));
 INSERT INTO store.shopping_cart (userid, item_count, last_update_timestamp) VALUES ('1234', 5, toTimeStamp(now()));
 INSERT INTO store.shopping_cart (userid, item_count, last_update_timestamp) VALUES ('27', 27, toTimeStamp(now()));
+APPLY BATCH;
 
 CREATE TABLE IF NOT EXISTS store.ckey (
 name text,
