@@ -442,35 +442,33 @@ docker build ./dockerfiles/cs6 -t cs6
 ```
 
 ```shell
-docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1
-```
-
-```shell
-docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2
-```
-
-```shell
-docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3
-```
-
-```shell
-docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4
-```
-
-```shell
-docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5
-```
-
-```shell
-docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
+docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1 ; \
+sleep 15; docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2 ; \
+sleep 15; docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3 ; \
+sleep 15; docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4 ; \
+sleep 15; docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5 ; \
+sleep 15; docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
 ```
 
 > [!IMPORTANT]
 > Wait until all nodes start. To check the status you can use nodetool as shown below.
-> If a node fails to start, re-create the broken container.
+> If a node fails to start, remove node like: 
+> docker exec cs1 nodetool assassinate <IP> 
+> and re-create the broken container 
 
 ```shell
 docker exec cs1 nodetool status
+# or
+docker exec cs1 nodetool describecluster
+```
+
+```shell
+docker exec -it cs1 nodetool repair ; \
+docker exec -it cs2 nodetool repair ; \
+docker exec -it cs3 nodetool repair ; \
+docker exec -it cs4 nodetool repair ; \
+docker exec -it cs5 nodetool repair ; \
+docker exec -it cs6 nodetool repair
 ```
 
 Adjust the ``batch_size_fail_threshold_in_kb`` parameter
