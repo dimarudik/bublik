@@ -435,7 +435,10 @@ docker run \
 ```shell
 docker build ./dockerfiles/cs1 -t cs1 ; \
 docker build ./dockerfiles/cs2 -t cs2 ; \
-docker build ./dockerfiles/cs3 -t cs3
+docker build ./dockerfiles/cs3 -t cs3 ; \
+docker build ./dockerfiles/cs4 -t cs4 ; \
+docker build ./dockerfiles/cs5 -t cs5 ; \
+docker build ./dockerfiles/cs6 -t cs6
 ```
 
 ```shell
@@ -448,6 +451,18 @@ docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2
 
 ```shell
 docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3
+```
+
+```shell
+docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4
+```
+
+```shell
+docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5
+```
+
+```shell
+docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
 ```
 
 > [!IMPORTANT]
@@ -463,7 +478,10 @@ Adjust the ``batch_size_fail_threshold_in_kb`` parameter
 ```shell
 docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
 docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024
+docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
+docker exec -it cs4 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
+docker exec -it cs5 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
+docker exec -it cs6 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024
 ```
 
 Prepare the Keyspace and tables
@@ -475,7 +493,10 @@ cqlsh -u cassandra -p cassandra -f ./sql/data.cql
 ```shell
 docker exec -it cs1 nodetool repair ; \
 docker exec -it cs2 nodetool repair ; \
-docker exec -it cs3 nodetool repair
+docker exec -it cs3 nodetool repair ; \
+docker exec -it cs4 nodetool repair ; \
+docker exec -it cs5 nodetool repair ; \
+docker exec -it cs6 nodetool repair
 ```
 
 ```shell
