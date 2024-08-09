@@ -453,22 +453,13 @@ sleep 15; docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-netwo
 > [!IMPORTANT]
 > Wait until all nodes start. To check the status you can use nodetool as shown below.
 > If a node fails to start, remove node like: 
-> docker exec cs1 nodetool assassinate <IP> 
+> docker exec cs1 nodetool assassinate IP
 > and re-create the broken container 
 
 ```shell
 docker exec cs1 nodetool status
 # or
 docker exec cs1 nodetool describecluster
-```
-
-```shell
-docker exec -it cs1 nodetool repair ; \
-docker exec -it cs2 nodetool repair ; \
-docker exec -it cs3 nodetool repair ; \
-docker exec -it cs4 nodetool repair ; \
-docker exec -it cs5 nodetool repair ; \
-docker exec -it cs6 nodetool repair
 ```
 
 Adjust the ``batch_size_fail_threshold_in_kb`` parameter
