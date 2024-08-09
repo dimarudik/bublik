@@ -4,7 +4,7 @@
     "fromTableName" : "\"Source\"",
     "toSchemaName" : "store",
     "toTableName" : "TARGET",
-    "fetchWhereClause" : "1 = 1 and id <= 20000",
+    "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
     "columnToColumn" : {
       "id"            : "id",
