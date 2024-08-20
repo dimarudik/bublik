@@ -16,5 +16,6 @@ public record Config(
         String fromTaskWhereClause,
         List<String> tryCharIfAny,
         Map<String, String> columnToColumn,
-        Map<String, String> expressionToColumn
+        Map<String, String> expressionToColumn,
+        Map<String, List<String>> columnFromMany
 ) {}

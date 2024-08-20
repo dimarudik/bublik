@@ -45,6 +45,9 @@
       "gender"      : "gender",
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
+    },
+    "columnFromMany" : {
+       "tstzrange" : ["create_at", "update_at"]
     }
   },
   {

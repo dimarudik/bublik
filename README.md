@@ -444,10 +444,10 @@ docker build ./dockerfiles/cs6 -t cs6
 ```shell
 docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1 ; \
 sleep 15; docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2 ; \
-sleep 15; docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3 ; \
-sleep 15; docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4 ; \
-sleep 15; docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5 ; \
-sleep 15; docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
+sleep 45; docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3 ; \
+sleep 45; docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4 ; \
+sleep 45; docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5 ; \
+sleep 45; docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
 ```
 
 > [!IMPORTANT]

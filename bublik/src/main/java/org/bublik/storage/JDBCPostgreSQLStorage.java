@@ -2,6 +2,7 @@ package org.bublik.storage;
 
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
+import de.bytefish.pgbulkinsert.pgsql.model.range.Range;
 import de.bytefish.pgbulkinsert.row.SimpleRow;
 import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
@@ -17,10 +18,12 @@ import org.postgresql.util.PGInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Date;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collector;
 
 import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.util.ColumnUtil.*;
@@ -216,7 +219,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         if (fetchResultSet.next()) {
             Connection connectionTo = getConnection();
             Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-            System.out.println(table.exists(connectionTo));
+//            System.out.println(table.exists(connectionTo));
             if (table.exists(connectionTo)) {
                 chunk.setTargetTable(table);
                 try {
@@ -249,6 +252,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                     Chunk<?> chunk) {
         int recordCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
+        Map<List<String>, PGColumn> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
+/*
+        if (neededColumnsFromMany != null) {
+            neededColumnsFromMany.forEach((k,v) ->
+                    System.out.println(k + v.getColumnName()));
+        }
+*/
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
         String[] columnNames = neededColumnsToDB
                 .values()
@@ -264,7 +274,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
             Consumer<SimpleRow> simpleRowConsumer =
                     s -> {
-                            simpleRowConsume(s, neededColumnsToDB, fetchResultSet, chunk, connectionTo, writer);
+                            simpleRowConsume(s, neededColumnsToDB, neededColumnsFromMany, fetchResultSet, chunk, connectionTo, writer);
                     };
             do {
                 writer.startRow(simpleRowConsumer);
@@ -296,6 +306,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     null);
             Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
             Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
+            Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
+
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 String columnType = resultSet.getString(6);
@@ -316,6 +328,45 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
                             .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
                 }
+
+                if (columnFromManyMap != null) {
+                    columnFromManyMap
+                            .entrySet()
+                            .stream()
+                            .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                }
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            LOGGER.error("{}", e.getMessage());
+        }
+        return columnMap;
+    }
+
+    public Map<List<String>, PGColumn> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?> chunk) {
+        Map<List<String>, PGColumn> columnMap = new HashMap<>();
+        try {
+            ResultSet resultSet;
+            resultSet = connectionTo.getMetaData().getColumns(
+                    null,
+                    chunk.getTargetTable().getSchemaName().toLowerCase(),
+                    chunk.getTargetTable().getFinalTableName(false),
+                    null);
+            Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
+
+            while (resultSet.next()) {
+                String columnName = resultSet.getString(4);
+                String columnType = resultSet.getString(6);
+                Integer columnPosition = resultSet.getInt(17);
+
+                if (columnFromManyMap != null) {
+                    columnFromManyMap
+                            .entrySet()
+                            .stream()
+                            .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(i -> columnMap.put(i.getValue(), new PGColumn(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                }
             }
             resultSet.close();
         } catch (SQLException e) {
@@ -326,6 +377,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     private void simpleRowConsume(SimpleRow row,
                                   Map<String, PGColumn> neededColumnsToDB,
+                                  Map<List<String>, PGColumn> neededColumnsFromMany,
                                   ResultSet fetchResultSet,
                                   Chunk<?> chunk,
                                   Connection connectionTo,
@@ -557,6 +609,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 }
                 case "date":
                     try {
+                        Date date = fetchResultSet.getDate(sourceColumn);
+                        if (date == null) {
+                            row.setDate(targetColumn, null);
+                            break;
+                        }
+/*
                         Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
                         if (timestamp == null) {
                             row.setDate(targetColumn, null);
@@ -565,7 +623,40 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         long l = timestamp.getTime();
                         LocalDate localDate = Instant.ofEpochMilli(l)
                                 .atZone(ZoneId.systemDefault()).toLocalDate();
+                        System.out.println(timestamp + " " + l + " : " + localDate);
                         row.setDate(targetColumn, localDate);
+*/
+                        row.setDate(targetColumn, date.toLocalDate());
+                        break;
+                    } catch (SQLException e) {
+                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());
+                    }
+                case "tstzrange":
+                    try {
+                        List<String> sourceColumns = neededColumnsFromMany
+                                .entrySet()
+                                .stream()
+                                .filter(i -> i.getValue().getColumnName().equals(targetColumn))
+                                .map(Map.Entry::getKey)
+                                .toList().getLast();
+                        Timestamp start = fetchResultSet.getTimestamp(sourceColumns.getFirst());
+                        Timestamp end = fetchResultSet.getTimestamp(sourceColumns.getLast());
+                        ZonedDateTime lowerBound = null;
+                        if (start != null) {
+                             lowerBound = ZonedDateTime.ofInstant(start.toInstant(), ZoneId.of("UTC"));
+                        }
+                        ZonedDateTime upperBound = null;
+                        if (end != null) {
+                            upperBound = ZonedDateTime.ofInstant(end.toInstant(), ZoneId.of("UTC"));
+                        }
+                        Range<ZonedDateTime> localDateTimeRange = new Range<>(
+                                lowerBound,
+                                true,
+                                lowerBound == null,
+                                upperBound,
+                                true,
+                                upperBound == null);
+                        row.setTsTzRange(targetColumn, localDateTimeRange);
                         break;
                     } catch (SQLException e) {
                         LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), e.getMessage());

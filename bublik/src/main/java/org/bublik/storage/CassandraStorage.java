@@ -6,10 +6,7 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
-import com.datastax.oss.driver.api.core.cql.BatchStatement;
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
-import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.Node;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
@@ -34,6 +31,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.CompletionStage;
 
 public class CassandraStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
@@ -254,18 +252,20 @@ public class CassandraStorage extends Storage {
     }
 */
 
-    private void batchApply(BatchStatementBuilder batchStatementBuilder, int recordCount) {
+    private CompletionStage<AsyncResultSet> batchApply(BatchStatementBuilder batchStatementBuilder, int recordCount) {
         try {
             BatchStatement batchStatement = batchStatementBuilder
                     .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
                     .setTimeout(Duration.ofSeconds(20))
                     .build();
-            cqlSession.executeAsync(batchStatement);
+            CompletionStage<AsyncResultSet> stage = cqlSession.executeAsync(batchStatement);
 //            LOGGER.info("{} BATCHES APPLIED", batchStatement.size());
             batchStatementBuilder.clearStatements();
             batchStatement.clear();
+            return stage;
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
     }
 
