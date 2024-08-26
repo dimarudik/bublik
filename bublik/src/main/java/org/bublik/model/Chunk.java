@@ -10,6 +10,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import static org.bublik.exception.Utils.getStackTrace;
+
 public abstract class Chunk<T> implements ChunkService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
 
@@ -103,10 +105,7 @@ public abstract class Chunk<T> implements ChunkService {
                 setSourceConnection(sourceConnection);
                 return this;
             } catch (SQLException | RuntimeException e) {
-                LOGGER.error("{}", e.getMessage());
-                for (Throwable t : e.getSuppressed()) {
-                    LOGGER.error("{}", t.getMessage());
-                }
+                LOGGER.error("{}", getStackTrace(e));
                 throw new RuntimeException();
             }
         }
@@ -120,10 +119,7 @@ public abstract class Chunk<T> implements ChunkService {
             setResultSet(resultSet);
             return this;
         } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
+            LOGGER.error("{}", getStackTrace(e));
             throw new RuntimeException();
         }
     }
@@ -131,15 +127,13 @@ public abstract class Chunk<T> implements ChunkService {
     public Chunk<?> assignResultLogMessage() {
         try {
             LogMessage logMessage = this.getTargetStorage().transferToTarget(this);
+//            System.out.println("assignResultLogMessage...");
             this.setLogMessage(logMessage);
             ResultSet resultSet = this.getResultSet();
             resultSet.close();
             return this;
         } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
+            LOGGER.error("{}", getStackTrace(e));
             this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));
             return this;
         }
@@ -151,10 +145,7 @@ public abstract class Chunk<T> implements ChunkService {
             connection.close();
             return this;
         } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
+            LOGGER.error("{}", getStackTrace(e));
             throw new RuntimeException();
         }
     }

@@ -41,3 +41,5 @@ CREATE TABLE IF NOT EXISTS store.target (
     gender varchar);
 
 truncate table store.target;
+
+CREATE TABLE IF NOT EXISTS store.ttoken (id int primary key, tr_begin bigint, tr_end bigint, ttoken bigint);

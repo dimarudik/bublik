@@ -30,11 +30,12 @@ public class MM3 {
     }
 
     public TokenRange getTokenRange(Set<TokenRange> tokenRangeSet) {
+        long v = getMurmur3Token().getValue();
         return tokenRangeSet
                 .stream()
-                .filter(tRange -> ((Murmur3Token)tRange.getStart()).getValue() >= this.getMurmur3Token().getValue() &&
-                        this.getMurmur3Token().getValue() < ((Murmur3Token)tRange.getEnd()).getValue())
-                .findAny()
+                .filter(tRange ->   v >= ((Murmur3Token)tRange.getStart()).getValue() &&
+                                    v < ((Murmur3Token)tRange.getEnd()).getValue())
+                .findFirst()
                 .orElse(defaultTokenRange());
     }
 

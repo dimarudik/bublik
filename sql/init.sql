@@ -49,6 +49,12 @@ create table "Source" (
     current_mood mood,
     time time
 );
+create table token (
+    id int,
+    tr_begin bigint,
+    tr_end bigint,
+    token bigint
+);
 create table target as
 select
     id,

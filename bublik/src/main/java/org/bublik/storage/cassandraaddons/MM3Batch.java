@@ -1,7 +1,6 @@
 package org.bublik.storage.cassandraaddons;
 
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 
@@ -21,21 +20,15 @@ public class MM3Batch {
         return tokenRangeMap;
     }
 
-    public BatchEntity putTokenRange(TokenRange tokenRange) {
-        BatchEntity batchEntity = getBatchEntity(tokenRange);
-        if (batchEntity == null) {
-            batchEntity = new BatchEntity(0, BatchStatement.builder(DefaultBatchType.LOGGED));
-        } else {
-            int counter = batchEntity.getCounter() + 1;
-            batchEntity.setCounter(counter);
-        }
-        return tokenRangeMap.put(tokenRange, batchEntity);
+    public void putTokenRange(TokenRange tokenRange, BatchEntity batchEntity) {
+        tokenRangeMap.put(tokenRange, batchEntity);
     }
 
-    private BatchEntity getBatchEntity(TokenRange tokenRange) {
+    public BatchEntity getBatchEntity(TokenRange tokenRange) {
         return getTokenRangeMap().get(tokenRange);
     }
 
+/*
     public BatchEntity getMaxBatchEntity() {
         Map.Entry<TokenRange, BatchEntity> maxEntry = null;
         for (Map.Entry<TokenRange, BatchEntity> entry : tokenRangeMap.entrySet()) {
@@ -46,33 +39,13 @@ public class MM3Batch {
         assert maxEntry != null;
         return maxEntry.getValue();
     }
+*/
 
     public static MM3Batch initMM3Batch(Set<TokenRange> tokenRangeSet) {
         MM3Batch mm3Batch = new MM3Batch();
-        mm3Batch.putTokenRange(defaultTokenRange());
-        tokenRangeSet.forEach(mm3Batch::putTokenRange);
+        TokenRange defaultTokenRange = defaultTokenRange();
+        mm3Batch.putTokenRange(defaultTokenRange, new BatchEntity(BatchStatement.builder(DefaultBatchType.LOGGED)));
+        tokenRangeSet.forEach(v -> mm3Batch.putTokenRange(v, new BatchEntity(BatchStatement.builder(DefaultBatchType.LOGGED))));
         return mm3Batch;
-    }
-
-    public static class BatchEntity {
-        private Integer counter;
-        private final BatchStatementBuilder batchStatementBuilder;
-
-        public BatchEntity(Integer counter, BatchStatementBuilder batchStatementBuilder) {
-            this.counter = counter;
-            this.batchStatementBuilder = batchStatementBuilder;
-        }
-
-        public Integer getCounter() {
-            return counter;
-        }
-
-        public void setCounter(Integer counter) {
-            this.counter = counter;
-        }
-
-        public BatchStatementBuilder getBatchStatementBuilder() {
-            return batchStatementBuilder;
-        }
     }
 }

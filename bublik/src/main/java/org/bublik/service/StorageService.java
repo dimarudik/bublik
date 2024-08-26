@@ -1,6 +1,6 @@
 package org.bublik.service;
 
-import com.datastax.driver.core.Cluster;
+import com.datastax.oss.driver.api.core.CqlSession;
 import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
@@ -57,7 +57,7 @@ public interface StorageService {
         String storageType = properties.getProperty("type");
         if (storageType != null) {
             return switch (storageType) {
-                case "cassandra" -> new CassandraStorageClass(Cluster.class, properties);
+                case "cassandra" -> new CassandraStorageClass(CqlSession.class, properties);
 //                case "ydb" -> new YdbTransportImpl.class;
                 default -> throw new RuntimeException("Unknown storage type");
             };

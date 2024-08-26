@@ -1,11 +1,11 @@
 package org.bublik.storage;
 
-import com.datastax.driver.core.Cluster;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 import java.util.Properties;
 
 public class CassandraStorageClass extends StorageClass {
-    public CassandraStorageClass(Class<Cluster> aClass, Properties properties) {
+    public CassandraStorageClass(Class<CqlSession> aClass, Properties properties) {
         super(aClass, properties);
     }
 }
