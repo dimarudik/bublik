@@ -16,15 +16,16 @@ import java.util.Map;
 import java.util.Properties;
 
 public interface StorageService {
-    ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
+//    ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
 
     void start(List<Config> configs) throws SQLException;
-    boolean hook(List<Config> configs) throws SQLException;
+//    boolean hook(List<Config> configs) throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
 
+/*
     static void set(Storage storage) {
         STORAGE_THREAD_LOCAL.set(storage);
     }
@@ -36,6 +37,7 @@ public interface StorageService {
     static void remove() {
         STORAGE_THREAD_LOCAL.remove();
     }
+*/
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) throws SQLException {
         StorageClass storageClass = StorageService.getStorageClass(properties);
@@ -45,8 +47,8 @@ public interface StorageService {
         if (storageClass instanceof JDBCStorageClass) {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return switch (driver.getClass().getName()) {
-                case "oracle.jdbc.OracleDriver" -> new JDBCOracleStorage(storageClass, connectionProperty);
-                case "org.postgresql.Driver" -> new JDBCPostgreSQLStorage(storageClass, connectionProperty);
+                case "oracle.jdbc.OracleDriver" -> JDBCOracleStorage.getInstance(storageClass, connectionProperty);
+                case "org.postgresql.Driver" -> JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty);
                 default -> throw new RuntimeException();
             };
         }

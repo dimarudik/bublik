@@ -22,20 +22,19 @@ public abstract class Chunk<T> implements ChunkService {
     private final Table sourceTable;
     private Table targetTable;
     private final Storage sourceStorage;
-    private final Storage targetStorage;
+    private Storage targetStorage;
     private Connection sourceConnection;
     private LogMessage logMessage;
     private ResultSet resultSet;
 
     public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
-                 Storage sourceStorage, Storage targetStorage) {
+                 Storage sourceStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
         this.config = config;
         this.sourceTable = sourceTable;
         this.sourceStorage = sourceStorage;
-        this.targetStorage = targetStorage;
     }
 
     public Integer getId() {
@@ -96,6 +95,10 @@ public abstract class Chunk<T> implements ChunkService {
 
     public void setResultSet(ResultSet resultSet) {
         this.resultSet = resultSet;
+    }
+
+    public void setTargetStorage(Storage targetStorage) {
+        this.targetStorage = targetStorage;
     }
 
     public Chunk<?> assignSourceConnection() {

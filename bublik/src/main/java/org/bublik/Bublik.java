@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.sql.SQLException;
 import java.util.List;
 
+import static org.bublik.exception.Utils.getStackTrace;
+
 public class Bublik {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bublik.class);
     private final List<Config> configs;
@@ -26,24 +28,9 @@ public class Bublik {
             Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
             assert sourceStorage != null;
             sourceStorage.start(configs);
-            Storage targetStorage = StorageService.get();
-            // переделать на NullPointerException
-/*
-            try {
-                targetStorage.closeStorage();
-            } catch (NullPointerException e) {
-                e.printStackTrace();
-            }
-*/
-            if (targetStorage != null) {
-                targetStorage.closeStorage();
-            }
             LOGGER.info("All Bublik's tasks have been done.");
         } catch (SQLException e) {
-            LOGGER.error("{}", e.getMessage());
-            for (Throwable t : e.getSuppressed()) {
-                LOGGER.error("{}", t.getMessage());
-            }
+            LOGGER.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }

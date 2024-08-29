@@ -1,4 +1,4 @@
-threadCount: 4
+threadCount: 20
 initPGChunks: true
 copyPGChunks: true
 

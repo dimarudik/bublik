@@ -5,23 +5,23 @@ import java.util.Properties;
 
 public class ConnectionProperty {
     private int threadCount;
-    private Boolean initPGChunks = true;
+//    private Boolean initPGChunks = true;
     private Boolean rowsStat = false;
-    private Boolean copyPGChunks = true;
+//    private Boolean copyPGChunks = true;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
 
     public ConnectionProperty(){}
     public ConnectionProperty(int threadCount,
-                              Boolean initPGChunks,
+//                              Boolean initPGChunks,
                               Boolean rowsStat,
-                              Boolean copyPGChunks,
+//                              Boolean copyPGChunks,
                               Map<String, String> fromProperties,
                               Map<String, String> toProperties) {
         this.threadCount = threadCount;
-        this.initPGChunks = initPGChunks;
+//        this.initPGChunks = initPGChunks;
         this.rowsStat = rowsStat;
-        this.copyPGChunks = copyPGChunks;
+//        this.copyPGChunks = copyPGChunks;
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
     }
@@ -34,6 +34,7 @@ public class ConnectionProperty {
         this.threadCount = threadCount;
     }
 
+/*
     public Boolean getInitPGChunks() {
         return initPGChunks;
     }
@@ -41,6 +42,7 @@ public class ConnectionProperty {
     public void setInitPGChunks(Boolean initPGChunks) {
         this.initPGChunks = initPGChunks;
     }
+*/
 
     public Boolean getRowsStat() {
         return rowsStat;
@@ -50,6 +52,7 @@ public class ConnectionProperty {
         this.rowsStat = rowsStat;
     }
 
+/*
     public Boolean getCopyPGChunks() {
         return copyPGChunks;
     }
@@ -57,6 +60,7 @@ public class ConnectionProperty {
     public void setCopyPGChunks(Boolean copyPGChunks) {
         this.copyPGChunks = copyPGChunks;
     }
+*/
 
     public Map<String, String> getFromProperties() {
         return fromProperties;

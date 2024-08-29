@@ -16,6 +16,8 @@ public abstract class SQLConstants {
             "select pg_relation_size( ? ) / 8192 as heap_blks_total";
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from public.ctid_chunks where task_name = ?";
+    public static final String DDL_TRUNCATE_POSTGRESQL_TABLE_CHUNKS =
+            "truncate table public.ctid_chunks;";
     public static final String DDL_CREATE_POSTGRESQL_TABLE_CHUNKS =
             "create table if not exists public.ctid_chunks (" +
             "chunk_id int generated always as identity primary key, " +

@@ -37,6 +37,8 @@ import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import static org.bublik.exception.Utils.getStackTrace;
+
 public class CassandraStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
     private final Metadata metadata;
@@ -46,28 +48,31 @@ public class CassandraStorage extends Storage {
 
     public CassandraStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
+        Properties properties = getStorageClass().getProperties();
         DriverConfigLoader configLoader = DriverConfigLoader
                 .programmaticBuilder()
-                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(20))
+                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
 //                .withDuration(DefaultDriverOption.CONNECTION_INIT_QUERY_TIMEOUT, Duration.ofSeconds(20))
                 .build();
         List<String> hosts = Arrays.asList(getStorageClass().getProperties().getProperty("hosts").split(",", -1));
         List<InetSocketAddress> addresses = hosts
                 .stream()
-                .map(h -> new InetSocketAddress(h, Integer.parseInt(getStorageClass().getProperties().getProperty("port"))))
+                .map(h -> new InetSocketAddress(h, Integer.parseInt(properties.getProperty("port"))))
                 .toList();
         cqlSession = CqlSession
                 .builder()
                 .addContactPoints(addresses)
                 .withConfigLoader(configLoader)
-                .withAuthCredentials(getStorageClass().getProperties().getProperty("user"), getStorageClass().getProperties().getProperty("password"))
-                .withLocalDatacenter(getStorageClass().getProperties().getProperty("datacenter"))
+                .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
+                .withLocalDatacenter(properties.getProperty("datacenter"))
                 .build();
+//        System.out.println(cqlSession.hashCode());
         this.metadata = cqlSession.getMetadata();
         this.tokenRangeSet = metadata.getTokenMap().orElseThrow().getTokenRanges();
 //        tokenRangeSet.forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
 //        ((Murmur3Token)tokenRange.getEnd()).getValue()));
 //        System.out.println();
+/*
         metadata
                 .getNodes()
                 .forEach((key, value) -> {
@@ -75,6 +80,7 @@ public class CassandraStorage extends Storage {
                             .forEach(t -> System.out.println(((Murmur3Token)t.getStart()).getValue() + " : " + ((Murmur3Token)t.getEnd()).getValue()));
                     System.out.println();
                 });
+*/
         this.batchSize = getBatchSize(connectionProperty);
     }
 
@@ -83,10 +89,12 @@ public class CassandraStorage extends Storage {
 
     }
 
+/*
     @Override
     public boolean hook(List<Config> configs) throws SQLException {
         return false;
     }
+*/
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
@@ -159,7 +167,6 @@ public class CassandraStorage extends Storage {
     public LogMessage rangedBatch(Chunk<?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
-        long stop = 0;
         try {
             MM3Batch mm3Batch = MM3Batch.initMM3Batch(tokenRangeSet);
             Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
@@ -190,11 +197,10 @@ public class CassandraStorage extends Storage {
             }
 //        mm3Batch.getTokenRangeMap().forEach((k, v) -> System.out.println(k + ":" + v.getCounter()));
 //        System.out.println(mm3Batch.getMaxBatchEntity().getCounter());
-            stop = System.currentTimeMillis();
         } catch (Exception e) {
-            stop = System.currentTimeMillis();
-            LOGGER.error("{}", e.getMessage());
+            LOGGER.error("{}", getStackTrace(e));
         }
+        long stop = System.currentTimeMillis();
         return new LogMessage(
                 recordCount,
                 start,
@@ -261,14 +267,15 @@ public class CassandraStorage extends Storage {
                     .setTimeout(Duration.ofSeconds(60))
                     .build();
             Function<Throwable, AsyncResultSet> function = t -> {
-                if (t instanceof WriteTimeoutException) {
-                    LOGGER.error("TIMEOUT {}", t.toString());
-                } else if (t instanceof InvalidQueryException){
-                    LOGGER.error("batchSize is {} - {}", batchStatement.size(), t.toString());
-                } else if (t instanceof WriteFailureException) {
-                    LOGGER.error("FAILURE {}", t.toString());
-                } else {
-                    LOGGER.error("{}", t.toString());
+                switch (t) {
+                    case WriteTimeoutException ignored -> LOGGER.error("TIMEOUT {}", getStackTrace(t));
+                    case InvalidQueryException ignored ->
+                            LOGGER.error("batchSize is {} - {}", batchStatement.size(), getStackTrace(t));
+                    case WriteFailureException ignored -> LOGGER.error("FAILURE {}", getStackTrace(t));
+                    case null, default -> {
+                        assert t != null;
+                        LOGGER.error("{}", getStackTrace(t));
+                    }
                 }
                 return null;
             };
@@ -279,7 +286,7 @@ public class CassandraStorage extends Storage {
             batchStatement.clear();
             return stage;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("{}", getStackTrace(e));
             return null;
         }
     }
@@ -412,8 +419,16 @@ public class CassandraStorage extends Storage {
     public Map<String, CassandraColumn> readTargetColumnsAndTypes(Chunk<?> chunk) {
         Map<String, CassandraColumn> columnMap = new HashMap<>();
         Config config = chunk.getConfig();
-        KeyspaceMetadata keyspaceMetadata = metadata.getKeyspace(config.toSchemaName()).orElseThrow();
-        Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata.getTable(chunk.getConfig().toTableName()).get().getColumns();
+        KeyspaceMetadata keyspaceMetadata = metadata
+                .getKeyspace(config.toSchemaName())
+                .orElseThrow(() -> {
+                    System.out.println("Here... " + config.toSchemaName());
+                    return new RuntimeException();
+                });
+        Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
+                .getTable(config.toTableName())
+                .get()
+                .getColumns();
 //        mapColumnMetaData.forEach((c, v) -> System.out.println(v.getName() + " " + v.getType().toString().toLowerCase()));
         List<ColumnMetadata> columnMetadata = mapColumnMetaData.values().stream().toList();
 

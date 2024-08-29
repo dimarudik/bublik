@@ -30,11 +30,21 @@ import static org.bublik.util.ColumnUtil.*;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
+    private static JDBCPostgreSQLStorage instance;
 
-    public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    private JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 
+    public static synchronized JDBCPostgreSQLStorage getInstance(StorageClass storageClass,
+                                                             ConnectionProperty connectionProperty) throws SQLException{
+        if (instance == null) {
+            instance = new JDBCPostgreSQLStorage(storageClass, connectionProperty);
+        }
+        return instance;
+    }
+
+/*
     @Override
     public boolean hook(List<Config> configs) throws SQLException {
         if (getConnectionProperty().getInitPGChunks()) {
@@ -45,6 +55,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
         return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
     }
+*/
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
@@ -53,8 +64,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
-            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
-            StorageService.set(targetStorage);
+//            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
+//            StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
@@ -71,8 +82,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 resultSet.getLong("end_page"),
                                 config,
                                 sourceTable,
-                                this,
-                                targetStorage
+                                this//,
+//                                targetStorage
                         )
                 );
             }
@@ -157,7 +168,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             initialConnection.commit();
         } catch (SQLException e) {
-            LOGGER.error("{}", e.getMessage());
+            LOGGER.error("{}", getStackTrace(e));
         }
     }
 
@@ -167,7 +178,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
             createTable.close();
         } catch (SQLException e) {
-            LOGGER.error("{}", e.getMessage());
+            LOGGER.error("{}", getStackTrace(e));
         }
     }
 

@@ -371,7 +371,7 @@ toProperties:
 
 ### Create CTID chunks
 
-To begin the transferring of data from source to target you should prepare the CTID table fulfilled by info of chunks
+To begin the transferring of data from source to target Bublik prepares the CTID table at the source side
 
 ```
 create table if not exists public.ctid_chunks (
@@ -384,11 +384,7 @@ create table if not exists public.ctid_chunks (
 ```
 
 > [!NOTE]
-> If parameter **initPGChunks** has the true value, the CTID table will be created and fulfilled automatically.
-> To begin the process **copyPGChunks** must be true
-
-> [!IMPORTANT]
-> If you are doing repeated transferring you should truncate CTID table or delete unnecessary chunks
+> If you run bublik-cli with -k option, the CTID table will be created and fulfilled automatically.
 
 ## PostgreSQL To Cassandra
 

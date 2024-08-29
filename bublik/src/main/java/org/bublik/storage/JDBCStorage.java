@@ -7,6 +7,7 @@ import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
+import org.bublik.service.StorageService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -66,13 +67,15 @@ public abstract class JDBCStorage extends Storage {
 
     @Override
     public void start(List<Config> configs) throws SQLException {
-        if (hook(configs)) {
+//        if (hook(configs)) {
             Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
             initialConnection.close();
             ExecutorService service = Executors.newFixedThreadPool(threadCount);
             List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
             chunkList.forEach(chunk -> service
                     .submit(() -> {
+                        Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
+                        chunk.setTargetStorage(targetStorage);
                         Chunk<?> c = chunk
                                 .assignSourceConnection()
                                 .setChunkStatus(ChunkStatus.ASSIGNED)
@@ -82,11 +85,13 @@ public abstract class JDBCStorage extends Storage {
                                 .closeChunkSourceConnection();
                         LogMessage logMessage = c.getLogMessage();
                         logMessage.loggerChunkInfo();
+                        assert targetStorage != null;
+                        targetStorage.closeStorage();
                         return c;
                     }));
             service.shutdown();
             service.close();
-        }
+//        }
     }
 
     @Override
