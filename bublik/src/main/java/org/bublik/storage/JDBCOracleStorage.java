@@ -18,15 +18,26 @@ import java.util.TreeMap;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
+    private static JDBCOracleStorage instance;
 
-    public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    private JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 
+    public static synchronized JDBCOracleStorage getInstance(StorageClass storageClass,
+                                                       ConnectionProperty connectionProperty) throws SQLException{
+        if (instance == null) {
+            instance = new JDBCOracleStorage(storageClass, connectionProperty);
+        }
+        return instance;
+    }
+
+/*
     @Override
     public boolean hook(List<Config> configs) {
         return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
     }
+*/
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
@@ -38,10 +49,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
         PreparedStatement statement = initialConnection.prepareStatement(sql);
+//        System.out.println(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
-            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
-            StorageService.set(targetStorage);
+//            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
+//            StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
@@ -58,8 +70,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                                 resultSet.getRowId("end_rowid"),
                                 config,
                                 sourceTable,
-                                this,
-                                targetStorage
+                                this//,
+//                                targetStorage
                         )
                 );
             }

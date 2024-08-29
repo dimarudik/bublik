@@ -10,12 +10,12 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Create chunks](#Create-chunks)
+  * [Create Oracle chunks](#Create-Oracle-chunks)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [Create CTID chunks](#Create-CTID-chunks)
+  * [Create PostgreSQL CTID chunks](#Create-PostgreSQL-CTID-chunks)
 * [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
   * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
@@ -224,7 +224,7 @@ psql postgresql://test:test@localhost/postgres
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Create chunks
+### Create Oracle chunks
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
 Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
@@ -369,9 +369,9 @@ toProperties:
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### Create CTID chunks
+### Create PostgreSQL CTID chunks
 
-To begin the transferring of data from source to target you should prepare the CTID table fulfilled by info of chunks
+To begin the transferring of data from source to target Bublik prepares the CTID table at the source side
 
 ```
 create table if not exists public.ctid_chunks (
@@ -384,11 +384,7 @@ create table if not exists public.ctid_chunks (
 ```
 
 > [!NOTE]
-> If parameter **initPGChunks** has the true value, the CTID table will be created and fulfilled automatically.
-> To begin the process **copyPGChunks** must be true
-
-> [!IMPORTANT]
-> If you are doing repeated transferring you should truncate CTID table or delete unnecessary chunks
+> If you run bublik-cli with -k option, the CTID table will be created and fulfilled automatically.
 
 ## PostgreSQL To Cassandra
 
@@ -409,7 +405,7 @@ docker network create \
 ```shell
 docker run \
         --name postgres \
-        --ip 172.28.0.4 \
+        --ip 172.28.0.7 \
         -h postgres \
         --network bublik-network \
         -e POSTGRES_USER=postgres \
@@ -435,27 +431,31 @@ docker run \
 ```shell
 docker build ./dockerfiles/cs1 -t cs1 ; \
 docker build ./dockerfiles/cs2 -t cs2 ; \
-docker build ./dockerfiles/cs3 -t cs3
+docker build ./dockerfiles/cs3 -t cs3 ; \
+docker build ./dockerfiles/cs4 -t cs4 ; \
+docker build ./dockerfiles/cs5 -t cs5 ; \
+docker build ./dockerfiles/cs6 -t cs6
 ```
 
 ```shell
-docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1
-```
-
-```shell
-docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2
-```
-
-```shell
-docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3
+docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1 ; \
+sleep 15; docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2 ; \
+sleep 45; docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3 ; \
+sleep 45; docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4 ; \
+sleep 45; docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5 ; \
+sleep 45; docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
 ```
 
 > [!IMPORTANT]
 > Wait until all nodes start. To check the status you can use nodetool as shown below.
-> If a node fails to start, re-create the broken container.
+> If a node fails to start, remove node like: 
+> docker exec cs1 nodetool assassinate IP 
+> and re-create the broken container 
 
 ```shell
 docker exec cs1 nodetool status
+# or
+docker exec cs1 nodetool describecluster
 ```
 
 Adjust the ``batch_size_fail_threshold_in_kb`` parameter
@@ -463,7 +463,10 @@ Adjust the ``batch_size_fail_threshold_in_kb`` parameter
 ```shell
 docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
 docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024
+docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
+docker exec -it cs4 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
+docker exec -it cs5 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
+docker exec -it cs6 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024
 ```
 
 Prepare the Keyspace and tables
@@ -475,7 +478,10 @@ cqlsh -u cassandra -p cassandra -f ./sql/data.cql
 ```shell
 docker exec -it cs1 nodetool repair ; \
 docker exec -it cs2 nodetool repair ; \
-docker exec -it cs3 nodetool repair
+docker exec -it cs3 nodetool repair ; \
+docker exec -it cs4 nodetool repair ; \
+docker exec -it cs5 nodetool repair ; \
+docker exec -it cs6 nodetool repair
 ```
 
 ```shell

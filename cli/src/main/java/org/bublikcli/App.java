@@ -20,6 +20,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.ColumnUtil.fillCtidChunks;
 import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
 import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 
@@ -29,11 +31,13 @@ public class App {
     public static void main(String[] args) throws IOException, SQLException {
 
         Options options = new Options();
-        Option configOption = createOption("c", "config", "yaml file", "file name of prop.erties");
-        Option tableDefOption = createOption("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
-        Option initOption = createOption("i", "init", "json file", "file name with a list of tables");
-        Option outputOption = createOption("o", "output", "json file", "create new mapping definitions file");
+        Option createChunkOption = createOptionNoArg("k", "chunk", "create ctid chunks at source (applicable only for PostgreSQL)");
+        Option configOption = createOptionValue("c", "config", "yaml file", "file name of prop.erties");
+        Option tableDefOption = createOptionValue("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
+        Option initOption = createOptionValue("i", "init", "json file", "file name with a list of tables");
+        Option outputOption = createOptionValue("o", "output", "json file", "create new mapping definitions file");
         options
+                .addOption(createChunkOption)
                 .addOption(configOption)
                 .addOption(tableDefOption)
                 .addOption(initOption)
@@ -57,13 +61,21 @@ public class App {
         } else if(cmd.hasOption("c") && cmd.hasOption("i") && cmd.hasOption("o")) {
             createDefJson(cmd.getOptionValue(configOption), cmd.getOptionValue(initOption), cmd.getOptionValue(outputOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i")) {
-            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption));
+            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption), cmd.hasOption(createChunkOption));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
         }
     }
 
-    private static Option createOption(String shortName, String longName, String argName, String description) {
+    private static Option createOptionNoArg(String shortName, String longName, String description) {
+        return Option.builder(shortName)
+                .longOpt(longName)
+                .desc(description)
+                .required(false)
+                .build();
+    }
+
+    private static Option createOptionValue(String shortName, String longName, String argName, String description) {
         return Option.builder(shortName)
                 .longOpt(longName)
                 .argName(argName)
@@ -73,17 +85,25 @@ public class App {
                 .build();
     }
 
-    private static void run(String configFileName, String tableDefFileName) {
+    private static void run(String configFileName, String tableDefFileName, Boolean hasCreateChunkOption) {
         try {
             ObjectMapper mapperJSON = new ObjectMapper();
-            ConnectionProperty connectionProperty = connectionProperty(configFileName);
-            List<Config> configList =
+            ConnectionProperty properties = connectionProperty(configFileName);
+            List<Config> config =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
-            Bublik bublik = Bublik.getInstance(connectionProperty, configList);
+            if (hasCreateChunkOption) {
+                System.out.println("Here...");
+                Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
+                        properties.getFromProperty());
+                connection.setAutoCommit(false);
+                fillCtidChunks(config, connection);
+                connection.close();
+            }
+            Bublik bublik = Bublik.getInstance(properties, config);
             bublik.start();
         } catch (Exception e) {
-            log.error(e.getMessage(), e);
+            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -120,6 +140,7 @@ public class App {
                         null,
                         null,
                         t.getColumnToColumn(connection),
+                        null,
                         null
                 ));
             } else {

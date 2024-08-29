@@ -37,6 +37,9 @@ mvn -f bublik/pom.xml clean install -DskipTests ; mvn -f cli/pom.xml clean packa
     docker run -h cli --network bublik-network --name cli cli
 
 docker exec -it cs1 nodetool sjk mx -mg -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold
+copy token from '/tmp/r.dmp' with delimiter ';';
+
+docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f CasContentionTimeout -v 5000
 
 docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500
 docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 500

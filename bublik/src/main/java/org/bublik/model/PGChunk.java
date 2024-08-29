@@ -19,9 +19,8 @@ import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PGChunk.class);
-    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable,
-                   Storage sourceStorage, Storage targetStorage) {
-        super(id, start, end, config, sourceTable, sourceStorage, targetStorage);
+    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Storage sourceStorage) {
+        super(id, start, end, config, sourceTable, sourceStorage);
     }
 
     @Override

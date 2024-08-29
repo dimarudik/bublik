@@ -26,7 +26,8 @@ create table "TABLE2" (
     gender boolean,
     byteablob bytea,
     textclob text,
-    "CaseSensitive" varchar(20)
+    "CaseSensitive" varchar(20),
+    tstzrange tstzrange
 );
 create table "Source" (
     id int primary key generated always as identity,
@@ -47,6 +48,12 @@ create table "Source" (
     image bytea,
     current_mood mood,
     time time
+);
+create table token (
+    id int,
+    tr_begin bigint,
+    tr_end bigint,
+    token bigint
 );
 create table target as
 select

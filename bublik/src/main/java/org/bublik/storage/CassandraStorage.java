@@ -6,16 +6,18 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
-import com.datastax.oss.driver.api.core.cql.BatchStatement;
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
-import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException;
+import com.datastax.oss.driver.api.core.servererrors.WriteFailureException;
+import com.datastax.oss.driver.api.core.servererrors.WriteTimeoutException;
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
+import org.bublik.storage.cassandraaddons.BatchEntity;
 import org.bublik.storage.cassandraaddons.MM3;
 import org.bublik.storage.cassandraaddons.MM3Batch;
 import org.slf4j.Logger;
@@ -32,8 +34,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
+
+import static org.bublik.exception.Utils.getStackTrace;
 
 public class CassandraStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
@@ -44,22 +48,39 @@ public class CassandraStorage extends Storage {
 
     public CassandraStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
+        Properties properties = getStorageClass().getProperties();
         DriverConfigLoader configLoader = DriverConfigLoader
                 .programmaticBuilder()
-                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(10))
+                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
+//                .withDuration(DefaultDriverOption.CONNECTION_INIT_QUERY_TIMEOUT, Duration.ofSeconds(20))
                 .build();
+        List<String> hosts = Arrays.asList(getStorageClass().getProperties().getProperty("hosts").split(",", -1));
+        List<InetSocketAddress> addresses = hosts
+                .stream()
+                .map(h -> new InetSocketAddress(h, Integer.parseInt(properties.getProperty("port"))))
+                .toList();
         cqlSession = CqlSession
                 .builder()
-                .addContactPoint(new InetSocketAddress(getStorageClass().getProperties().getProperty("host"),
-                        Integer.parseInt(getStorageClass().getProperties().getProperty("port"))))
+                .addContactPoints(addresses)
                 .withConfigLoader(configLoader)
-                .withAuthCredentials(getStorageClass().getProperties().getProperty("user"), getStorageClass().getProperties().getProperty("password"))
-                .withLocalDatacenter(getStorageClass().getProperties().getProperty("datacenter"))
+                .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
+                .withLocalDatacenter(properties.getProperty("datacenter"))
                 .build();
+//        System.out.println(cqlSession.hashCode());
         this.metadata = cqlSession.getMetadata();
         this.tokenRangeSet = metadata.getTokenMap().orElseThrow().getTokenRanges();
 //        tokenRangeSet.forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
 //        ((Murmur3Token)tokenRange.getEnd()).getValue()));
+//        System.out.println();
+/*
+        metadata
+                .getNodes()
+                .forEach((key, value) -> {
+                    metadata.getTokenMap().orElseThrow().getTokenRanges(value)
+                            .forEach(t -> System.out.println(((Murmur3Token)t.getStart()).getValue() + " : " + ((Murmur3Token)t.getEnd()).getValue()));
+                    System.out.println();
+                });
+*/
         this.batchSize = getBatchSize(connectionProperty);
     }
 
@@ -68,10 +89,12 @@ public class CassandraStorage extends Storage {
 
     }
 
+/*
     @Override
     public boolean hook(List<Config> configs) throws SQLException {
         return false;
     }
+*/
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
@@ -85,10 +108,6 @@ public class CassandraStorage extends Storage {
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
-//        tokenRangeSet.forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
-//                ((Murmur3Token)tokenRange.getEnd()).getValue()));
-//        Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
-//        stringCassandraColumnMap.forEach((k, v) -> System.out.println(k + " -> " + v.getColumnName() + " : " + v.getColumnType()));
 //        return simpleInsert(chunk);
 //        return simpleBatch(chunk);
         return rangedBatch(chunk);
@@ -102,7 +121,7 @@ public class CassandraStorage extends Storage {
         PreparedStatement preparedStatement = cqlSession.prepare(insertString);
         ResultSet resultSet = chunk.getResultSet();
         while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap, null);
+            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap);
             cqlSession.execute(preparedStatement.bind(entry.getValue()));
             recordCount++;
         }
@@ -118,23 +137,23 @@ public class CassandraStorage extends Storage {
     public LogMessage simpleBatch(Chunk<?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
-        MM3Batch mm3Batch = MM3Batch.initMM3Batch(tokenRangeSet);
         Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
         String insertString = buildInsertStatement(chunk, stringCassandraColumnMap);
         BatchStatementBuilder batchStatementBuilder = BatchStatement.builder(DefaultBatchType.LOGGED);
         PreparedStatement preparedStatement = cqlSession.prepare(insertString);
         ResultSet resultSet = chunk.getResultSet();
+        List<CompletionStage<AsyncResultSet>> stages = new ArrayList<>();
         while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap, mm3Batch);
+            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap);
             batchStatementBuilder.addStatement(preparedStatement.bind(entry.getValue()));
             recordCount++;
             // batch_size_fail_threshold_in_kb: 50
             if (recordCount % batchSize == 0) {
-                batchApply(batchStatementBuilder, recordCount);
+                stages.add(batchApply(batchStatementBuilder));
             }
         }
         if (recordCount > 0) {
-            batchApply(batchStatementBuilder, recordCount);
+            stages.add(batchApply(batchStatementBuilder));
         }
         long stop = System.currentTimeMillis();
         return new LogMessage(
@@ -148,32 +167,39 @@ public class CassandraStorage extends Storage {
     public LogMessage rangedBatch(Chunk<?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
-        MM3Batch mm3Batch = MM3Batch.initMM3Batch(tokenRangeSet);
-        MM3Batch.BatchEntity batchEntity = null;
-        Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
-        String insertString = buildInsertStatement(chunk, stringCassandraColumnMap);
-        PreparedStatement preparedStatement = cqlSession.prepare(insertString);
-        ResultSet resultSet = chunk.getResultSet();
-        while (resultSet.next()) {
-            Map.Entry<TokenRange,Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap, mm3Batch);
-            mm3Batch.getTokenRangeMap().get(entry.getKey()).getBatchStatementBuilder().addStatement(preparedStatement.bind(entry.getValue()));
-            recordCount++;
-            batchEntity = mm3Batch.getMaxBatchEntity();
-            // batch_size_fail_threshold_in_kb: 50
-            if (batchEntity.getCounter() == batchSize) {
-//                System.out.println(batchEntity.getCounter());
-                batchApply(batchEntity.getBatchStatementBuilder(), batchEntity.getCounter());
-                batchEntity.setCounter(0);
+        try {
+            MM3Batch mm3Batch = MM3Batch.initMM3Batch(tokenRangeSet);
+            Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
+            String insertString = buildInsertStatement(chunk, stringCassandraColumnMap);
+            PreparedStatement preparedStatement = cqlSession.prepare(insertString);
+            ResultSet resultSet = chunk.getResultSet();
+            List<CompletionStage<AsyncResultSet>> stages = new ArrayList<>();
+            while (resultSet.next()) {
+                Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap);
+                Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = mm3Batch.getTokenRangeMap();
+                BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
+                BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
+                batchStatementBuilder.addStatement(preparedStatement.bind(entry.getValue()));
+                batchEntity.increaseCounter();
+                recordCount++;
+                // batch_size_fail_threshold_in_kb: 50
+                if (batchEntity.getCounter() == batchSize) {
+                    CompletionStage<AsyncResultSet> stage = batchApply(batchStatementBuilder);
+                    stages.add(stage);
+                    batchEntity.resetCounter();
+                }
             }
-        }
-        for (Map.Entry<TokenRange, MM3Batch.BatchEntity> entry : mm3Batch.getTokenRangeMap().entrySet()) {
-            if (entry.getValue().getCounter() > 0) {
+            for (Map.Entry<TokenRange, BatchEntity> entry : mm3Batch.getTokenRangeMap().entrySet()) {
+                if (entry.getValue().getCounter() > 0) {
 //                System.out.println(entry.getValue().getCounter());
-                batchApply(entry.getValue().getBatchStatementBuilder(), entry.getValue().getCounter());
+                    stages.add(batchApply(entry.getValue().getBatchStatementBuilder()));
+                }
             }
-        }
 //        mm3Batch.getTokenRangeMap().forEach((k, v) -> System.out.println(k + ":" + v.getCounter()));
 //        System.out.println(mm3Batch.getMaxBatchEntity().getCounter());
+        } catch (Exception e) {
+            LOGGER.error("{}", getStackTrace(e));
+        }
         long stop = System.currentTimeMillis();
         return new LogMessage(
                 recordCount,
@@ -234,25 +260,39 @@ public class CassandraStorage extends Storage {
     }
 */
 
-    private void batchApply(BatchStatementBuilder batchStatementBuilder, int recordCount) {
+    private CompletionStage<AsyncResultSet> batchApply(BatchStatementBuilder batchStatementBuilder) {
         try {
             BatchStatement batchStatement = batchStatementBuilder
                     .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
-                    .setTimeout(Duration.ofSeconds(10))
+                    .setTimeout(Duration.ofSeconds(60))
                     .build();
-            cqlSession.execute(batchStatement);
+            Function<Throwable, AsyncResultSet> function = t -> {
+                switch (t) {
+                    case WriteTimeoutException ignored -> LOGGER.error("TIMEOUT {}", getStackTrace(t));
+                    case InvalidQueryException ignored ->
+                            LOGGER.error("batchSize is {} - {}", batchStatement.size(), getStackTrace(t));
+                    case WriteFailureException ignored -> LOGGER.error("FAILURE {}", getStackTrace(t));
+                    case null, default -> {
+                        assert t != null;
+                        LOGGER.error("{}", getStackTrace(t));
+                    }
+                }
+                return null;
+            };
+//            CompletionStage<AsyncResultSet> stage = null;
+            CompletionStage<AsyncResultSet> stage = cqlSession.executeAsync(batchStatement).exceptionally(function);
 //            LOGGER.info("{} BATCHES APPLIED", batchStatement.size());
             batchStatementBuilder.clearStatements();
             batchStatement.clear();
+            return stage;
         } catch (Exception e) {
-            System.out.println(recordCount);
-            e.printStackTrace();
+            LOGGER.error("{}", getStackTrace(e));
+            return null;
         }
     }
 
     private Map.Entry<TokenRange, Object[]> getPreparedStatementObjects(ResultSet resultSet,
-                                                 Map<String, CassandraColumn> stringCassandraColumnMap,
-                                                 MM3Batch mm3Batch) throws SQLException {
+                                                 Map<String, CassandraColumn> stringCassandraColumnMap) throws SQLException {
         // http://www.java2s.com/example/java-api/org/apache/cassandra/dht/murmur3partitioner/murmur3partitioner-0-0.html
         List<Object> objectList = new ArrayList<>();
         TokenRange tokenRange = null;
@@ -264,14 +304,19 @@ public class CassandraStorage extends Storage {
                     int v = resultSet.getInt(sourceColumn);
                     if (entry.getValue().getColumnName().equals("id")) {
                         MM3 mm3 = new MM3(v);
-//                        System.out.println("Value: " + v + " ; Token: " + mm3.getMurmur3Token().getValue());
                         tokenRange = mm3.getTokenRange(tokenRangeSet);
-                        MM3Batch.BatchEntity batchEntity = mm3Batch.putTokenRange(tokenRange);
+//                        System.out.println(v + ";" + ((Murmur3Token)tokenRange.getStart()).getValue() + ";" +
+//                                ((Murmur3Token)tokenRange.getEnd()).getValue() + ";" + mm3.getMurmur3Token().getValue());
+
+//                        BatchEntity batchEntity = mm3Batch.getBatchEntity(tokenRange);
+//                        batchEntity.increaseCounter();
+//                        mm3Batch.putTokenRange(tokenRange, batchEntity);
 //                        System.out.println("Value: " + v + " ; Token: " + mm3.getMurmur3Token().getValue() +
 //                                " ; TokenRange: " + ((Murmur3Token)tokenRange.getStart()).getValue() + " - " +
 //                                ((Murmur3Token)tokenRange.getEnd()).getValue());
                     }
                     objectList.add(v);
+//                    objectList.add(1);
                     break;
                 }
                 case "bigint": {
@@ -374,8 +419,16 @@ public class CassandraStorage extends Storage {
     public Map<String, CassandraColumn> readTargetColumnsAndTypes(Chunk<?> chunk) {
         Map<String, CassandraColumn> columnMap = new HashMap<>();
         Config config = chunk.getConfig();
-        KeyspaceMetadata keyspaceMetadata = metadata.getKeyspace(config.toSchemaName()).orElseThrow();
-        Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata.getTable(chunk.getConfig().toTableName()).get().getColumns();
+        KeyspaceMetadata keyspaceMetadata = metadata
+                .getKeyspace(config.toSchemaName())
+                .orElseThrow(() -> {
+                    System.out.println("Here... " + config.toSchemaName());
+                    return new RuntimeException();
+                });
+        Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
+                .getTable(config.toTableName())
+                .get()
+                .getColumns();
 //        mapColumnMetaData.forEach((c, v) -> System.out.println(v.getName() + " " + v.getType().toString().toLowerCase()));
         List<ColumnMetadata> columnMetadata = mapColumnMetaData.values().stream().toList();
 
