@@ -10,12 +10,12 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Create chunks](#Create-chunks)
+  * [Create Oracle chunks](#Create-Oracle-chunks)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [Create CTID chunks](#Create-CTID-chunks)
+  * [Create PostgreSQL CTID chunks](#Create-PostgreSQL-CTID-chunks)
 * [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
   * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
@@ -224,7 +224,7 @@ psql postgresql://test:test@localhost/postgres
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Create chunks
+### Create Oracle chunks
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
 Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
@@ -369,7 +369,7 @@ toProperties:
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### Create CTID chunks
+### Create PostgreSQL CTID chunks
 
 To begin the transferring of data from source to target Bublik prepares the CTID table at the source side
 
