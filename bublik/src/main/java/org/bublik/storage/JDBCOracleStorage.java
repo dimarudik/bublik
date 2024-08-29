@@ -20,14 +20,17 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
     private static JDBCOracleStorage instance;
 
-    private JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    private JDBCOracleStorage(StorageClass storageClass,
+                              ConnectionProperty connectionProperty,
+                              Boolean isSource) throws SQLException {
+        super(storageClass, connectionProperty, isSource);
     }
 
     public static synchronized JDBCOracleStorage getInstance(StorageClass storageClass,
-                                                       ConnectionProperty connectionProperty) throws SQLException{
+                                                             ConnectionProperty connectionProperty,
+                                                             Boolean isSource) throws SQLException{
         if (instance == null) {
-            instance = new JDBCOracleStorage(storageClass, connectionProperty);
+            instance = new JDBCOracleStorage(storageClass, connectionProperty, isSource);
         }
         return instance;
     }

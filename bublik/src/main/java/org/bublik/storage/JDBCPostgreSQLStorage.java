@@ -11,7 +11,6 @@ import oracle.sql.INTERVALYM;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
-import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
 import org.postgresql.util.PGInterval;
@@ -30,18 +29,33 @@ import static org.bublik.util.ColumnUtil.*;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
-    private static JDBCPostgreSQLStorage instance;
+    private static JDBCPostgreSQLStorage toInstance;
+    private static JDBCPostgreSQLStorage fromInstance;
 
-    private JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    private JDBCPostgreSQLStorage(StorageClass storageClass,
+                                  ConnectionProperty connectionProperty,
+                                  Boolean isSource) throws SQLException {
+        super(storageClass, connectionProperty, isSource);
     }
 
     public static synchronized JDBCPostgreSQLStorage getInstance(StorageClass storageClass,
-                                                             ConnectionProperty connectionProperty) throws SQLException{
-        if (instance == null) {
-            instance = new JDBCPostgreSQLStorage(storageClass, connectionProperty);
+                                                                 ConnectionProperty connectionProperty,
+                                                                 Boolean isSource) throws SQLException{
+        try {
+            if (isSource) {
+                if (toInstance == null) {
+                    toInstance = new JDBCPostgreSQLStorage(storageClass, connectionProperty, isSource);
+                }
+                return toInstance;
+            }
+            if (fromInstance == null) {
+                fromInstance = new JDBCPostgreSQLStorage(storageClass, connectionProperty, isSource);
+            }
+            return fromInstance;
+        } catch (Exception e) {
+            LOGGER.error("Connection error: {}", getStackTrace(e));
+            throw e;
         }
-        return instance;
     }
 
 /*
@@ -61,6 +75,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
+//        System.out.println(sql);
         PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {

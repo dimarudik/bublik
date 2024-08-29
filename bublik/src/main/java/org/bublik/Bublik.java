@@ -25,7 +25,7 @@ public class Bublik {
     public void start() {
         LOGGER.info("Bublik starting...");
         try {
-            Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
+            Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
             assert sourceStorage != null;
             sourceStorage.start(configs);
             LOGGER.info("All Bublik's tasks have been done.");

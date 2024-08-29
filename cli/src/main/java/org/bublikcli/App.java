@@ -93,7 +93,6 @@ public class App {
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
             if (hasCreateChunkOption) {
-                System.out.println("Here...");
                 Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
                         properties.getFromProperty());
                 connection.setAutoCommit(false);

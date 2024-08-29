@@ -17,7 +17,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public OraChunk<T> setChunkStatus(ChunkStatus status) {
+    public OraChunk<T> setChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
         try {
             Connection connection = this.getSourceConnection();
             CallableStatement callableStatement =

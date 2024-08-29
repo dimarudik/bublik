@@ -108,29 +108,28 @@ public abstract class Chunk<T> implements ChunkService {
                 setSourceConnection(sourceConnection);
                 return this;
             } catch (SQLException | RuntimeException e) {
-                LOGGER.error("{}", getStackTrace(e));
-                throw new RuntimeException();
+                LOGGER.error("Source Connection:\n {}", getStackTrace(e));
             }
         }
         return null;
     }
 
-    public Chunk<?> assignSourceResultSet() {
+    public Chunk<?> assignSourceResultSet() throws SQLException {
         try {
-//            System.out.println(buildFetchStatement());
-            ResultSet resultSet = getData(getSourceConnection(), buildFetchStatement());
+            String s = buildFetchStatement();
+            ResultSet resultSet = getData(getSourceConnection(), s);
             setResultSet(resultSet);
+//            System.out.println(s);
             return this;
         } catch (SQLException | RuntimeException e) {
             LOGGER.error("{}", getStackTrace(e));
-            throw new RuntimeException();
+            throw e;
         }
     }
 
-    public Chunk<?> assignResultLogMessage() {
+    public Chunk<?> assignResultLogMessage() throws SQLException {
         try {
             LogMessage logMessage = this.getTargetStorage().transferToTarget(this);
-//            System.out.println("assignResultLogMessage...");
             this.setLogMessage(logMessage);
             ResultSet resultSet = this.getResultSet();
             resultSet.close();
@@ -138,7 +137,8 @@ public abstract class Chunk<T> implements ChunkService {
         } catch (SQLException | RuntimeException e) {
             LOGGER.error("{}", getStackTrace(e));
             this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));
-            return this;
+            throw e;
+//            return this;
         }
     }
 

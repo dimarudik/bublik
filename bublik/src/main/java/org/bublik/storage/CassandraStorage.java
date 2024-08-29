@@ -14,7 +14,6 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException;
 import com.datastax.oss.driver.api.core.servererrors.WriteFailureException;
 import com.datastax.oss.driver.api.core.servererrors.WriteTimeoutException;
-import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
 import org.bublik.storage.cassandraaddons.BatchEntity;
@@ -46,8 +45,10 @@ public class CassandraStorage extends Storage {
     private final CqlSession cqlSession;
     private final Set<TokenRange> tokenRangeSet;
 
-    public CassandraStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
-        super(storageClass, connectionProperty);
+    public CassandraStorage(StorageClass storageClass,
+                            ConnectionProperty connectionProperty,
+                            Boolean isSource) {
+        super(storageClass, connectionProperty, isSource);
         Properties properties = getStorageClass().getProperties();
         DriverConfigLoader configLoader = DriverConfigLoader
                 .programmaticBuilder()
@@ -110,7 +111,11 @@ public class CassandraStorage extends Storage {
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
 //        return simpleInsert(chunk);
 //        return simpleBatch(chunk);
-        return rangedBatch(chunk);
+        try {
+            return rangedBatch(chunk);
+        } catch (Exception e) {
+            throw e;
+        }
     }
 
     public LogMessage simpleInsert(Chunk<?> chunk) throws SQLException {
@@ -199,6 +204,7 @@ public class CassandraStorage extends Storage {
 //        System.out.println(mm3Batch.getMaxBatchEntity().getCounter());
         } catch (Exception e) {
             LOGGER.error("{}", getStackTrace(e));
+            throw e;
         }
         long stop = System.currentTimeMillis();
         return new LogMessage(
@@ -421,10 +427,7 @@ public class CassandraStorage extends Storage {
         Config config = chunk.getConfig();
         KeyspaceMetadata keyspaceMetadata = metadata
                 .getKeyspace(config.toSchemaName())
-                .orElseThrow(() -> {
-                    System.out.println("Here... " + config.toSchemaName());
-                    return new RuntimeException();
-                });
+                .orElseThrow();
         Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
                 .getTable(config.toTableName())
                 .get()

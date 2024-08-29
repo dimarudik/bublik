@@ -39,16 +39,16 @@ public interface StorageService {
     }
 */
 
-    static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) throws SQLException {
+    static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) throws SQLException {
         StorageClass storageClass = StorageService.getStorageClass(properties);
         if (storageClass instanceof CassandraStorageClass) {
-            return new CassandraStorage(storageClass, connectionProperty);
+            return new CassandraStorage(storageClass, connectionProperty, isSource);
         }
         if (storageClass instanceof JDBCStorageClass) {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return switch (driver.getClass().getName()) {
-                case "oracle.jdbc.OracleDriver" -> JDBCOracleStorage.getInstance(storageClass, connectionProperty);
-                case "org.postgresql.Driver" -> JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty);
+                case "oracle.jdbc.OracleDriver" -> JDBCOracleStorage.getInstance(storageClass, connectionProperty, isSource);
+                case "org.postgresql.Driver" -> JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty, isSource);
                 default -> throw new RuntimeException();
             };
         }
