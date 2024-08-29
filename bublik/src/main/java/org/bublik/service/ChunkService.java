@@ -10,7 +10,7 @@ import java.sql.SQLException;
 public interface ChunkService {
     ThreadLocal<Chunk<?>> CHUNK_THREAD_LOCAL = new ThreadLocal<>();
 
-    Chunk<?> setChunkStatus(ChunkStatus status);
+    Chunk<?> setChunkStatus(ChunkStatus status, Integer errNum, String errMsg) throws SQLException;
     ResultSet getData(Connection connection, String query) throws SQLException;
     String buildFetchStatement();
 

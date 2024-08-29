@@ -8,6 +8,8 @@ import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.LogMessage;
 import org.bublik.service.StorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -19,18 +21,20 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.bublik.exception.Utils.getStackTrace;
+
 public abstract class JDBCStorage extends Storage {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     protected final Connection initialConnection;
     protected final int threadCount;
 
-    public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    protected JDBCStorage(StorageClass storageClass,
+                          ConnectionProperty connectionProperty,
+                          Boolean isSource) throws SQLException {
+        super(storageClass, connectionProperty, isSource);
         this.dataSource = new HikariDataSource(
-                buildConfiguration(
-                        getStorageClass().getProperties(),
-                        connectionProperty.getThreadCount() + 1
-                )
+                buildConfiguration(getStorageClass().getProperties(), connectionProperty)
         );
         initialConnection = this.getConnection();
         this.threadCount = connectionProperty.getThreadCount();
@@ -45,14 +49,15 @@ public abstract class JDBCStorage extends Storage {
         return getSource().getConnection();
     }
 
-    private HikariConfig buildConfiguration(Properties property, int maxPoolSize) {
+    private HikariConfig buildConfiguration(Properties property, ConnectionProperty connectionProperty) {
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl(property.getProperty("url"));
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
-        hikariConfig.setMaximumPoolSize(maxPoolSize);
+        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
         hikariConfig.setConnectionTimeout(3000);
         hikariConfig.setAutoCommit(false);
+        hikariConfig.setPoolName(getIsSource() ? "HikariPool-Source" : "HikariPool-Target");
         return hikariConfig;
     }
 
@@ -71,23 +76,29 @@ public abstract class JDBCStorage extends Storage {
             Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
             initialConnection.close();
             ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            Properties properties = getConnectionProperty().getToProperty();
             List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
             chunkList.forEach(chunk -> service
                     .submit(() -> {
-                        Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
+                        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
                         chunk.setTargetStorage(targetStorage);
-                        Chunk<?> c = chunk
-                                .assignSourceConnection()
-                                .setChunkStatus(ChunkStatus.ASSIGNED)
-                                .assignSourceResultSet()
-                                .assignResultLogMessage()
-                                .setChunkStatus(ChunkStatus.PROCESSED)
-                                .closeChunkSourceConnection();
-                        LogMessage logMessage = c.getLogMessage();
-                        logMessage.loggerChunkInfo();
-                        assert targetStorage != null;
-                        targetStorage.closeStorage();
-                        return c;
+                        try {
+                            Chunk<?> c = chunk
+                                    .assignSourceConnection()
+                                    .setChunkStatus(ChunkStatus.ASSIGNED, null, null)
+                                    .assignSourceResultSet()
+                                    .assignResultLogMessage()
+                                    .setChunkStatus(ChunkStatus.PROCESSED, null, null)
+                                    .closeChunkSourceConnection();
+                            LogMessage logMessage = c.getLogMessage();
+                            logMessage.loggerChunkInfo();
+                            assert targetStorage != null;
+                            targetStorage.closeStorage();
+                            return c;
+                        } catch (Exception e) {
+                            chunk.setChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
+                            throw e;
+                        }
                     }));
             service.shutdown();
             service.close();
