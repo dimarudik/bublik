@@ -185,4 +185,37 @@ public class ColumnUtil {
             LOGGER.error("{}", getStackTrace(e));
         }
     }
+
+    private static void fillRowsStat(List<Config> configs, Connection initialConnection) throws SQLException {
+        Statement statement = initialConnection.createStatement();
+        ResultSet resultSet = statement.executeQuery(SQL_CHUNKS);
+        while(resultSet.next()) {
+            int chunk_id = resultSet.getInt("chunk_id");
+            long start_page = resultSet.getLong("start_page");
+            long end_page = resultSet.getLong("end_page");
+            String schema_name = resultSet.getString("schema_name");
+            String table_name = resultSet.getString("table_name");
+            PreparedStatement rowCountSQL = initialConnection.prepareStatement(
+                    SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 +
+                            schema_name + "." +
+                            table_name +
+                            SQL_NUMBER_OF_TUPLES_PER_CHUNK_P2);
+            rowCountSQL.setLong(1, start_page);
+            rowCountSQL.setLong(2, end_page);
+            ResultSet set = rowCountSQL.executeQuery();
+            while(set.next()) {
+                long rows = set.getLong("rows");
+                PreparedStatement updateRowsOfCtid = initialConnection.prepareStatement(DML_UPDATE_CTID_CHUNKS);
+                updateRowsOfCtid.setLong(1, rows);
+                updateRowsOfCtid.setInt(2, chunk_id);
+                updateRowsOfCtid.execute();
+                updateRowsOfCtid.close();
+            }
+            set.close();
+            rowCountSQL.close();
+            initialConnection.commit();
+        }
+        resultSet.close();
+        statement.close();
+    }
 }

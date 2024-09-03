@@ -23,7 +23,6 @@ import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
@@ -58,29 +57,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
     }
 
-/*
-    @Override
-    public boolean hook(List<Config> configs) throws SQLException {
-        if (getConnectionProperty().getInitPGChunks()) {
-            fillCtidChunks(configs);
-            if (getConnectionProperty().getRowsStat()) {
-                fillRowsStat(configs);
-            }
-        }
-        return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
-    }
-*/
-
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
-//        System.out.println(sql);
+        Connection initialConnection = getConnection();
         PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
-//            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
-//            StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
@@ -97,137 +81,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 resultSet.getLong("end_page"),
                                 config,
                                 sourceTable,
-                                this//,
-//                                targetStorage
+                                this
                         )
                 );
             }
         }
         resultSet.close();
         statement.close();
+        initialConnection.close();
         return chunkHashMap;
-    }
-
-    private void fillCtidChunks(List<Config> configs) {
-        createTableCtidChunks();
-        try {
-            for (Config config : configs) {
-                long reltuples = 0;
-                long relpages = 0;
-                long max_end_page = 0;
-                long heap_blks_total = 0;
-                PreparedStatement preparedStatement = initialConnection.prepareStatement(SQL_NUMBER_OF_TUPLES);
-                Table table = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
-                preparedStatement.setString(1, table.getSchemaName().toLowerCase());
-                preparedStatement.setString(2, table.getFinalTableName(false));
-                ResultSet resultSet = preparedStatement.executeQuery();
-                while (resultSet.next()) {
-                    reltuples = resultSet.getLong("reltuples");
-                    relpages = resultSet.getLong("relpages");
-                }
-                resultSet.close();
-                preparedStatement.close();
-                preparedStatement = initialConnection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
-                preparedStatement.setString(1, table.getSchemaName().toLowerCase() + "." +
-                        table.getTableName());
-                resultSet = preparedStatement.executeQuery();
-                while (resultSet.next()) {
-                    heap_blks_total = resultSet.getLong("heap_blks_total");
-                }
-                resultSet.close();
-                preparedStatement.close();
-                double rowsInChunk = reltuples >= 500000 ? ROWS_IN_CHUNK : 10000d;
-//            double rowsInChunk = 10000d;
-                long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
-                        (int) Math.round(relpages / (reltuples / rowsInChunk));
-                long pagesInChunk = Math.min(v, relpages + 1);
-                LOGGER.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
-                        config.fromSchemaName(),
-                        config.fromTableName(),
-                        relpages,
-                        heap_blks_total,
-                        reltuples,
-                        rowsInChunk,
-                        pagesInChunk);
-                PreparedStatement chunkInsert = initialConnection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
-                chunkInsert.setLong(1, pagesInChunk);
-                chunkInsert.setLong(2, 0);
-                chunkInsert.setString(3, config.fromTaskName());
-                chunkInsert.setString(4, table.getSchemaName().toLowerCase());
-                chunkInsert.setString(5, table.getFinalTableName(false));
-                chunkInsert.setLong(6, relpages);
-                chunkInsert.setLong(7, pagesInChunk);
-//            System.out.println(chunkInsert);
-                int rows = chunkInsert.executeUpdate();
-                chunkInsert.close();
-
-                preparedStatement = initialConnection.prepareStatement(SQL_MAX_END_PAGE);
-                preparedStatement.setString(1, config.fromTaskName());
-                resultSet = preparedStatement.executeQuery();
-                while (resultSet.next()) {
-                    max_end_page = resultSet.getLong("max_end_page");
-                }
-                resultSet.close();
-                preparedStatement.close();
-                if (heap_blks_total > max_end_page) {
-                    chunkInsert = initialConnection.prepareStatement(DML_INSERT_CTID_CHUNKS);
-                    chunkInsert.setLong(1, max_end_page);
-                    chunkInsert.setLong(2, heap_blks_total);
-                    chunkInsert.setLong(3, 0);
-                    chunkInsert.setString(4, config.fromTaskName());
-                    chunkInsert.setString(5, table.getSchemaName().toLowerCase());
-                    chunkInsert.setString(6, table.getFinalTableName(false));
-                    rows = chunkInsert.executeUpdate();
-                    chunkInsert.close();
-                }
-            }
-            initialConnection.commit();
-        } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
-        }
-    }
-
-    private void createTableCtidChunks() {
-        try {
-            Statement createTable = initialConnection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CHUNKS);
-            createTable.close();
-        } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
-        }
-    }
-
-    private void fillRowsStat(List<Config> configs) throws SQLException {
-        Statement statement = initialConnection.createStatement();
-        ResultSet resultSet = statement.executeQuery(SQL_CHUNKS);
-        while(resultSet.next()) {
-            int chunk_id = resultSet.getInt("chunk_id");
-            long start_page = resultSet.getLong("start_page");
-            long end_page = resultSet.getLong("end_page");
-            String schema_name = resultSet.getString("schema_name");
-            String table_name = resultSet.getString("table_name");
-            PreparedStatement rowCountSQL = initialConnection.prepareStatement(
-                    SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 +
-                    schema_name + "." +
-                    table_name +
-                    SQL_NUMBER_OF_TUPLES_PER_CHUNK_P2);
-            rowCountSQL.setLong(1, start_page);
-            rowCountSQL.setLong(2, end_page);
-            ResultSet set = rowCountSQL.executeQuery();
-            while(set.next()) {
-                long rows = set.getLong("rows");
-                PreparedStatement updateRowsOfCtid = initialConnection.prepareStatement(DML_UPDATE_CTID_CHUNKS);
-                updateRowsOfCtid.setLong(1, rows);
-                updateRowsOfCtid.setInt(2, chunk_id);
-                updateRowsOfCtid.execute();
-                updateRowsOfCtid.close();
-            }
-            set.close();
-            rowCountSQL.close();
-            initialConnection.commit();
-        }
-        resultSet.close();
-        statement.close();
     }
 
     @Override
@@ -279,12 +141,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         int recordCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
         Map<List<String>, PGColumn> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
-/*
-        if (neededColumnsFromMany != null) {
-            neededColumnsFromMany.forEach((k,v) ->
-                    System.out.println(k + v.getColumnName()));
-        }
-*/
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
         String[] columnNames = neededColumnsToDB
                 .values()

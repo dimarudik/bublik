@@ -101,17 +101,17 @@ public abstract class Chunk<T> implements ChunkService {
         this.targetStorage = targetStorage;
     }
 
-    public Chunk<?> assignSourceConnection() {
-        if (getSourceStorage() instanceof JDBCStorage) {
+    public Chunk<?> assignSourceConnection() throws SQLException {
+//        if (getSourceStorage() instanceof JDBCStorage) {
             try {
                 Connection sourceConnection = getSourceStorage().getConnection();
                 setSourceConnection(sourceConnection);
                 return this;
             } catch (SQLException | RuntimeException e) {
-                LOGGER.error("Source Connection:\n {}", getStackTrace(e));
+//                LOGGER.error("Source Connection:\n {}", getStackTrace(e));
+                throw e;
             }
-        }
-        return null;
+//        }
     }
 
     public Chunk<?> assignSourceResultSet() throws SQLException {
@@ -119,10 +119,9 @@ public abstract class Chunk<T> implements ChunkService {
             String s = buildFetchStatement();
             ResultSet resultSet = getData(getSourceConnection(), s);
             setResultSet(resultSet);
-//            System.out.println(s);
             return this;
         } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", getStackTrace(e));
+//            LOGGER.error("{}", getStackTrace(e));
             throw e;
         }
     }
@@ -135,21 +134,20 @@ public abstract class Chunk<T> implements ChunkService {
             resultSet.close();
             return this;
         } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", getStackTrace(e));
+//            LOGGER.error("{}", getStackTrace(e));
             this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));
             throw e;
-//            return this;
         }
     }
 
-    public Chunk<?> closeChunkSourceConnection() {
+    public Chunk<?> closeChunkSourceConnection() throws SQLException {
         try {
             Connection connection = getSourceConnection();
             connection.close();
             return this;
         } catch (SQLException | RuntimeException e) {
-            LOGGER.error("{}", getStackTrace(e));
-            throw new RuntimeException();
+//            LOGGER.error("{}", getStackTrace(e));
+            throw e;
         }
     }
 }
