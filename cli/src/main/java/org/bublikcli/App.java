@@ -11,10 +11,13 @@ import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
+import org.bublik.storage.JDBCOracleStorage;
+import org.bublik.storage.JDBCPostgreSQLStorage;
 
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -22,6 +25,7 @@ import java.util.List;
 
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.fillCtidChunks;
+import static org.bublik.util.ColumnUtil.fillOraChunks;
 import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
 import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 
@@ -31,7 +35,7 @@ public class App {
     public static void main(String[] args) throws IOException, SQLException {
 
         Options options = new Options();
-        Option createChunkOption = createOptionNoArg("k", "chunk", "create ctid chunks at source (applicable only for PostgreSQL)");
+        Option createChunkOption = createOptionValue("k", "chunk", "rows number","create ctid chunks at source");
         Option configOption = createOptionValue("c", "config", "yaml file", "file name of prop.erties");
         Option tableDefOption = createOptionValue("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
         Option initOption = createOptionValue("i", "init", "json file", "file name with a list of tables");
@@ -60,13 +64,16 @@ public class App {
             formatter.printHelp( HELP_MESSAGE, options );
         } else if(cmd.hasOption("c") && cmd.hasOption("i") && cmd.hasOption("o")) {
             createDefJson(cmd.getOptionValue(configOption), cmd.getOptionValue(initOption), cmd.getOptionValue(outputOption));
-        } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i")) {
-            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption), cmd.hasOption(createChunkOption));
+        } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && !cmd.hasOption(createChunkOption)) {
+            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption), null);
+        } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
+            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption), cmd.getOptionValue(createChunkOption));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
         }
     }
 
+/*
     private static Option createOptionNoArg(String shortName, String longName, String description) {
         return Option.builder(shortName)
                 .longOpt(longName)
@@ -74,6 +81,7 @@ public class App {
                 .required(false)
                 .build();
     }
+*/
 
     private static Option createOptionValue(String shortName, String longName, String argName, String description) {
         return Option.builder(shortName)
@@ -85,18 +93,24 @@ public class App {
                 .build();
     }
 
-    private static void run(String configFileName, String tableDefFileName, Boolean hasCreateChunkOption) {
+    private static void run(String configFileName, String tableDefFileName, String createChunkOption) {
         try {
             ObjectMapper mapperJSON = new ObjectMapper();
             ConnectionProperty properties = connectionProperty(configFileName);
             List<Config> config =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
-            if (hasCreateChunkOption) {
+            if (createChunkOption != null) {
+                int rowsParameter = Integer.parseInt(createChunkOption);
                 Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
                         properties.getFromProperty());
                 connection.setAutoCommit(false);
-                fillCtidChunks(config, connection);
+                Driver driver = DriverManager.getDriver(properties.getFromProperty().getProperty("url"));
+                switch (driver.getClass().getName()) {
+                    case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, connection, rowsParameter);
+                    case "org.postgresql.Driver" -> fillCtidChunks(config, connection, rowsParameter);
+                    default -> throw new RuntimeException();
+                }
                 connection.close();
             }
             Bublik bublik = Bublik.getInstance(properties, config);

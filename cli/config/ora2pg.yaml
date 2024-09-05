@@ -8,3 +8,22 @@ toProperties:
   url: jdbc:postgresql://localhost:5432/postgres
   user: test
   password: test
+toAdds:
+  cs1:
+    type: cassandra
+    datacenter: datacenter1
+    hosts: 172.28.0.1
+    port: 9042
+    keyspace: store
+    user: test
+    password: test
+    batchSize: 256
+  cs2:
+    type: cassandra
+    datacenter: datacenter1
+    hosts: 172.28.0.1
+    port: 9042
+    keyspace: store
+    user: test
+    password: test
+    batchSize: 256

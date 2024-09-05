@@ -262,6 +262,12 @@ end;
 /
 ```
 
+Or chunks can be created automatically with parameter -k at startup
+
+```java
+java -jar ./target/bublik-cli-1.2.0.jar -k 200000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
+```
+
 > [!NOTE]
 > [How to build and run the tool](#Build-the-jar)
 

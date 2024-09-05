@@ -7,7 +7,10 @@ import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 
 public class MM3 {
     private final Object key;
@@ -37,6 +40,19 @@ public class MM3 {
                                     v < ((Murmur3Token)tRange.getEnd()).getValue())
                 .findFirst()
                 .orElse(defaultTokenRange());
+    }
+
+    public TokenRange getTokenRangeAsync(CompletionStage<Set<TokenRange>> setCompletionStage) {
+        long v = getMurmur3Token().getValue();
+        List<TokenRange> listTokenRanges = new ArrayList<>();
+        setCompletionStage
+                .thenAccept(tokenRanges ->
+                        tokenRanges
+                            .stream()
+                                .filter(tRange -> v >= ((Murmur3Token)tRange.getStart()).getValue() &&
+                                        v < ((Murmur3Token)tRange.getEnd()).getValue())
+                                .forEach(listTokenRanges::add));
+        return listTokenRanges.getFirst();
     }
 
     public static TokenRange defaultTokenRange(){

@@ -1,0 +1,32 @@
+[
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "TABLE1",
+    "fromTableNameAdds" : "t",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "TABLE1",
+    "fetchHintClause" : "/*+ no_index(TABLE1) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "TABLE1_TASK",
+    "fromTaskWhereClause" : " 1 = 1 ",
+    "tryCharIfAny" : ["current_mood"],
+    "columnToColumn" : {
+      "id"                : "id",
+      "\"LEVEL\""         : "level",
+      "create_at"         : "create_at",
+      "update_at"         : "update_at",
+      "gender"            : "gender",
+      "byteablob"         : "byteablob",
+      "textclob"          : "textclob",
+      "\"CaseSensitive\"" : "\"CaseSensitive\"",
+      "rawbytea"          : "rawbytea",
+      "doc"               : "doc",
+      "uuid"              : "uuid",
+      "clobjsonb"         : "clobjsonb",
+      "current_mood"      : "current_mood"
+    },
+    "expressionToColumn" : {
+      "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
+    }
+  }
+]

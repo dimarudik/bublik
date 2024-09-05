@@ -9,7 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_ROWID_CHUNKS;
+import static org.bublik.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS;
+import static org.bublik.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
     public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Storage sourceStorage) {
@@ -20,13 +21,24 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     public OraChunk<T> setChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
         try {
             Connection connection = this.getSourceConnection();
-            CallableStatement callableStatement =
-                    connection.prepareCall(DML_UPDATE_STATUS_ROWID_CHUNKS);
-            callableStatement.setString(1, this.getConfig().fromTaskName());
-            callableStatement.setInt(2, this.getId());
-            callableStatement.setInt(3, status.ordinal());
-            callableStatement.execute();
-            callableStatement.close();
+            if (errMsg == null) {
+                CallableStatement callableStatement =
+                        connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
+                callableStatement.setString(1, this.getConfig().fromTaskName());
+                callableStatement.setInt(2, this.getId());
+                callableStatement.setInt(3, status.ordinal());
+                callableStatement.execute();
+                callableStatement.close();
+            } else {
+                CallableStatement callableStatement =
+                        connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
+                callableStatement.setString(1, this.getConfig().fromTaskName());
+                callableStatement.setInt(2, this.getId());
+                callableStatement.setInt(3, status.ordinal());
+                callableStatement.setString(4, errMsg);
+                callableStatement.execute();
+                callableStatement.close();
+            }
         } catch (SQLException e) {
             throw  new RuntimeException(e);
         }

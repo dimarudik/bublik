@@ -26,7 +26,6 @@ import static org.bublik.exception.Utils.getStackTrace;
 public abstract class JDBCStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
-    protected final Connection initialConnection;
     protected final int threadCount;
 
     protected JDBCStorage(StorageClass storageClass,
@@ -36,7 +35,6 @@ public abstract class JDBCStorage extends Storage {
         this.dataSource = new HikariDataSource(
                 buildConfiguration(getStorageClass().getProperties(), connectionProperty)
         );
-        initialConnection = this.getConnection();
         this.threadCount = connectionProperty.getThreadCount();
     }
 
@@ -72,37 +70,37 @@ public abstract class JDBCStorage extends Storage {
 
     @Override
     public void start(List<Config> configs) throws SQLException {
-//        if (hook(configs)) {
-            Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
-            initialConnection.close();
-            ExecutorService service = Executors.newFixedThreadPool(threadCount);
-            Properties properties = getConnectionProperty().getToProperty();
-            List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
-            chunkList.forEach(chunk -> service
-                    .submit(() -> {
-                        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
-                        chunk.setTargetStorage(targetStorage);
-                        try {
-                            Chunk<?> c = chunk
-                                    .assignSourceConnection()
-                                    .setChunkStatus(ChunkStatus.ASSIGNED, null, null)
-                                    .assignSourceResultSet()
-                                    .assignResultLogMessage()
-                                    .setChunkStatus(ChunkStatus.PROCESSED, null, null)
-                                    .closeChunkSourceConnection();
-                            LogMessage logMessage = c.getLogMessage();
-                            logMessage.loggerChunkInfo();
-                            assert targetStorage != null;
-                            targetStorage.closeStorage();
-                            return c;
-                        } catch (Exception e) {
-                            chunk.setChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
-                            throw e;
-                        }
-                    }));
-            service.shutdown();
-            service.close();
-//        }
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        Properties properties = getConnectionProperty().getToProperty();
+        List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
+        chunkList.forEach(chunk -> service
+                .submit(() -> {
+                    Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+                    chunk.setTargetStorage(targetStorage);
+                    try {
+                        Chunk<?> c = chunk
+                                .assignSourceConnection()
+                                .setChunkStatus(ChunkStatus.ASSIGNED, null, null)
+                                .assignSourceResultSet()
+                                .assignResultLogMessage()
+                                .setChunkStatus(ChunkStatus.PROCESSED, null, null)
+                                .closeChunkSourceConnection();
+                        LogMessage logMessage = c.getLogMessage();
+                        logMessage.loggerChunkInfo();
+                        assert targetStorage != null;
+                        return c;
+                    } catch (Exception e) {
+                        LOGGER.error("{}", getStackTrace(e));
+                        chunk.getSourceConnection().rollback();
+                        chunk.setChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
+                        assert targetStorage != null;
+                        targetStorage.closeStorage();
+                        throw e;
+                    }
+                }));
+        service.shutdown();
+        service.close();
     }
 
     @Override

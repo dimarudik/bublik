@@ -5,25 +5,22 @@ import java.util.Properties;
 
 public class ConnectionProperty {
     private int threadCount;
-//    private Boolean initPGChunks = true;
     private Boolean rowsStat = false;
-//    private Boolean copyPGChunks = true;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
+    private Map<String, Map<String, String>> toAdds;
 
     public ConnectionProperty(){}
     public ConnectionProperty(int threadCount,
-//                              Boolean initPGChunks,
                               Boolean rowsStat,
-//                              Boolean copyPGChunks,
                               Map<String, String> fromProperties,
-                              Map<String, String> toProperties) {
+                              Map<String, String> toProperties,
+                              Map<String, Map<String, String>> toAdds) {
         this.threadCount = threadCount;
-//        this.initPGChunks = initPGChunks;
         this.rowsStat = rowsStat;
-//        this.copyPGChunks = copyPGChunks;
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
+        this.toAdds = toAdds;
     }
 
     public int getThreadCount() {
@@ -34,16 +31,6 @@ public class ConnectionProperty {
         this.threadCount = threadCount;
     }
 
-/*
-    public Boolean getInitPGChunks() {
-        return initPGChunks;
-    }
-
-    public void setInitPGChunks(Boolean initPGChunks) {
-        this.initPGChunks = initPGChunks;
-    }
-*/
-
     public Boolean getRowsStat() {
         return rowsStat;
     }
@@ -51,16 +38,6 @@ public class ConnectionProperty {
     public void setRowsStat(Boolean rowsStat) {
         this.rowsStat = rowsStat;
     }
-
-/*
-    public Boolean getCopyPGChunks() {
-        return copyPGChunks;
-    }
-
-    public void setCopyPGChunks(Boolean copyPGChunks) {
-        this.copyPGChunks = copyPGChunks;
-    }
-*/
 
     public Map<String, String> getFromProperties() {
         return fromProperties;
@@ -84,6 +61,14 @@ public class ConnectionProperty {
 
     public Properties getToProperty() {
         return getProperties(toProperties);
+    }
+
+    public Map<String, Map<String, String>> getToAdds() {
+        return toAdds;
+    }
+
+    public void setToAdds(Map<String, Map<String, String>> toAdds) {
+        this.toAdds = toAdds;
     }
 
     private Properties getProperties(Map<String, String> map) {

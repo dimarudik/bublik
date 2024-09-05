@@ -16,41 +16,35 @@ import java.util.Map;
 import java.util.Properties;
 
 public interface StorageService {
-//    ThreadLocal<Storage> STORAGE_THREAD_LOCAL = new ThreadLocal<>();
 
     void start(List<Config> configs) throws SQLException;
-//    boolean hook(List<Config> configs) throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
 
-/*
-    static void set(Storage storage) {
-        STORAGE_THREAD_LOCAL.set(storage);
-    }
-
-    static Storage get() {
-        return STORAGE_THREAD_LOCAL.get();
-    }
-
-    static void remove() {
-        STORAGE_THREAD_LOCAL.remove();
-    }
-*/
-
-    static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) throws SQLException {
-        StorageClass storageClass = StorageService.getStorageClass(properties);
-        if (storageClass instanceof CassandraStorageClass) {
-            return new CassandraStorage(storageClass, connectionProperty, isSource);
-        }
-        if (storageClass instanceof JDBCStorageClass) {
-            Driver driver = DriverManager.getDriver(properties.getProperty("url"));
-            return switch (driver.getClass().getName()) {
-                case "oracle.jdbc.OracleDriver" -> JDBCOracleStorage.getInstance(storageClass, connectionProperty, isSource);
-                case "org.postgresql.Driver" -> JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty, isSource);
-                default -> throw new RuntimeException();
-            };
+    static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
+        try {
+            StorageClass storageClass = StorageService.getStorageClass(properties);
+            if (storageClass instanceof CassandraStorageClass) {
+                return new CassandraStorage(storageClass, connectionProperty, isSource);
+            }
+            try {
+                if (storageClass instanceof JDBCStorageClass) {
+                    Driver driver = DriverManager.getDriver(properties.getProperty("url"));
+                    return switch (driver.getClass().getName()) {
+                        case "oracle.jdbc.OracleDriver" ->
+                                JDBCOracleStorage.getInstance(storageClass, connectionProperty, isSource);
+                        case "org.postgresql.Driver" ->
+                                JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty, isSource);
+                        default -> throw new RuntimeException();
+                    };
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException();
         }
         return null;
     }

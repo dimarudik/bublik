@@ -3,11 +3,11 @@ package org.bublik.storage;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
-import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,7 +18,7 @@ import java.util.TreeMap;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
-    private static JDBCOracleStorage instance;
+    private static JDBCOracleStorage fromInstance;
 
     private JDBCOracleStorage(StorageClass storageClass,
                               ConnectionProperty connectionProperty,
@@ -29,18 +29,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     public static synchronized JDBCOracleStorage getInstance(StorageClass storageClass,
                                                              ConnectionProperty connectionProperty,
                                                              Boolean isSource) throws SQLException{
-        if (instance == null) {
-            instance = new JDBCOracleStorage(storageClass, connectionProperty, isSource);
+        if (fromInstance == null) {
+            fromInstance = new JDBCOracleStorage(storageClass, connectionProperty, isSource);
         }
-        return instance;
+        return fromInstance;
     }
-
-/*
-    @Override
-    public boolean hook(List<Config> configs) {
-        return getConnectionProperty().getCopyPGChunks() == null || getConnectionProperty().getCopyPGChunks();
-    }
-*/
 
     @Override
     public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
@@ -51,12 +44,10 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
+        Connection initialConnection = getConnection();
         PreparedStatement statement = initialConnection.prepareStatement(sql);
-//        System.out.println(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
-//            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
-//            StorageService.set(targetStorage);
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
@@ -73,14 +64,14 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                                 resultSet.getRowId("end_rowid"),
                                 config,
                                 sourceTable,
-                                this//,
-//                                targetStorage
+                                this
                         )
                 );
             }
         }
         resultSet.close();
         statement.close();
+        initialConnection.close();
         return chunkHashMap;
     }
 
