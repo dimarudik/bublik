@@ -9,6 +9,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import static org.bublik.exception.Utils.getStackTrace;
+
 public abstract class Chunk<T> implements ChunkService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
 
@@ -107,7 +109,6 @@ public abstract class Chunk<T> implements ChunkService {
     public Chunk<?> assignSourceResultSet() throws SQLException {
         String s = buildFetchStatement();
         ResultSet resultSet = getData(getSourceConnection(), s);
-//        System.out.println(s);
         setResultSet(resultSet);
         return this;
     }

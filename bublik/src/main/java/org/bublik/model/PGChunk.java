@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.bublik.constants.SQLConstants.PLSQL_UPDATE_STATUS_CTID_CHUNKS;
 import static org.bublik.constants.SQLConstants.DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS;
+import static org.bublik.exception.Utils.getStackTrace;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger LOGGER = LoggerFactory.getLogger(PGChunk.class);

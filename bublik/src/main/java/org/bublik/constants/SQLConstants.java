@@ -30,8 +30,8 @@ public abstract class SQLConstants {
             "status varchar(20)  default 'UNASSIGNED', " +
             "start_ts timestamp, " +
             "end_ts timestamp, " +
-            "err_num int, " +
-            "err_msg varchar(1024), " +
+//            "err_num int, " +
+            "err_msg varchar(2048), " +
             "unique (start_page, end_page, task_name, status) )";
     public static final String DDL_CREATE_POSTGRESQL_TABLE_OUTBOX =
             "create table if not exists public.bublik_outbox (" +
@@ -59,6 +59,8 @@ public abstract class SQLConstants {
     public static final String PLSQL_CREATE_CHUNK =
             "BEGIN DBMS_PARALLEL_EXECUTE.CREATE_CHUNKS_BY_ROWID(task_name => ?, table_owner => ?, table_name  => ?, by_row => TRUE, chunk_size  => ?); END;";
     public static final String PLSQL_UPDATE_STATUS_ROWID_CHUNKS = "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,?)";
+    public static final String PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS =
+            "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(task_name => ?,chunk_id => ?,status => ?,err_msg => ?)";
     public static final String PLSQL_UPDATE_STATUS_CTID_CHUNKS =
             "update public.ctid_chunks set status = ? where chunk_id = ? and task_name = ?";
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS =

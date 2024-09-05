@@ -89,13 +89,13 @@ public abstract class JDBCStorage extends Storage {
                         LogMessage logMessage = c.getLogMessage();
                         logMessage.loggerChunkInfo();
                         assert targetStorage != null;
-//                        targetStorage.closeStorage();
                         return c;
                     } catch (Exception e) {
+                        LOGGER.error("{}", getStackTrace(e));
+                        chunk.getSourceConnection().rollback();
                         chunk.setChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
                         assert targetStorage != null;
                         targetStorage.closeStorage();
-                        LOGGER.error("{}", getStackTrace(e));
                         throw e;
                     }
                 }));
