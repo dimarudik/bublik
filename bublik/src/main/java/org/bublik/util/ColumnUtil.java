@@ -94,16 +94,58 @@ public class ColumnUtil {
         return 0;
     }
 
-    public static void fillCtidChunks(List<Config> configs, Connection initialConnection) {
-        createTableCtidChunks(initialConnection);
+    public static void fillOraChunks(List<Config> configs, Connection connection, int rowsParameter) {
+        try {
+            for (Config config : configs) {
+                CallableStatement dropTask =
+                        connection.prepareCall(PLSQL_DROP_TASK);
+                dropTask.setString(1, config.fromTaskName());
+                dropTask.execute();
+                dropTask.close();
+            }
+        } catch (SQLException e) {
+//            LOGGER.error("{}", getStackTrace(e));
+        }
+
+        try {
+            for (Config config : configs) {
+                CallableStatement createTask =
+                        connection.prepareCall(PLSQL_CREATE_TASK);
+                createTask.setString(1, config.fromTaskName());
+                createTask.execute();
+                createTask.close();
+            }
+        } catch (SQLException e) {
+            LOGGER.error("{}", getStackTrace(e));
+        }
+
+        try {
+            for (Config config : configs) {
+                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
+                CallableStatement createChunk =
+                        connection.prepareCall(PLSQL_CREATE_CHUNK);
+                createChunk.setString(1, config.fromTaskName());
+                createChunk.setString(2, table.getSchemaName().toUpperCase());
+                createChunk.setString(3, table.getFinalTableName(false));
+                createChunk.setInt(4, rowsParameter);
+                createChunk.execute();
+                createChunk.close();
+            }
+        } catch (SQLException e) {
+            LOGGER.error("{}", getStackTrace(e));
+        }
+    }
+
+    public static void fillCtidChunks(List<Config> configs, Connection connection, int rowsParameter) {
+        createTableCtidChunks(connection);
         try {
             for (Config config : configs) {
                 long reltuples = 0;
                 long relpages = 0;
                 long max_end_page = 0;
                 long heap_blks_total = 0;
-                PreparedStatement preparedStatement = initialConnection.prepareStatement(SQL_NUMBER_OF_TUPLES);
-                Table table = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
+                PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
+                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
                 preparedStatement.setString(1, table.getSchemaName().toLowerCase());
                 preparedStatement.setString(2, table.getFinalTableName(false));
                 ResultSet resultSet = preparedStatement.executeQuery();
@@ -113,7 +155,7 @@ public class ColumnUtil {
                 }
                 resultSet.close();
                 preparedStatement.close();
-                preparedStatement = initialConnection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
+                preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_RAW_TUPLES);
                 preparedStatement.setString(1, table.getSchemaName().toLowerCase() + "." +
                         table.getTableName());
                 resultSet = preparedStatement.executeQuery();
@@ -122,10 +164,9 @@ public class ColumnUtil {
                 }
                 resultSet.close();
                 preparedStatement.close();
-                double rowsInChunk = reltuples >= 500000 ? ROWS_IN_CHUNK : 10000d;
-//            double rowsInChunk = 10000d;
+//                double rowsInChunk = reltuples >= 500000 ? ROWS_IN_CHUNK : 10000d;
                 long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
-                        (int) Math.round(relpages / (reltuples / rowsInChunk));
+                        (int) Math.round(relpages / (reltuples / (double) rowsParameter));
                 long pagesInChunk = Math.min(v, relpages + 1);
                 LOGGER.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
                         config.fromSchemaName(),
@@ -133,9 +174,9 @@ public class ColumnUtil {
                         relpages,
                         heap_blks_total,
                         reltuples,
-                        rowsInChunk,
+                        (double) rowsParameter,
                         pagesInChunk);
-                PreparedStatement chunkInsert = initialConnection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
+                PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
                 chunkInsert.setLong(1, pagesInChunk);
                 chunkInsert.setLong(2, 0);
                 chunkInsert.setString(3, config.fromTaskName());
@@ -147,7 +188,7 @@ public class ColumnUtil {
                 int rows = chunkInsert.executeUpdate();
                 chunkInsert.close();
 
-                preparedStatement = initialConnection.prepareStatement(SQL_MAX_END_PAGE);
+                preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
                 preparedStatement.setString(1, config.fromTaskName());
                 resultSet = preparedStatement.executeQuery();
                 while (resultSet.next()) {
@@ -156,7 +197,7 @@ public class ColumnUtil {
                 resultSet.close();
                 preparedStatement.close();
                 if (heap_blks_total > max_end_page) {
-                    chunkInsert = initialConnection.prepareStatement(DML_INSERT_CTID_CHUNKS);
+                    chunkInsert = connection.prepareStatement(DML_INSERT_CTID_CHUNKS);
                     chunkInsert.setLong(1, max_end_page);
                     chunkInsert.setLong(2, heap_blks_total);
                     chunkInsert.setLong(3, 0);
@@ -167,7 +208,7 @@ public class ColumnUtil {
                     chunkInsert.close();
                 }
             }
-            initialConnection.commit();
+            connection.commit();
         } catch (SQLException e) {
             LOGGER.error("{}", getStackTrace(e));
         }

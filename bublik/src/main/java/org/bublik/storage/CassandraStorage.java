@@ -7,6 +7,8 @@ import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
+import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.model.*;
 import org.bublik.storage.cassandraaddons.BatchEntity;
@@ -121,27 +123,27 @@ public class CassandraStorage extends Storage {
     }
 */
 
-/*
     public LogMessage simpleBatch(Chunk<?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
-        Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
-        String insertString = buildInsertStatement(chunk, stringCassandraColumnMap);
+        CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
+        Map<String, CassandraColumn> stringCassandraColumnMap = csObject.getCassandraColumnMap();
+        String insertString = csObject.getQuery();
         BatchStatementBuilder batchStatementBuilder = BatchStatement.builder(DefaultBatchType.LOGGED);
         PreparedStatement preparedStatement = cqlSession.prepare(insertString);
         ResultSet resultSet = chunk.getResultSet();
-        List<CompletionStage<AsyncResultSet>> stages = new ArrayList<>();
         while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap);
+            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap,
+                    csObject.getTokenRangeSet());
             batchStatementBuilder.addStatement(preparedStatement.bind(entry.getValue()));
             recordCount++;
             // batch_size_fail_threshold_in_kb: 50
             if (recordCount % batchSize == 0) {
-                stages.add(batchApply(batchStatementBuilder));
+                batchApply(batchStatementBuilder);
             }
         }
         if (recordCount > 0) {
-            stages.add(batchApply(batchStatementBuilder));
+            batchApply(batchStatementBuilder);
         }
         long stop = System.currentTimeMillis();
         return new LogMessage(
@@ -151,28 +153,12 @@ public class CassandraStorage extends Storage {
                 "Cassandra SIMPLE BATCH APPLY",
                 chunk);
     }
-*/
 
     public LogMessage rangedBatch(Chunk<?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
         try {
-            CSObject csObject = new CSObject(cqlSession)
-                    .metadata()
-                    .tokenRangeSet()
-                    .mm3batch()
-                    .cassandraColumnMap(chunk)
-                    .query(chunk)
-                    .preparedStatement();
-
-/*
-            LOGGER.info("{} {} {} {} {}", csObject.getMetadata().getClusterName(),
-                    csObject.getTokenRangeSet().size(),
-                    csObject.getMm3Batch().getTokenRangeMap().size(),
-                    csObject.getCassandraColumnMap().size(),
-                    csObject.getQuery());
-*/
-
+            CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
             ResultSet resultSet = chunk.getResultSet();
             while (resultSet.next()) {
                 Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet,

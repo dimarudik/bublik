@@ -162,4 +162,14 @@ public class CSObject {
 //                targetColumns.stream().map(c -> "?").collect(Collectors.joining(",")) +
                 ");";
     }
+
+    public static CSObject createCSObject(CqlSession cqlSession, Chunk<?> chunk) {
+        return new CSObject(cqlSession)
+                .metadata()
+                .tokenRangeSet()
+                .mm3batch()
+                .cassandraColumnMap(chunk)
+                .query(chunk)
+                .preparedStatement();
+    }
 }

@@ -93,6 +93,8 @@ public abstract class JDBCStorage extends Storage {
                         return c;
                     } catch (Exception e) {
                         chunk.setChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
+                        assert targetStorage != null;
+                        targetStorage.closeStorage();
                         LOGGER.error("{}", getStackTrace(e));
                         throw e;
                     }
