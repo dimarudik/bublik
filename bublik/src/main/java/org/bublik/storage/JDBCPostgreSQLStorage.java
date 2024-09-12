@@ -8,6 +8,7 @@ import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
+import org.bublik.constants.PGKeywords;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
@@ -61,6 +62,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
+        LOGGER.debug("SQL to fetch metadata of chunks: \n{}", sql);
+        StringBuffer sb = new StringBuffer();
+        for (Config c : configs)
+            sb.append("\n").append(buildFetchStatement(c));
+        LOGGER.debug("SQL to fetch chunks: {}", sb);
         Connection initialConnection = getConnection();
         PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
@@ -74,6 +80,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             sourceTable.getTableName());
                     throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
                 }
+                String query = buildFetchStatement(config);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new PGChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -81,6 +88,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 resultSet.getLong("end_page"),
                                 config,
                                 sourceTable,
+                                query,
                                 this
                         )
                 );
@@ -687,5 +695,35 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     }
             }
         }
+    }
+
+    @Override
+    public String buildFetchStatement(Config config) {
+        List<String> strings = new ArrayList<>();
+        Map<String, String> columnToColumnMap = config.columnToColumn();
+        Map<String, String> expressionToColumnMap = config.expressionToColumn();
+        if (columnToColumnMap != null) {
+            strings.addAll(columnToColumnMap.keySet());
+        }
+        if (expressionToColumnMap != null) {
+            strings.addAll(expressionToColumnMap.keySet());
+        }
+        String columnToColumn = String.join(", ", strings);
+        return PGKeywords.SELECT + " " +
+                columnToColumn + " " +
+                PGKeywords.FROM + " " +
+                config.fromSchemaName() +
+                "." +
+                config.fromTableName() + " " +
+                (config.fromTableAlias() == null ? "" : config.fromTableAlias()) + " " +
+                (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
+                PGKeywords.WHERE + " " +
+                config.fetchWhereClause() +
+                " and " +
+                (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
+                "ctid >= " + "concat('(', ? ,',1)')::tid" +
+                " and " +
+                (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
+                "ctid < " + "concat('(', ? ,',1)')::tid";
     }
 }

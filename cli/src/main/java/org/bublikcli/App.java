@@ -40,12 +40,14 @@ public class App {
         Option tableDefOption = createOptionValue("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
         Option initOption = createOptionValue("i", "init", "json file", "file name with a list of tables");
         Option outputOption = createOptionValue("o", "output", "json file", "create new mapping definitions file");
+        Option showSQLOption = createOptionNoArg("s", "show", "show SQL query ");
         options
                 .addOption(createChunkOption)
                 .addOption(configOption)
                 .addOption(tableDefOption)
                 .addOption(initOption)
-                .addOption(outputOption);
+                .addOption(outputOption)
+                .addOption(showSQLOption);
         options.addOption("?", "help", false, "help");
 
         CommandLineParser parser = new DefaultParser();
@@ -73,7 +75,6 @@ public class App {
         }
     }
 
-/*
     private static Option createOptionNoArg(String shortName, String longName, String description) {
         return Option.builder(shortName)
                 .longOpt(longName)
@@ -81,7 +82,6 @@ public class App {
                 .required(false)
                 .build();
     }
-*/
 
     private static Option createOptionValue(String shortName, String longName, String argName, String description) {
         return Option.builder(shortName)
@@ -144,6 +144,7 @@ public class App {
                         null,
                         t.getFinalSchemaName(),
                         t.getFinalTableName(true),
+                        null,
                         null,
                         t.getSchemaName(),
                         t.getTableName(),

@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface JDBCStorageService {
     String buildStartEndOfChunk(List<Config> configs);
+    String buildFetchStatement(Config config);
 }

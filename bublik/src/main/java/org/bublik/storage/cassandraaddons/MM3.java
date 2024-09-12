@@ -7,33 +7,21 @@ import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
+import java.util.UUID;
 
 public class MM3 {
-    private final Object key;
 
-    public MM3(Object key) {
-        this.key = key;
-    }
-
-    public Murmur3Token getMurmur3Token() {
+    public static Murmur3Token getMurmur3Token(byte[] bytes) {
         Murmur3TokenFactory murmur3TokenFactory = new Murmur3TokenFactory();
-        byte[] bytes = new byte[0];
-        if (key instanceof Number) {
-            bytes = intToBytes(((Number) key).intValue());
-        }
-        if (key instanceof String) {
-            bytes = stringToBytes(key.toString());
-        }
         ByteBuffer bb = ByteBuffer.wrap(bytes);
         return (Murmur3Token) murmur3TokenFactory.hash(bb);
     }
 
-    public TokenRange getTokenRange(Set<TokenRange> tokenRangeSet) {
-        long v = getMurmur3Token().getValue();
+    public static TokenRange getTokenRange(Set<TokenRange> tokenRangeSet, byte[] bytes) {
+        long v = getMurmur3Token(bytes).getValue();
+//        System.out.println(v);
         return tokenRangeSet
                 .stream()
                 .filter(tRange ->   v >= ((Murmur3Token)tRange.getStart()).getValue() &&
@@ -42,25 +30,19 @@ public class MM3 {
                 .orElse(defaultTokenRange());
     }
 
-    public TokenRange getTokenRangeAsync(CompletionStage<Set<TokenRange>> setCompletionStage) {
-        long v = getMurmur3Token().getValue();
-        List<TokenRange> listTokenRanges = new ArrayList<>();
-        setCompletionStage
-                .thenAccept(tokenRanges ->
-                        tokenRanges
-                            .stream()
-                                .filter(tRange -> v >= ((Murmur3Token)tRange.getStart()).getValue() &&
-                                        v < ((Murmur3Token)tRange.getEnd()).getValue())
-                                .forEach(listTokenRanges::add));
-        return listTokenRanges.getFirst();
-    }
-
     public static TokenRange defaultTokenRange(){
         return new Murmur3TokenRange(Murmur3TokenFactory.MIN_TOKEN, Murmur3TokenFactory.MAX_TOKEN);
     }
 
+    public static byte[] smallIntToBytes(int i) {
+        byte[] result = new byte[2];
+        result[0] = (byte) (i >> 8);
+        result[1] = (byte) (i /*>> 0*/);
+        return result;
+    }
+
     // https://stackoverflow.com/questions/1936857/convert-integer-into-byte-array-java
-    private byte[] intToBytes(int i) {
+    public static byte[] intToBytes(int i) {
         byte[] result = new byte[4];
         result[0] = (byte) (i >> 24);
         result[1] = (byte) (i >> 16);
@@ -69,11 +51,38 @@ public class MM3 {
         return result;
     }
 
-    private byte[] stringToBytes(String s) {
+    public static byte[] longToBytes(long l) {
+        byte[] result = new byte[8];
+        result[0] = (byte) (l >> 56);
+        result[1] = (byte) (l >> 48);
+        result[2] = (byte) (l >> 40);
+        result[3] = (byte) (l >> 32);
+        result[4] = (byte) (l >> 24);
+        result[5] = (byte) (l >> 16);
+        result[6] = (byte) (l >> 8);
+        result[7] = (byte) (l /*>> 0*/);
+        return result;
+    }
+
+    public static byte[] stringToBytes(String s) {
         return s.getBytes(StandardCharsets.UTF_8);
     }
 
-    private byte[] compositeToBytes(byte[]... bytes) {
+    public static byte[] timestampToBytes(Instant instant) {
+        long l = instant.toEpochMilli();
+        return longToBytes(l);
+    }
+
+    public static byte[] uuidToBytes(UUID uuid) {
+        ByteBuffer bb = ByteBuffer.allocate(16);
+        bb.putLong(uuid.getMostSignificantBits());
+        bb.putLong(uuid.getLeastSignificantBits());
+        return bb.array();
+    }
+
+    public static byte[] compositeToBytes(byte[]... bytes) {
+        if (bytes.length == 1)
+            return bytes[0];
         int l = 0;
         int o = 3;
         int p = 0;
@@ -91,17 +100,3 @@ public class MM3 {
         return r;
     }
 }
-
-/*
-        Murmur3Partitioner murmur3Partitioner = new Murmur3Partitioner();
-        Murmur3Partitioner.LongToken longToken = null;
-        if (key instanceof String) {
-            String keyString = key.toString();
-            longToken = murmur3Partitioner.getToken(ByteBuffer.wrap(keyString.getBytes(StandardCharsets.UTF_8)));
-        }
-        if (key instanceof Number) {
-            int keyInteger = ((Number) key).intValue();
-            longToken = murmur3Partitioner.getToken(ByteBuffer.wrap(toBytes(keyInteger)));
-        }
-        assert longToken != null;
-*/

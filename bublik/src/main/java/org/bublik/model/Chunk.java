@@ -9,8 +9,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static org.bublik.exception.Utils.getStackTrace;
-
 public abstract class Chunk<T> implements ChunkService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
 
@@ -19,6 +17,7 @@ public abstract class Chunk<T> implements ChunkService {
     private final T end;
     private final Config config;
     private final Table sourceTable;
+    private final String fetchQuery;
     private Table targetTable;
     private final Storage sourceStorage;
     private Storage targetStorage;
@@ -27,12 +26,13 @@ public abstract class Chunk<T> implements ChunkService {
     private ResultSet resultSet;
 
     public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
-                 Storage sourceStorage) {
+                 String fetchQuery, Storage sourceStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
         this.config = config;
         this.sourceTable = sourceTable;
+        this.fetchQuery = fetchQuery;
         this.sourceStorage = sourceStorage;
     }
 
@@ -100,6 +100,10 @@ public abstract class Chunk<T> implements ChunkService {
         this.targetStorage = targetStorage;
     }
 
+    public String getFetchQuery() {
+        return fetchQuery;
+    }
+
     public Chunk<?> assignSourceConnection() throws SQLException {
         Connection sourceConnection = getSourceStorage().getConnection();
         setSourceConnection(sourceConnection);
@@ -107,8 +111,9 @@ public abstract class Chunk<T> implements ChunkService {
     }
 
     public Chunk<?> assignSourceResultSet() throws SQLException {
-        String s = buildFetchStatement();
-        ResultSet resultSet = getData(getSourceConnection(), s);
+//        String q = buildFetchStatement();
+//        LOGGER.debug("{}", q);
+        ResultSet resultSet = getData(getSourceConnection(), getFetchQuery());
         setResultSet(resultSet);
         return this;
     }
