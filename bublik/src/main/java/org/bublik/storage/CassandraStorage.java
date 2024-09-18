@@ -10,13 +10,10 @@ import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
-import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import org.bublik.model.*;
 import org.bublik.storage.cassandraaddons.BatchEntity;
 import org.bublik.storage.cassandraaddons.CSObject;
 import org.bublik.storage.cassandraaddons.CSPartitionKey;
-import org.bublik.storage.cassandraaddons.MM3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,15 +63,6 @@ public class CassandraStorage extends Storage {
         tokenRangeSet
                 .forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
                         ((Murmur3Token)tokenRange.getEnd()).getValue()));
-*/
-/*
-        metadata
-                .getNodes()
-                .forEach((key, value) -> {
-                    metadata.getTokenMap().orElseThrow().getTokenRanges(value)
-                            .forEach(t -> System.out.println(((Murmur3Token)t.getStart()).getValue() + " : " + ((Murmur3Token)t.getEnd()).getValue()));
-                    System.out.println();
-                });
 */
         this.batchSize = getBatchSize(connectionProperty);
     }
@@ -137,7 +125,7 @@ public class CassandraStorage extends Storage {
         PreparedStatement preparedStatement = cqlSession.prepare(insertString);
         ResultSet resultSet = chunk.getResultSet();
         while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, null, stringCassandraColumnMap,
+            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(resultSet, null, stringCassandraColumnMap,
                     csObject.getTokenRangeSet());
             batchStatementBuilder.addStatement(preparedStatement.bind(entry.getValue()));
             recordCount++;
@@ -165,7 +153,7 @@ public class CassandraStorage extends Storage {
         CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
         ResultSet resultSet = chunk.getResultSet();
         while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(
+            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     resultSet,
                     csObject.getPartitionKeyMap(),
                     csObject.getCassandraColumnMap(),
@@ -214,12 +202,13 @@ public class CassandraStorage extends Storage {
         batchStatement.clear();
     }
 
-    private Map.Entry<TokenRange, Object[]> getPreparedStatementObjects(ResultSet resultSet,
-                                                                        Map<Integer, CSPartitionKey> partitionKeyMap,
-                                                                        Map<String, CassandraColumn> stringCassandraColumnMap,
-                                                                        Set<TokenRange> tokenRangeSet) throws SQLException {
+    private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,
+                                                                  Map<Integer, CSPartitionKey> partitionKeyMap,
+                                                                  Map<String, CassandraColumn> stringCassandraColumnMap,
+                                                                  Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
+//        long temp = 0;
         for (Map.Entry<String, CassandraColumn> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetType = entry.getValue().getColumnType();
@@ -237,6 +226,7 @@ public class CassandraStorage extends Storage {
                 }
                 case "int": {
                     int v = resultSet.getInt(sourceColumn);
+//                    temp = v;
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -334,7 +324,6 @@ public class CassandraStorage extends Storage {
         byte[][] bytes = new byte[mapBytes.size()][];
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
-//        System.out.println( tokenRange.getStart()  + " " + tokenRange.getEnd() );
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
 

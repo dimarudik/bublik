@@ -133,13 +133,8 @@ public abstract class Chunk<T> implements ChunkService {
     }
 
     public Chunk<?> closeChunkSourceConnection() throws SQLException {
-        try {
-            Connection connection = getSourceConnection();
-            connection.close();
-            return this;
-        } catch (SQLException | RuntimeException e) {
-//            LOGGER.error("{}", getStackTrace(e));
-            throw e;
-        }
+        Connection connection = getSourceConnection();
+        connection.close();
+        return this;
     }
 }

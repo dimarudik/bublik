@@ -21,7 +21,6 @@ public class MM3 {
 
     public static TokenRange getTokenRange(Set<TokenRange> tokenRangeSet, byte[] bytes) {
         long v = getMurmur3Token(bytes).getValue();
-//        System.out.println(v);
         return tokenRangeSet
                 .stream()
                 .filter(tRange ->   v >= ((Murmur3Token)tRange.getStart()).getValue() &&
@@ -30,7 +29,12 @@ public class MM3 {
                 .orElse(defaultTokenRange());
     }
 
-    public static TokenRange defaultTokenRange(){
+    public static TokenRange defaultTokenRange() {
+        return new Murmur3TokenRange(Murmur3TokenFactory.MIN_TOKEN, Murmur3TokenFactory.MAX_TOKEN);
+    }
+
+    public static TokenRange defaultTokenRange(long v){
+        System.out.println(v + " = " + Murmur3TokenFactory.MIN_TOKEN + ":" + Murmur3TokenFactory.MAX_TOKEN);
         return new Murmur3TokenRange(Murmur3TokenFactory.MIN_TOKEN, Murmur3TokenFactory.MAX_TOKEN);
     }
 
