@@ -94,6 +94,24 @@ create table intervals (
   time_period_3  INTERVAL,
   time_period_4  INTERVAL DAY TO SECOND(6)
 );
+create table sec_plain_text (
+    id bigint primary key generated always as identity,
+    pan varchar(25),
+    first_name varchar(256),
+    last_name varchar(256),
+    expired date
+);
+create table sec_encrypted (
+    id bigint,
+    pan varchar(25),
+    first_name varchar(256),
+    last_name varchar(256),
+    expired date,
+    pan_encrypted_data varchar(512),
+    pan_encryption_metadata jsonb,
+    all_encrypted_data varchar(512),
+    all_encryption_metadata jsonb
+);
 
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
@@ -124,6 +142,8 @@ insert into "Source" (uuid, "Primary", boolean,
             else null end as current_mood,
         now() time
     from generate_series(1,900000) as n;
+insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400010107395', 'NELSON', 'MANDELA', current_date);
+insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400021325252', 'CHE', 'GUEVARA', current_date);
 --vacuum "Source";
 insert into noc2c1 (name)
     select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;

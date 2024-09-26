@@ -1,0 +1,15 @@
+[
+  {
+    "fromSchemaName": "TEST",
+    "fromTableName": "T",
+    "toSchemaName": "PUBLIC",
+    "toTableName": "T",
+    "fetchHintClause": "/*+ no_index(T) */",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "T_TASK",
+    "fromTaskWhereClause": " 1 = 1 ",
+    "columnToColumn": {
+      "d": "d"
+    }
+  }
+]

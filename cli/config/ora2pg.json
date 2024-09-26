@@ -2,7 +2,7 @@
   {
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
-    "fromTableNameAdds" : "t",
+    "fromTableAlias" : "t",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(TABLE1) */",

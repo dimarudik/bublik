@@ -16,7 +16,7 @@ public class MySecure {
             NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
         byte[] secretKey = serializeSecretKey(generateSecretKey(256));
 //        byte[] secretKey = getSecretKey();
-        byte[] enc = encryptMessage("SECRET WORD".getBytes(), secretKey);
+        byte[] enc = encryptMessage("SECRET MYSECURE".getBytes(), secretKey);
         byte[] dec = decryptMessage(enc, secretKey);
         String str = new String(dec, StandardCharsets.UTF_8);
         System.out.println(str);

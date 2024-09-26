@@ -107,11 +107,15 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
         Map<String, String> expressionToColumnMap = config.expressionToColumn();
+        Map<String, EncryptedEntity> encryptedEntityMap = config.expressionToCrypto();
         if (columnToColumnMap != null) {
             strings.addAll(columnToColumnMap.keySet());
         }
         if (expressionToColumnMap != null) {
             strings.addAll(expressionToColumnMap.keySet());
+        }
+        if (encryptedEntityMap != null) {
+            strings.addAll(encryptedEntityMap.keySet());
         }
         String columnToColumn = String.join(", ", strings);
         return  PGKeywords.SELECT + " /* bublik */ " +

@@ -11,6 +11,7 @@ import oracle.sql.INTERVALYM;
 import org.bublik.constants.PGKeywords;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
+import org.bublik.secure.SecureUtil;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
@@ -18,6 +19,7 @@ import org.postgresql.util.PGInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.sql.Date;
 import java.sql.*;
 import java.time.*;
@@ -149,6 +151,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         int recordCount = 0;
         Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
         Map<List<String>, PGColumn> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
+        Map<String, PGColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
         String[] columnNames = neededColumnsToDB
                 .values()
@@ -165,7 +168,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             Consumer<SimpleRow> simpleRowConsumer =
                     s -> {
                             try {
-                                simpleRowConsume(s, neededColumnsToDB, neededColumnsFromMany, fetchResultSet, chunk, connectionTo, writer);
+                                simpleRowConsume(s, neededColumnsToDB, neededEncryptedColumns, neededColumnsFromMany, fetchResultSet, chunk, connectionTo, writer);
                             } catch (RuntimeException e) {
                                 LOGGER.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                             }
@@ -189,7 +192,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 chunk);
     }
 
-    public Map<String, PGColumn> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+    protected Map<String, PGColumn> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
         Map<String, PGColumn> columnMap = new HashMap<>();
         try {
             ResultSet resultSet;
@@ -201,6 +204,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
             Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
             Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
+            Map<String, EncryptedEntity> encryptedEntityMap = chunk.getConfig().expressionToCrypto();
 
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
@@ -223,6 +227,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
                 }
 
+                if (encryptedEntityMap != null) {
+                    encryptedEntityMap
+                            .entrySet()
+                            .stream()
+                            .filter(s -> s.getValue().encryptedColumnName().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue().encryptedColumnName(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                }
+
                 if (columnFromManyMap != null) {
                     columnFromManyMap
                             .entrySet()
@@ -238,7 +250,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return columnMap;
     }
 
-    public Map<List<String>, PGColumn> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?> chunk) {
+    protected Map<List<String>, PGColumn> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?> chunk) {
         Map<List<String>, PGColumn> columnMap = new HashMap<>();
         try {
             ResultSet resultSet;
@@ -269,8 +281,41 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return columnMap;
     }
 
+    protected Map<String, PGColumn> readTargetEncryptedColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+        Map<String, PGColumn> columnMap = new HashMap<>();
+        try {
+            ResultSet resultSet;
+            resultSet = connectionTo.getMetaData().getColumns(
+                    null,
+                    chunk.getTargetTable().getSchemaName().toLowerCase(),
+                    chunk.getTargetTable().getFinalTableName(false),
+                    null);
+            Map<String, EncryptedEntity> encryptedEntityMap = chunk.getConfig().expressionToCrypto();
+
+            while (resultSet.next()) {
+                String columnName = resultSet.getString(4);
+                String columnType = resultSet.getString(6);
+                Integer columnPosition = resultSet.getInt(17);
+
+                if (encryptedEntityMap != null) {
+                    encryptedEntityMap
+                            .entrySet()
+                            .stream()
+                            .filter(entry -> entry.getValue().encryptedColumnName().replaceAll("\"", "").equalsIgnoreCase(columnName))
+                            .forEach(entry -> columnMap.put(columnName, new PGColumn(columnPosition, entry.getValue().encryptedColumnName(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                }
+
+            }
+            resultSet.close();
+        } catch (SQLException e) {
+            LOGGER.error("{}", e.getMessage());
+        }
+        return columnMap;
+    }
+
     private void simpleRowConsume(SimpleRow row,
                                   Map<String, PGColumn> neededColumnsToDB,
+                                  Map<String, PGColumn> neededEncryptedColumns,
                                   Map<List<String>, PGColumn> neededColumnsFromMany,
                                   ResultSet fetchResultSet,
                                   Chunk<?> chunk,
@@ -303,10 +348,19 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             row.setText(targetColumn, null);
                             break;
                         }
+                        if (neededEncryptedColumns.get(targetColumn) != null){
+                            String e = SecureUtil.encrypt(getConnectionProperty(), s);
+                            row.setText(targetColumn, e);
+                            break;
+                        }
                         row.setText(targetColumn, s.replaceAll("\u0000", ""));
                         break;
                     } catch (SQLException e) {
                         LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                    } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException |
+                             InstantiationException | IllegalAccessException e) {
+                        LOGGER.error("{}", getStackTrace(e));
+//                        throw new RuntimeException(e);
                     }
                 }
                 case "bpchar":
@@ -473,13 +527,18 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 case "timestamp": {
                     try {
                         Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
+//                        System.out.println(timestamp);
                         if (timestamp == null) {
                             row.setTimeStamp(targetColumn, null);
                             break;
                         }
+/*
                         long l = timestamp.getTime();
                         LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
                                 TimeZone.getDefault().toZoneId());
+*/
+                        LocalDateTime localDateTime = timestamp.toLocalDateTime();
+//                        System.out.println(localDateTime);
                         row.setTimeStamp(targetColumn, localDateTime);
                         break;
                     } catch (SQLException e) {
@@ -702,11 +761,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
         Map<String, String> expressionToColumnMap = config.expressionToColumn();
+        Map<String, EncryptedEntity> encryptedEntityMap = config.expressionToCrypto();
         if (columnToColumnMap != null) {
             strings.addAll(columnToColumnMap.keySet());
         }
         if (expressionToColumnMap != null) {
             strings.addAll(expressionToColumnMap.keySet());
+        }
+        if (encryptedEntityMap != null) {
+            strings.addAll(encryptedEntityMap.keySet());
         }
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
