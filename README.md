@@ -153,7 +153,7 @@ psql postgresql://test:test@localhost/postgres
   {
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
-    "fromTableNameAdds" : "t",
+    "fromTableAlias" : "t",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(TABLE1) */",
@@ -196,6 +196,9 @@ psql postgresql://test:test@localhost/postgres
       "gender"      : "gender",
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
+    },
+    "columnFromMany" : {
+       "tstzrange" : ["create_at", "update_at"]
     }
   },
   {
