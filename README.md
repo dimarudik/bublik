@@ -128,7 +128,7 @@ psql postgresql://test:test@localhost/postgres
 
 ### Prepare Oracle To PostgreSQL Config File
 
-##### ./sql/ora2pg.yaml
+##### ./cli/config/ora2pg.yaml
 
   > ```yaml
   > threadCount: 10
@@ -146,7 +146,7 @@ psql postgresql://test:test@localhost/postgres
 
 ### Prepare Oracle To PostgreSQL Mapping File
 
-##### ./sql/ora2pg.json
+##### ./cli/config/ora2pg.json
 
 ```json
 [
