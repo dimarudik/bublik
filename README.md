@@ -225,8 +225,8 @@ psql postgresql://test:test@localhost/postgres
 > The case-sensitive or reserved words must be quoted with double quotation and backslashes  
 
 > [!NOTE]
-> To enrich data from other tables you can use combination
-> Of **fromTableAlias** **fromTableAdds** **expressionToColumn** definitions 
+> To enrich data from other tables you can use combination of <br>
+> **fromTableAlias** **fromTableAdds** **expressionToColumn** definitions 
 > In example with TABLE1 the data will be retrieved by query:
 > SELECT /* bublik */ /*+ no_index(T) */
 >   "LEVEL",
