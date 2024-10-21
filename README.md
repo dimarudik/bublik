@@ -228,24 +228,27 @@ psql postgresql://test:test@localhost/postgres
 > To enrich data from other tables you can use combination of <br>
 > **fromTableAlias** **fromTableAdds** **expressionToColumn** definitions 
 > In example with TABLE1 the data will be retrieved by query:
-> SELECT /* bublik */ /*+ no_index(T) */
->   "LEVEL",
->   create_at,
->   update_at,
->   gender,
->   byteablob,
->   textclob,
->   "CaseSensitive",
->   rawbytea,
->   doc,
->   uuid,
->   clobjsonb,
->   current_mood,
->   t.id as id,
->   c.name as currency_name,
->   (select name from test.countries c where c.id = t.country_id) as country_name
-> FROM TEST.TABLE1 t left join test.currencies c
->   on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
+
+```
+SELECT /* bublik */ /*+ no_index(T) */
+  "LEVEL",
+  create_at,
+  update_at,
+  gender,
+  byteablob,
+  textclob,
+  "CaseSensitive",
+  rawbytea,
+  doc,
+  uuid,
+  clobjsonb,
+  current_mood,
+  t.id as id,
+  c.name as currency_name,
+  (select name from test.countries c where c.id = t.country_id) as country_name
+FROM TEST.TABLE1 t left join test.currencies c
+  on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
+```
 
 
 > [!NOTE]
