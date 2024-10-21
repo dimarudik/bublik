@@ -156,7 +156,7 @@ psql postgresql://test:test@localhost/postgres
     "fromTableAlias" : "t",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
-    "fetchHintClause" : "/*+ no_index(TABLE1) */",
+    "fetchHintClause" : "/*+ no_index(T) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
     "fromTaskWhereClause" : " 1 = 1 ",
