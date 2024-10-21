@@ -245,7 +245,7 @@ java -jar ./target/bublik-cli-1.2.0.jar -k 200000 -c ./config/ora2pg.yaml -m ./c
 > In this case unprocessed chunks of data will transfer 
 
 
-Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
+You can prepare data chunks in Oracle manually by using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
 
 ```
 exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
