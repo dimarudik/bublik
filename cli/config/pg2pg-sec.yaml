@@ -10,5 +10,6 @@ toProperties:
   password: test
 
 crypto:
-  handler: org.chekist.Chekist
-  settings: file.json
+  handlerClass: org.chekist.ChekistHandler
+  keyEncryptionKey: "kreDbdMpeEu0Xt6q654exKGvRUw370H/NS0Tcmh+POc="
+  cipherSettings: ./cli/config/sec-settings.json

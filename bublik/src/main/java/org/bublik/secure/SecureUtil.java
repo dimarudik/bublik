@@ -3,17 +3,28 @@ package org.bublik.secure;
 import org.bublik.model.ConnectionProperty;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Properties;
 
 public class SecureUtil {
-    public static String encrypt(ConnectionProperty property, String data) throws ClassNotFoundException, NoSuchMethodException,
+    public static EncryptedEntity getEncryptedEntity(ConnectionProperty property, String data, String aad) throws ClassNotFoundException, NoSuchMethodException,
             InvocationTargetException, InstantiationException, IllegalAccessException {
+
         Properties properties = property.getCryptoProperties();
-        Class<?> obj = Class.forName(properties.getProperty("handler"));
-        Object chekist = obj.getDeclaredConstructor().newInstance();
-        Class<?>[] classes = {String.class, String.class};
-        Method method = chekist.getClass().getMethod("encrypt", classes);
-        return (String) method.invoke(chekist, data, "");
+
+        SecureHandler secureHandler = getHandler(properties);
+        SecureConfig secureConfig = secureHandler.getSecureConfig(properties.getProperty(SecuritySettings.cipherSettings.name()));
+        SecureData secureData = secureHandler.getSecureData(properties.getProperty(SecuritySettings.keyEncryptionKey.name()), data, aad);
+
+        return secureHandler.getEncryptedEntity(secureConfig, secureData);
+    }
+
+    private static SecureHandler getHandler(Properties properties) throws ClassNotFoundException, NoSuchMethodException,
+            InvocationTargetException, InstantiationException, IllegalAccessException {
+        return (SecureHandler) getClazz(properties, SecuritySettings.handlerClass.name())
+                .getDeclaredConstructor().newInstance();
+    }
+
+    private static Class<?> getClazz(Properties properties, String className) throws ClassNotFoundException {
+        return Class.forName(properties.getProperty(className));
     }
 }

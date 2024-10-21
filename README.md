@@ -52,6 +52,8 @@ All activities are reproducible in docker containers
 ```
 git clone https://github.com/dimarudik/bublik.git
 cd bublik/
+
+mvn -f bublik/pom.xml clean install -DskipTests ; mvn -f cli/pom.xml clean package -DskipTests
 ```
 
 #### Prepare Oracle environment
@@ -120,7 +122,7 @@ How to connect to PostgreSQL:
 psql postgresql://test:test@localhost/postgres
 ```
 
-### Prepare Oracle To PostgreSQL Config File 
+### Prepare Oracle To PostgreSQL Config File
 
 ##### ./sql/ora2pg.yaml
 
@@ -138,7 +140,7 @@ psql postgresql://test:test@localhost/postgres
   > ```
 
 
-### Prepare Oracle To PostgreSQL Mapping File 
+### Prepare Oracle To PostgreSQL Mapping File
 
 ##### ./sql/ora2pg.json
 
@@ -227,6 +229,18 @@ psql postgresql://test:test@localhost/postgres
 ### Create Oracle chunks
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
+
+Chunks can be created automatically with parameter -k at startup
+
+```
+java -jar ./target/bublik-cli-1.2.0.jar -k 200000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
+```
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter
+> In this case unprocessed chunks of data will transfer 
+
+
 Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
 
 ```
@@ -262,15 +276,6 @@ end;
 /
 ```
 
-Or chunks can be created automatically with parameter -k at startup
-
-```java
-java -jar ./target/bublik-cli-1.2.0.jar -k 200000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
-```
-
-> [!NOTE]
-> [How to build and run the tool](#Build-the-jar)
-
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
@@ -278,6 +283,15 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 
 
 ### Prepare PostgreSQL To PostgreSQL environment
+
+All activities are reproducible in docker containers
+
+```
+git clone https://github.com/dimarudik/bublik.git
+cd bublik/
+
+mvn -f bublik/pom.xml clean install -DskipTests ; mvn -f cli/pom.xml clean package -DskipTests
+```
 
 ```
 docker run --name postgres \
@@ -563,7 +577,7 @@ Halt any changes to the movable tables in the source database
 
 Run the service:
 
-```java
+```
 java -jar ./build/libs/service-1.2.0.jar
 ```
 

@@ -18,6 +18,7 @@ public record Config(
         List<String> tryCharIfAny,
         Map<String, String> columnToColumn,
         Map<String, String> expressionToColumn,
-        Map<String, EncryptedEntity> expressionToCrypto,
+        Map<String, EncryptedColumn> expressionToCrypto,
+        Map<String, String> cryptoToColumn,
         Map<String, List<String>> columnFromMany
 ) {}

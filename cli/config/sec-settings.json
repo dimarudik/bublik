@@ -1,0 +1,7 @@
+{
+  "keySize": 256,
+  "vectorSize": 12,
+  "algorithm": "AES",
+  "transformation": "AES/GCM/NoPadding",
+  "tLen": 128
+}

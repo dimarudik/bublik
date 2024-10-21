@@ -16,12 +16,10 @@ import javax.crypto.SecretKey;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.UUID;
 
 /*
-https://tinkoff.ktalk.ru/recordings/JqHcS5uYTxNUV0OoXFHe
-https://gitlab.tcsbank.ru/aps/apsv-encryption-manager
-https://wiki.tcsbank.ru/pages/viewpage.action?pageId=3596378608
 gradle publishToMavenLocal
 */
 
@@ -30,7 +28,10 @@ public class MyKekDek {
     public static void main(String[] args) throws NoSuchAlgorithmException {
         DefaultEncryptionHelper encryptionHelper = new DefaultEncryptionHelper();
         KekDekEncryptor kekDekEncryptor = new KekDekEncryptor(encryptionHelper);
-        byte[] secretKey = serializeSecretKey(generateSecretKey(256));
+        String keyEncryptionKey = "kreDbdMpeEu0Xt6q654exKGvRUw370H/NS0Tcmh+POc="; // мастер-ключ из vault
+        byte[] secretKey = decode(keyEncryptionKey);
+
+//        byte[] secretKey = serializeSecretKey(generateSecretKey(256));
         UUID extId = UUID.randomUUID();
         EncryptionConfigProperties encryptionConfig = new EncryptionConfigProperties(
                 extId,
@@ -47,7 +48,7 @@ public class MyKekDek {
                 encryptionConfig,
                 KekDekData.builder()
                         .fromDto(new DataDto("SECRET MYKEKDEK", "WORD"))
-                        .aad("1")
+                        .aad(extId.toString())
                         .build());
         KekDekRequestEncryptedData requestEncryptData = KekDekRequestEncryptedData.builder()
                 .secretData(responseEncryptData.getSecretData())
@@ -55,11 +56,11 @@ public class MyKekDek {
                 .keyId(responseEncryptData.getKeyId())
                 .secretKeyDek(responseEncryptData.getSecretKeyDek())
                 .vectorDek(responseEncryptData.getVectorDek())
-                .aad("1")
+                .aad(extId.toString())
                 .build();
 
         String dec = kekDekEncryptor.decrypt(encryptionConfig, requestEncryptData);
-        System.out.println(requestEncryptData.getSecretData());
+//        System.out.println(requestEncryptData.getSecretData());
         System.out.println(dec);
     }
 
@@ -71,5 +72,9 @@ public class MyKekDek {
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
         keyGen.init(keySize, new SecureRandom());
         return keyGen.generateKey();
+    }
+
+    public static byte[] decode(final String from) {
+        return Base64.getDecoder().decode(from);
     }
 }

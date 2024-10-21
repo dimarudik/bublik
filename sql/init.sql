@@ -99,18 +99,20 @@ create table sec_plain_text (
     pan varchar(25),
     first_name varchar(256),
     last_name varchar(256),
-    expired date
+    expired date,
+    pan_decrypted varchar(1024),
+    all_decrypted varchar(1024)
 );
 create table sec_encrypted (
     id bigint,
-    pan varchar(25),
     first_name varchar(256),
     last_name varchar(256),
     expired date,
     pan_encrypted_data varchar(512),
     pan_encryption_metadata jsonb,
     all_encrypted_data varchar(512),
-    all_encryption_metadata jsonb
+    all_encryption_metadata jsonb,
+    last_name_encrypted_data jsonb
 );
 
 insert into "Source" (uuid, "Primary", boolean,

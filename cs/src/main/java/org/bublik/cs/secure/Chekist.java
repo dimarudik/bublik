@@ -8,88 +8,71 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 
 /*
 https://habr.com/ru/articles/444814/
 */
 
 public class Chekist {
-    private final byte[] saltKey;
-    private final byte[] saltVector;
-    private final byte[] encryptedSaltBytes;
-    private final byte[] plainTextVector;
-    private final String saltText;
+    private final byte[] KEK;
+    private final byte[] kekVector;
+    private final byte[] encryptedDEKByKEK;
+    private final byte[] dekVector;
+    private final String aad;
     private final byte[] encryptedTextBytes;
 
-    public Chekist(String saltText, String plainText) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException,
+    public Chekist(String keyEncryptionKey, String plainText, String aad) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException,
             NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        this.plainTextVector = generateVector(12);
-        this.saltVector = generateVector(12);
+        this.dekVector = generateVector(12);
+        this.kekVector = generateVector(12);
 
-        SecretKey plainTextSecretKey = generateSecretKey(256);
-        SecretKey saltSecretKey = generateSecretKey(256);
+        SecretKey dataEncryptionKey = generateSecretKey(256); // генерится рандомно
 
-        byte[] plainTextKey = serializeSecretKey(plainTextSecretKey);
+        byte[] DEK = serializeSecretKey(dataEncryptionKey);
 
-        this.saltKey = serializeSecretKey(saltSecretKey);
-        this.saltText = saltText;
-        byte[] salt = saltText.getBytes();
+        this.KEK = decode(keyEncryptionKey);
+        this.aad = aad;
+        byte[] aadBytes = aad.getBytes();
 
-        Cipher saltCipher = initCipher(saltKey, saltVector, Cipher.ENCRYPT_MODE);
-        Cipher plainTextCipher = initCipher(plainTextKey, plainTextVector, Cipher.ENCRYPT_MODE);
+        Cipher kekCipher = initCipher(KEK, kekVector, Cipher.ENCRYPT_MODE);
+        Cipher dekCipher = initCipher(DEK, dekVector, Cipher.ENCRYPT_MODE);
 
-        this.encryptedSaltBytes = saltCipher.doFinal(plainTextKey);
-        plainTextCipher.updateAAD(salt);
+        this.encryptedDEKByKEK = kekCipher.doFinal(DEK);
+        dekCipher.updateAAD(aadBytes);
 
-        this.encryptedTextBytes = plainTextCipher.doFinal(plainText.getBytes());
+        this.encryptedTextBytes = dekCipher.doFinal(plainText.getBytes());
     }
 
     public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException,
             InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
             InvalidKeySpecException {
 
-        String saltText = "WORD";
+        String aad = "WORD";
         String plainText = "SECRET BUBSECURE";
+        String keyEncryptionKey = "kreDbdMpeEu0Xt6q654exKGvRUw370H/NS0Tcmh+POc="; // мастер-ключ из vault
 
         // Шифруем
-        long start = System.currentTimeMillis();
-        List<Chekist> chekists = new ArrayList<>();
-        for (int i = 0; i < 1000000; i++) {
-            chekists.add(new Chekist(saltText, plainText));
-        }
-        System.out.println(System.currentTimeMillis() - start);
+        Chekist chekist = new Chekist(keyEncryptionKey, plainText, aad);
 
         //!!! ДОДЕЛАТЬ ENCODE DECODE
 
         // Дешифруем
-        start = System.currentTimeMillis();
-        chekists.forEach(chekist -> {
-            byte[] decrypted1 = null;
-            try {
-                decrypted1 = chekist.decrypt();
-            } catch (InvalidAlgorithmParameterException | NoSuchPaddingException | NoSuchAlgorithmException |
-                     InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-                throw new RuntimeException(e);
-            }
-//            System.out.println(new String(decrypted1));
-        });
-        System.out.println(System.currentTimeMillis() - start);
+        byte[] decrypted = chekist.decrypt();
+        System.out.println(new String(decrypted));
     }
 
     public byte[] decrypt()
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, NoSuchAlgorithmException,
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
-        Cipher saltCipher = initCipher(saltKey, saltVector, Cipher.DECRYPT_MODE);
-        byte[] dek = saltCipher.doFinal(encryptedSaltBytes);
+        Cipher kekCipher = initCipher(KEK, kekVector, Cipher.DECRYPT_MODE);
+        byte[] DEK = kekCipher.doFinal(encryptedDEKByKEK);
 
-        Cipher cipherDek = initCipher(dek, plainTextVector, Cipher.DECRYPT_MODE);
-        cipherDek.updateAAD(saltText.getBytes());
+        Cipher dekCipher = initCipher(DEK, dekVector, Cipher.DECRYPT_MODE);
+        dekCipher.updateAAD(aad.getBytes());
 
-        return cipherDek.doFinal(encryptedTextBytes);
+        return dekCipher.doFinal(encryptedTextBytes);
     }
 
     public static byte[] generateVector(int vectorSize) {

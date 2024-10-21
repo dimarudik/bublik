@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class PGTable extends Table {
+    public PGTable(){}
     public PGTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }

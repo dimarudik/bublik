@@ -1,0 +1,32 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "sec_plain_text",
+    "toSchemaName": "public",
+    "toTableName": "sec_encrypted",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "SOURCE_TASK",
+    "columnToColumn": {
+      "id": "id",
+      "first_name": "first_name",
+      "last_name": "last_name",
+      "expired": "expired"
+    },
+    "expressionToCrypto": {
+      "pan as pan_encrypted_data": {
+        "targetEncMetaColumnName"  : "pan_encryption_metadata",
+        "sourceAadColumnName"      : "first_name",
+        "targetEncColumnName"      : "pan_encrypted_data"
+      },
+      "concat(pan, first_name, last_name, expired) as all_encrypted_data": {
+        "targetEncMetaColumnName"  : "all_encryption_metadata",
+        "sourceAadColumnName"      : "last_name",
+        "targetEncColumnName"      : "all_encrypted_data"
+      },
+      "concat(first_name, last_name) as last_name_encrypted_data": {
+        "targetEncMetaColumnName"  : "last_name_encrypted_data",
+        "sourceAadColumnName"      : "expired"
+      }
+    }
+  }
+]

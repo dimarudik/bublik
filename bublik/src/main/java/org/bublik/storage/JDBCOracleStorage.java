@@ -107,7 +107,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
         Map<String, String> expressionToColumnMap = config.expressionToColumn();
-        Map<String, EncryptedEntity> encryptedEntityMap = config.expressionToCrypto();
+        Map<String, EncryptedColumn> encryptedEntityMap = config.expressionToCrypto();
+        Map<String, String> cryptoToColumnMap = config.cryptoToColumn();
         if (columnToColumnMap != null) {
             strings.addAll(columnToColumnMap.keySet());
         }
@@ -116,6 +117,9 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         }
         if (encryptedEntityMap != null) {
             strings.addAll(encryptedEntityMap.keySet());
+        }
+        if (cryptoToColumnMap != null) {
+            strings.addAll(cryptoToColumnMap.keySet());
         }
         String columnToColumn = String.join(", ", strings);
         return  PGKeywords.SELECT + " /* bublik */ " +
