@@ -275,7 +275,7 @@ java \
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will transfer 
+> In this case unprocessed chunks of data will be transfer 
 
 
 You can prepare data chunks in Oracle manually by using the same user credentials specified in key `fromProperties` in `./cli/config/ora2pg.yaml`:
