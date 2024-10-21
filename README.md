@@ -225,7 +225,28 @@ psql postgresql://test:test@localhost/postgres
 > The case-sensitive or reserved words must be quoted with double quotation and backslashes  
 
 > [!NOTE]
-> **expressionToColumn** might be used for declaration of subquery for enrichment of data 
+> to enrich data from other tables you can use combination of
+> **fromTableAlias** **fromTableAdds** **expressionToColumn** definitions 
+> in example with TABLE1 the data will be retrieved by query:
+> SELECT /* bublik */ /*+ no_index(T) */
+>   "LEVEL",
+>   create_at,
+>   update_at,
+>   gender,
+>   byteablob,
+>   textclob,
+>   "CaseSensitive",
+>   rawbytea,
+>   doc,
+>   uuid,
+>   clobjsonb,
+>   current_mood,
+>   t.id as id,
+>   c.name as currency_name,
+>   (select name from test.countries c where c.id = t.country_id) as country_name
+> FROM TEST.TABLE1 t left join test.currencies c
+>   on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
+
 
 > [!NOTE]
 > To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
