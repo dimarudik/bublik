@@ -52,8 +52,12 @@ All activities are reproducible in docker containers
 ```
 git clone https://github.com/dimarudik/bublik.git
 cd bublik/
+```
 
-mvn -f bublik/pom.xml clean install -DskipTests ; mvn -f cli/pom.xml clean package -DskipTests
+
+```
+mvn -f bublik/pom.xml clean install -DskipTests
+mvn -f cli/pom.xml clean package -DskipTests
 ```
 
 #### Prepare Oracle environment
@@ -289,8 +293,12 @@ All activities are reproducible in docker containers
 ```
 git clone https://github.com/dimarudik/bublik.git
 cd bublik/
+```
 
-mvn -f bublik/pom.xml clean install -DskipTests ; mvn -f cli/pom.xml clean package -DskipTests
+
+```
+mvn -f bublik/pom.xml clean install -DskipTests
+mvn -f cli/pom.xml clean package -DskipTests
 ```
 
 ```
