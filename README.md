@@ -130,18 +130,18 @@ psql postgresql://test:test@localhost/postgres
 
 ##### ./cli/config/ora2pg.yaml
 
-  > ```yaml
-  > threadCount: 10
-  > 
-  > fromProperties:
-  >   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
-  >   user: test
-  >   password: test
-  > toProperties:
-  >   url: jdbc:postgresql://localhost:5432/postgres
-  >   user: test
-  >   password: test
-  > ```
+```yaml
+threadCount: 10
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+```
 
 
 ### Prepare Oracle To PostgreSQL Mapping File
@@ -229,26 +229,26 @@ psql postgresql://test:test@localhost/postgres
 > **fromTableAlias**, **fromTableAdds**, **expressionToColumn** definitions <br> 
 > In example with TABLE1 the data will be retrieved by query:
 
-```
-SELECT /* bublik */ /*+ no_index(T) */
-  "LEVEL",
-  create_at,
-  update_at,
-  gender,
-  byteablob,
-  textclob,
-  "CaseSensitive",
-  rawbytea,
-  doc,
-  uuid,
-  clobjsonb,
-  current_mood,
-  t.id as id,
-  c.name as currency_name,
-  (select name from test.countries c where c.id = t.country_id) as country_name
-FROM TEST.TABLE1 t left join test.currencies c
-  on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
-```
+ > ```
+ > SELECT /* bublik */ /*+ no_index(T) */
+ >   "LEVEL",
+ >   create_at,
+ >   update_at,
+ >   gender,
+ >   byteablob,
+ >   textclob,
+ >   "CaseSensitive",
+ >   rawbytea,
+ >   doc,
+ >   uuid,
+ >   clobjsonb,
+ >   current_mood,
+ >   t.id as id,
+ >   c.name as currency_name,
+ >   (select name from test.countries c where c.id = t.country_id) as country_name
+ > FROM TEST.TABLE1 t left join test.currencies c
+ >   on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
+ > ```
 
 
 > [!NOTE]
