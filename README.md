@@ -226,7 +226,7 @@ psql postgresql://test:test@localhost/postgres
 
 > [!NOTE]
 > To enrich data from other tables you can use combination of <br>
-> **fromTableAlias** **fromTableAdds** **expressionToColumn** definitions 
+> **fromTableAlias**, **fromTableAdds**, **expressionToColumn** definitions <br> 
 > In example with TABLE1 the data will be retrieved by query:
 
 ```
