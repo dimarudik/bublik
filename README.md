@@ -240,9 +240,11 @@ Halt any changes to the movable tables in the source database (Oracle)<br>
 Chunks can be created automatically with parameter -k at startup
 
 ```
-java -jar ./cli/target/bublik-cli-1.2.0.jar \
+java \
+  -jar ./cli/target/bublik-cli-1.2.0.jar \
   -k 200000 \
-  -c ./cli/config/ora2pg.yaml -m ./cli/config/ora2pg.json
+  -c ./cli/config/ora2pg.yaml \
+  -m ./cli/config/ora2pg.json
 ```
 
 > [!NOTE]
