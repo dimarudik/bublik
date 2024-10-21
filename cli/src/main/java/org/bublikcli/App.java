@@ -11,8 +11,6 @@ import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
-import org.bublik.storage.JDBCOracleStorage;
-import org.bublik.storage.JDBCPostgreSQLStorage;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -29,6 +27,10 @@ import static org.bublik.util.ColumnUtil.fillOraChunks;
 import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
 import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 
+/*
+java -cp ./chekist/target/chekist-1.0-SNAPSHOT.jar:./cli/target/bublik-cli-1.2.0.jar org.bublikcli.App -k 1000 -c ./cli/config/pg2pg-sec.yaml -m ./cli/config/pg2pg-sec.json
+*/
+
 @Slf4j
 public class App {
 
@@ -40,12 +42,14 @@ public class App {
         Option tableDefOption = createOptionValue("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
         Option initOption = createOptionValue("i", "init", "json file", "file name with a list of tables");
         Option outputOption = createOptionValue("o", "output", "json file", "create new mapping definitions file");
+        Option showSQLOption = createOptionNoArg("s", "show", "show SQL query ");
         options
                 .addOption(createChunkOption)
                 .addOption(configOption)
                 .addOption(tableDefOption)
                 .addOption(initOption)
-                .addOption(outputOption);
+                .addOption(outputOption)
+                .addOption(showSQLOption);
         options.addOption("?", "help", false, "help");
 
         CommandLineParser parser = new DefaultParser();
@@ -73,7 +77,6 @@ public class App {
         }
     }
 
-/*
     private static Option createOptionNoArg(String shortName, String longName, String description) {
         return Option.builder(shortName)
                 .longOpt(longName)
@@ -81,7 +84,6 @@ public class App {
                 .required(false)
                 .build();
     }
-*/
 
     private static Option createOptionValue(String shortName, String longName, String argName, String description) {
         return Option.builder(shortName)
@@ -95,8 +97,8 @@ public class App {
 
     private static void run(String configFileName, String tableDefFileName, String createChunkOption) {
         try {
-            ObjectMapper mapperJSON = new ObjectMapper();
             ConnectionProperty properties = connectionProperty(configFileName);
+            ObjectMapper mapperJSON = new ObjectMapper();
             List<Config> config =
                     List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
                             Config[].class));
@@ -145,6 +147,7 @@ public class App {
                         t.getFinalSchemaName(),
                         t.getFinalTableName(true),
                         null,
+                        null,
                         t.getSchemaName(),
                         t.getTableName(),
                         t.getHintClause(),
@@ -153,6 +156,8 @@ public class App {
                         null,
                         null,
                         t.getColumnToColumn(connection),
+                        null,
+                        null,
                         null,
                         null
                 ));

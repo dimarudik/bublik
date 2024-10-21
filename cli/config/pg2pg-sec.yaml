@@ -1,0 +1,15 @@
+threadCount: 1
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+
+crypto:
+  handlerClass: org.chekist.ChekistHandler
+  keyEncryptionKey: "kreDbdMpeEu0Xt6q654exKGvRUw370H/NS0Tcmh+POc="
+  cipherSettings: ./cli/config/sec-settings.json

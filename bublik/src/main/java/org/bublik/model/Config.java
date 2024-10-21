@@ -7,7 +7,8 @@ public record Config(
         String numberColumn,
         String fromSchemaName,
         String fromTableName,
-        String fromTableNameAdds,
+        String fromTableAlias,
+        String fromTableAdds,
         String toSchemaName,
         String toTableName,
         String fetchHintClause,
@@ -17,5 +18,7 @@ public record Config(
         List<String> tryCharIfAny,
         Map<String, String> columnToColumn,
         Map<String, String> expressionToColumn,
+        Map<String, EncryptedColumn> expressionToCrypto,
+        Map<String, String> cryptoToColumn,
         Map<String, List<String>> columnFromMany
 ) {}

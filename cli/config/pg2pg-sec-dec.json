@@ -1,0 +1,19 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "sec_encrypted",
+    "toSchemaName": "public",
+    "toTableName": "sec_plain_text",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "SOURCE_TASK",
+    "columnToColumn": {
+      "first_name": "first_name",
+      "last_name": "last_name",
+      "expired": "expired"
+    },
+    "cryptoToColumn": {
+      "pan_encryption_metadata": "pan_decrypted",
+      "all_encryption_metadata": "all_decrypted"
+    }
+  }
+]

@@ -13,8 +13,8 @@ import static org.bublik.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS
 import static org.bublik.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, Storage sourceStorage) {
-        super(id, start, end, config, sourceTable, sourceStorage);
+    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
+        super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
     }
 
     @Override
@@ -52,30 +52,5 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         statement.setRowId(2, this.getEnd());
         statement.setFetchSize(10000);
         return statement.executeQuery();
-    }
-
-    @Override
-    public String buildFetchStatement() {
-        List<String> strings = new ArrayList<>();
-        Map<String, String> columnToColumnMap = getConfig().columnToColumn();
-        Map<String, String> expressionToColumnMap = getConfig().expressionToColumn();
-        if (columnToColumnMap != null) {
-            strings.addAll(columnToColumnMap.keySet());
-        }
-        if (expressionToColumnMap != null) {
-            strings.addAll(expressionToColumnMap.keySet());
-        }
-        String columnToColumn = String.join(", ", strings);
-        return  PGKeywords.SELECT + " /* bublik */ " +
-                (getConfig().fetchHintClause() == null ? "" : getConfig().fetchHintClause()) + " " +
-                columnToColumn + " " +
-                PGKeywords.FROM + " " +
-                getConfig().fromSchemaName() +
-                "." +
-                getConfig().fromTableName() + " " +
-                (getConfig().fromTableNameAdds() == null ? "" : getConfig().fromTableNameAdds()) + " " +
-                PGKeywords.WHERE + " " +
-                (getConfig().fetchWhereClause() == null ? " " : getConfig().fetchWhereClause() + " and ") +
-                " rowid between ? and ?";
     }
 }

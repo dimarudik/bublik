@@ -3,20 +3,16 @@ package org.bublik.storage.cassandraaddons;
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.constants.PGKeywords;
-import org.bublik.model.CassandraColumn;
-import org.bublik.model.Chunk;
-import org.bublik.model.Column;
-import org.bublik.model.Config;
+import org.bublik.model.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class CSObject {
     private final CqlSession cqlSession;
@@ -26,6 +22,7 @@ public class CSObject {
     private Map<String, CassandraColumn> cassandraColumnMap;
     private String query;
     private PreparedStatement preparedStatement;
+    private Map<Integer, CSPartitionKey> partitionKeyMap;
 
     public CSObject(CqlSession cqlSession) {
         this.cqlSession = cqlSession;
@@ -75,6 +72,14 @@ public class CSObject {
         this.preparedStatement = preparedStatement;
     }
 
+    public Map<Integer, CSPartitionKey> getPartitionKeyMap() {
+        return partitionKeyMap;
+    }
+
+    public void setPartitionKeyMap(Map<Integer, CSPartitionKey> partitionKeyMap) {
+        this.partitionKeyMap = partitionKeyMap;
+    }
+
     public CSObject metadata() {
         Metadata m = getCqlSession().getMetadata();
         setMetadata(m);
@@ -104,7 +109,6 @@ public class CSObject {
 
     public CSObject cassandraColumnMap(Chunk<?> chunk) {
         Map<String, CassandraColumn> csmap = readTargetColumnsAndTypes(chunk, metadata);
-//        System.out.println(Thread.currentThread().getName() + " " + metadata.getClusterName());
         setCassandraColumnMap(csmap);
         return this;
     }
@@ -121,6 +125,28 @@ public class CSObject {
         return this;
     }
 
+    public CSObject partitionKeyMap(Chunk<?> chunk) {
+        Map<Integer, CSPartitionKey> map = readPartitonKeyMap(chunk);
+        setPartitionKeyMap(map);
+        return this;
+    }
+
+    private Map<Integer, CSPartitionKey> readPartitonKeyMap(Chunk<?> chunk) {
+        Config config = chunk.getConfig();
+        ResultSet resultSet = cqlSession.execute(
+                "select column_name, type, position from system_schema.columns " +
+                        "where keyspace_name = ? and table_name = ? and kind = 'partition_key' allow filtering",
+                config.toSchemaName(),
+                config.toTableName()
+        );
+        Map<Integer, CSPartitionKey> map = new TreeMap<>();
+        for (Row row : resultSet) {
+            map.put(row.getInt("position"),
+                    new CSPartitionKey(row.getString("type"), row.getString("column_name")));
+        }
+        return map;
+    }
+
     private Map<String, CassandraColumn> readTargetColumnsAndTypes(Chunk<?> chunk, Metadata metadata) {
         Map<String, CassandraColumn> columnMap = new HashMap<>();
         Config config = chunk.getConfig();
@@ -129,7 +155,8 @@ public class CSObject {
                 .orElseThrow();
         Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
                 .getTable(config.toTableName())
-                .get()
+                .orElseThrow()
+//                .get()
                 .getColumns();
         List<ColumnMetadata> columnMetadata = mapColumnMetaData.values().stream().toList();
 
@@ -137,10 +164,12 @@ public class CSObject {
         Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
 
         for (ColumnMetadata c : columnMetadata) {
-            columnToColumnMap.entrySet()
-                    .stream()
-                    .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName().toString()))
-                    .forEach(v -> columnMap.put(v.getKey(), new CassandraColumn(0, v.getValue(), c.getType().toString().toLowerCase())));
+            if (chunk.getConfig().columnToColumn() != null) {
+                columnToColumnMap.entrySet()
+                        .stream()
+                        .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName().toString()))
+                        .forEach(v -> columnMap.put(v.getKey(), new CassandraColumn(0, v.getValue(), c.getType().toString().toLowerCase())));
+            }
             if (chunk.getConfig().expressionToColumn() != null) {
                 expressionToColumnMap.entrySet()
                         .stream()
@@ -170,6 +199,7 @@ public class CSObject {
                 .mm3batch()
                 .cassandraColumnMap(chunk)
                 .query(chunk)
-                .preparedStatement();
+                .preparedStatement()
+                .partitionKeyMap(chunk);
     }
 }

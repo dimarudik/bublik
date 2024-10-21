@@ -10,7 +10,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Create Oracle chunks](#Create-Oracle-chunks)
+  * [Create Oracle ROWID chunks and Run](#Create-Oracle-ROWID-chunks-and-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
@@ -52,6 +52,12 @@ All activities are reproducible in docker containers
 ```
 git clone https://github.com/dimarudik/bublik.git
 cd bublik/
+```
+
+
+```
+mvn -f bublik/pom.xml clean install -DskipTests
+mvn -f cli/pom.xml clean package -DskipTests
 ```
 
 #### Prepare Oracle environment
@@ -120,9 +126,9 @@ How to connect to PostgreSQL:
 psql postgresql://test:test@localhost/postgres
 ```
 
-### Prepare Oracle To PostgreSQL Config File 
+### Prepare Oracle To PostgreSQL Config File
 
-##### ./sql/ora2pg.yaml
+##### ./cli/config/ora2pg.yaml
 
   > ```yaml
   > threadCount: 10
@@ -138,19 +144,19 @@ psql postgresql://test:test@localhost/postgres
   > ```
 
 
-### Prepare Oracle To PostgreSQL Mapping File 
+### Prepare Oracle To PostgreSQL Mapping File
 
-##### ./sql/ora2pg.json
+##### ./cli/config/ora2pg.json
 
 ```json
 [
   {
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
-    "fromTableNameAdds" : "t",
+    "fromTableAlias" : "t",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
-    "fetchHintClause" : "/*+ no_index(TABLE1) */",
+    "fetchHintClause" : "/*+ no_index(T) */",
     "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE1_TASK",
     "fromTaskWhereClause" : " 1 = 1 ",
@@ -190,6 +196,9 @@ psql postgresql://test:test@localhost/postgres
       "gender"      : "gender",
       "byteablob"   : "byteablob",
       "textclob"    : "textclob"
+    },
+    "columnFromMany" : {
+       "tstzrange" : ["create_at", "update_at"]
     }
   },
   {
@@ -224,10 +233,26 @@ psql postgresql://test:test@localhost/postgres
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Create Oracle chunks
+### Create Oracle ROWID chunks and Run
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
-Prepare data chunks in Oracle using the same user credentials specified in `bublik` tool (`fromProperties` in `./sql/ora2pg.yaml`):
+
+Chunks can be created automatically with parameter -k at startup
+
+```
+java \
+  -jar ./cli/target/bublik-cli-1.2.0.jar \
+  -k 200000 \
+  -c ./cli/config/ora2pg.yaml \
+  -m ./cli/config/ora2pg.json
+```
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter
+> In this case unprocessed chunks of data will transfer 
+
+
+You can prepare data chunks in Oracle manually by using the same user credentials specified in key `fromProperties` in `./cli/config/ora2pg.yaml`:
 
 ```
 exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
@@ -262,15 +287,6 @@ end;
 /
 ```
 
-Or chunks can be created automatically with parameter -k at startup
-
-```java
-java -jar ./target/bublik-cli-1.2.0.jar -k 200000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
-```
-
-> [!NOTE]
-> [How to build and run the tool](#Build-the-jar)
-
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
@@ -278,6 +294,19 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 
 
 ### Prepare PostgreSQL To PostgreSQL environment
+
+All activities are reproducible in docker containers
+
+```
+git clone https://github.com/dimarudik/bublik.git
+cd bublik/
+```
+
+
+```
+mvn -f bublik/pom.xml clean install -DskipTests
+mvn -f cli/pom.xml clean package -DskipTests
+```
 
 ```
 docker run --name postgres \
@@ -313,8 +342,6 @@ psql postgresql://test:test@localhost/postgres
 
 ```yaml
 threadCount: 10
-initPGChunks: true
-copyPGChunks: true
 
 fromProperties:
   url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
@@ -563,7 +590,7 @@ Halt any changes to the movable tables in the source database
 
 Run the service:
 
-```java
+```
 java -jar ./build/libs/service-1.2.0.jar
 ```
 

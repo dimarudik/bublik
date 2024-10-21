@@ -3,7 +3,6 @@ package org.bublik.util;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
-import org.bublik.Bublik;
 import org.bublik.model.Config;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
@@ -95,6 +94,7 @@ public class ColumnUtil {
     }
 
     public static void fillOraChunks(List<Config> configs, Connection connection, int rowsParameter) {
+        LOGGER.debug("Creating chunks...");
         try {
             for (Config config : configs) {
                 CallableStatement dropTask =
@@ -106,7 +106,6 @@ public class ColumnUtil {
         } catch (SQLException e) {
 //            LOGGER.error("{}", getStackTrace(e));
         }
-
         try {
             for (Config config : configs) {
                 CallableStatement createTask =
@@ -137,6 +136,7 @@ public class ColumnUtil {
     }
 
     public static void fillCtidChunks(List<Config> configs, Connection connection, int rowsParameter) {
+        LOGGER.debug("Creating chunks...");
         createTableCtidChunks(connection);
         try {
             for (Config config : configs) {
@@ -168,7 +168,7 @@ public class ColumnUtil {
                 long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                         (int) Math.round(relpages / (reltuples / (double) rowsParameter));
                 long pagesInChunk = Math.min(v, relpages + 1);
-                LOGGER.info("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                LOGGER.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
                         config.fromSchemaName(),
                         config.fromTableName(),
                         relpages,

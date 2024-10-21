@@ -20,6 +20,33 @@
     </properties>
 
     <dependencies>
+<!--
+        <dependency>
+            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
+            <artifactId>encryption-core</artifactId>
+            <version>3.1.0-RELEASE</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.module</groupId>
+                    <artifactId>jackson-modules-java8</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+-->
+<!--
+        <dependency>
+            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
+            <artifactId>encryption-config-management</artifactId>
+            <version>3.1.0-RELEASE</version>
+        </dependency>
+-->
+<!--
+        <dependency>
+            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
+            <artifactId>encryption-model</artifactId>
+            <version>3.1.0-RELEASE</version>
+        </dependency>
+-->
 <!--        aws sdk-->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -67,85 +94,8 @@
             <artifactId>java-driver-mapper-runtime</artifactId>
             <version>${datastax.driver.version}</version>
         </dependency>
-<!--
-        <dependency>
-            <groupId>com.datastax.cassandra</groupId>
-            <artifactId>cassandra-driver-mapping</artifactId>
-            <version>3.11.5</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
--->
-<!--
-        <dependency>
-            <groupId>com.datastax.cassandra</groupId>
-            <artifactId>cassandra-driver-extras</artifactId>
-            <version>3.11.5</version>
-        </dependency>
--->
-<!--        cassandra-->
-<!--
-        <dependency>
-            <groupId>org.apache.cassandra</groupId>
-            <artifactId>cassandra-all</artifactId>
-            <version>4.1.5</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-classic</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-parent</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.beust</groupId>
-                    <artifactId>jcommander</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.github.seancfoley</groupId>
-                    <artifactId>ipaddress</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-codec</groupId>
-                    <artifactId>commons-codec</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.netty</groupId>
-                    <artifactId>netty-all</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.yaml</groupId>
-                    <artifactId>snakeyaml</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
--->
 <!--        ydb-->
+<!--
         <dependency>
             <groupId>tech.ydb</groupId>
             <artifactId>ydb-sdk-table</artifactId>
@@ -180,6 +130,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+-->
 <!--        logging-->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -225,7 +176,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.bublikcli.App</mainClass>
+                            <mainClass>org.bublik.Bublik</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

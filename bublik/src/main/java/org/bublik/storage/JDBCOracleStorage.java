@@ -1,5 +1,6 @@
 package org.bublik.storage;
 
+import org.bublik.constants.PGKeywords;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
@@ -44,6 +45,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
+        LOGGER.debug("SQL to fetch metadata of chunks: \n{}", sql);
+        StringBuffer sb = new StringBuffer();
+        for (Config c : configs)
+            sb.append("\n").append(buildFetchStatement(c));
+        LOGGER.debug("SQL to fetch chunks: {}", sb);
         Connection initialConnection = getConnection();
         PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
@@ -57,6 +63,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                             sourceTable.getTableName());
                     throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
                 }
+                String query = buildFetchStatement(config);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new OraChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -64,6 +71,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                                 resultSet.getRowId("end_rowid"),
                                 config,
                                 sourceTable,
+                                query,
                                 this
                         )
                 );
@@ -78,6 +86,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     @Override
     public String buildStartEndOfChunk(List<Config> configs) {
         List<String> taskAndWhere = new ArrayList<>();
+//        configs.forEach(System.out::println);
         configs.forEach(sqlStatement -> {
             String tmp = sqlStatement.fromTaskWhereClause() == null ? "'" : "' and " + sqlStatement.fromTaskWhereClause();
             taskAndWhere.add(sqlStatement.fromTaskName() + tmp);
@@ -91,5 +100,40 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         String part2 = tmpPart2 + String.join(" union all \n" + tmpPart2, taskAndWhere);
         String part3 = "\n\t) order by ora_hash(concat(task_name,start_rowid)) \n) order by 1";
         return  part1 + part2 + part3;
+    }
+
+    @Override
+    public String buildFetchStatement(Config config) {
+        List<String> strings = new ArrayList<>();
+        Map<String, String> columnToColumnMap = config.columnToColumn();
+        Map<String, String> expressionToColumnMap = config.expressionToColumn();
+        Map<String, EncryptedColumn> encryptedEntityMap = config.expressionToCrypto();
+        Map<String, String> cryptoToColumnMap = config.cryptoToColumn();
+        if (columnToColumnMap != null) {
+            strings.addAll(columnToColumnMap.keySet());
+        }
+        if (expressionToColumnMap != null) {
+            strings.addAll(expressionToColumnMap.keySet());
+        }
+        if (encryptedEntityMap != null) {
+            strings.addAll(encryptedEntityMap.keySet());
+        }
+        if (cryptoToColumnMap != null) {
+            strings.addAll(cryptoToColumnMap.keySet());
+        }
+        String columnToColumn = String.join(", ", strings);
+        return  PGKeywords.SELECT + " /* bublik */ " +
+                (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +
+                columnToColumn + " " +
+                PGKeywords.FROM + " " +
+                config.fromSchemaName() +
+                "." +
+                config.fromTableName() + " " +
+                (config.fromTableAlias() == null ? "" : config.fromTableAlias()) + " " +
+                (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
+                PGKeywords.WHERE + " " +
+                (config.fetchWhereClause() == null ? " " : config.fetchWhereClause() + " and ") +
+                (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
+                "rowid between ? and ?";
     }
 }

@@ -13,7 +13,7 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.model.*;
 import org.bublik.storage.cassandraaddons.BatchEntity;
 import org.bublik.storage.cassandraaddons.CSObject;
-import org.bublik.storage.cassandraaddons.MM3;
+import org.bublik.storage.cassandraaddons.CSPartitionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +30,7 @@ import java.time.ZoneId;
 import java.util.*;
 
 import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.storage.cassandraaddons.MM3.*;
 
 public class CassandraStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
@@ -62,15 +63,6 @@ public class CassandraStorage extends Storage {
         tokenRangeSet
                 .forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
                         ((Murmur3Token)tokenRange.getEnd()).getValue()));
-*/
-/*
-        metadata
-                .getNodes()
-                .forEach((key, value) -> {
-                    metadata.getTokenMap().orElseThrow().getTokenRanges(value)
-                            .forEach(t -> System.out.println(((Murmur3Token)t.getStart()).getValue() + " : " + ((Murmur3Token)t.getEnd()).getValue()));
-                    System.out.println();
-                });
 */
         this.batchSize = getBatchSize(connectionProperty);
     }
@@ -133,7 +125,7 @@ public class CassandraStorage extends Storage {
         PreparedStatement preparedStatement = cqlSession.prepare(insertString);
         ResultSet resultSet = chunk.getResultSet();
         while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap,
+            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(resultSet, null, stringCassandraColumnMap,
                     csObject.getTokenRangeSet());
             batchStatementBuilder.addStatement(preparedStatement.bind(entry.getValue()));
             recordCount++;
@@ -156,39 +148,41 @@ public class CassandraStorage extends Storage {
 
     public LogMessage rangedBatch(Chunk<?> chunk) throws SQLException {
         int recordCount = 0;
+        int batchCount = 0;
         long start = System.currentTimeMillis();
-        try {
-            CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
-            ResultSet resultSet = chunk.getResultSet();
-            while (resultSet.next()) {
-                Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet,
-                        csObject.getCassandraColumnMap(), csObject.getTokenRangeSet());
-                Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
-                BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
-                BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
-                batchStatementBuilder.addStatement(csObject.getPreparedStatement().bind(entry.getValue()));
-                batchEntity.increaseCounter();
-                recordCount++;
-                // batch_size_fail_threshold_in_kb: 50
-                if (batchEntity.getCounter() == batchSize) {
-                    batchApply(batchStatementBuilder);
-                    batchEntity.resetCounter();
-                }
+        CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
+        ResultSet resultSet = chunk.getResultSet();
+        while (resultSet.next()) {
+            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
+                    resultSet,
+                    csObject.getPartitionKeyMap(),
+                    csObject.getCassandraColumnMap(),
+                    csObject.getTokenRangeSet());
+            Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
+            BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
+            BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
+            batchStatementBuilder.addStatement(csObject.getPreparedStatement().bind(entry.getValue()));
+            batchEntity.increaseCounter();
+            recordCount++;
+            // batch_size_fail_threshold_in_kb: 50
+            if (batchEntity.getCounter() == batchSize) {
+                batchApply(batchStatementBuilder);
+                batchEntity.resetCounter();
+                batchCount++;
             }
-            for (Map.Entry<TokenRange, BatchEntity> entry : csObject.getMm3Batch().getTokenRangeMap().entrySet()) {
-                if (entry.getValue().getCounter() > 0) {
-                    batchApply(entry.getValue().getBatchStatementBuilder());
-                }
+        }
+        for (Map.Entry<TokenRange, BatchEntity> entry : csObject.getMm3Batch().getTokenRangeMap().entrySet()) {
+            if (entry.getValue().getCounter() > 0) {
+                batchApply(entry.getValue().getBatchStatementBuilder());
+                batchCount++;
             }
-        } catch (Exception e) {
-            throw e;
         }
         long stop = System.currentTimeMillis();
         return new LogMessage(
                 recordCount,
                 start,
                 stop,
-                "Cassandra RANGED BATCH APPLY",
+                "Cassandra RANGED BATCH APPLY (batches: " + batchCount + ")",
                 chunk);
     }
 
@@ -208,38 +202,60 @@ public class CassandraStorage extends Storage {
         batchStatement.clear();
     }
 
-    private Map.Entry<TokenRange, Object[]> getPreparedStatementObjects(ResultSet resultSet,
-                                                                        Map<String, CassandraColumn> stringCassandraColumnMap,
-                                                                        Set<TokenRange> tokenRangeSet) throws SQLException {
-        // http://www.java2s.com/example/java-api/org/apache/cassandra/dht/murmur3partitioner/murmur3partitioner-0-0.html
+    private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,
+                                                                  Map<Integer, CSPartitionKey> partitionKeyMap,
+                                                                  Map<String, CassandraColumn> stringCassandraColumnMap,
+                                                                  Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
-        TokenRange tokenRange = null;
+        Map<Integer, byte[]> mapBytes = new TreeMap<>();
+//        long temp = 0;
         for (Map.Entry<String, CassandraColumn> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetType = entry.getValue().getColumnType();
             switch (targetType) {
+                case "smallint": {
+                    short v = resultSet.getShort(sourceColumn);
+                    partitionKeyMap
+                            .entrySet()
+                            .stream()
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .findFirst()
+                            .ifPresent(e -> mapBytes.put(e.getKey(), smallIntToBytes(v)));
+                    objectList.add(v);
+                    break;
+                }
                 case "int": {
                     int v = resultSet.getInt(sourceColumn);
-                    if (entry.getValue().getColumnName().equals("id")) {
-                        MM3 mm3 = new MM3(v);
-                        tokenRange = mm3.getTokenRange(tokenRangeSet);
-//                        System.out.println(v + ";" + ((Murmur3Token)tokenRange.getStart()).getValue() + ";" +
-//                                ((Murmur3Token)tokenRange.getEnd()).getValue() + ";" + mm3.getMurmur3Token().getValue());
-
-                    }
+//                    temp = v;
+                    partitionKeyMap
+                            .entrySet()
+                            .stream()
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .findFirst()
+                            .ifPresent(e -> mapBytes.put(e.getKey(), intToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "bigint": {
-                    objectList.add(resultSet.getLong(sourceColumn));
-                    break;
-                }
-                case "smallint": {
-                    objectList.add(resultSet.getShort(sourceColumn));
+                    long v = resultSet.getLong(sourceColumn);
+                    partitionKeyMap
+                            .entrySet()
+                            .stream()
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .findFirst()
+                            .ifPresent(e -> mapBytes.put(e.getKey(), longToBytes(v)));
+                    objectList.add(v);
                     break;
                 }
                 case "text": {
-                    objectList.add(resultSet.getString(sourceColumn));
+                    String v = resultSet.getString(sourceColumn);
+                    partitionKeyMap
+                            .entrySet()
+                            .stream()
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .findFirst()
+                            .ifPresent(e -> mapBytes.put(e.getKey(), stringToBytes(v)));
+                    objectList.add(v);
                     break;
                 }
                 case "date": {
@@ -251,8 +267,14 @@ public class CassandraStorage extends Storage {
                     break;
                 }
                 case "timestamp": {
-                    Instant instant = resultSet.getTimestamp(sourceColumn).toInstant();
-                    objectList.add(instant);
+                    Instant v = resultSet.getTimestamp(sourceColumn).toInstant();
+                    partitionKeyMap
+                            .entrySet()
+                            .stream()
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .findFirst()
+                            .ifPresent(e -> mapBytes.put(e.getKey(), timestampToBytes(v)));
+                    objectList.add(v);
                     break;
                 }
                 case "boolean": {
@@ -278,13 +300,30 @@ public class CassandraStorage extends Storage {
                     break;
                 }
                 case "uuid": {
-                    objectList.add(resultSet.getObject(sourceColumn));
+                    Object v = resultSet.getObject(sourceColumn);
+                    UUID uuid = null;
+                    try {
+                        uuid = (UUID) v;
+                    } catch (ClassCastException e) {
+                        uuid = UUID.fromString((String) v);
+                    }
+                    Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
+                            .entrySet()
+                            .stream()
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .findFirst()
+                            .orElseThrow();
+                    mapBytes.put(keyEntry.getKey(), uuidToBytes(uuid));
+                    objectList.add(uuid);
                     break;
                 }
                 default:
                     break;
             }
         }
+        byte[][] bytes = new byte[mapBytes.size()][];
+        mapBytes.forEach((k, v) -> bytes[k] = v);
+        TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
 

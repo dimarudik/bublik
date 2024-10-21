@@ -8,5 +8,6 @@ mvnw*
 HELP.md
 /logs
 /service/.gradle
+chekist/target
 ydb*
 .m2

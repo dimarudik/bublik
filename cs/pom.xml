@@ -32,6 +32,23 @@
             <version>2.26.18</version>
         </dependency>
 
+        <dependency>
+            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
+            <artifactId>encryption-model</artifactId>
+            <version>3.1.0-RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
+            <artifactId>encryption-core</artifactId>
+            <version>3.1.0-RELEASE</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.module</groupId>
+                    <artifactId>jackson-modules-java8</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
 
         <dependency>
             <groupId>com.datastax.oss</groupId>
