@@ -154,6 +154,7 @@ psql postgresql://test:test@localhost/postgres
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
     "fromTableAlias" : "t",
+    "fromTableAdds" : "left join test.currencies c on t.currency_id = c.id",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(T) */",
@@ -162,7 +163,6 @@ psql postgresql://test:test@localhost/postgres
     "fromTaskWhereClause" : " 1 = 1 ",
     "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
-      "id"                : "id",
       "\"LEVEL\""         : "level",
       "create_at"         : "create_at",
       "update_at"         : "update_at",
@@ -177,6 +177,8 @@ psql postgresql://test:test@localhost/postgres
       "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
+      "t.id as id" : "id",
+      "c.name as currency_name" : "currency_name",
       "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
     }
   },

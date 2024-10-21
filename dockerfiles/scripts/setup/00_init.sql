@@ -18,9 +18,15 @@ create table test.table1 (
     uuid char(36),
     clobjsonb clob,
     current_mood varchar2(256),
+    currency_id int,
     primary key (id)
 );
 create table test.countries (
+    id int,
+    name varchar2(256) not null,
+    primary key (id)
+);
+create table test.currencies (
     id int,
     name varchar2(256) not null,
     primary key (id)
@@ -34,6 +40,9 @@ insert into test.countries values (6, 'Iran');
 insert into test.countries values (7, 'Russia');
 insert into test.countries values (8, 'South Africa');
 insert into test.countries values (9, 'United Arab Emirates');
+commit;
+insert into test.currencies values (1, 'RUB');
+insert into test.currencies values (2, 'CNY');
 commit;
 insert into test.table1
     (select
@@ -51,7 +60,8 @@ insert into test.table1
         JSON_OBJECT('name' value 'Foo') as doc,
         '026cebda-a9f3-46da-80c9-d89bdd4841b3' as uuid,
         to_clob(JSON_OBJECT('name' value 'Foo')) as clobjsonb,
-        decode(round(dbms_random.value(0,3)),1,'sad',2,'ok',3,'happy',null) as current_mood
+        decode(round(dbms_random.value(0,3)),1,'sad',2,'ok',3,'happy',null) as current_mood,
+        decode(round(dbms_random.value(0,1)),0,null,round(dbms_random.value(1,2))) as currency_id
     from dual connect by level < 1000000);
 commit;
 create table test."Table2" as

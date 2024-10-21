@@ -16,7 +16,8 @@ create table table1 (
     doc jsonb,
     uuid uuid,
     clobjsonb jsonb,
-    current_mood mood
+    current_mood mood,
+    currency_name varchar(256)
 );
 create table "TABLE2" (
     id bigint,
