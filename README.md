@@ -130,18 +130,18 @@ psql postgresql://test:test@localhost/postgres
 
 ##### ./cli/config/ora2pg.yaml
 
-  > ```yaml
-  > threadCount: 10
-  > 
-  > fromProperties:
-  >   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
-  >   user: test
-  >   password: test
-  > toProperties:
-  >   url: jdbc:postgresql://localhost:5432/postgres
-  >   user: test
-  >   password: test
-  > ```
+```yaml
+threadCount: 10
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+  user: test
+  password: test
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+```
 
 
 ### Prepare Oracle To PostgreSQL Mapping File
@@ -154,6 +154,7 @@ psql postgresql://test:test@localhost/postgres
     "fromSchemaName" : "TEST",
     "fromTableName" : "TABLE1",
     "fromTableAlias" : "t",
+    "fromTableAdds" : "left join test.currencies c on t.currency_id = c.id",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(T) */",
@@ -162,7 +163,6 @@ psql postgresql://test:test@localhost/postgres
     "fromTaskWhereClause" : " 1 = 1 ",
     "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
-      "id"                : "id",
       "\"LEVEL\""         : "level",
       "create_at"         : "create_at",
       "update_at"         : "update_at",
@@ -177,6 +177,8 @@ psql postgresql://test:test@localhost/postgres
       "current_mood"      : "current_mood"
     },
     "expressionToColumn" : {
+      "t.id as id" : "id",
+      "c.name as currency_name" : "currency_name",
       "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
     }
   },
@@ -223,7 +225,31 @@ psql postgresql://test:test@localhost/postgres
 > The case-sensitive or reserved words must be quoted with double quotation and backslashes  
 
 > [!NOTE]
-> **expressionToColumn** might be used for declaration of subquery for enrichment of data 
+> To enrich data from other tables you can use combination of <br>
+> **fromTableAlias**, **fromTableAdds** and **expressionToColumn** definitions <br> 
+> In example with TABLE1 the data will be retrieved by query:
+
+ > ```
+ > SELECT /* bublik */ /*+ no_index(T) */
+ >   "LEVEL",
+ >   create_at,
+ >   update_at,
+ >   gender,
+ >   byteablob,
+ >   textclob,
+ >   "CaseSensitive",
+ >   rawbytea,
+ >   doc,
+ >   uuid,
+ >   clobjsonb,
+ >   current_mood,
+ >   t.id as id,
+ >   c.name as currency_name,
+ >   (select name from test.countries c where c.id = t.country_id) as country_name
+ > FROM TEST.TABLE1 t left join test.currencies c
+ >   on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
+ > ```
+
 
 > [!NOTE]
 > To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
