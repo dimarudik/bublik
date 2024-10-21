@@ -10,7 +10,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Create Oracle chunks](#Create-Oracle-chunks)
+  * [Create Oracle ROWID chunks and Run](#Create-Oracle-ROWID-chunks-and-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
@@ -230,7 +230,7 @@ psql postgresql://test:test@localhost/postgres
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Create Oracle chunks
+### Create Oracle ROWID chunks and Run
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
 
