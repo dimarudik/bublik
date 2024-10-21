@@ -6,7 +6,7 @@ The quickest method for extracting data from Oracle is by using `ROWID` (employi
 In case of PostgreSQL, we should split a table into chunks by `CTID`.<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
-* [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
+* [1 Oracle To PostgreSQL](#1-Oracle-To-PostgreSQL)
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
@@ -22,7 +22,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
 
-## Oracle To PostgreSQL
+## 1 Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
 
 The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from Oracle schema <strong>TEST</strong> to a PostgreSQL database.
