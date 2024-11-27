@@ -1,0 +1,23 @@
+[ {
+  "numberColumn" : null,
+  "fromSchemaName" : "public",
+  "fromTableName" : "likes",
+  "fromTableAlias" : null,
+  "fromTableAdds" : null,
+  "toSchemaName" : "public",
+  "toTableName" : "likes",
+  "fetchHintClause" : " ",
+  "fetchWhereClause" : "1 = 1",
+  "fromTaskName" : "LIKES_TASK",
+  "fromTaskWhereClause" : null,
+  "tryCharIfAny" : null,
+  "columnToColumn" : {
+    "like_id" : "like_id",
+    "user_id" : "user_id",
+    "item_id" : "item_id"
+  },
+  "expressionToColumn" : null,
+  "expressionToCrypto" : null,
+  "cryptoToColumn" : null,
+  "columnFromMany" : null
+} ]

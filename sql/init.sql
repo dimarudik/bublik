@@ -189,6 +189,7 @@ create table users (
     email varchar,
     primary key (user_id));
 create unique index on users (user_name);
+create unique index on users (user_name, email);
 
 create table items (
     item_id int,
@@ -203,6 +204,33 @@ create table likes (
     item_id int references items,
     primary key (like_id));
 create unique index on likes (user_id, item_id);
+
+insert into users (user_id, user_name, email)
+    select user_id, user_name,
+        user_name || '@' ||
+               (case (random() * 3)::integer
+                   when 0 then 'gmail'
+                   when 1 then 'hotmail'
+                   when 2 then 'yahoo'
+                   when 3 then 'yandex'
+               end) || '.com' as email
+    from (
+        select num as user_id, substr(md5(random()::text), 1, 10) as user_name
+        from generate_series(1, 100000) as num
+        );
+
+insert into items (item_id, item_name, description)
+    select num as item_id,
+           'Item ' || substr(md5(random()::text), 1, 10) as item_name,
+           'Description ' || substr(md5(random()::text), 1, 30) as description
+    from generate_series(1, 100000) as num;
+
+insert into likes (like_id, user_id, item_id)
+    select num as like_id,
+       floor(random() * 100000 + 1)::int as user_id,
+       floor(random() * 100000 + 1)::int as item_id
+    from generate_series(1, 1000000) as num
+on conflict (user_id, item_id) do nothing;
 
 -- select * from users where user_id = 800 \gx
 -- select i.item_id, i.item_name, i.description from items i, likes l where i.item_id = l.item_id and l.user_id = 800 \gx
