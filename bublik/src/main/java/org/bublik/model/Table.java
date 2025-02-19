@@ -29,4 +29,9 @@ public abstract class Table implements TableService, SQLSyntaxService {
     public static Set<String> tableExistsCache() {
         return Table.tableExistsCache;
     }
+
+    @Override
+    public String getTaskName() {
+        return getFinalTableName(false).toUpperCase() + "_TASK";
+    }
 }

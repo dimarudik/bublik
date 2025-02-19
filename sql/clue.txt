@@ -67,3 +67,8 @@ docker run -d -it --name ifx \
     -p 27883:27883 \
     -e LICENSE=accept  \
     ibmcom/informix-developer-database:latest
+
+create table t (id int, name varchar(255));
+insert into t values (4, 'd');
+
+oncheck -pD sysadmin:t

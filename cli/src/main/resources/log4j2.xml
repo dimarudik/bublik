@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
+    <Properties>
+        <Property name="filename">logs/app-${date:yyyyMMddHHmmss}.log</Property>
+    </Properties>
+
     <Appenders>
-<!--        <File name="MainLog" fileName="$${sys:logPath}/app.log" immediateFlush="true" append="false">-->
-<!--        <File name="MainLog" fileName="${sys:logPath:-logs}/app.log" immediateFlush="true" append="false">-->
-        <File name="MainLog" fileName="logs/app.log" immediateFlush="true" append="false">
+        <File name="MainLog" fileName="${filename}" immediateFlush="true" append="false">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </File>
         <Console name="Console" target="SYSTEM_OUT">

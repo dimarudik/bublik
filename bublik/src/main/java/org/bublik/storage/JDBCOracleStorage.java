@@ -55,6 +55,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
+//                System.out.println(resultSet.getString("task_name"));
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
                 if (!sourceTable.exists(initialConnection)) {

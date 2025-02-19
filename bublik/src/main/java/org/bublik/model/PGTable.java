@@ -49,10 +49,12 @@ public class PGTable extends Table {
         return " ";
     }
 
+/*
     @Override
     public String getTaskName() {
         return getFinalTableName(false).toUpperCase() + "_TASK";
     }
+*/
 
     @Override
     public Map<String, String> getColumnToColumn(Connection connection) throws SQLException {

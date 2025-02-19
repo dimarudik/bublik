@@ -31,6 +31,7 @@ public class OraTable extends Table {
         return true;
     }
 
+    @Override
     public String getFinalTableName(boolean withQuotes) {
         String tableName = withQuotes ? getTableName() : getWordWithoutQuotes(getTableName());
         return  isCaseSensitiveWord(getTableName()) ? tableName : getTableName().toUpperCase();
@@ -46,10 +47,12 @@ public class OraTable extends Table {
         return "/*+ no_index(" + getFinalTableName(false) + ") */";
     }
 
+/*
     @Override
     public String getTaskName() {
         return getFinalTableName(false).toUpperCase() + "_TASK";
     }
+*/
 
     @Override
     public Map<String, String> getColumnToColumn(Connection connection) throws SQLException {
