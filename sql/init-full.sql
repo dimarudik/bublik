@@ -48,6 +48,6 @@ insert into likes (like_id, user_id, item_id)
     select num as like_id,
        floor(random() * 100000 + 1)::int as user_id,
        floor(random() * 100000 + 1)::int as item_id
-    from generate_series(1, 10000000) as num
+    from generate_series(1, 100000) as num
 on conflict (user_id, item_id) do nothing;
 

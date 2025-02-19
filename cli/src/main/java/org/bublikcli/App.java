@@ -5,14 +5,14 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.*;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.spi.LoggerContext;
 import org.bublik.Bublik;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -32,8 +32,10 @@ import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 java -cp ./chekist/target/chekist-1.0-SNAPSHOT.jar:./cli/target/bublik-cli-1.2.0.jar org.bublikcli.App -k 1000 -c ./cli/config/pg2pg-sec.yaml -m ./cli/config/pg2pg-sec.json
 */
 
-@Slf4j
+//@Slf4j
 public class App {
+
+    private static final Logger log = LoggerFactory.getLogger(App.class);
 
     public static void main(String[] args) throws IOException, SQLException {
 

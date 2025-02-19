@@ -1,3 +1,4 @@
+set default_transaction_read_only=off;
 create role test with login superuser password 'test';
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');

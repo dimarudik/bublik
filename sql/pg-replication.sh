@@ -42,7 +42,7 @@ docker run \
         -v ./sql/init-empty.sql:/docker-entrypoint-initdb.d/init-empty.sql \
         -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
         -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain,pageinspect" \
         -c timezone="+03" \
         -c max_connections=200 \
         -c logging_collector=on \
@@ -69,7 +69,31 @@ docker run \
         -v ./sql/init-empty.sql:/docker-entrypoint-initdb.d/init-empty.sql \
         -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
         -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain,pageinspect" \
+        -c timezone="+03" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=10 \
+        -c log_statement=all \
+        -c auto_explain.log_min_duration=10 \
+        -c auto_explain.log_analyze=true \
+        -c wal_level=logical
+
+docker run \
+        --name pg-dev \
+        --ip 172.28.0.37 \
+        -h pg-dev \
+        --network bublik-network \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5433:5432 \
+        -v ./sql/init-empty.sql:/docker-entrypoint-initdb.d/init-empty.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -d pg-dev \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain,pageinspect" \
         -c timezone="+03" \
         -c max_connections=200 \
         -c logging_collector=on \
@@ -79,7 +103,10 @@ docker run \
         -c log_statement=ddl \
         -c auto_explain.log_min_duration=10 \
         -c auto_explain.log_analyze=true \
-        -c wal_level=logical
+        -c wal_level=logical \
+        -c tcp_keepalives_idle=60 \
+        -c tcp_keepalives_interval=3 \
+        -c tcp_keepalives_count=3
 
 # docker network disconnect bublik-network pg3
 
@@ -95,3 +122,10 @@ begin;
 insert into users values (100001, 'q', 'q');
 insert into items values (100001, 'q', 'q');
 insert into likes values (10000001, 100001, 100001);
+
+
+create extention pageinspect;
+insert into items values (1, 'a', 'asdfv gdcgvl knawkjhbvdf');
+select * from bt_metap('items_pkey');
+select * from bt_page_stats('items_pkey', 1);
+select * from bt_page_items('items_pkey', 1);

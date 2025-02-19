@@ -32,6 +32,7 @@
             <version>2.26.18</version>
         </dependency>
 
+<!--
         <dependency>
             <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
             <artifactId>encryption-model</artifactId>
@@ -48,6 +49,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+-->
 
 
         <dependency>
