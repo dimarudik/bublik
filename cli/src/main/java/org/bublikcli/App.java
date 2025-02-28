@@ -3,7 +3,6 @@ package org.bublikcli;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.*;
 import org.bublik.Bublik;
 import org.bublik.exception.TableNotExistsException;
@@ -14,7 +13,9 @@ import org.bublik.service.TableService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Driver;
@@ -22,6 +23,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
+import java.util.stream.Collectors;
 
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
@@ -34,25 +37,39 @@ java -cp ./chekist/target/chekist-1.0-SNAPSHOT.jar:./cli/target/bublik-cli-1.2.0
 
 //@Slf4j
 public class App {
-
     private static final Logger log = LoggerFactory.getLogger(App.class);
+
+    public void methodA() throws IOException {
+        final Properties properties = new Properties();
+        properties.load(getClass().getClassLoader().getResourceAsStream("project.properties"));
+        log.info("version : {}", properties.getProperty("version"));
+//        System.out.println(properties.getProperty("version"));
+//        System.out.println(properties.getProperty("artifactId"));
+    }
+
 
     public static void main(String[] args) throws IOException, SQLException {
 
+        new App().methodA();
+
         Options options = new Options();
         Option createChunkOption = createOptionValue("k", "chunk", "rows number","create ctid chunks at source");
-        Option configOption = createOptionValue("c", "config", "yaml file", "file name of prop.erties");
-        Option tableDefOption = createOptionValue("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
-        Option initOption = createOptionValue("i", "init", "json file", "file name with a list of tables");
-        Option outputOption = createOptionValue("o", "output", "json file", "create new mapping definitions file");
+        Option connectionConfigOption = createOptionValue("c", "config", "yaml file", "file name of prop.erties");
+        Option mappingDefOption = createOptionValue("m", "mapping-definitions", "json file", "file name with mapping definitions of tables");
+        Option listOfTablesOption = createOptionValue("i", "init", "json file", "file name with a list of tables");
+        Option JSONfileOption = createOptionValue("o", "output", "json file", "create new mapping definitions file");
+        Option OGGfileOption = createOptionValue("g", "ogg", "ogg file", "create Oracle Golden Gate file");
+        Option OGGCSNOption = createOptionValue("n", "csn", "csn", "Oracle Golden Gate CSN");
         Option showSQLOption = createOptionNoArg("s", "show", "show SQL query ");
         options
                 .addOption(createChunkOption)
-                .addOption(configOption)
-                .addOption(tableDefOption)
-                .addOption(initOption)
-                .addOption(outputOption)
-                .addOption(showSQLOption);
+                .addOption(connectionConfigOption)
+                .addOption(mappingDefOption)
+                .addOption(listOfTablesOption)
+                .addOption(JSONfileOption)
+                .addOption(showSQLOption)
+                .addOption(OGGfileOption)
+                .addOption(OGGCSNOption);
         options.addOption("?", "help", false, "help");
 
         CommandLineParser parser = new DefaultParser();
@@ -69,12 +86,14 @@ public class App {
 
         if (cmd.hasOption("?")) {
             formatter.printHelp( HELP_MESSAGE, options );
+        } else if(cmd.hasOption("m") && cmd.hasOption("g") && cmd.hasOption("n")) {
+            createOGGFile(cmd.getOptionValue(mappingDefOption), cmd.getOptionValue(OGGfileOption), cmd.getOptionValue(OGGCSNOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("i") && cmd.hasOption("o")) {
-            createDefJson(cmd.getOptionValue(configOption), cmd.getOptionValue(initOption), cmd.getOptionValue(outputOption));
+            createDefJson(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(listOfTablesOption), cmd.getOptionValue(JSONfileOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && !cmd.hasOption(createChunkOption)) {
-            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption), null);
+            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption), null);
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
-            run(cmd.getOptionValue(configOption), cmd.getOptionValue(tableDefOption), cmd.getOptionValue(createChunkOption));
+            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption), cmd.getOptionValue(createChunkOption));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
         }
@@ -98,12 +117,14 @@ public class App {
                 .build();
     }
 
-    private static void run(String configFileName, String tableDefFileName, String createChunkOption) {
+    private static void run(String configFileName, String mappingDefFileName, String createChunkOption) {
         try {
             ConnectionProperty properties = connectionProperty(configFileName);
+            log.info("SOURCE: {}", properties.getFromProperty().getProperty("url"));
+            log.info("SOURCE USERNAME: {}", properties.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
             List<Config> config =
-                    List.of(mapperJSON.readValue(Paths.get(tableDefFileName).toFile(),
+                    List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
             if (createChunkOption != null) {
                 int rowsParameter = Integer.parseInt(createChunkOption);
@@ -119,6 +140,8 @@ public class App {
                 fromConnection.close();
 
                 Driver toDriver = DriverManager.getDriver(properties.getToProperty().getProperty("url"));
+                log.info("TARGET: {}", properties.getToProperty().getProperty("url"));
+                log.info("TARGET USERNAME: {}", properties.getToProperty().getProperty("user"));
                 if (toDriver.getClass().getName().equals("org.postgresql.Driver")) {
                     Connection toConnection = DriverManager.getConnection(properties.getToProperty().getProperty("url"),
                             properties.getToProperty());
@@ -183,5 +206,50 @@ public class App {
         mapper.writeValue(Paths.get(outputFileName).toFile(), configList);
         System.out.println(MAPPING_FILE_CREATED + outputFileName);
         connection.close();
+    }
+
+    private static void createOGGFile(String mappingDefFileName, String oggFileName, String csn) {
+        try {
+            ObjectMapper mapperJSON = new ObjectMapper();
+            FileWriter fileWriter = new FileWriter(oggFileName);
+            PrintWriter printWriter = new PrintWriter(fileWriter);
+            List<Config> config =
+                    List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
+                            Config[].class));
+            config.forEach(c -> {
+                StringBuffer tmpString = new StringBuffer();
+                tmpString.append("TABLE ");
+                tmpString.append(c.fromSchemaName());
+                tmpString.append(".");
+                tmpString.append(c.fromTableName());
+                tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", FILTER (" + c.fetchWhereClause() + ")");
+                tmpString.append(";");
+                printWriter.println(tmpString);
+            });
+            config.forEach(c -> {
+                StringBuffer tmpString = new StringBuffer();
+                tmpString.append("MAP ");
+                tmpString.append(c.fromSchemaName());
+                tmpString.append(".");
+                tmpString.append(c.fromTableName());
+                tmpString.append(", TARGET ");
+                tmpString.append(c.toSchemaName());
+                tmpString.append(".");
+                tmpString.append(c.toTableName());
+                tmpString.append(", COLMAP ");
+                String mapAsString = c.columnToColumn().keySet().stream()
+                        .map(key -> key + "=" + c.columnToColumn().get(key))
+                        .collect(Collectors.joining(",", "(USEDEFAULTS,", ")"));
+                tmpString.append(mapAsString);
+                tmpString.append(", FILTER ( @GETENV ('TRANSACTION'', 'CSN') > ").append(csn).append(" )");
+                tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", KEYCOLS (id)");
+                tmpString.append(";");
+                printWriter.println(tmpString);
+            });
+            printWriter.close();
+            fileWriter.close();
+        } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
+        }
     }
 }
