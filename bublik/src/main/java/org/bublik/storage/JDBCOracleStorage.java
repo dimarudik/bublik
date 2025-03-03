@@ -132,8 +132,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 config.fromTableName() + " " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias()) + " " +
                 (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
-                PGKeywords.WHERE + " " +
-                (config.fetchWhereClause() == null ? " " : config.fetchWhereClause() + " and ") +
+                PGKeywords.WHERE + " ( " +
+                (config.fetchWhereClause() == null ? " " : config.fetchWhereClause() + " ) and ") +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
                 "rowid between ? and ?";
     }
