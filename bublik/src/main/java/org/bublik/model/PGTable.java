@@ -21,7 +21,8 @@ public class PGTable extends Table {
 */
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
-                getSchemaName().toLowerCase(),
+//                getSchemaName().toLowerCase(),
+                getFinalSchemaName(false),
                 getFinalTableName(false),
                 null);
         if (!tablesLowCase.next()) {
@@ -42,6 +43,11 @@ public class PGTable extends Table {
     @Override
     public String getFinalSchemaName() {
         return getSchemaName().toLowerCase();
+    }
+
+    public String getFinalSchemaName(boolean withQuotes) {
+        String schemaName = withQuotes ? getSchemaName() : getWordWithoutQuotes(getSchemaName());
+        return  isCaseSensitiveWord(getSchemaName()) ? schemaName : getSchemaName().toLowerCase();
     }
 
     @Override
