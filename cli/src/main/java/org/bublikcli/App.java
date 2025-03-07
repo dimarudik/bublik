@@ -22,6 +22,7 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -78,6 +79,7 @@ public class App {
 
         try {
             cmd = parser.parse(options, args);
+            Arrays.stream(cmd.getOptions()).forEach(option -> log.info("-{} {}", option.getOpt(), option.getValue()));
         } catch (ParseException e) {
             log.error(e.getMessage(), e);
             formatter.printHelp( HELP_MESSAGE, options );
@@ -236,12 +238,12 @@ public class App {
                 tmpString.append(c.toSchemaName());
                 tmpString.append(".");
                 tmpString.append(c.toTableName());
-                tmpString.append(", COLMAP ");
-                String mapAsString = c.columnToColumn().keySet().stream()
-                        .map(key -> key + "=" + c.columnToColumn().get(key))
-                        .collect(Collectors.joining(",", "(USEDEFAULTS,", ")"));
-                tmpString.append(mapAsString);
-                tmpString.append(", FILTER ( @GETENV ('TRANSACTION'', 'CSN') > ").append(csn).append(" )");
+//                tmpString.append(", COLMAP ");
+//                String mapAsString = c.columnToColumn().keySet().stream()
+//                        .map(key -> key + "=" + c.columnToColumn().get(key))
+//                        .collect(Collectors.joining(",", "(USEDEFAULTS,", ")"));
+//                tmpString.append(mapAsString);
+                tmpString.append(", FILTER ( @GETENV ('TRANSACTION', 'CSN') > ").append(csn).append(" )");
                 tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", KEYCOLS (id)");
                 tmpString.append(";");
                 printWriter.println(tmpString);
