@@ -238,13 +238,13 @@ public class App {
                 tmpString.append(c.toSchemaName());
                 tmpString.append(".");
                 tmpString.append(c.toTableName());
-//                tmpString.append(", COLMAP ");
-//                String mapAsString = c.columnToColumn().keySet().stream()
-//                        .map(key -> key + "=" + c.columnToColumn().get(key))
-//                        .collect(Collectors.joining(",", "(USEDEFAULTS,", ")"));
-//                tmpString.append(mapAsString);
-                tmpString.append(", FILTER ( @GETENV ('TRANSACTION', 'CSN') > ").append(csn).append(" )");
-                tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", KEYCOLS (id)");
+                tmpString.append(", &\n\tCOLMAP ");
+                String mapAsString = c.columnToColumn().keySet().stream()
+                        .map(key -> "\t" + c.columnToColumn().get(key) + "=" + key)
+                        .collect(Collectors.joining(", & \n", "(USEDEFAULTS, &\n", ")"));
+                tmpString.append(mapAsString);
+                tmpString.append(", &\n\tFILTER ( @GETENV ('TRANSACTION', 'CSN') > ").append(csn).append(" )");
+                tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", &\n\tKEYCOLS (id)");
                 tmpString.append(";");
                 printWriter.println(tmpString);
             });
