@@ -15,7 +15,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [Create PostgreSQL CTID chunks](#Create-PostgreSQL-CTID-chunks)
+  * [Create PostgreSQL CTID chunks and Run](#Create-PostgreSQL-CTID-chunks-and-Run)
 * [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
   * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
@@ -263,7 +263,8 @@ toProperties:
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
 
-Chunks can be created automatically with parameter -k at startup
+Chunks can be created automatically with parameter -k at startup<br>
+-k defines the number of rows per chunk
 
 ```
 java \
@@ -428,22 +429,19 @@ toProperties:
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### Create PostgreSQL CTID chunks
+### Create PostgreSQL CTID chunks and Run
 
-To begin the transferring of data from source to target Bublik prepares the CTID table at the source side
+Chunks will be created automatically with parameter -k at startup<br>
+-k defines the number of rows per chunk
 
 ```
-create table if not exists public.ctid_chunks (
-    chunk_id int generated always as identity primary key,
-    start_page bigint,
-    end_page bigint,
-    task_name varchar(128),
-    status varchar(20)  default 'UNASSIGNED',
-    unique (start_page, end_page, task_name, status));
+java \
+  -jar ./cli/target/bublik-cli-1.2.2.jar \
+  -k 200000 \
+  -c ./cli/config/pg2pg.yaml \
+  -m ./cli/config/pg2pg.json
 ```
 
-> [!NOTE]
-> If you run bublik-cli with -k option, the CTID table will be created and fulfilled automatically.
 
 ## PostgreSQL To Cassandra
 
@@ -583,11 +581,11 @@ Run the cli:
 
 - Oracle:
   > ```
-  > java -jar ./target/bublik-cli-1.2.2.jar -c ./config/ora2pg.yaml -m ./config/ora2pg.json
+  > java -jar ./target/bublik-cli-1.2.2.jar -k 100000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
   > ```
 - PostgreSQL
   > ```
-  > java -jar ./target/bublik-cli-1.2.2.jar -c ./config/pg2pg.yaml -m ./config/pg2pg.json
+  > java -jar ./target/bublik-cli-1.2.2.jar -k 100000 -c ./config/pg2pg.yaml -m ./config/pg2pg.json
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`
