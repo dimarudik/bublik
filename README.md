@@ -143,6 +143,18 @@ toProperties:
   password: test
 ```
 
+Or you can use environment variables:
+
+```
+export THREAD_COUNT=10
+export FROM_URL=jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+export FROM_USER=test
+export FROM_PASSWORD=test
+export TO_URL=jdbc:postgresql://localhost:5432/postgres
+export TO_USER=test
+export TO_PASSWORD=test
+```
+>  **WARNING**: System variables have more priority than config yaml file 
 
 ### Prepare Oracle To PostgreSQL Mapping File
 

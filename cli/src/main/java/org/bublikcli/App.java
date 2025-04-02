@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.commons.cli.*;
 import org.bublik.Bublik;
+import org.bublik.constants.ENVProperties;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
@@ -21,10 +22,7 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.bublik.exception.Utils.getStackTrace;
@@ -122,6 +120,16 @@ public class App {
     private static void run(String configFileName, String mappingDefFileName, String createChunkOption) {
         try {
             ConnectionProperty properties = connectionProperty(configFileName);
+            ConnectionProperty envProperties = envConnectionProperty();
+            if (envProperties.getFromProperty().getProperty("url")!= null) {
+                properties = envProperties;
+            }
+//            log.info("ENV: {}", envProperties.getFromProperty().getProperty("url"));
+/*
+            String fromUrl = envProperties.getFromProperty().getProperty("url") != null ?
+                    envProperties.getFromProperty().getProperty("url") :
+                    properties.getFromProperty().getProperty("url");
+*/
             log.info("SOURCE: {}", properties.getFromProperty().getProperty("url"));
             log.info("SOURCE USERNAME: {}", properties.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
@@ -158,6 +166,30 @@ public class App {
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
+    }
+
+    private static ConnectionProperty envConnectionProperty() {
+        ENVProperties[] e = ENVProperties.values();
+        Map<String, String> envStrings = System.getenv();
+        Map<String, String> fromENVMap = new HashMap<>();
+        Map<String, String> toENVMap = new HashMap<>();
+        ConnectionProperty connectionProperty = new ConnectionProperty();
+        for (ENVProperties env : e) {
+            if (envStrings.containsKey(env.name())) {
+                switch (env) {
+                    case THREAD_COUNT -> connectionProperty.setThreadCount(Integer.parseInt(envStrings.get(env.name())));
+                    case FROM_URL -> fromENVMap.put("url", envStrings.get(env.name()));
+                    case FROM_USER -> fromENVMap.put("user", envStrings.get(env.name()));
+                    case FROM_PASSWORD -> fromENVMap.put("password", envStrings.get(env.name()));
+                    case TO_URL -> toENVMap.put("url", envStrings.get(env.name()));
+                    case TO_USER -> toENVMap.put("user", envStrings.get(env.name()));
+                    case TO_PASSWORD -> toENVMap.put("password", envStrings.get(env.name()));
+                }
+            }
+        }
+        connectionProperty.setFromProperties(fromENVMap);
+        connectionProperty.setToProperties(toENVMap);
+        return connectionProperty;
     }
 
     private static ConnectionProperty connectionProperty(String configFileName) throws IOException {
