@@ -122,6 +122,7 @@ public class App {
             ConnectionProperty properties = connectionProperty(configFileName);
             ConnectionProperty envProperties = envConnectionProperty();
             if (envProperties.getFromProperty().getProperty("url")!= null) {
+                log.info("System environment variables have been used");
                 properties = envProperties;
             }
 //            log.info("ENV: {}", envProperties.getFromProperty().getProperty("url"));
