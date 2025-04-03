@@ -90,10 +90,18 @@ public class App {
             createOGGFile(cmd.getOptionValue(mappingDefOption), cmd.getOptionValue(OGGfileOption), cmd.getOptionValue(OGGCSNOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("i") && cmd.hasOption("o")) {
             createDefJson(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(listOfTablesOption), cmd.getOptionValue(JSONfileOption));
+        } else if(!cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && !cmd.hasOption(createChunkOption)) {
+            // how to run without chunk creation
+            run(cmd.getOptionValue(mappingDefOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && !cmd.hasOption(createChunkOption)) {
-            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption), null);
+            // how to run without chunk creation
+            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption));
+        } else if(!cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
+            // how to run with chunk creation
+            run(cmd.getOptionValue(mappingDefOption), Integer.parseInt(cmd.getOptionValue(createChunkOption)));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
-            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption), cmd.getOptionValue(createChunkOption));
+            // how to run with chunk creation
+            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption), Integer.parseInt(cmd.getOptionValue(createChunkOption)));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
         }
@@ -117,53 +125,69 @@ public class App {
                 .build();
     }
 
-    private static void run(String configFileName, String mappingDefFileName, String createChunkOption) {
+    private static void run(String mappingDefFileName) {
+        run(mappingDefFileName,0);
+    }
+
+    private static void run(String mappingDefFileName, int rowsParameter) {
+        ConnectionProperty properties = envConnectionProperty();
+        runProcess(properties, mappingDefFileName, rowsParameter);
+    }
+
+    private static void run(String configFileName, String mappingDefFileName) {
+        run(configFileName, mappingDefFileName,0);
+    }
+
+    private static void run(String configFileName, String mappingDefFileName, int rowsParameter) {
         try {
             ConnectionProperty properties = connectionProperty(configFileName);
-            ConnectionProperty envProperties = envConnectionProperty();
-            if (envProperties.getFromProperty().getProperty("url")!= null) {
-                log.info("System environment variables have been used");
-                properties = envProperties;
-            }
-//            log.info("ENV: {}", envProperties.getFromProperty().getProperty("url"));
-/*
-            String fromUrl = envProperties.getFromProperty().getProperty("url") != null ?
-                    envProperties.getFromProperty().getProperty("url") :
-                    properties.getFromProperty().getProperty("url");
-*/
+            runProcess(properties, mappingDefFileName, rowsParameter);
+        } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    private static void runProcess(ConnectionProperty properties, String mappingDefFileName, int rowsParameter) {
+        try {
             log.info("SOURCE: {}", properties.getFromProperty().getProperty("url"));
             log.info("SOURCE USERNAME: {}", properties.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
             List<Config> config =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
-            if (createChunkOption != null) {
-                int rowsParameter = Integer.parseInt(createChunkOption);
-                Connection fromConnection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
-                        properties.getFromProperty());
-                fromConnection.setAutoCommit(false);
-                Driver fromDriver = DriverManager.getDriver(properties.getFromProperty().getProperty("url"));
-                switch (fromDriver.getClass().getName()) {
-                    case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
-                    case "org.postgresql.Driver" -> fillCtidChunks(config, fromConnection, rowsParameter);
-                    default -> throw new RuntimeException();
-                }
-                fromConnection.close();
-
-                Driver toDriver = DriverManager.getDriver(properties.getToProperty().getProperty("url"));
-                log.info("TARGET: {}", properties.getToProperty().getProperty("url"));
-                log.info("TARGET USERNAME: {}", properties.getToProperty().getProperty("user"));
-                if (toDriver.getClass().getName().equals("org.postgresql.Driver")) {
-                    Connection toConnection = DriverManager.getConnection(properties.getToProperty().getProperty("url"),
-                            properties.getToProperty());
-                    toConnection.setAutoCommit(false);
-                    createTableBublikChunk(toConnection);
-                    toConnection.close();
-                }
-
+            if (rowsParameter > 0) {
+                createChunks(properties, rowsParameter, config);
             }
             Bublik bublik = Bublik.getInstance(properties, config);
             bublik.start();
+        } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    private static void createChunks(ConnectionProperty properties, int rowsParameter, List<Config> config) {
+        try {
+            Connection fromConnection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
+                    properties.getFromProperty());
+            fromConnection.setAutoCommit(false);
+            Driver fromDriver = DriverManager.getDriver(properties.getFromProperty().getProperty("url"));
+            switch (fromDriver.getClass().getName()) {
+                case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
+                case "org.postgresql.Driver" -> fillCtidChunks(config, fromConnection, rowsParameter);
+                default -> throw new RuntimeException();
+            }
+            fromConnection.close();
+
+            Driver toDriver = DriverManager.getDriver(properties.getToProperty().getProperty("url"));
+            log.info("TARGET: {}", properties.getToProperty().getProperty("url"));
+            log.info("TARGET USERNAME: {}", properties.getToProperty().getProperty("user"));
+            if (toDriver.getClass().getName().equals("org.postgresql.Driver")) {
+                Connection toConnection = DriverManager.getConnection(properties.getToProperty().getProperty("url"),
+                        properties.getToProperty());
+                toConnection.setAutoCommit(false);
+                createTableBublikChunk(toConnection);
+                toConnection.close();
+            }
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }

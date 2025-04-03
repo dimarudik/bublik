@@ -8,12 +8,12 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
-  * [Prepare Oracle To PostgreSQL Config File](#Prepare-Oracle-To-PostgreSQL-Config-File)
+  * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
   * [Create Oracle ROWID chunks and Run](#Create-Oracle-ROWID-chunks-and-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
-  * [Prepare PostgreSQL To PostgreSQL Config File](#Prepare-PostgreSQL-To-PostgreSQL-Config-File)
+  * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
   * [Create PostgreSQL CTID chunks and Run](#Create-PostgreSQL-CTID-chunks-and-Run)
 * [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
@@ -126,7 +126,12 @@ How to connect to PostgreSQL:
 psql postgresql://test:test@localhost/postgres
 ```
 
-### Prepare Oracle To PostgreSQL Config File
+### Prepare Oracle To PostgreSQL Connection Settings
+
+You can run the tool by using yaml with connection settings:
+```
+java -jar bublik-cli-1.2.2.jar -c ora2pg.yaml -m ora2pg.json
+```
 
 ##### ./cli/config/ora2pg.yaml
 
@@ -143,7 +148,7 @@ toProperties:
   password: test
 ```
 
-Or you can use environment variables:
+Or you can use environment variables (do not specify -c parameter):
 
 ```
 export THREAD_COUNT=10
@@ -154,7 +159,10 @@ export TO_URL=jdbc:postgresql://localhost:5432/postgres
 export TO_USER=test
 export TO_PASSWORD=test
 ```
->  **WARNING**: System variables have more priority than config yaml file 
+
+```
+java -jar bublik-cli-1.2.2.jar -m ora2pg.json
+```
 
 ### Prepare Oracle To PostgreSQL Mapping File
 
@@ -377,7 +385,12 @@ psql postgresql://test:test@localhost/postgres
 ```
 
 
-### Prepare PostgreSQL To PostgreSQL Config File
+### Prepare PostgreSQL To PostgreSQL Connection Settings
+
+You can run the tool by using yaml with connection settings:
+```
+java -jar bublik-cli-1.2.2.jar -c pg2pg.yaml -m ora2pg.json
+```
 
 ```yaml
 threadCount: 10
@@ -392,7 +405,7 @@ toProperties:
   password: test
 ```
 
-Or you can use environment variables:
+Or you can use environment variables (do not specify -c parameter):
 
 ```
 export THREAD_COUNT=10
@@ -403,7 +416,10 @@ export TO_URL=jdbc:postgresql://localhost:5432/postgres
 export TO_USER=test
 export TO_PASSWORD=test
 ```
->  **WARNING**: System variables have more priority than config yaml file
+
+```
+java -jar bublik-cli-1.2.2.jar -m ora2pg.json
+```
 
 
 ### Prepare PostgreSQL To PostgreSQL Mapping File
