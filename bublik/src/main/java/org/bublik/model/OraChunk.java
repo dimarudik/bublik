@@ -22,6 +22,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
     }
 
+
     @Override
     public OraChunk<T> setChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
         try {
