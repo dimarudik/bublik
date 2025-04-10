@@ -906,8 +906,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias()) + " " +
                 (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
                 PGKeywords.WHERE + " " +
-                config.fetchWhereClause() +
-                " and " +
+                (config.fetchWhereClause() == null ? "" : config.fetchWhereClause() + " and ") + " " +
+//                " and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
                 "ctid >= " + "concat('(', ? ,',1)')::tid" +
                 " and " +

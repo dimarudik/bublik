@@ -130,8 +130,8 @@ public class App {
     }
 
     private static void run(String mappingDefFileName, int rowsParameter) {
-        ConnectionProperty properties = envConnectionProperty();
-        runProcess(properties, mappingDefFileName, rowsParameter);
+        ConnectionProperty connectionProperty = envConnectionProperty();
+        runProcess(connectionProperty, mappingDefFileName, rowsParameter);
     }
 
     private static void run(String configFileName, String mappingDefFileName) {
@@ -147,30 +147,30 @@ public class App {
         }
     }
 
-    private static void runProcess(ConnectionProperty properties, String mappingDefFileName, int rowsParameter) {
+    private static void runProcess(ConnectionProperty connectionProperty, String mappingDefFileName, int rowsParameter) {
         try {
-            log.info("SOURCE: {}", properties.getFromProperty().getProperty("url"));
-            log.info("SOURCE USERNAME: {}", properties.getFromProperty().getProperty("user"));
+            log.info("SOURCE: {}", connectionProperty.getFromProperty().getProperty("url"));
+            log.info("SOURCE USERNAME: {}", connectionProperty.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
             List<Config> config =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
             if (rowsParameter > 0) {
-                createChunks(properties, rowsParameter, config);
+                createChunks(connectionProperty, rowsParameter, config);
             }
-            Bublik bublik = Bublik.getInstance(properties, config);
+            Bublik bublik = Bublik.getInstance(connectionProperty, config);
             bublik.start();
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
     }
 
-    private static void createChunks(ConnectionProperty properties, int rowsParameter, List<Config> config) {
+    private static void createChunks(ConnectionProperty connectionProperty, int rowsParameter, List<Config> config) {
         try {
-            Connection fromConnection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
-                    properties.getFromProperty());
+            Connection fromConnection = DriverManager.getConnection(connectionProperty.getFromProperty().getProperty("url"),
+                    connectionProperty.getFromProperty());
             fromConnection.setAutoCommit(false);
-            Driver fromDriver = DriverManager.getDriver(properties.getFromProperty().getProperty("url"));
+            Driver fromDriver = DriverManager.getDriver(connectionProperty.getFromProperty().getProperty("url"));
             switch (fromDriver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
                 case "org.postgresql.Driver" -> fillCtidChunks(config, fromConnection, rowsParameter);
@@ -178,12 +178,12 @@ public class App {
             }
             fromConnection.close();
 
-            Driver toDriver = DriverManager.getDriver(properties.getToProperty().getProperty("url"));
-            log.info("TARGET: {}", properties.getToProperty().getProperty("url"));
-            log.info("TARGET USERNAME: {}", properties.getToProperty().getProperty("user"));
+            Driver toDriver = DriverManager.getDriver(connectionProperty.getToProperty().getProperty("url"));
+            log.info("TARGET: {}", connectionProperty.getToProperty().getProperty("url"));
+            log.info("TARGET USERNAME: {}", connectionProperty.getToProperty().getProperty("user"));
             if (toDriver.getClass().getName().equals("org.postgresql.Driver")) {
-                Connection toConnection = DriverManager.getConnection(properties.getToProperty().getProperty("url"),
-                        properties.getToProperty());
+                Connection toConnection = DriverManager.getConnection(connectionProperty.getToProperty().getProperty("url"),
+                        connectionProperty.getToProperty());
                 toConnection.setAutoCommit(false);
                 createTableBublikChunk(toConnection);
                 toConnection.close();
