@@ -60,7 +60,7 @@ mvn -f bublik/pom.xml clean install -DskipTests
 mvn -f cli/pom.xml clean package -DskipTests
 ```
 
-[(mvn) Maven Installation](https://maven.apache.org/install.html)
+[How to install mvn](https://maven.apache.org/install.html)
 
 #### Prepare Oracle environment
 
@@ -356,7 +356,7 @@ mvn -f bublik/pom.xml clean install -DskipTests
 mvn -f cli/pom.xml clean package -DskipTests
 ```
 
-[(mvn) Maven Installation](https://maven.apache.org/install.html)
+[How to install mvn](https://maven.apache.org/install.html)
 
 
 ```
