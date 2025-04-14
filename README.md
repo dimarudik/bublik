@@ -60,6 +60,8 @@ mvn -f bublik/pom.xml clean install -DskipTests
 mvn -f cli/pom.xml clean package -DskipTests
 ```
 
+[Maven Installation](https://maven.apache.org/install.html)
+
 #### Prepare Oracle environment
 
 - arm64:
@@ -349,11 +351,13 @@ git clone https://github.com/dimarudik/bublik.git
 cd bublik/
 ```
 
-
 ```
 mvn -f bublik/pom.xml clean install -DskipTests
 mvn -f cli/pom.xml clean package -DskipTests
 ```
+
+[Maven Installation](https://maven.apache.org/install.html)
+
 
 ```
 docker run --name postgres \
