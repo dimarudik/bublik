@@ -488,7 +488,7 @@ java \
 ```
 
 
-## PostgreSQL To Cassandra
+## PostgreSQL To Cassandra (development)
 
 ![Cassandra](/sql/cassandra4.png)
 
