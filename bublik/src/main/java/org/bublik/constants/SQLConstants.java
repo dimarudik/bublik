@@ -57,14 +57,14 @@ public abstract class SQLConstants {
     public static final String SQL_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks";
     public static final String SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 =
-            "select count(1) rows from ";
+            "select count(1) as rows from ";
     public static final String SQL_NUMBER_OF_TUPLES_PER_CHUNK_P2 =
             " where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ? ,',1)')::tid ";
     public static final String DML_UPDATE_CTID_CHUNKS =
             "update public.ctid_chunks set rows = ? where chunk_id = ?";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
-            "(select n start_page, n + ? end_page, ? rows, ? task_name, ? schema_name, ? table_name " +
+            "(select n start_page, n + ? end_page, ? as rows, ? task_name, ? schema_name, ? table_name " +
             "from generate_series(0, ?, ?) as n)";
     public static final String PLSQL_DROP_TASK = "CALL DBMS_PARALLEL_EXECUTE.DROP_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_TASK = "CALL DBMS_PARALLEL_EXECUTE.CREATE_TASK(task_name => ?)";

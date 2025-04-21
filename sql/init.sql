@@ -92,7 +92,7 @@ select
     description as rem,
     image,
     current_mood,
-    time time
+    time as time
  from "Source" where 0 = 1;
 alter table target add column gender gender;
 create table parted (
@@ -136,17 +136,18 @@ create table sec_encrypted (
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, image, current_mood, time)
-    select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
+    select gen_random_uuid() as uuid, 'PostgreSQL ' || n as name,
+        case when mod(n, 2) = 0 then false else true end as boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
-        rpad('PostgreSQL', 1000, '*') description,
+        rpad('PostgreSQL', 1000, '*') as description,
         case when mod(n, 1000) = 0 then pg_read_binary_file('/var/lib/postgresql/bublik.png')::bytea end image,
         case
             when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
             else null end as current_mood,
-        now() time
+        now() as time
     from generate_series(1, 100000) as n;
 insert into "Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,

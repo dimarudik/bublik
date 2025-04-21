@@ -61,6 +61,7 @@ mvn -f cli/pom.xml clean package -DskipTests
 ```
 
 [How to install mvn](https://maven.apache.org/install.html)
+[Use Java >= 21](https://jdk.java.net/archive/)
 
 #### Prepare Oracle environment
 
@@ -357,6 +358,7 @@ mvn -f cli/pom.xml clean package -DskipTests
 ```
 
 [How to install mvn](https://maven.apache.org/install.html)
+[Use Java >= 21](https://jdk.java.net/archive/)
 
 
 ```
