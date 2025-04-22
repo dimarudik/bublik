@@ -62,6 +62,8 @@ mvn -f cli/pom.xml clean package -DskipTests
 
 [How to install mvn](https://maven.apache.org/install.html)
 
+[Use Java >= 21](https://jdk.java.net/archive/)
+
 #### Prepare Oracle environment
 
 - arm64:
@@ -358,6 +360,8 @@ mvn -f cli/pom.xml clean package -DskipTests
 
 [How to install mvn](https://maven.apache.org/install.html)
 
+[Use Java >= 21](https://jdk.java.net/archive/)
+
 
 ```
 docker run --name postgres \
@@ -488,7 +492,7 @@ java \
 ```
 
 
-## PostgreSQL To Cassandra
+## PostgreSQL To Cassandra (development)
 
 ![Cassandra](/sql/cassandra4.png)
 

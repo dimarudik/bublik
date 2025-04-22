@@ -149,6 +149,7 @@ public class App {
 
     private static void runProcess(ConnectionProperty connectionProperty, String mappingDefFileName, int rowsParameter) {
         try {
+            log.info("THREADS: {}", connectionProperty.getThreadCount());
             log.info("SOURCE: {}", connectionProperty.getFromProperty().getProperty("url"));
             log.info("SOURCE USERNAME: {}", connectionProperty.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
