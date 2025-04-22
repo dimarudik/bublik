@@ -490,6 +490,9 @@ java \
   -c ./cli/config/pg2pg.yaml \
   -m ./cli/config/pg2pg.json
 ```
+> [!IMPORTANT]
+> Due to chunk creation based on statistics of the table
+> please check that ANALYZE is performed on regular basis
 
 
 ## PostgreSQL To Cassandra (development)
