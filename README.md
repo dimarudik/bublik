@@ -346,6 +346,11 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 
 ### Prepare PostgreSQL To PostgreSQL environment
 
+> [!NOTE]
+> Tid Range Scan has been implemented in PostgreSQL 14.0 and later.
+[E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
+
+
 All activities are reproducible in docker containers
 
 ```
