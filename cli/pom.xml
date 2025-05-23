@@ -6,7 +6,7 @@
 
     <groupId>org.bublik</groupId>
     <artifactId>bublik-cli</artifactId>
-    <version>1.2.2</version>
+    <version>1.2.3</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -54,7 +54,7 @@
         <dependency>
             <groupId>org.bublik</groupId>
             <artifactId>bublik</artifactId>
-            <version>1.2.2</version>
+            <version>1.2.3</version>
         </dependency>
     </dependencies>
 
