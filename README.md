@@ -489,6 +489,11 @@ java -jar bublik-cli-1.2.2.jar -m ora2pg.json
 Chunks will be created automatically with parameter -k at startup<br>
 -k defines the number of rows per chunk
 
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
+
+
 ```
 java \
   -jar ./cli/target/bublik-cli-1.2.2.jar \
