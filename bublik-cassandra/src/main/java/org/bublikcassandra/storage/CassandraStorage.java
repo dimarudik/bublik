@@ -14,6 +14,7 @@ import org.bublik.exception.Utils;
 import org.bublik.model.*;
 import org.bublik.storage.Storage;
 import org.bublik.storage.StorageClass;
+import org.bublikcassandra.model.CassandraColumn;
 import org.bublikcassandra.storage.cassandraaddons.BatchEntity;
 import org.bublikcassandra.storage.cassandraaddons.CSObject;
 import org.bublikcassandra.storage.cassandraaddons.CSPartitionKey;

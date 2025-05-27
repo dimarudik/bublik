@@ -11,6 +11,7 @@ import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.constants.PGKeywords;
 import org.bublik.model.*;
+import org.bublikcassandra.model.CassandraColumn;
 
 import java.util.*;
 

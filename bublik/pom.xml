@@ -16,37 +16,9 @@
 
         <log4j.version>2.23.1</log4j.version>
         <jackson.version>2.15.2</jackson.version>
-        <datastax.driver.version>4.17.0</datastax.driver.version>
     </properties>
 
     <dependencies>
-        <!--
-                <dependency>
-                    <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
-                    <artifactId>encryption-core</artifactId>
-                    <version>3.1.0-RELEASE</version>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>com.fasterxml.jackson.module</groupId>
-                            <artifactId>jackson-modules-java8</artifactId>
-                        </exclusion>
-                    </exclusions>
-                </dependency>
-        -->
-<!--
-        <dependency>
-            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
-            <artifactId>encryption-config-management</artifactId>
-            <version>3.1.0-RELEASE</version>
-        </dependency>
--->
-<!--
-        <dependency>
-            <groupId>ru.tinkoff.apsv.apsv-encryption-manager</groupId>
-            <artifactId>encryption-model</artifactId>
-            <version>3.1.0-RELEASE</version>
-        </dependency>
--->
 <!--        aws sdk-->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
