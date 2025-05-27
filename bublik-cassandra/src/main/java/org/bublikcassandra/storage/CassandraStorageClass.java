@@ -1,6 +1,7 @@
-package org.bublik.storage;
+package org.bublikcassandra.storage;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import org.bublik.storage.StorageClass;
 
 import java.util.Properties;
 

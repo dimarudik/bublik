@@ -1,4 +1,4 @@
-package org.bublik.storage.cassandraaddons;
+package org.bublikcassandra.storage.cassandraaddons;
 
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.bublik.storage.cassandraaddons.MM3.defaultTokenRange;
+import static org.bublikcassandra.storage.cassandraaddons.MM3.defaultTokenRange;
 
 public class MM3Batch {
     private static final Logger LOGGER = LoggerFactory.getLogger(MM3Batch.class);

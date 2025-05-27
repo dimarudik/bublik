@@ -21,6 +21,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.bublik</groupId>
+            <artifactId>bublik</artifactId>
+            <version>1.2.4</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
+        <dependency>
             <groupId>com.datastax.oss</groupId>
             <artifactId>java-driver-core</artifactId>
             <version>${datastax.driver.version}</version>

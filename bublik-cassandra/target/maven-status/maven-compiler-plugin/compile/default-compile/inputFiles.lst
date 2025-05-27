@@ -1,0 +1,8 @@
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/Main.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/CassandraStorage.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/CassandraStorageClass.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/cassandraaddons/BatchEntity.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/cassandraaddons/CSObject.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/cassandraaddons/CSPartitionKey.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/cassandraaddons/MM3.java
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/src/main/java/org/bublikcassandra/storage/cassandraaddons/MM3Batch.java

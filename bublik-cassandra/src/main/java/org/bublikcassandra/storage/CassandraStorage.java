@@ -1,4 +1,4 @@
-package org.bublik.storage;
+package org.bublikcassandra.storage;
 
 
 import com.datastax.oss.driver.api.core.CqlSession;
@@ -10,10 +10,13 @@ import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import org.bublik.exception.Utils;
 import org.bublik.model.*;
-import org.bublik.storage.cassandraaddons.BatchEntity;
-import org.bublik.storage.cassandraaddons.CSObject;
-import org.bublik.storage.cassandraaddons.CSPartitionKey;
+import org.bublik.storage.Storage;
+import org.bublik.storage.StorageClass;
+import org.bublikcassandra.storage.cassandraaddons.BatchEntity;
+import org.bublikcassandra.storage.cassandraaddons.CSObject;
+import org.bublikcassandra.storage.cassandraaddons.CSPartitionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,8 +32,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 
-import static org.bublik.exception.Utils.getStackTrace;
-import static org.bublik.storage.cassandraaddons.MM3.*;
+import static org.bublikcassandra.storage.cassandraaddons.MM3.*;
+
+//import static org.bublik.exception.Utils.getStackTrace;
+//import static org.bublik.storage.cassandraaddons.MM3.*;
 
 public class CassandraStorage extends Storage {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
@@ -195,7 +200,7 @@ public class CassandraStorage extends Storage {
                 .executeAsync(batchStatement)
                 .whenComplete((asyncResultSet, throwable) -> {
                     if (throwable != null) {
-                        LOGGER.info("{}", getStackTrace(throwable));
+                        LOGGER.info("{}", Utils.getStackTrace(throwable));
                     }
                 });
         batchStatementBuilder.clearStatements();

@@ -1,4 +1,4 @@
-package org.bublik.storage.cassandraaddons;
+package org.bublikcassandra.storage.cassandraaddons;
 
 public class CSPartitionKey {
     private final String type;

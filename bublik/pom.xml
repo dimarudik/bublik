@@ -70,30 +70,6 @@
             <artifactId>orai18n</artifactId>
             <version>21.3.0.0</version>
         </dependency>
-<!--        datastax-->
-
-        <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-core</artifactId>
-            <version>${datastax.driver.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-query-builder</artifactId>
-            <version>${datastax.driver.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-mapper-runtime</artifactId>
-            <version>${datastax.driver.version}</version>
-        </dependency>
 <!--        ydb-->
 <!--
         <dependency>

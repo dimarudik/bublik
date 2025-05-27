@@ -1,4 +1,4 @@
-package org.bublik.storage.cassandraaddons;
+package org.bublikcassandra.storage.cassandraaddons;
 
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
