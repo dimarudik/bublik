@@ -1,8 +1,0 @@
-org/bublikcassandra/Main.class
-org/bublikcassandra/storage/CassandraStorage.class
-org/bublikcassandra/storage/CassandraStorageClass.class
-org/bublikcassandra/storage/cassandraaddons/CSObject.class
-org/bublikcassandra/storage/cassandraaddons/BatchEntity.class
-org/bublikcassandra/storage/cassandraaddons/MM3.class
-org/bublikcassandra/storage/cassandraaddons/MM3Batch.class
-org/bublikcassandra/storage/cassandraaddons/CSPartitionKey.class
