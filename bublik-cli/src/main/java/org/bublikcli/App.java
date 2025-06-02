@@ -4,13 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.commons.cli.*;
-import org.bublik.Bublik;
 import org.bublik.constants.ENVProperties;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
+import org.bublik.service.StorageService;
 import org.bublik.service.TableService;
+import org.bublik.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,8 +160,18 @@ public class App {
             if (rowsParameter > 0) {
                 createChunks(connectionProperty, rowsParameter, config);
             }
-            Bublik bublik = Bublik.getInstance(connectionProperty, config);
-            bublik.start();
+//            Bublik bublik = Bublik.getInstance(connectionProperty, config);
+//            bublik.start();
+            try {
+                log.info("Bublik starting...");
+                Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
+                assert sourceStorage != null;
+                sourceStorage.start(config);
+                log.info("All Bublik's tasks have been done.");
+            } catch (SQLException e) {
+                log.error("{}", getStackTrace(e));
+                throw new RuntimeException(e);
+            }
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
