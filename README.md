@@ -3,7 +3,7 @@
 
 This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
-In case of PostgreSQL, we should split a table into chunks by `CTID`.<br>
+In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL version >= 14).<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
@@ -57,7 +57,7 @@ cd bublik/
 
 ```
 mvn -f bublik/pom.xml clean install -DskipTests
-mvn -f cli/pom.xml clean package -DskipTests
+mvn -f bublik-cli/pom.xml clean package -DskipTests
 ```
 
 [How to install mvn](https://maven.apache.org/install.html)
@@ -361,7 +361,7 @@ cd bublik/
 
 ```
 mvn -f bublik/pom.xml clean install -DskipTests
-mvn -f cli/pom.xml clean package -DskipTests
+mvn -f bublik-cli/pom.xml clean package -DskipTests
 ```
 
 [How to install mvn](https://maven.apache.org/install.html)

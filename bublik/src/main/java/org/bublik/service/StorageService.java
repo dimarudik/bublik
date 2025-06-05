@@ -1,6 +1,5 @@
 package org.bublik.service;
 
-import com.datastax.oss.driver.api.core.CqlSession;
 import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
@@ -26,9 +25,11 @@ public interface StorageService {
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
         try {
             StorageClass storageClass = StorageService.getStorageClass(properties);
+/*
             if (storageClass instanceof CassandraStorageClass) {
                 return new CassandraStorage(storageClass, connectionProperty, isSource);
             }
+*/
             try {
                 if (storageClass instanceof JDBCStorageClass) {
                     Driver driver = DriverManager.getDriver(properties.getProperty("url"));
@@ -52,11 +53,14 @@ public interface StorageService {
     static StorageClass getStorageClass(Properties properties) throws SQLException {
         String storageType = properties.getProperty("type");
         if (storageType != null) {
+            return null;
+/*
             return switch (storageType) {
                 case "cassandra" -> new CassandraStorageClass(CqlSession.class, properties);
 //                case "ydb" -> new YdbTransportImpl.class;
                 default -> throw new RuntimeException("Unknown storage type");
             };
+*/
         } else {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return new JDBCStorageClass(Connection.class, properties);
