@@ -17,13 +17,14 @@
         <log4j.version>2.23.1</log4j.version>
         <jackson.version>2.15.2</jackson.version>
         <datastax.driver.version>4.17.0</datastax.driver.version>
+        <bublik.version>1.2.4</bublik.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.bublik</groupId>
             <artifactId>bublik</artifactId>
-            <version>1.2.4</version>
+            <version>${bublik.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
         <dependency>
