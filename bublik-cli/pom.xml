@@ -16,6 +16,7 @@
 
         <log4j.version>2.23.1</log4j.version>
         <jackson.version>2.15.2</jackson.version>
+        <bublik.version>1.2.4</bublik.version>
     </properties>
 
     <dependencies>
@@ -54,7 +55,7 @@
         <dependency>
             <groupId>org.bublik</groupId>
             <artifactId>bublik</artifactId>
-            <version>1.2.4</version>
+            <version>${bublik.version}</version>
         </dependency>
     </dependencies>
 

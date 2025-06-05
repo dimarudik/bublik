@@ -134,7 +134,7 @@ psql postgresql://test:test@localhost/postgres
 
 You can run the tool by using yaml with connection settings:
 ```
-java -jar bublik-cli-1.2.2.jar -c ora2pg.yaml -m ora2pg.json
+java -jar bublik-cli-1.2.4.jar -c ora2pg.yaml -m ora2pg.json
 ```
 
 ##### ./cli/config/ora2pg.yaml
@@ -165,7 +165,7 @@ export TO_PASSWORD=test
 ```
 
 ```
-java -jar bublik-cli-1.2.2.jar -m ora2pg.json
+java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 ```
 
 ### Prepare Oracle To PostgreSQL Mapping File
@@ -292,7 +292,7 @@ Chunks can be created automatically with parameter -k at startup<br>
 
 ```
 java \
-  -jar ./cli/target/bublik-cli-1.2.2.jar \
+  -jar ./cli/target/bublik-cli-1.2.4.jar \
   -k 200000 \
   -c ./cli/config/ora2pg.yaml \
   -m ./cli/config/ora2pg.json
@@ -403,7 +403,7 @@ psql postgresql://test:test@localhost/postgres
 
 You can run the tool by using yaml with connection settings:
 ```
-java -jar bublik-cli-1.2.2.jar -c pg2pg.yaml -m ora2pg.json
+java -jar bublik-cli-1.2.4.jar -c pg2pg.yaml -m ora2pg.json
 ```
 
 ```yaml
@@ -432,7 +432,7 @@ export TO_PASSWORD=test
 ```
 
 ```
-java -jar bublik-cli-1.2.2.jar -m ora2pg.json
+java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 ```
 
 
@@ -496,7 +496,7 @@ Chunks will be created automatically with parameter -k at startup<br>
 
 ```
 java \
-  -jar ./cli/target/bublik-cli-1.2.2.jar \
+  -jar ./cli/target/bublik-cli-1.2.4.jar \
   -k 200000 \
   -c ./cli/config/pg2pg.yaml \
   -m ./cli/config/pg2pg.json
@@ -644,11 +644,11 @@ Run the cli:
 
 - Oracle:
   > ```
-  > java -jar ./target/bublik-cli-1.2.2.jar -k 100000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
+  > java -jar ./target/bublik-cli-1.2.4.jar -k 100000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
   > ```
 - PostgreSQL
   > ```
-  > java -jar ./target/bublik-cli-1.2.2.jar -k 100000 -c ./config/pg2pg.yaml -m ./config/pg2pg.json
+  > java -jar ./target/bublik-cli-1.2.4.jar -k 100000 -c ./config/pg2pg.yaml -m ./config/pg2pg.json
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`
@@ -678,7 +678,7 @@ Halt any changes to the movable tables in the source database
 Run the service:
 
 ```
-java -jar ./build/libs/service-1.2.2.jar
+java -jar ./build/libs/service-1.2.4.jar
 ```
 
 Consume the service:
