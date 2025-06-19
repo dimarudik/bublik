@@ -27,7 +27,6 @@ public class YdbClient {
 
     public YdbClient(String connectionString, String certFile) {
         StaticCredentials authProvider = new StaticCredentials("root", "passw0rd");
-//        StaticCredentials authProvider = new StaticCredentials("", "");
 
         byte[] cert;
         try {
