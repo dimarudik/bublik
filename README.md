@@ -652,7 +652,7 @@ Run the cli:
   > ```
 
 - To prevent heap pressure, use `-Xmx16g`
-- Monitor the logs at `logs/app.log`
+- Monitor the logs at `logs/ydbClient.log`
 - Track progress in Oracle:
   > ```
   > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 

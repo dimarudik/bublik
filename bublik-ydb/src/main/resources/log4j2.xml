@@ -22,6 +22,7 @@
         <Logger name="com.zaxxer.hikari" level="error"/>
         <Logger name="com.datastax.driver.core" level="error"/>
         <Logger name="io.netty.channel.nio" level="error"/>
+        <Logger name="io.grpc" level="error"/>
         <Logger name="io.netty.util" level="error"/>
         <Logger name="io.netty.buffer" level="error"/>
         <Logger name="io.netty.channel" level="error"/>
@@ -29,5 +30,11 @@
         <Logger name="com.datastax.dse.driver.internal.core.type.codec" level="error"/>
         <Logger name="org.bublik" level="all"/>
         <Logger name="org.postgresql" level="all"/>
+        <Logger name="tech.ydb" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+<!--
+        <Logger name="tech.ydb" level="info"/>
+-->
     </Loggers>
 </Configuration>

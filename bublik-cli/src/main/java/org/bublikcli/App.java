@@ -160,8 +160,6 @@ public class App {
             if (rowsParameter > 0) {
                 createChunks(connectionProperty, rowsParameter, config);
             }
-//            Bublik bublik = Bublik.getInstance(connectionProperty, config);
-//            bublik.start();
             try {
                 log.info("Bublik starting...");
                 Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
