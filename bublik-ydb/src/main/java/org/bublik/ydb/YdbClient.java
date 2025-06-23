@@ -10,9 +10,7 @@ import tech.ydb.table.SessionRetryContext;
 import tech.ydb.table.TableClient;
 import tech.ydb.table.query.DataQueryResult;
 import tech.ydb.table.query.Params;
-import tech.ydb.table.result.ResultSetReader;
 import tech.ydb.table.transaction.TableTransaction;
-import tech.ydb.table.transaction.TxControl;
 import tech.ydb.table.values.PrimitiveValue;
 
 import java.io.IOException;
@@ -45,7 +43,7 @@ public class YdbClient {
                 .withAuthProvider(authProvider)
                 .withSecureConnection(cert)
                 .build();
-        this.tableClient = TableClient.newClient(transport).build();
+        this.tableClient = TableClient.newClient(transport).sessionPoolSize(100, 200).build();
         this.retryCtx = SessionRetryContext.create(tableClient).build();
     }
 
@@ -55,24 +53,6 @@ public class YdbClient {
             transport.close();
         } catch (Exception e) {
             throw new RuntimeException("Failed to close transport", e);
-        }
-    }
-
-    private void selectSimple() {
-        String query
-                = "SELECT series_id, title, release_date "
-                + "FROM series WHERE series_id = " + Thread.currentThread().threadId() % 3;
-        TxControl<?> txControl = TxControl.serializableRw().setCommitTx(true);
-        DataQueryResult result = retryCtx.supplyResult(session -> session.executeDataQuery(query, txControl))
-                .join().getValue();
-
-        ResultSetReader rs = result.getResultSet(0);
-        while (rs.next()) {
-            log.info("read series with id {}, title {} and release_date {}",
-                    rs.getColumn("series_id").getUint64(),
-                    rs.getColumn("title").getText(),
-                    rs.getColumn("release_date").getDate()
-            );
         }
     }
 
@@ -86,7 +66,12 @@ public class YdbClient {
             DataQueryResult result = transaction.executeDataQuery(query, params)
                     .join().getValue();
 
-            log.info("get transaction {}", result.getTxId());
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
             return transaction.commit();
         }).join().expectSuccess("tcl transaction problem");
     }
@@ -95,11 +80,13 @@ public class YdbClient {
         String f = System.getenv("YDB_ACCESS_CERT_FILE");
         YdbClient ydbClient = new YdbClient(args[0], f);
 
-        ExecutorService service = Executors.newFixedThreadPool(21);
-        for (int i = 0; i < 20; i++) {
+        ExecutorService service = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 4; i++) {
+            int finalI = i;
             service.submit(() -> {
-                    ydbClient.selectSimple();
-                    ydbClient.tclTransaction();
+                log.info("Submitting task {}", finalI + 1);
+                ydbClient.tclTransaction();
+                log.info("");
             });
         }
 
