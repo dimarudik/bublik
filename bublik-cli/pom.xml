@@ -95,7 +95,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.bublikcli.YdbClient</mainClass>
+                            <mainClass>org.bublikcli.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
