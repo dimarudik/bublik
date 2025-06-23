@@ -61,7 +61,8 @@ public class YdbClient {
             TableTransaction transaction = session.createNewTransaction(TxMode.SERIALIZABLE_RW);
             String query
                     = "DECLARE $airDate AS Date; "
-                    + "UPDATE episodes SET air_date = $airDate WHERE title = \"TBD\";";
+//                    + "UPDATE episodes SET air_date = $airDate WHERE title = \"TBD\";";
+                    + "UPDATE episodes SET air_date = $airDate WHERE episode_id = " + Thread.currentThread().threadId();
             Params params = Params.of("$airDate", PrimitiveValue.newDate(Instant.now()));
             DataQueryResult result = transaction.executeDataQuery(query, params)
                     .join().getValue();
