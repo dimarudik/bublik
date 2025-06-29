@@ -139,7 +139,6 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
 //        log.info("{}", batchInsertStatement(chunk.getConfig(), neededColumnsToDB));
 
-/*
         try (PreparedStatement ps = connectionTo.prepareStatement(
                 batchInsertStatement(chunk.getConfig(), neededColumnsToDB)
         )) {
@@ -151,7 +150,6 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             chunk.insertProcessedChunkInfo(connectionTo, recordCount);
             connectionTo.commit();
         }
-*/
 
 
         return new LogMessage(
