@@ -10,3 +10,4 @@ HELP.md
 /service/.gradle
 chekist/target
 .m2
+ca.crt

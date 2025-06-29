@@ -3,6 +3,7 @@ package org.bublik.service;
 import org.bublik.model.OraTable;
 import org.bublik.model.PGTable;
 import org.bublik.model.Table;
+import org.bublik.model.YDBTable;
 import org.postgresql.PGConnection;
 
 import java.sql.Connection;
@@ -31,6 +32,8 @@ public interface TableService {
             return new OraTable(schemaName, tableName);
         } else if (connection.isWrapperFor(PGConnection.class)) {
             return new PGTable(schemaName, tableName);
+        } else if (connection.isWrapperFor(tech.ydb.jdbc.YdbConnection.class)) {
+            return new YDBTable(schemaName, tableName); // Assuming YDB uses similar table structure
         }
         throw new SQLException("Unknown DataSource");
     }

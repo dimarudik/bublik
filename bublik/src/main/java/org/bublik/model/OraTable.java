@@ -47,13 +47,6 @@ public class OraTable extends Table {
         return "/*+ no_index(" + getFinalTableName(false) + ") */";
     }
 
-/*
-    @Override
-    public String getTaskName() {
-        return getFinalTableName(false).toUpperCase() + "_TASK";
-    }
-*/
-
     @Override
     public Map<String, String> getColumnToColumn(Connection connection) throws SQLException {
         Map<String, String> map = new HashMap<>();

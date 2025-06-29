@@ -251,3 +251,4 @@ on conflict (user_id, item_id) do nothing;
 --vacuum verbose vacuum_me;
 --update vacuum_me set int8 = int8 where ctid >= '(128610,1)';
 --update ctid_chunks c set rows = (select count(1) from vacuum_me where ctid >= concat('(',c.start_page,',1)')::tid and ctid < concat('(',c.end_page,',1)')::tid );
+

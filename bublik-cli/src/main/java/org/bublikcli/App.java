@@ -191,13 +191,18 @@ public class App {
             Driver toDriver = DriverManager.getDriver(connectionProperty.getToProperty().getProperty("url"));
             log.info("TARGET: {}", connectionProperty.getToProperty().getProperty("url"));
             log.info("TARGET USERNAME: {}", connectionProperty.getToProperty().getProperty("user"));
-            if (toDriver.getClass().getName().equals("org.postgresql.Driver")) {
-                Connection toConnection = DriverManager.getConnection(connectionProperty.getToProperty().getProperty("url"),
-                        connectionProperty.getToProperty());
-                toConnection.setAutoCommit(false);
-                createTableBublikChunk(toConnection);
-                toConnection.close();
+            Connection toConnection = DriverManager.getConnection(connectionProperty.getToProperty().getProperty("url"),
+                    connectionProperty.getToProperty());
+            toConnection.setAutoCommit(false);
+            switch (toDriver.getClass().getName()) {
+                case "org.postgresql.Driver" :
+                    createPostgreSQLTableBublikChunk(toConnection);
+                    break;
+                case "tech.ydb.jdbc.YdbDriver" :
+                    createYDBTableBublikChunk(toConnection);
+                    break;
             }
+            toConnection.close();
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }

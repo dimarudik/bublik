@@ -32,9 +32,9 @@ public abstract class SQLConstants {
             "end_ts timestamp, " +
             "err_msg varchar(2048), " +
             "unique (start_page, end_page, task_name, status) )";
-    public static final String DDL_TRUNCATE_POSTGRESQL_TABLE_BUBLIK_OUTBOX =
+    public static final String DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX =
             "truncate table public.bublik_outbox;";
-    public static final String DDL_CREATE_POSTGRESQL_TABLE_BUBLIK_OUTBOX =
+    public static final String DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX =
             "create table if not exists public.bublik_outbox (" +
             "chunk_id int primary key, " +
             "start_rowid varchar(32), " +
@@ -45,11 +45,25 @@ public abstract class SQLConstants {
             "table_name varchar(128), " +
             "rows bigint, " +
             "task_name varchar(128) )";
+    public static final String DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX =
+            "drop table bublik_outbox;";
+    public static final String DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX =
+            "create table if not exists bublik_outbox (" +
+                    "chunk_id Uint32, " +
+                    "start_rowid String, " +
+                    "end_rowid String, " +
+                    "start_page Uint64, " +
+                    "end_page Uint64, " +
+                    "schema_name String, " +
+                    "table_name String, " +
+                    "rows Uint64, " +
+                    "task_name String," +
+                    "primary key(chunk_id))";
     public static final String DML_INSERT_BUBLIK_OUTBOX_ROWID =
-            "insert into public.bublik_outbox (chunk_id, start_rowid, end_rowid, rows, task_name, schema_name, table_name) " +
+            "insert into bublik_outbox (chunk_id, start_rowid, end_rowid, rows, task_name, schema_name, table_name) " +
                     "values (?, ?, ?, ?, ?, ?, ?)";
     public static final String DML_INSERT_BUBLIK_OUTBOX_CTID =
-            "insert into public.bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name) " +
+            "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name) " +
                     "values (?, ?, ?, ?, ?, ?, ?)";
     public static final String DML_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
@@ -65,7 +79,7 @@ public abstract class SQLConstants {
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
             "(select n start_page, n + ? end_page, ? as rows, ? task_name, ? schema_name, ? table_name " +
-            "from generate_series(0, ?, ?) as n)";
+            "from generate_series(?, ?, ?) as n)";
     public static final String PLSQL_DROP_TASK = "CALL DBMS_PARALLEL_EXECUTE.DROP_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_TASK = "CALL DBMS_PARALLEL_EXECUTE.CREATE_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_CHUNK =

@@ -177,18 +177,7 @@ public class ColumnUtil {
                         reltuples,
                         (double) rowsParameter,
                         pagesInChunk);
-                PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
-                chunkInsert.setLong(1, pagesInChunk);
-                chunkInsert.setLong(2, 0);
-                chunkInsert.setString(3, config.fromTaskName());
-                chunkInsert.setString(4, table.getSchemaName().toLowerCase());
-                chunkInsert.setString(5, table.getFinalTableName(false));
-                chunkInsert.setLong(6, relpages);
-                chunkInsert.setLong(7, pagesInChunk);
-//            System.out.println(chunkInsert);
-                int rows = chunkInsert.executeUpdate();
-                chunkInsert.close();
-
+                insertCtidChunks(connection, config, table, 0, relpages, pagesInChunk);
                 preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
                 preparedStatement.setString(1, config.fromTaskName());
                 resultSet = preparedStatement.executeQuery();
@@ -197,7 +186,10 @@ public class ColumnUtil {
                 }
                 resultSet.close();
                 preparedStatement.close();
+                // всавка последних чанков
                 if (heap_blks_total > max_end_page) {
+                    insertCtidChunks(connection, config, table, max_end_page, heap_blks_total, pagesInChunk);
+/*
                     chunkInsert = connection.prepareStatement(DML_INSERT_CTID_CHUNKS);
                     chunkInsert.setLong(1, max_end_page);
                     chunkInsert.setLong(2, heap_blks_total);
@@ -207,12 +199,32 @@ public class ColumnUtil {
                     chunkInsert.setString(6, table.getFinalTableName(false));
                     rows = chunkInsert.executeUpdate();
                     chunkInsert.close();
+*/
                 }
             }
             connection.commit();
         } catch (SQLException e) {
             LOGGER.error("{}", getStackTrace(e));
         }
+    }
+
+    private static void insertCtidChunks (Connection connection,
+                                          Config config,
+                                          Table table,
+                                          long startPage,
+                                          long pages,
+                                          long pagesInChunk) throws SQLException {
+        PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
+        chunkInsert.setLong(1, pagesInChunk);
+        chunkInsert.setLong(2, 0);
+        chunkInsert.setString(3, config.fromTaskName());
+        chunkInsert.setString(4, table.getSchemaName().toLowerCase());
+        chunkInsert.setString(5, table.getFinalTableName(false));
+        chunkInsert.setLong(6, startPage);
+        chunkInsert.setLong(7, pages);
+        chunkInsert.setLong(8, pagesInChunk);
+        int rows = chunkInsert.executeUpdate();
+        chunkInsert.close();
     }
 
     private static void createTableCtidChunks(Connection connection) {
@@ -228,13 +240,30 @@ public class ColumnUtil {
         }
     }
 
-    public static void createTableBublikChunk(Connection connection) {
+    public static void createPostgreSQLTableBublikChunk(Connection connection) {
         try {
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_BUBLIK_OUTBOX);
+            createTable.executeUpdate(DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX);
             createTable.close();
             Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_TRUNCATE_POSTGRESQL_TABLE_BUBLIK_OUTBOX);
+            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
+            truncateTable.close();
+            connection.commit();
+        } catch (SQLException e) {
+            LOGGER.error("{}", getStackTrace(e));
+        }
+    }
+
+    public static void createYDBTableBublikChunk(Connection connection) {
+        try {
+            Table table = TableService.getTable(connection, "", "bublik_outbox");
+            if (table.exists(connection)) {
+                Statement createTable = connection.createStatement();
+                createTable.executeUpdate(DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX);
+                createTable.close();
+            }
+            Statement truncateTable = connection.createStatement();
+            truncateTable.executeUpdate(DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX);
             truncateTable.close();
             connection.commit();
         } catch (SQLException e) {

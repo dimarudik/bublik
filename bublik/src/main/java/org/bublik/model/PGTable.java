@@ -21,7 +21,6 @@ public class PGTable extends Table {
 */
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
-//                getSchemaName().toLowerCase(),
                 getFinalSchemaName(false),
                 getFinalTableName(false),
                 null);

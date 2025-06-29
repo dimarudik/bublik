@@ -23,3 +23,19 @@ create table likes (
     item_id int references items,
     primary key (like_id));
 create unique index on likes (user_id, item_id);
+
+
+create table likes_all (
+    like_id int,
+    user_id int,
+    item_id int,
+    user_name varchar,
+    email varchar,
+    item_name varchar,
+    description text);
+
+-- select l.like_id, l.user_id, l.item_id, u.user_name, u.email, i.item_name, i.description
+-- from users u, likes l, items i where u.user_id = l.user_id and i.item_id = l.item_id;
+
+-- select l.like_id, l.user_id, l.item_id, u.user_name, u.email, i.item_name, i.description
+-- from likes l left join users u on u.user_id = l.user_id left join items i on i.item_id = l.item_id;

@@ -39,6 +39,12 @@
             <artifactId>ojdbc11</artifactId>
             <version>21.3.0.0</version>
         </dependency>
+<!--        ydb-->
+        <dependency>
+            <groupId>tech.ydb.jdbc</groupId>
+            <artifactId>ydb-jdbc-driver</artifactId>
+            <version>2.3.11</version>
+        </dependency>
         <dependency>
             <groupId>com.oracle.database.nls</groupId>
             <artifactId>orai18n</artifactId>

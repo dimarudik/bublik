@@ -48,7 +48,6 @@ public abstract class JDBCStorage extends Storage {
 
     @Override
     public Connection getConnection() throws SQLException {
-//        HikariDataSource hikariDataSource = dataSource.unwrap(HikariDataSource.class);
         try {
             return dataSource.getConnection();
         } catch (SQLTransientConnectionException e) {

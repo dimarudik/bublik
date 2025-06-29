@@ -73,6 +73,8 @@ public class YdbClient {
                 throw new RuntimeException(e);
             }
 
+            log.info("trx id: {}", result.getTxId());
+
             return transaction.commit();
         }).join().expectSuccess("tcl transaction problem");
     }
@@ -81,8 +83,8 @@ public class YdbClient {
         String f = System.getenv("YDB_ACCESS_CERT_FILE");
         YdbClient ydbClient = new YdbClient(args[0], f);
 
-        ExecutorService service = Executors.newFixedThreadPool(5);
-        for (int i = 0; i < 4; i++) {
+        ExecutorService service = Executors.newFixedThreadPool(21);
+        for (int i = 0; i < 20; i++) {
             int finalI = i;
             service.submit(() -> {
                 log.info("Submitting task {}", finalI + 1);

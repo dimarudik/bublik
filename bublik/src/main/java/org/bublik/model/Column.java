@@ -25,4 +25,5 @@ public abstract class Column implements SQLSyntaxService, ColumnService {
     public String getColumnType() {
         return columnType;
     }
+
 }
