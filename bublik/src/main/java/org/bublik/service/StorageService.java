@@ -1,9 +1,6 @@
 package org.bublik.service;
 
-import org.bublik.model.Chunk;
-import org.bublik.model.Config;
-import org.bublik.model.ConnectionProperty;
-import org.bublik.model.LogMessage;
+import org.bublik.model.*;
 import org.bublik.storage.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,10 +17,13 @@ public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
     void start(List<Config> configs) throws SQLException;
+    void sync() throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
+    String buildFetchStatement(Config config);
+    Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
         try {

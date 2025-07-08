@@ -1,4 +1,4 @@
 package org.bublik.model;
 
-public record PGEncryptedColumn(PGColumn pgColumn, EncryptedColumn encryptedColumn) {
+public record PGEncryptedColumn(Column column, EncryptedColumn encryptedColumn) {
 }

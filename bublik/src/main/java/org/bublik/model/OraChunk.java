@@ -16,9 +16,19 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
     }
 
+    @Override
+    public Integer getParentId() {
+        return 0;
+    }
 
     @Override
-    public OraChunk<T> setChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
+    public Integer getXidMin() {
+        return 0;
+    }
+
+
+    @Override
+    public OraChunk<T> saveChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
         try {
             Connection connection = this.getSourceConnection();
             if (errMsg == null) {
@@ -43,6 +53,16 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
             throw  new RuntimeException(e);
         }
         return this;
+    }
+
+    @Override
+    public Chunk<?> saveChunkRows(int rows) throws SQLException {
+        return this;
+    }
+
+    @Override
+    public Chunk<?> saveConfig() throws SQLException {
+        return null;
     }
 
     @Override

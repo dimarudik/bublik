@@ -18,7 +18,7 @@ import static org.bublik.exception.Utils.getStackTrace;
 
 public class ColumnUtil {
     private static final int HIGH_BIT_FLAG = 0x80000000;
-    private static final Logger LOGGER = LoggerFactory.getLogger(ColumnUtil.class);
+    private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);
 
     public static Interval intervalYM2Interval(INTERVALYM intervalym) {
         byte[] bytes;
@@ -94,7 +94,7 @@ public class ColumnUtil {
     }
 
     public static void fillOraChunks(List<Config> configs, Connection connection, int rowsParameter) {
-        LOGGER.debug("Creating chunks...");
+        log.debug("Creating chunks...");
         try {
             for (Config config : configs) {
                 CallableStatement dropTask =
@@ -111,12 +111,12 @@ public class ColumnUtil {
                 CallableStatement createTask =
                         connection.prepareCall(PLSQL_CREATE_TASK);
                 createTask.setString(1, config.fromTaskName());
-                LOGGER.info("Creating tasks... {} {}", PLSQL_CREATE_TASK, config.fromTaskName());
+                log.info("Creating tasks... {} {}", PLSQL_CREATE_TASK, config.fromTaskName());
                 createTask.execute();
                 createTask.close();
             }
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
 
         try {
@@ -132,12 +132,12 @@ public class ColumnUtil {
                 createChunk.close();
             }
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
     }
 
     public static void fillCtidChunks(List<Config> configs, Connection connection, int rowsParameter) {
-        LOGGER.debug("Creating chunks...");
+        log.debug("Creating chunks...");
         createTableCtidChunks(connection);
         try {
             for (Config config : configs) {
@@ -169,7 +169,7 @@ public class ColumnUtil {
                 long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                         (int) Math.round(relpages / (reltuples / (double) rowsParameter));
                 long pagesInChunk = Math.min(v, relpages + 1);
-                LOGGER.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
                         config.fromSchemaName(),
                         config.fromTableName(),
                         relpages,
@@ -189,22 +189,18 @@ public class ColumnUtil {
                 // всавка последних чанков
                 if (heap_blks_total > max_end_page) {
                     insertCtidChunks(connection, config, table, max_end_page, heap_blks_total, pagesInChunk);
-/*
-                    chunkInsert = connection.prepareStatement(DML_INSERT_CTID_CHUNKS);
-                    chunkInsert.setLong(1, max_end_page);
-                    chunkInsert.setLong(2, heap_blks_total);
-                    chunkInsert.setLong(3, 0);
-                    chunkInsert.setString(4, config.fromTaskName());
-                    chunkInsert.setString(5, table.getSchemaName().toLowerCase());
-                    chunkInsert.setString(6, table.getFinalTableName(false));
-                    rows = chunkInsert.executeUpdate();
-                    chunkInsert.close();
-*/
                 }
             }
             connection.commit();
+            log.info("Ctid chunks created successfully");
+/*
+            for (Config config : configs) {
+                updateXidOfCtidChunks(connection, config);
+            }
+            log.info("Ctid chunks fulfilled successfully");
+*/
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -214,12 +210,15 @@ public class ColumnUtil {
                                           long startPage,
                                           long pages,
                                           long pagesInChunk) throws SQLException {
-        PreparedStatement chunkInsert = connection.prepareStatement(DML_BATCH_INSERT_CTID_CHUNKS);
+        String sql = DML_BATCH_INSERT_CTID_CHUNKS
+                .replace("$schemaName", table.getSchemaName().toLowerCase())
+                .replace("$tableName", table.getTableName());
+        PreparedStatement chunkInsert = connection.prepareStatement(sql);
         chunkInsert.setLong(1, pagesInChunk);
         chunkInsert.setLong(2, 0);
         chunkInsert.setString(3, config.fromTaskName());
-        chunkInsert.setString(4, table.getSchemaName().toLowerCase());
-        chunkInsert.setString(5, table.getFinalTableName(false));
+        chunkInsert.setString(4, table.getSchemaName());
+        chunkInsert.setString(5, table.getFinalTableName(true));
         chunkInsert.setLong(6, startPage);
         chunkInsert.setLong(7, pages);
         chunkInsert.setLong(8, pagesInChunk);
@@ -227,16 +226,73 @@ public class ColumnUtil {
         chunkInsert.close();
     }
 
+    public static void updateXidOfCtidChunks(Connection connection) {
+        try {
+            Statement selectChunks = connection.createStatement();
+            ResultSet resultSet = selectChunks.executeQuery(SQL_SELECT_CTID_CHUNKS);
+            while (resultSet.next()) {
+                int chunk_id = resultSet.getInt("chunk_id");
+                long start_page = resultSet.getLong("start_page");
+                long end_page = resultSet.getLong("end_page");
+                String schema_name = resultSet.getString("schema_name");
+                String table_name = resultSet.getString("table_name");
+
+                String sql = SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK
+                        .replace("$schemaName", schema_name)
+                        .replace("$tableName", table_name);
+                PreparedStatement selectMaxXmin =
+                        connection.prepareStatement(sql);
+                selectMaxXmin.setLong(1, start_page);
+                selectMaxXmin.setLong(2, end_page);
+                ResultSet set = selectMaxXmin.executeQuery();
+                long xidmin = 0;
+                long xidmax = 0;
+                while (set.next()) {
+                    xidmin = set.getLong("xidmin");
+                    xidmax = set.getLong("xidmax");
+                }
+                set.close();
+                selectMaxXmin.close();
+
+                PreparedStatement updateXidOfCtidChunks =
+                        connection.prepareStatement(DML_UPDATE_XID_OF_CTID_CHUNKS);
+                updateXidOfCtidChunks.setLong(1, xidmin);
+                updateXidOfCtidChunks.setLong(2, xidmax);
+                updateXidOfCtidChunks.setInt(3, chunk_id);
+                updateXidOfCtidChunks.execute();
+                updateXidOfCtidChunks.close();
+                connection.commit();
+            }
+            selectChunks.close();
+            log.info("XIDMIN & XIDMAX fulfilled successfully");
+/*
+            try {
+                Thread.sleep(10000);
+                log.info("10 seconds sleep finished");
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+*/
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
     private static void createTableCtidChunks(Connection connection) {
         try {
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
+            dropTable.close();
+            connection.commit();
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_POSTGRESQL_TABLE_CTID_CHUNKS);
+            createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
             createTable.close();
             Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_TRUNCATE_POSTGRESQL_TABLE_CTID_CHUNKS);
+            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS);
             truncateTable.close();
+            connection.commit();
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -250,7 +306,7 @@ public class ColumnUtil {
             truncateTable.close();
             connection.commit();
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -267,7 +323,7 @@ public class ColumnUtil {
             truncateTable.close();
             connection.commit();
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -278,12 +334,12 @@ public class ColumnUtil {
             int chunk_id = resultSet.getInt("chunk_id");
             long start_page = resultSet.getLong("start_page");
             long end_page = resultSet.getLong("end_page");
-            String schema_name = resultSet.getString("schema_name");
-            String table_name = resultSet.getString("table_name");
+//            String schema_name = resultSet.getString("schema_name");
+//            String table_name = resultSet.getString("table_name");
             PreparedStatement rowCountSQL = initialConnection.prepareStatement(
                     SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 +
-                            schema_name + "." +
-                            table_name +
+//                            schema_name + "." +
+//                            table_name +
                             SQL_NUMBER_OF_TUPLES_PER_CHUNK_P2);
             rowCountSQL.setLong(1, start_page);
             rowCountSQL.setLong(2, end_page);

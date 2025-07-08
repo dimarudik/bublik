@@ -101,9 +101,10 @@ public class YdbClient {
                     .join()
                     .getValue();
 
-
             List<String> primaryKeys = tableDesc.getPrimaryKeys();
             List<KeyRange> keyRanges = tableDesc.getKeyRanges();
+            List<TableDescription.PartitionStats> partitionStats = tableDesc.getPartitionStats();
+            TableDescription.TableStats tableStats = tableDesc.getTableStats();
 
             log.info("  table {}", tableName);
             for (TableColumn column : tableDesc.getColumns()) {
@@ -117,10 +118,13 @@ public class YdbClient {
                     .forEach(keyRange -> {
                         Optional<KeyBound> from = keyRange.getFrom();
                         Optional<KeyBound> to = keyRange.getTo();
-                        log.info("  KeyRange: {} - {}",
+                        log.info("  KeyRange: {} {} - {} {}",
                                 from.map(KeyBound::getValue).orElse(null),
-                                to.map(KeyBound::getValue).orElse(null) );
+                                from.map(KeyBound::isInclusive),
+                                to.map(KeyBound::getValue).orElse(null),
+                                to.map(KeyBound::isInclusive));
                     });
+
         });
     }
 

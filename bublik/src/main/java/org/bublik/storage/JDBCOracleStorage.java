@@ -39,6 +39,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
+    public void sync() throws SQLException {
+
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
 //        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
@@ -134,5 +139,10 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 (config.fetchWhereClause() == null ? " " : " ( " + config.fetchWhereClause() + " ) and ") +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
                 "rowid between ? and ?";
+    }
+
+    @Override
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+        return Map.of();
     }
 }

@@ -1,13 +1,11 @@
 package org.bublik.service;
 
-import org.bublik.model.OraTable;
-import org.bublik.model.PGTable;
-import org.bublik.model.Table;
-import org.bublik.model.YDBTable;
+import org.bublik.model.*;
 import org.postgresql.PGConnection;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 
 public interface TableService {
@@ -16,6 +14,7 @@ public interface TableService {
     String getFinalSchemaName();
     String getHintClause();
     String getTaskName();
+    List<Column> getPKColumns(Connection connection) throws SQLException;
     Map<String, String> getColumnToColumn(Connection connection) throws SQLException;
 
     static Class<? extends Table[]> getTableArrayClass(Connection connection) throws SQLException {

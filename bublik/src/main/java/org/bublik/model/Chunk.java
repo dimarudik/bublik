@@ -26,6 +26,9 @@ public abstract class Chunk<T> implements ChunkService {
     private Connection targetConnection;
     private LogMessage logMessage;
     private ResultSet resultSet;
+    private int rows;
+    private String batchInsertQuery;
+    private int upserted;
 
     public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
                  String fetchQuery, Storage sourceStorage) {
@@ -121,6 +124,35 @@ public abstract class Chunk<T> implements ChunkService {
     public String getFetchQuery() {
         return fetchQuery;
     }
+
+    public int getRows() {
+        return rows;
+    }
+
+    public void setRows(int rows) {
+        this.rows = rows;
+    }
+
+    public String getBatchInsertQuery() {
+        return batchInsertQuery;
+    }
+
+    public void setBatchInsertQuery(String batchInsertQuery) {
+        this.batchInsertQuery = batchInsertQuery;
+    }
+
+    public int getUpserted() {
+        return upserted;
+    }
+
+    public void setUpserted(int upserted) {
+        this.upserted = upserted;
+    }
+
+    public abstract Integer getParentId();
+
+    public abstract Integer getXidMin();
+
 
     public Chunk<?> assignSourceConnection() throws SQLException {
         while (true) {

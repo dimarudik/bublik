@@ -1,10 +1,9 @@
 package org.bublik.model;
 
-import tech.ydb.jdbc.YdbConnection;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 
 public class YDBTable extends Table {
@@ -49,6 +48,11 @@ public class YDBTable extends Table {
     @Override
     public String getHintClause() {
         return "";
+    }
+
+    @Override
+    public List<Column> getPKColumns(Connection connection) throws SQLException {
+        return List.of();
     }
 
     @Override

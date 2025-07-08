@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class OraTable extends Table {
@@ -45,6 +46,11 @@ public class OraTable extends Table {
     @Override
     public String getHintClause() {
         return "/*+ no_index(" + getFinalTableName(false) + ") */";
+    }
+
+    @Override
+    public List<Column> getPKColumns(Connection connection) throws SQLException {
+        return List.of();
     }
 
     @Override

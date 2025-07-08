@@ -60,6 +60,11 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
+    public void sync() throws SQLException {
+
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         return Map.of();
     }
@@ -250,7 +255,8 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         }
     }
 
-    protected Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+    @Override
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
         Map<String, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
@@ -272,7 +278,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, null)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -280,7 +286,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(columnName, new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, null)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -288,7 +294,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                             .entrySet()
                             .stream()
                             .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType, null)));
                 }
             }
             resultSet.close();

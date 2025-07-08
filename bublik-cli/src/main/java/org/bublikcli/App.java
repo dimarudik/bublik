@@ -60,17 +60,20 @@ public class App {
         Option JSONfileOption = createOptionValue("o", "output", "json file", "create new mapping definitions file");
         Option OGGfileOption = createOptionValue("g", "ogg", "ogg file", "create Oracle Golden Gate file");
         Option OGGCSNOption = createOptionValue("n", "csn", "csn", "Oracle Golden Gate CSN");
-        Option showSQLOption = createOptionNoArg("s", "show", "show SQL query ");
+        Option SyncOption = createOptionNoArg("s", "sync", "synchronize data from source to target");
+        Option helpOption = createOptionNoArg("?", "help", "Help message");
+
         options
                 .addOption(createChunkOption)
                 .addOption(connectionConfigOption)
                 .addOption(mappingDefOption)
                 .addOption(listOfTablesOption)
                 .addOption(JSONfileOption)
-                .addOption(showSQLOption)
+                .addOption(SyncOption)
                 .addOption(OGGfileOption)
-                .addOption(OGGCSNOption);
-        options.addOption("?", "help", false, "help");
+                .addOption(OGGCSNOption)
+                .addOption(helpOption);
+//        options.addOption("?", "help", false, "help");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine cmd;
@@ -78,7 +81,8 @@ public class App {
 
         try {
             cmd = parser.parse(options, args);
-            Arrays.stream(cmd.getOptions()).forEach(option -> log.info("-{} {}", option.getOpt(), option.getValue()));
+            Arrays.stream(cmd.getOptions()).forEach(option -> log.info("-{} {}",
+                    option.getOpt(), option.getValue() == null ? "" : option.getValue()));
         } catch (ParseException e) {
             log.error(e.getMessage(), e);
             formatter.printHelp( HELP_MESSAGE, options );
@@ -87,6 +91,8 @@ public class App {
 
         if (cmd.hasOption("?")) {
             formatter.printHelp( HELP_MESSAGE, options );
+        } else if (cmd.hasOption(SyncOption) && cmd.hasOption("c") && !cmd.hasOption(createChunkOption) && !cmd.hasOption("m")) {
+            sync(cmd.getOptionValue(connectionConfigOption));
         } else if(cmd.hasOption("m") && cmd.hasOption("g") && cmd.hasOption("n")) {
             createOGGFile(cmd.getOptionValue(mappingDefOption), cmd.getOptionValue(OGGfileOption), cmd.getOptionValue(OGGCSNOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("i") && cmd.hasOption("o")) {
@@ -98,11 +104,13 @@ public class App {
             // how to run without chunk creation
             run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption));
         } else if(!cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
-            // how to run with chunk creation
-            run(cmd.getOptionValue(mappingDefOption), Integer.parseInt(cmd.getOptionValue(createChunkOption)));
+            // how to run with chunk creation from ENV
+            run(cmd.getOptionValue(mappingDefOption), Integer.parseInt(cmd.getOptionValue(createChunkOption)),
+                    cmd.hasOption(SyncOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
-            // how to run with chunk creation
-            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption), Integer.parseInt(cmd.getOptionValue(createChunkOption)));
+            // how to run with chunk creation from yaml config file
+            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption),
+                    Integer.parseInt(cmd.getOptionValue(createChunkOption)), cmd.hasOption(SyncOption));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
         }
@@ -127,28 +135,47 @@ public class App {
     }
 
     private static void run(String mappingDefFileName) {
-        run(mappingDefFileName,0);
+        run(mappingDefFileName,0, false);
     }
 
-    private static void run(String mappingDefFileName, int rowsParameter) {
+    private static void run(String mappingDefFileName, int rowsParameter, boolean sync) {
         ConnectionProperty connectionProperty = envConnectionProperty();
-        runProcess(connectionProperty, mappingDefFileName, rowsParameter);
+        runProcess(connectionProperty, mappingDefFileName, rowsParameter, sync);
     }
 
     private static void run(String configFileName, String mappingDefFileName) {
-        run(configFileName, mappingDefFileName,0);
+        run(configFileName, mappingDefFileName, 0, false);
     }
 
-    private static void run(String configFileName, String mappingDefFileName, int rowsParameter) {
+    private static void run(String configFileName, String mappingDefFileName, int rowsParameter, boolean sync) {
         try {
             ConnectionProperty properties = connectionProperty(configFileName);
-            runProcess(properties, mappingDefFileName, rowsParameter);
+            runProcess(properties, mappingDefFileName, rowsParameter, sync);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
     }
 
-    private static void runProcess(ConnectionProperty connectionProperty, String mappingDefFileName, int rowsParameter) {
+    private static void sync(String configFileName) throws IOException {
+        log.info("Synchronizing data from source to target...");
+        ConnectionProperty properties = connectionProperty(configFileName);
+        Storage sourceStorage = StorageService.getStorage(properties.getFromProperty(), properties, true);
+        assert sourceStorage != null;
+        try {
+            sourceStorage.sync();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+//            throw new RuntimeException(e);
+        } finally {
+            sourceStorage.closeStorage();
+            log.info("Synchronization completed.");
+        }
+    }
+
+    private static void runProcess(ConnectionProperty connectionProperty,
+                                   String mappingDefFileName,
+                                   int rowsParameter,
+                                   boolean sync) {
         try {
             log.info("THREADS: {}", connectionProperty.getThreadCount());
             log.info("SOURCE: {}", connectionProperty.getFromProperty().getProperty("url"));
@@ -157,15 +184,17 @@ public class App {
             List<Config> config =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
-            if (rowsParameter > 0) {
-                createChunks(connectionProperty, rowsParameter, config);
-            }
+            createChunks(connectionProperty, rowsParameter, config, sync);
             try {
                 log.info("Bublik starting...");
                 Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
                 assert sourceStorage != null;
                 sourceStorage.start(config);
-                log.info("All Bublik's tasks have been done.");
+                log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");
+                if (sync) {
+                    log.info("To run synchronization of data from source to target, please use the following command: \n" +
+                            "\u001B[31mjava -jar bublik-cli-1.x.x.jar -s -c config.yaml\u001B[0m");
+                }
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
                 throw new RuntimeException(e);
@@ -175,7 +204,11 @@ public class App {
         }
     }
 
-    private static void createChunks(ConnectionProperty connectionProperty, int rowsParameter, List<Config> config) {
+    private static void createChunks(ConnectionProperty connectionProperty, int rowsParameter, List<Config> config, boolean sync) {
+        if (rowsParameter == 0) {
+            log.info("No rows parameter provided, skipping chunk creation.");
+            return;
+        }
         try {
             Connection fromConnection = DriverManager.getConnection(connectionProperty.getFromProperty().getProperty("url"),
                     connectionProperty.getFromProperty());
@@ -183,7 +216,12 @@ public class App {
             Driver fromDriver = DriverManager.getDriver(connectionProperty.getFromProperty().getProperty("url"));
             switch (fromDriver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
-                case "org.postgresql.Driver" -> fillCtidChunks(config, fromConnection, rowsParameter);
+                case "org.postgresql.Driver" ->  {
+                    fillCtidChunks(config, fromConnection, rowsParameter);
+                    if (sync) {
+                        updateXidOfCtidChunks(fromConnection);
+                    }
+                }
                 default -> throw new RuntimeException();
             }
             fromConnection.close();
@@ -241,18 +279,17 @@ public class App {
     private static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
         ConnectionProperty properties = connectionProperty(configFileName);
         ObjectMapper mapperJSON = new ObjectMapper();
-//        Storage storage = StorageService.getStorage(properties.getFromProperty());
         Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
                 properties.getFromProperty());
         List<Table> tableList =
                 List.of(mapperJSON.readValue(Paths.get(listOfTablesFileName).toFile(),
                         TableService.getTableArrayClass(connection)
                 ));
-        List<Config> configList = new ArrayList<>();
+        List<Config> configs = new ArrayList<>();
         ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
         for (Table t : tableList) {
             if (t.exists(connection)) {
-                configList.add(new Config(
+                configs.add(new Config(
                         null,
                         t.getFinalSchemaName(),
                         t.getFinalTableName(true),
@@ -277,7 +314,7 @@ public class App {
                 throw new TableNotExistsException(t.getSchemaName(), t.getTableName());
             }
         }
-        mapper.writeValue(Paths.get(outputFileName).toFile(), configList);
+        mapper.writeValue(Paths.get(outputFileName).toFile(), configs);
         System.out.println(MAPPING_FILE_CREATED + outputFileName);
         connection.close();
     }
