@@ -8,8 +8,10 @@ import org.bublik.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
-import java.util.List;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -52,23 +54,25 @@ public class PGChunk<T extends Long> extends Chunk<T> {
 
     @Override
     public PGChunk<T> saveChunkStatus(ChunkStatus status, Integer errNum, String errMsg) throws SQLException {
-        Connection connection = this.getSourceConnection();
-        PreparedStatement updateStatus;
-        if (errMsg == null) {
-            updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
-            updateStatus.setString(1, status.toString());
-            updateStatus.setLong(2, this.getId());
-            updateStatus.setString(3, this.getConfig().fromTaskName());
-        } else {
-            updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS);
-            updateStatus.setString(1, status.toString());
-            updateStatus.setString(2, errMsg.substring(0, errMsg.length() > 2048 ? 2047 : errMsg.length()));
-            updateStatus.setLong(3, this.getId());
-            updateStatus.setString(4, this.getConfig().fromTaskName());
+        if (status != null) {
+            Connection connection = this.getSourceConnection();
+            PreparedStatement updateStatus;
+            if (errMsg == null) {
+                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
+                updateStatus.setString(1, status.toString());
+                updateStatus.setLong(2, this.getId());
+                updateStatus.setString(3, this.getConfig().fromTaskName());
+            } else {
+                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS);
+                updateStatus.setString(1, status.toString());
+                updateStatus.setString(2, errMsg.substring(0, errMsg.length() > 2048 ? 2047 : errMsg.length()));
+                updateStatus.setLong(3, this.getId());
+                updateStatus.setString(4, this.getConfig().fromTaskName());
+            }
+            int rows = updateStatus.executeUpdate();
+            updateStatus.close();
+            connection.commit();
         }
-        int rows = updateStatus.executeUpdate();
-        updateStatus.close();
-        connection.commit();
 //        LOGGER.debug("setChunkStatus {}", status);
         return this;
     }
@@ -86,6 +90,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         return this;
     }
 
+    @Override
     public Chunk<?> saveChunkUpserted() throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
@@ -233,7 +238,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         return sb.toString();
     }
 
-    public void insertOnConflict() throws SQLException {
+    public Chunk<?> insertOnConflict() throws SQLException {
         Connection fromConnection = getSourceConnection();
         Connection toConnection = getTargetConnection();
         PreparedStatement st = fromConnection.prepareStatement(getFetchQuery());
@@ -257,18 +262,11 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             upserted++;
         }
         int[] n = ps.executeBatch();
-/*
-        for (int Num: n) {
-            if (Num == Statement.EXECUTE_FAILED) {
-                log.error("Failed to insert row");
-            }
-            log.info("{}", Num);
-        }
-*/
         toConnection.commit();
         setUpserted(upserted);
         ps.close();
         st.close();
         rs.close();
+        return this;
     }
 }

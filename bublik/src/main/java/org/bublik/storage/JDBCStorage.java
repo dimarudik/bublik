@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
 import static org.bublik.exception.Utils.getStackTrace;
 
 public abstract class JDBCStorage extends Storage {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
+    private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     protected final int threadCount;
 
@@ -97,14 +97,14 @@ public abstract class JDBCStorage extends Storage {
                         assert targetStorage != null;
                         return c;
                     } catch (Exception e) {
-                        LOGGER.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                         try {
                             if (chunk.getSourceConnection().isValid(0)) {
                                 chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
                                 chunk.getSourceConnection().close();
                             }
                         } catch (SQLException exception) {
-                            LOGGER.error("{}", getStackTrace(exception));
+                            log.error("{}", getStackTrace(exception));
                         }
                         assert targetStorage != null;
                         targetStorage.closeStorage();

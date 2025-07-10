@@ -3,8 +3,6 @@ package org.bublik.model;
 import org.bublik.service.ColumnService;
 import org.bublik.service.SQLSyntaxService;
 
-import java.sql.SQLType;
-
 public class Column implements SQLSyntaxService, ColumnService {
     private final Integer columnPosition;
     private final String columnName;

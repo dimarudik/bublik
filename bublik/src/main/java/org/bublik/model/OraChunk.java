@@ -61,6 +61,11 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
+    public Chunk<?> saveChunkUpserted() throws SQLException {
+        return null;
+    }
+
+    @Override
     public Chunk<?> saveConfig() throws SQLException {
         return null;
     }
@@ -86,5 +91,10 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         chunkInsert.setString(7, getTargetTable().getFinalTableName(false));
         long r = chunkInsert.executeUpdate();
         chunkInsert.close();
+    }
+
+    @Override
+    public Chunk<?> saveChunkStatus(ChunkStatus status) throws SQLException {
+        return super.saveChunkStatus(status);
     }
 }

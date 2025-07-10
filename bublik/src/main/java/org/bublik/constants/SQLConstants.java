@@ -12,7 +12,7 @@ public abstract class SQLConstants {
     public static final String SQL_NUMBER_OF_TUPLES =
             "select reltuples, relpages from pg_class " +
             "where relnamespace::regnamespace::text = ? and relname = ?";
-    public static final String SQL_NUMBER_OF_RAW_TUPLES =
+    public static final String SQL_HEAP_BLKS_TOTAL =
             "select pg_relation_size( ? ) / 8192 as heap_blks_total";
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from public.ctid_chunks where task_name = ?";
@@ -79,7 +79,7 @@ public abstract class SQLConstants {
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name from public.ctid_chunks";
     public static final String SQL_CHUNKS_SYNC =
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
-                    " from public.ctid_chunks where status = 'PROCESSED'";
+                    " from public.ctid_chunks where status in ('PROCESSED', 'UNCHANGED') and xidmin is not null";
     public static final String SQL_ROWS_GREATER_XIDMIN_SYNC =
             "select ";
     public static final String SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 =
@@ -89,8 +89,8 @@ public abstract class SQLConstants {
     public static final String DML_UPDATE_CTID_CHUNKS =
             "update public.ctid_chunks set rows = ? where chunk_id = ?";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
-            "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name) " +
-                    "(select n start_page, n + ? end_page, ? as rows, ? task_name, ? schema_name, ? table_name from generate_series(?, ?, ?) as n)";
+            "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name, status, config) " +
+                    "(select n start_page, n + ? end_page, ? as rows, ? task_name, ? schema_name, ? table_name, ? status, to_json(?::json) from generate_series(?, ?, ?) as n)";
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
