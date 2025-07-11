@@ -75,22 +75,15 @@ public abstract class SQLConstants {
     public static final String DML_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (parent_id, start_page, end_page, xidmin, xidmax, task_name, schema_name, table_name, config, status, rows) " +
             "values (?, ?, ?, ?, ?, ?, ?, ?, to_json(?::json), ?, ?)";
-    public static final String SQL_CHUNKS =
-            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name from public.ctid_chunks";
     public static final String SQL_CHUNKS_SYNC =
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
-                    " from public.ctid_chunks where status in ('PROCESSED', 'UNCHANGED') and xidmin is not null";
-    public static final String SQL_ROWS_GREATER_XIDMIN_SYNC =
-            "select ";
-    public static final String SQL_NUMBER_OF_TUPLES_PER_CHUNK_P1 =
-            "select count(1) as rows from ";
-    public static final String SQL_NUMBER_OF_TUPLES_PER_CHUNK_P2 =
-            " where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ? ,',1)')::tid ";
-    public static final String DML_UPDATE_CTID_CHUNKS =
-            "update public.ctid_chunks set rows = ? where chunk_id = ?";
+                    " from public.ctid_chunks where status = ANY (?) and xidmin is not null";
+    public static final String SQL_CHUNKS_SYNC_GROUP_BY_TASK =
+            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
+                    " from public.ctid_chunks where status = ANY (?) and xidmin is not null";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name, status, config) " +
-                    "(select n start_page, n + ? end_page, ? as rows, ? task_name, ? schema_name, ? table_name, ? status, to_json(?::json) from generate_series(?, ?, ?) as n)";
+                    "(select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as rows, ? task_name, ? schema_name, ? table_name, ? status, to_json(?::json) from generate_series(?, ?, ?) as n)";
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =

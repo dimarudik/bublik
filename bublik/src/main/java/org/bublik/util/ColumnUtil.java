@@ -223,7 +223,7 @@ public class ColumnUtil {
                                          Config config,
                                          Table table,
                                          long startPage,
-                                         long pages,
+                                         long totalPages,
                                          long pagesInChunk,
                                          ChunkStatus status) throws SQLException, JsonProcessingException {
         String sql = DML_BATCH_INSERT_CTID_CHUNKS
@@ -232,6 +232,21 @@ public class ColumnUtil {
         ObjectMapper objectMapper = new ObjectMapper();
         String jacksonData = objectMapper.writeValueAsString(config);
         PreparedStatement chunkInsert = connection.prepareStatement(sql);
+        chunkInsert.setLong(1, pagesInChunk);
+        chunkInsert.setLong(2, totalPages);
+        chunkInsert.setLong(3, pagesInChunk);
+        chunkInsert.setLong(4, totalPages);
+        chunkInsert.setLong(5, 0);
+        chunkInsert.setString(6, config.fromTaskName());
+        chunkInsert.setString(7, table.getSchemaName());
+        chunkInsert.setString(8, table.getFinalTableName(true));
+        chunkInsert.setString(9, status.toString());
+        chunkInsert.setString(10, jacksonData);
+        chunkInsert.setLong(11, startPage);
+        chunkInsert.setLong(12, totalPages);
+        chunkInsert.setLong(13, pagesInChunk);
+
+/*
         chunkInsert.setLong(1, pagesInChunk);
         chunkInsert.setLong(2, 0);
         chunkInsert.setString(3, config.fromTaskName());
@@ -242,6 +257,7 @@ public class ColumnUtil {
         chunkInsert.setLong(8, startPage);
         chunkInsert.setLong(9, pages);
         chunkInsert.setLong(10, pagesInChunk);
+*/
         int rows = chunkInsert.executeUpdate();
         chunkInsert.close();
     }

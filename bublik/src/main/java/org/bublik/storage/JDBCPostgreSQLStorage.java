@@ -930,18 +930,21 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public void sync() throws SQLException {
         Connection connection = getConnection();
         // 1. Get all chunks
-        Map<Integer, PGChunk<?>> chunks = getChunkSyncMap(connection);
+        List<ChunkStatus> chunkStatuses = new ArrayList<>();
+        chunkStatuses.add(ChunkStatus.PROCESSED);
+        chunkStatuses.add(ChunkStatus.UNCHANGED);
+        Map<Integer, PGChunk<?>> upsertChunks = getChunkSyncMap(connection, chunkStatuses);
         // 2. Check PK at the target tables
 //        List<Column> d = chunks.values().stream().findFirst().get().getSourceTable().getPKColumns(connection);
         // 3. Generate new chunks above max(ctid end_page)
-        createSyncChunksGraterMaxCtidEndPage(chunks);
+//        createSyncChunksGraterMaxCtidEndPage(upsertChunks);
 //        chunks = getChunkSyncMap(connection);
         // 4. Generate new chunks with XMIN greater than XIDMIN within each chunk
-        createSyncChunks(chunks);
+        createSyncChunks(upsertChunks);
         // 5. UPSERT to the target
         Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
         assert targetStorage != null;
-        upsertToTarget(chunks, targetStorage);
+        upsertToTarget(upsertChunks, targetStorage);
     }
 
     private void upsertToTarget(Map<Integer, PGChunk<?>> chunks, Storage targetStorage) throws SQLException {
@@ -958,7 +961,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 .saveChunkUpserted()
                                 .saveChunkStatus(chunk.getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED);
                         log.info("ChunkId = {} {} {} {}", chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getUpserted(), chunk.getTargetTable().getTableName());
-                        // создавать чанк для новых строк выше ватерлинии
                     } catch (SQLException e) {
                         log.error("Error during upsert to target: {}", e.getMessage());
                     }
@@ -982,7 +984,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     .orElseThrow(() -> new SQLException("No chunks found"));
         } catch (SQLException e) {
             log.info("There are no new chunks greater than max end_page, skipping ctid chunks creation");
-//            log.error("Error finding max ctid end page: {}", e.getMessage());
             return;
         }
 //        log.info("Max ctid end page: {}", maxCtidEndPage);
@@ -1032,10 +1033,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public Map<Integer, PGChunk<?>> getChunkSyncMap(Connection sourceConnection) throws SQLException {
+    public Map<Integer, PGChunk<?>> getChunkSyncMap(Connection sourceConnection, List<ChunkStatus> chunkStatuses) throws SQLException {
         Map<Integer, PGChunk<?>> chunkMap = new HashMap<>();
-        Statement statement = sourceConnection.createStatement();
-        ResultSet rs = statement.executeQuery(SQL_CHUNKS_SYNC);
+        PreparedStatement ps = sourceConnection.prepareStatement(SQL_CHUNKS_SYNC);
+        String[] arr = chunkStatuses
+                .stream()
+                .map(Enum::name)
+                .toArray(String[]::new);
+        Array array = sourceConnection.createArrayOf("VARCHAR", arr);
+        ps.setArray(1, array);
+        ResultSet rs = ps.executeQuery();
         if (rs.isBeforeFirst()) {
             while (rs.next()) {
                 try {
@@ -1061,7 +1068,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
         }
         rs.close();
-        statement.close();
+        ps.close();
         return chunkMap;
     }
 }
