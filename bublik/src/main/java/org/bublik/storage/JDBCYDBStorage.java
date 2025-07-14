@@ -122,15 +122,15 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                     Chunk<?> chunk) throws SQLException, BinaryWriteFailedException, SourceSQLException{
         int recordCount = 0;
 
-        chunk.insertProcessedChunkInfo(connectionTo, recordCount);
-        connectionTo.rollback();
-/*
+//        chunk.insertProcessedChunkInfo(connectionTo, recordCount);
+//        connectionTo.rollback();
         try {
             chunk.insertProcessedChunkInfo(connectionTo, recordCount);
             connectionTo.rollback();
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
-//            throw new RuntimeException(e);
+            log.error("chunkId = {} {}", chunk.getId(), getStackTrace(e));
+            throw new SQLException(e);
+/*
             connectionTo.rollback();
             return new LogMessage(
                     0,
@@ -138,8 +138,8 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                     System.currentTimeMillis(),
                     "The chunk has already been copied",
                     chunk);
-        }
 */
+        }
 
         Map<String, Column> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
 /*

@@ -34,6 +34,7 @@ import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static org.bublik.constants.SQLConstants.SQL_CHUNKS_ANG_SYNC;
 import static org.bublik.constants.SQLConstants.SQL_CHUNKS_SYNC;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
@@ -926,25 +927,31 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 "ctid < " + "concat('(', ? ,',1)')::tid";
     }
 
+    public String buildFetchStatementGreaterXidMin(Config config) {
+        return buildFetchStatement(config) + " and " +
+                (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
+                "xmin::text::int8 > ?";
+    }
+
+
     @Override
     public void sync() throws SQLException {
         Connection connection = getConnection();
-        // 1. Get all chunks
+        // 1. Generate new chunks above max(ctid end_page)
         List<ChunkStatus> chunkStatuses = new ArrayList<>();
         chunkStatuses.add(ChunkStatus.PROCESSED);
         chunkStatuses.add(ChunkStatus.UNCHANGED);
-        Map<Integer, PGChunk<?>> upsertChunks = getChunkSyncMap(connection, chunkStatuses);
-        // 2. Check PK at the target tables
-//        List<Column> d = chunks.values().stream().findFirst().get().getSourceTable().getPKColumns(connection);
-        // 3. Generate new chunks above max(ctid end_page)
-//        createSyncChunksGraterMaxCtidEndPage(upsertChunks);
-//        chunks = getChunkSyncMap(connection);
+        createSyncChunksGraterMaxCtidEndPage(connection, chunkStatuses);
+        Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(connection, chunkStatuses);
         // 4. Generate new chunks with XMIN greater than XIDMIN within each chunk
-        createSyncChunks(upsertChunks);
-        // 5. UPSERT to the target
+        createSyncChunks(copyChunks);
         Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
         assert targetStorage != null;
-        upsertToTarget(upsertChunks, targetStorage);
+        upsertToTarget(copyChunks, targetStorage);
+/*
+        // 3. Check PK at the target tables
+//        List<Column> d = chunks.values().stream().findFirst().get().getSourceTable().getPKColumns(connection);
+*/
     }
 
     private void upsertToTarget(Map<Integer, PGChunk<?>> chunks, Storage targetStorage) throws SQLException {
@@ -960,63 +967,59 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 .insertOnConflict()
                                 .saveChunkUpserted()
                                 .saveChunkStatus(chunk.getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED);
-                        log.info("ChunkId = {} {} {} {}", chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getUpserted(), chunk.getTargetTable().getTableName());
+                        log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}", chunk.getId(),
+                                chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
+                                chunk.getTargetTable().getTableName(), chunk.getUpserted());
                     } catch (SQLException e) {
                         log.error("Error during upsert to target: {}", e.getMessage());
                     }
                 });
     }
 
-    public String buildFetchStatementGreaterXidMin(Config config) {
-        return buildFetchStatement(config) + " and " +
-                (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "xmin::text::int8 > ?";
-    }
-
-    private void createSyncChunksGraterMaxCtidEndPage(Map<Integer, PGChunk<?>> chunks) throws SQLException {
-        long maxCtidEndPage;
-        try {
-            maxCtidEndPage = chunks
-                    .values()
-                    .stream()
-                    .map(PGChunk::getEnd)
-                    .max(Long::compareTo)
-                    .orElseThrow(() -> new SQLException("No chunks found"));
-        } catch (SQLException e) {
-            log.info("There are no new chunks greater than max end_page, skipping ctid chunks creation");
-            return;
-        }
-//        log.info("Max ctid end page: {}", maxCtidEndPage);
-        if (maxCtidEndPage > 0) {
-            Chunk<?> chunk = chunks
-                    .values()
-                    .stream()
-                    .filter(i -> i.getEnd() == maxCtidEndPage)
-                    .findFirst()
-                    .orElseThrow();
-            Config config = chunk.getConfig();
-            Connection connection = chunk.getSourceConnection();
-            Table table = new PGTable(config.fromSchemaName(), config.fromTableName());
-            long heap_blks_total = getTotalPagesOfTable(connection, table);
-            if (heap_blks_total > maxCtidEndPage) {
-                try {
-                    insertCtidChunks(
-                            connection,
-                            config,
-                            table,
-                            maxCtidEndPage,
-                            heap_blks_total,
-                            (Long) chunk.getEnd() - (Long) chunk.getStart(),
-                            ChunkStatus.UNASSIGNED);
-                    updateXidOfCtidChunks(connection);
-                    connection.commit();
-//                    start(config);
-                } catch (JsonProcessingException j) {
-                    log.error("Error during chunk creation: {}", j.getMessage());
-                    throw new SQLException("Error during chunk creation", j);
+    private void createSyncChunksGraterMaxCtidEndPage(Connection connection, List<ChunkStatus> statuses) throws SQLException {
+        PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_ANG_SYNC);
+        String[] arr = statuses
+                .stream()
+                .map(Enum::name)
+                .toArray(String[]::new);
+        Array array = connection.createArrayOf("VARCHAR", arr);
+        ps.setArray(1, array);
+        ResultSet rs = ps.executeQuery();
+        if (rs.isBeforeFirst()) {
+            while (rs.next()) {
+/*
+                log.info("{} {} {} {} {} {}", rs.getString("schema_name"), rs.getString("table_name"),
+                        rs.getString("task_name"), rs.getLong("pages_in_chunk"), rs.getLong("max_ctid_end_page")
+                        , rs.getLong("heap_blks_total"));
+*/
+                long maxCtidEndPage = rs.getLong("max_ctid_end_page");
+                long heapBlksTotal = rs.getLong("heap_blks_total");
+                long pagesInChunk = rs.getLong("pages_in_chunk");
+                long max_xid_min = rs.getLong("max_xid_min");
+                if (heapBlksTotal > maxCtidEndPage) {
+                    try {
+                        Table table = new PGTable(rs.getString("schema_name"), rs.getString("table_name"));
+                        ObjectMapper objectMapper = new ObjectMapper();
+                        Config config = objectMapper.readValue(rs.getString("config"), Config.class);
+                        insertCtidChunks(
+                                connection,
+                                config,
+                                table,
+                                maxCtidEndPage,
+                                heapBlksTotal,
+                                pagesInChunk,
+                                ChunkStatus.UNCHANGED,
+                                0,
+                                max_xid_min);
+                        connection.commit();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
+        rs.close();
+        ps.close();
     }
 
     private void createSyncChunks(Map<Integer, PGChunk<?>> chunks) {
@@ -1033,14 +1036,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public Map<Integer, PGChunk<?>> getChunkSyncMap(Connection sourceConnection, List<ChunkStatus> chunkStatuses) throws SQLException {
+    public Map<Integer, PGChunk<?>> getChunkSyncMap(Connection connection, List<ChunkStatus> chunkStatuses) throws SQLException {
         Map<Integer, PGChunk<?>> chunkMap = new HashMap<>();
-        PreparedStatement ps = sourceConnection.prepareStatement(SQL_CHUNKS_SYNC);
+        PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_SYNC);
         String[] arr = chunkStatuses
                 .stream()
                 .map(Enum::name)
                 .toArray(String[]::new);
-        Array array = sourceConnection.createArrayOf("VARCHAR", arr);
+        Array array = connection.createArrayOf("VARCHAR", arr);
         ps.setArray(1, array);
         ResultSet rs = ps.executeQuery();
         if (rs.isBeforeFirst()) {
@@ -1059,7 +1062,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             rs.getInt("parent_id"),
                             rs.getInt("xidmin"),
                             rs.getInt("xidmax"),
-                            sourceConnection,
+                            connection,
                             buildFetchStatementGreaterXidMin(config)
                     ));
                 } catch (IOException e) {

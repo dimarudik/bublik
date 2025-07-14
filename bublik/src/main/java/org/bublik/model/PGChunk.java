@@ -78,11 +78,11 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveChunkRows(int rows) throws SQLException {
+    public Chunk<?> saveChunkRows(int copied) throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
-        updateStatus = connection.prepareStatement(DML_UPDATE_ROWS_CTID_CHUNKS);
-        updateStatus.setInt(1, rows);
+        updateStatus = connection.prepareStatement(DML_UPDATE_COPIED_CTID_CHUNKS);
+        updateStatus.setInt(1, copied);
         updateStatus.setInt(2, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();

@@ -31,7 +31,8 @@ public abstract class SQLConstants {
             "schema_name varchar(128), " +
             "table_name varchar(256), " +
             "config jsonb, " +
-            "rows bigint, " +
+            "required bigint, " +
+            "copied bigint, " +
             "upserted bigint, " +
             "task_name varchar(128), " +
             "status varchar(20)  default 'UNASSIGNED', " +
@@ -73,8 +74,13 @@ public abstract class SQLConstants {
             "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name) " +
                     "values (?, ?, ?, ?, ?, ?, ?)";
     public static final String DML_INSERT_CTID_CHUNKS =
-            "insert into public.ctid_chunks (parent_id, start_page, end_page, xidmin, xidmax, task_name, schema_name, table_name, config, status, rows) " +
+            "insert into public.ctid_chunks (parent_id, start_page, end_page, xidmin, xidmax, task_name, schema_name, table_name, config, status, copied) " +
             "values (?, ?, ?, ?, ?, ?, ?, ?, to_json(?::json), ?, ?)";
+    public static final String SQL_CHUNKS_ANG_SYNC =
+            "select schema_name, table_name, task_name, config, AVG(end_page - start_page) as pages_in_chunk, " +
+                    "MAX(end_page) max_ctid_end_page, MAX(xidmin) max_xid_min, " +
+                    "pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total" +
+                    " from public.ctid_chunks where status = ANY (?) and xidmin is not null group by schema_name, table_name, task_name, config";
     public static final String SQL_CHUNKS_SYNC =
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
                     " from public.ctid_chunks where status = ANY (?) and xidmin is not null";
@@ -82,10 +88,12 @@ public abstract class SQLConstants {
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
                     " from public.ctid_chunks where status = ANY (?) and xidmin is not null";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
-            "insert into public.ctid_chunks (start_page, end_page, rows, task_name, schema_name, table_name, status, config) " +
-                    "(select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as rows, ? task_name, ? schema_name, ? table_name, ? status, to_json(?::json) from generate_series(?, ?, ?) as n)";
+            "insert into public.ctid_chunks (start_page, end_page, copied, task_name, " +
+                    "schema_name, table_name, status, config, required, xidmin ) " +
+                    "(select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as copied, ? task_name, " +
+                    "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? as xidmin from generate_series(?, ?, ?) as n)";
     public static final String SQL_SELECT_CTID_CHUNKS =
-            "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks";
+            "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks where status = 'UNASSIGNED'";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
             "select max(xmin::text::int8) xidmin, max(xmax::text::int8) xidmax from $schemaName.$tableName " +
                     "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid";
@@ -100,8 +108,8 @@ public abstract class SQLConstants {
             "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(task_name => ?,chunk_id => ?,status => ?,err_msg => ?)";
     public static final String DML_UPDATE_CONFIG_CTID_CHUNKS =
             "update public.ctid_chunks set config = to_json(?::json) where chunk_id = ?";
-    public static final String DML_UPDATE_ROWS_CTID_CHUNKS =
-            "update public.ctid_chunks set rows = ? where chunk_id = ?";
+    public static final String DML_UPDATE_COPIED_CTID_CHUNKS =
+            "update public.ctid_chunks set copied = ? where chunk_id = ?";
     public static final String DML_UPDATE_UPSERTED_CTID_CHUNKS =
             "update public.ctid_chunks set upserted = ? where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS =
