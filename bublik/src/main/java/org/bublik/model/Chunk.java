@@ -1,5 +1,6 @@
 package org.bublik.model;
 
+import org.bublik.constants.ChunkStatus;
 import org.bublik.service.ChunkService;
 import org.bublik.storage.Storage;
 import org.slf4j.Logger;
@@ -171,6 +172,24 @@ public abstract class Chunk<T> implements ChunkService {
         setStartTime(System.currentTimeMillis());
         ResultSet resultSet = getData(getSourceConnection(), getFetchQuery());
         setResultSet(resultSet);
+        return this;
+    }
+
+    public Chunk<?> copyChunk() throws SQLException {
+        this
+                .assignSourceConnection()
+                .saveChunkStatus(ChunkStatus.ASSIGNED, null, null)
+                .assignSourceResultSet()
+                .assignResultLogMessage()
+                .saveConfig()
+                .saveChunkRows(getRows())
+                .saveChunkStatus(ChunkStatus.PROCESSED, null, null)
+                .closeChunkSourceConnection();
+        LogMessage logMessage = getLogMessage();
+        logMessage.loggerChunkInfo();
+        if (getSourceConnection().isValid(0)) {
+            getSourceConnection().close();
+        }
         return this;
     }
 

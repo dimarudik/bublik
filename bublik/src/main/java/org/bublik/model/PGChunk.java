@@ -12,10 +12,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.bublik.constants.SQLConstants.*;
+import static org.bublik.exception.Utils.getStackTrace;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
@@ -210,10 +212,15 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                         .stream()
                         .map(c -> "(?)::" + c.getColumnType())
                         .toList()));
-        sb.setLength(sb.length() - 2); // Remove last comma and space
+//        sb.setLength(sb.length() - 2);
         sb.append(")");
         sb.append(" ON CONFLICT (");
-        sb.append(getTargetTable().getPKColumns(getTargetConnection())
+        List<Column> pkColumns = getTargetTable().getPKColumns(getTargetConnection());
+        if (pkColumns.isEmpty()) {
+            throw new SQLException("No primary key columns found for table: " + getTargetTable().getTableName());
+        }
+        sb.append(
+                pkColumns
                 .stream()
                 .map(Column::getColumnName)
                 .collect(Collectors.joining(", ")));
@@ -222,20 +229,24 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 .values()
                 .stream()
                 .map(Column::getColumnName)
-                .filter(columnName -> {
-                    try {
-                        return !getTargetTable().getPKColumns(getTargetConnection())
-                                .stream()
-                                .map(Column::getColumnName)
-                                .collect(Collectors.toSet())
-                                .contains(columnName);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+                .filter(columnName -> !pkColumns
+                        .stream()
+                        .map(Column::getColumnName)
+                        .collect(Collectors.toSet())
+                        .contains(columnName))
                 .map(p -> p + " = EXCLUDED." + p)
                 .collect(Collectors.joining(", ")));
         return sb.toString();
+    }
+
+    public void upsertToTarget() throws SQLException {
+        this
+                .insertOnConflict()
+                .saveChunkUpserted()
+                .saveChunkStatus(getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED);
+        log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}",
+                getId(), getConfig().fromTaskName(), getConfig().fromSchemaName(),
+                getTargetTable().getTableName(), getUpserted());
     }
 
     public Chunk<?> insertOnConflict() throws SQLException {
@@ -245,26 +256,27 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         st.setLong(1, getStart());
         st.setLong(2, getEnd());
         st.setInt(3, getXidMin());
-//        log.info("{} {} {} {}", getFetchQuery(), getStart(), getEnd(), getXidMin());
         ResultSet rs = st.executeQuery();
-//        log.info("{}", getBatchInsertQuery());
-        PreparedStatement ps = toConnection.prepareStatement(getBatchInsertQuery());
         int upserted = 0;
-        while (rs.next()) {
-            Map<String, Column> columnMap = this.getTargetStorage().readTargetColumnsAndTypes(toConnection, this);
-            int index = 1;
-            for(Map.Entry<String, Column> entry : columnMap.entrySet()) {
-                String columnName = entry.getKey();
-                Column targetColumn = entry.getValue();
-                ps.setObject(index++, rs.getObject(columnName.replaceAll("\"", "")), targetColumn.getDataType());
+        if (rs.isBeforeFirst()) {
+            setBatchInsertQuery(buildInsertOnConflictQuery());
+            PreparedStatement ps = toConnection.prepareStatement(getBatchInsertQuery());
+            while (rs.next()) {
+                Map<String, Column> columnMap = this.getTargetStorage().readTargetColumnsAndTypes(toConnection, this);
+                int index = 1;
+                for (Map.Entry<String, Column> entry : columnMap.entrySet()) {
+                    String columnName = entry.getKey();
+                    Column targetColumn = entry.getValue();
+                    ps.setObject(index++, rs.getObject(columnName.replaceAll("\"", "")), targetColumn.getDataType());
+                }
+                ps.addBatch();
+                upserted++;
             }
-            ps.addBatch();
-            upserted++;
+            int[] n = ps.executeBatch();
+            toConnection.commit();
+            ps.close();
         }
-        int[] n = ps.executeBatch();
-        toConnection.commit();
         setUpserted(upserted);
-        ps.close();
         st.close();
         rs.close();
         return this;

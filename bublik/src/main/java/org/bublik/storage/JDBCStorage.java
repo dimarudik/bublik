@@ -80,25 +80,7 @@ public abstract class JDBCStorage extends Storage {
                     Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
                     chunk.setTargetStorage(targetStorage);
                     try {
-                        return copyChunk(chunk);
-/*
-                        Chunk<?> c = chunk
-                                .assignSourceConnection()
-                                .saveChunkStatus(ChunkStatus.ASSIGNED, null, null)
-                                .assignSourceResultSet()
-                                .assignResultLogMessage()
-                                .saveConfig()
-                                .saveChunkRows(chunk.getRows())
-                                .saveChunkStatus(ChunkStatus.PROCESSED, null, null)
-                                .closeChunkSourceConnection();
-                        LogMessage logMessage = c.getLogMessage();
-                        logMessage.loggerChunkInfo();
-                        if (chunk.getSourceConnection().isValid(0)) {
-                            chunk.getSourceConnection().close();
-                        }
-                        assert targetStorage != null;
-                        return c;
-*/
+                        return chunk.copyChunk();
                     } catch (Exception e) {
                         log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                         try {
@@ -123,6 +105,7 @@ public abstract class JDBCStorage extends Storage {
 
     }
 
+/*
     public Chunk<?> copyChunk(Chunk<?> chunk) throws SQLException {
         Chunk<?> c = chunk
                 .assignSourceConnection()
@@ -138,8 +121,8 @@ public abstract class JDBCStorage extends Storage {
         if (chunk.getSourceConnection().isValid(0)) {
             chunk.getSourceConnection().close();
         }
-//        assert targetStorage != null;
         return c;
     }
+*/
 
 }

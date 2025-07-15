@@ -70,7 +70,6 @@ public class PGTable extends Table {
             Integer keySeq = rs.getInt("KEY_SEQ");
             String pkName = rs.getString("PK_NAME");
             String columnName = rs.getString("COLUMN_NAME");
-//            log.info("{}: {} - {}", pkName, keySeq, columnName);
             pkColumns.add(new Column(keySeq, columnName, null, null));
         }
         return pkColumns;

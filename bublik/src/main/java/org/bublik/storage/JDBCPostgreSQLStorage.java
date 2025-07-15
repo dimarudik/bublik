@@ -32,6 +32,8 @@ import java.sql.*;
 import java.sql.Date;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import static org.bublik.constants.SQLConstants.SQL_CHUNKS_ANG_SYNC;
@@ -862,6 +864,20 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
+                case "_uuid":
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setUUIDArray(targetColumn, null);
+                            break;
+                        }
+                        List<UUID> arr = List.of(((UUID[]) fetchResultSet.getArray(sourceColumn).getArray()));
+                        row.setUUIDArray(targetColumn, arr);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        throw e;
+                    }
                 default:
                     try {
                         if (chunk.getConfig().tryCharIfAny() != null) {
@@ -879,7 +895,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 connectionTo.close();
                             }
                         } else {
-                            log.error("\u001B[31mtryCharIfAny is NULL\u001B[0m");
+                            log.error("\u001B[31mtryCharIfAny is NULL for type: {}\u001B[0m", targetType);
                             throw new RuntimeException();
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
@@ -937,47 +953,57 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     @Override
     public void sync() throws SQLException {
         Connection connection = getConnection();
-        // 1. Generate new chunks above max(ctid end_page)
+        Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
+        assert targetStorage != null;
+        Connection targetConnection = targetStorage.getConnection();
         List<ChunkStatus> chunkStatuses = new ArrayList<>();
         chunkStatuses.add(ChunkStatus.PROCESSED);
         chunkStatuses.add(ChunkStatus.UNCHANGED);
-        createSyncChunksGraterMaxCtidEndPage(connection, chunkStatuses);
+        List<Table> targetTables = createSyncChunksGraterMaxCtidEndPage(connection, chunkStatuses);
+        targetTables
+                .stream()
+                .filter(table -> {
+                    try {
+                        return !table.getPKColumns(targetConnection).isEmpty();
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .findAny()
+                .orElseThrow(() -> new RuntimeException("There is no table with PK in target storage!"));
+
         Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(connection, chunkStatuses);
-        // 4. Generate new chunks with XMIN greater than XIDMIN within each chunk
         createSyncChunks(copyChunks);
-        Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
-        assert targetStorage != null;
-        upsertToTarget(copyChunks, targetStorage);
+
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        copyChunks.values()
+                .forEach(chunk -> service.submit(() -> {
+                    try {
+                        chunk.setTargetStorage(targetStorage);
+                        chunk.setTargetConnection(targetStorage.getConnection());
+                        chunk.upsertToTarget();
+                    } catch (SQLException e) {
+                        log.error(getStackTrace(e));
+                        try {
+                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
+                        } catch (SQLException ex) {
+                            log.error(getStackTrace(ex));
+                        }
+                        throw new RuntimeException(e);
+                    }
+                })
+                );
+        service.shutdown();
+        service.close();
 /*
         // 3. Check PK at the target tables
 //        List<Column> d = chunks.values().stream().findFirst().get().getSourceTable().getPKColumns(connection);
 */
     }
 
-    private void upsertToTarget(Map<Integer, PGChunk<?>> chunks, Storage targetStorage) throws SQLException {
-        Connection connectionTo = targetStorage.getConnection();
-        chunks
-                .values()
-                .forEach(chunk -> {
-                    try {
-                        chunk.setTargetStorage(targetStorage);
-                        chunk.setTargetConnection(connectionTo);
-                        chunk.setBatchInsertQuery(chunk.buildInsertOnConflictQuery());
-                        chunk
-                                .insertOnConflict()
-                                .saveChunkUpserted()
-                                .saveChunkStatus(chunk.getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED);
-                        log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}", chunk.getId(),
-                                chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
-                                chunk.getTargetTable().getTableName(), chunk.getUpserted());
-                    } catch (SQLException e) {
-                        log.error("Error during upsert to target: {}", e.getMessage());
-                    }
-                });
-    }
-
-    private void createSyncChunksGraterMaxCtidEndPage(Connection connection, List<ChunkStatus> statuses) throws SQLException {
+    private List<Table> createSyncChunksGraterMaxCtidEndPage(Connection connection, List<ChunkStatus> statuses) throws SQLException {
         PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_ANG_SYNC);
+        List<Table> tables = new ArrayList<>();
         String[] arr = statuses
                 .stream()
                 .map(Enum::name)
@@ -987,20 +1013,19 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         ResultSet rs = ps.executeQuery();
         if (rs.isBeforeFirst()) {
             while (rs.next()) {
-/*
-                log.info("{} {} {} {} {} {}", rs.getString("schema_name"), rs.getString("table_name"),
-                        rs.getString("task_name"), rs.getLong("pages_in_chunk"), rs.getLong("max_ctid_end_page")
-                        , rs.getLong("heap_blks_total"));
-*/
                 long maxCtidEndPage = rs.getLong("max_ctid_end_page");
                 long heapBlksTotal = rs.getLong("heap_blks_total");
                 long pagesInChunk = rs.getLong("pages_in_chunk");
                 long max_xid_min = rs.getLong("max_xid_min");
-                if (heapBlksTotal > maxCtidEndPage) {
-                    try {
-                        Table table = new PGTable(rs.getString("schema_name"), rs.getString("table_name"));
-                        ObjectMapper objectMapper = new ObjectMapper();
-                        Config config = objectMapper.readValue(rs.getString("config"), Config.class);
+                String taskName = rs.getString("task_name");
+                String schemaName = rs.getString("schema_name");
+                String tableName = rs.getString("table_name");
+                String stringConfig = rs.getString("config");
+                ObjectMapper objectMapper = new ObjectMapper();
+                try {
+                    Config config = objectMapper.readValue(stringConfig, Config.class);
+                    if (heapBlksTotal > maxCtidEndPage) {
+                        Table table = new PGTable(schemaName, tableName);
                         insertCtidChunks(
                                 connection,
                                 config,
@@ -1012,14 +1037,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 0,
                                 max_xid_min);
                         connection.commit();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
                     }
+                    tables.add(new PGTable(config.toSchemaName(), config.toTableName()));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
             }
         }
         rs.close();
         ps.close();
+        return tables;
     }
 
     private void createSyncChunks(Map<Integer, PGChunk<?>> chunks) {
