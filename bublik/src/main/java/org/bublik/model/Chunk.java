@@ -215,4 +215,14 @@ public abstract class Chunk<T> implements ChunkService {
         }
         return this;
     }
+
+    public Chunk<?> closeChunkTargetConnection() throws SQLException {
+        Connection connection = getTargetConnection();
+        if (connection.isValid(0)) {
+            connection.close();
+        } else {
+            throw new RuntimeException();
+        }
+        return this;
+    }
 }

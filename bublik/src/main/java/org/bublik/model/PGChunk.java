@@ -98,7 +98,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_UPSERTED_CTID_CHUNKS);
         updateStatus.setInt(1, getUpserted());
-        updateStatus.setInt(2, this.getId());
+        updateStatus.setInt(2, getUpserted());
+        updateStatus.setInt(3, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
         connection.commit();
@@ -273,8 +274,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 upserted++;
             }
             int[] n = ps.executeBatch();
-            toConnection.commit();
             ps.close();
+            toConnection.commit();
         }
         setUpserted(upserted);
         st.close();

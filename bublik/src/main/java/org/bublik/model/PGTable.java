@@ -72,6 +72,7 @@ public class PGTable extends Table {
             String columnName = rs.getString("COLUMN_NAME");
             pkColumns.add(new Column(keySeq, columnName, null, null));
         }
+        rs.close();
         return pkColumns;
     }
 

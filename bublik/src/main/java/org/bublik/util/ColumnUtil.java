@@ -224,7 +224,7 @@ public class ColumnUtil {
                                          long pagesInChunk,
                                          ChunkStatus status,
                                          int required,
-                                         long xidmin) throws SQLException, JsonProcessingException {
+                                         long last_id) throws SQLException, JsonProcessingException {
         String sql = DML_BATCH_INSERT_CTID_CHUNKS
                 .replace("$schemaName", table.getSchemaName().toLowerCase())
                 .replace("$tableName", table.getTableName());
@@ -242,7 +242,7 @@ public class ColumnUtil {
         chunkInsert.setString(9, status.toString());
         chunkInsert.setString(10, jacksonData);
         chunkInsert.setLong(11, required);
-        chunkInsert.setLong(12, xidmin);
+        chunkInsert.setLong(12, last_id);
         chunkInsert.setLong(13, startPage);
         chunkInsert.setLong(14, totalPages);
         chunkInsert.setLong(15, pagesInChunk);

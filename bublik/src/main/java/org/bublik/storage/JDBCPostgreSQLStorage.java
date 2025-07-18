@@ -1,6 +1,5 @@
 package org.bublik.storage;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
@@ -36,8 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-import static org.bublik.constants.SQLConstants.SQL_CHUNKS_ANG_SYNC;
-import static org.bublik.constants.SQLConstants.SQL_CHUNKS_SYNC;
+import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
@@ -966,28 +964,46 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     try {
                         return !table.getPKColumns(targetConnection).isEmpty();
                     } catch (SQLException e) {
+                        try {
+                            targetConnection.close();
+                        } catch (SQLException ex) {
+                            throw new RuntimeException(ex);
+                        }
                         throw new RuntimeException(e);
                     }
                 })
                 .findAny()
                 .orElseThrow(() -> new RuntimeException("There is no table with PK in target storage!"));
+        targetConnection.close();
 
         Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(connection, chunkStatuses);
         createSyncChunks(copyChunks);
+        connection.close();
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         copyChunks.values()
                 .forEach(chunk -> service.submit(() -> {
                     try {
                         chunk.setTargetStorage(targetStorage);
-                        chunk.setTargetConnection(targetStorage.getConnection());
+                        Connection fromConnection = this.getConnection();
+                        Connection toConnection = targetStorage.getConnection();
+                        chunk.setSourceConnection(fromConnection);
+                        chunk.setTargetConnection(toConnection);
                         chunk.upsertToTarget();
+                        chunk.closeChunkSourceConnection();
+                        chunk.closeChunkTargetConnection();
                     } catch (SQLException e) {
                         log.error(getStackTrace(e));
                         try {
                             chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
+                            chunk.closeChunkSourceConnection();
                         } catch (SQLException ex) {
                             log.error(getStackTrace(ex));
+                            try {
+                                chunk.closeChunkSourceConnection();
+                            } catch (SQLException exc) {
+                                log.error(getStackTrace(exc));
+                            }
                         }
                         throw new RuntimeException(e);
                     }
@@ -1002,7 +1018,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     private List<Table> createSyncChunksGraterMaxCtidEndPage(Connection connection, List<ChunkStatus> statuses) throws SQLException {
-        PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_ANG_SYNC);
+        connection.setAutoCommit(false);
+        PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_AVG_SYNC);
         List<Table> tables = new ArrayList<>();
         String[] arr = statuses
                 .stream()
@@ -1016,7 +1033,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 long maxCtidEndPage = rs.getLong("max_ctid_end_page");
                 long heapBlksTotal = rs.getLong("heap_blks_total");
                 long pagesInChunk = rs.getLong("pages_in_chunk");
-                long max_xid_min = rs.getLong("max_xid_min");
+                long last_id = rs.getLong("last_id");
                 String taskName = rs.getString("task_name");
                 String schemaName = rs.getString("schema_name");
                 String tableName = rs.getString("table_name");
@@ -1031,12 +1048,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 config,
                                 table,
                                 maxCtidEndPage,
-                                heapBlksTotal,
+                                Math.max((maxCtidEndPage + pagesInChunk), heapBlksTotal),
+//                                heapBlksTotal,
                                 pagesInChunk,
                                 ChunkStatus.UNCHANGED,
                                 0,
-                                max_xid_min);
+                                last_id);
                         connection.commit();
+                        log.info("NEW Chunk pagesInChunk: {} maxCtidEndPage: {} maxCtidEndPage + pagesInChunk: {} with last_id {}",
+                                pagesInChunk, maxCtidEndPage, maxCtidEndPage + pagesInChunk, last_id);
+
                     }
                     tables.add(new PGTable(config.toSchemaName(), config.toTableName()));
                 } catch (IOException e) {
@@ -1046,6 +1067,22 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
         rs.close();
         ps.close();
+        ps = connection.prepareStatement(SQL_CHUNKS_SYNC_WITHOUT_XIDMIN);
+        ps.setArray(1, array);
+        rs = ps.executeQuery();
+        if (rs.isBeforeFirst()) {
+            while (rs.next()) {
+                int chunkId = rs.getInt("chunk_id");
+//                int lastId = rs.getInt("last_id");
+                PreparedStatement statement = connection.prepareStatement(DML_UPDATE_XID_OF_CTID_CHUNKS_BY_LAST_ID);
+                statement.setInt(1, chunkId);
+                statement.execute();
+                statement.close();
+            }
+        }
+        rs.close();
+        ps.close();
+        connection.commit();
         return tables;
     }
 
@@ -1055,6 +1092,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 Map.Entry<Integer, Integer> xidMinMax = chunk.getXidMinMax();
                 if (xidMinMax.getKey() > chunk.getXidMin()) {
                     chunk.insertParentChunk(xidMinMax.getKey());
+                    log.info("New PARENT ChunkId: {} start: {} end: {} with xidmin {}",
+                            chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
                 }
             }
         } catch (SQLException | IOException e) {
