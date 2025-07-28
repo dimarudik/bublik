@@ -30,21 +30,29 @@ public class App {
             service
                     .submit(() -> {
                         try (Connection connection = DriverManager.getConnection(args[0])) {
-                            if (tmp == 0) {
-                                int d = insert(connection);
-                                counterOfInserted.addAndGet(d);
+                            int c = Math.toIntExact(Thread.currentThread().threadId() % 3);
+                            switch (c) {
+                                case 0: {
+                                    if (tmp == 0) {
+                                        int d = insert(connection);
+                                        counterOfInserted.addAndGet(d);
+                                    }
+                                }
+                                case 1: {
+                                    int count = updateTimestamptzByRange(connection, threadCount);
+                                    counterUpdatedTimestampTZ.addAndGet(count);
+                                }
+                                case 2: {
+                                    for (int j = 0; j < 100; j++) {
+                                        int d = updateTimestamp(connection);
+                                        counterUpdatedTimestamp.addAndGet(d);
+                                    }
+                                }
                             }
-                            for (int j = 0; j < 100; j++) {
-                                updateTimestamp(connection);
-                                counterUpdatedTimestamp.addAndGet(1);
-                            }
-                            int count = updateTimestamptzBetween(connection, threadCount);
-                            counterUpdatedTimestampTZ.addAndGet(count);
                         } catch (SQLException e) {
                             e.printStackTrace();
                         }
                     });
-
         }
 
         service.shutdown();
@@ -55,25 +63,25 @@ public class App {
 
     }
 
-    public static void updateTimestamp(Connection connection) throws SQLException {
+    public static int updateTimestamp(Connection connection) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("update s50k set timestamp = now() where id = ?");
-        int id = getRandomInt(10, 45000);
+        int id = getRandomInt(1, 60000);
         statement.setInt(1, id);
-        statement.execute();
+        int d = statement.executeUpdate();
         statement.close();
+        return d;
     }
 
-    public static int updateTimestamptzBetween(Connection connection, int threadCount) throws SQLException {
+    public static int updateTimestamptzByRange(Connection connection, int threadCount) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("update s50k set timestamptz = now() where id between ? and ?");
         int t = Math.toIntExact(Thread.currentThread().threadId()) % threadCount * 10;
         int start = getRandomInt(t, t + 100);
-        int end = getRandomInt(start, start + 100);
+        int end = getRandomInt(start, start + 500);
         statement.setInt(1, start);
         statement.setInt(2, end);
         int d = statement.executeUpdate();
         statement.close();
-//        Thread.sleep(20);
-        System.out.println(start + " " + end + " " + (end - start + 1) + " " + t);
+//        System.out.println(start + " " + end + " " + (end - start + 1) + " " + t);
         return d;
     }
 
@@ -94,7 +102,7 @@ public class App {
                 "            else null end as current_mood, " +
                 "        now() as time " +
                 "    from generate_series( (select max(id) + 1 from s50k) , (select max(id) + 1 from s50k) + ? ) as n");
-        int count = getRandomInt(1, 1500);
+        int count = getRandomInt(1, 2500);
         statement.setInt(1, count);
         int d = statement.executeUpdate();
 //        System.out.println("inserted: " + d);

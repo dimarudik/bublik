@@ -998,11 +998,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
                             chunk.closeChunkSourceConnection();
                         } catch (SQLException ex) {
-                            log.error(getStackTrace(ex));
+                            log.error("{}", getStackTrace(ex));
                             try {
                                 chunk.closeChunkSourceConnection();
                             } catch (SQLException exc) {
-                                log.error(getStackTrace(exc));
+                                log.error("{}",getStackTrace(exc));
                             }
                         }
                         throw new RuntimeException(e);
@@ -1089,7 +1089,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     private void createSyncChunks(Map<Integer, PGChunk<?>> chunks) {
         try {
             for (PGChunk<?> chunk : chunks.values()) {
-                Map.Entry<Integer, Integer> xidMinMax = chunk.getXidMinMax();
+                Map.Entry<Long, Long> xidMinMax = chunk.getXidMinMax();
                 if (xidMinMax.getKey() > chunk.getXidMin()) {
                     chunk.insertParentChunk(xidMinMax.getKey());
                     log.info("New PARENT ChunkId: {} start: {} end: {} with xidmin {}",
@@ -1097,7 +1097,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 }
             }
         } catch (SQLException | IOException e) {
-            log.error("Error during sync: {}", e.getMessage());
+            log.error("{}", getStackTrace(e));
+//            log.error("Error during sync: {}", e.getMessage());
         }
     }
 
@@ -1126,8 +1127,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             new PGTable(config.toSchemaName(), config.toTableName()),
                             this,
                             rs.getInt("parent_id"),
-                            rs.getInt("xidmin"),
-                            rs.getInt("xidmax"),
+                            rs.getLong("xidmin"),
+                            rs.getLong("xidmax"),
                             connection,
                             buildFetchStatementGreaterXidMin(config)
                     ));

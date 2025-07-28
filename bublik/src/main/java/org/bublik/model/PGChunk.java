@@ -17,13 +17,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.bublik.constants.SQLConstants.*;
-import static org.bublik.exception.Utils.getStackTrace;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
     private final Integer parentId;
-    private final Integer xidMin;
-    private final Integer xidMax;
+    private final Long xidMin;
+    private final Long xidMax;
 
     public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
@@ -33,7 +32,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage,
-                   Integer parentId, Integer xidMin, Integer xidMax, Connection sourceConnection, String fetchQuery) {
+                   Integer parentId, Long xidMin, Long xidMax, Connection sourceConnection, String fetchQuery) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
         this.parentId = parentId;
         this.xidMin = xidMin;
@@ -46,11 +45,11 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         return parentId;
     }
 
-    public Integer getXidMin() {
+    public Long getXidMin() {
         return xidMin;
     }
 
-    public Integer getXidMax() {
+    public Long getXidMax() {
         return xidMax;
     }
 
@@ -150,7 +149,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         chunkInsert.close();
     }
 
-    public Map.Entry<Integer, Integer> getXidMinMax() throws SQLException {
+    public Map.Entry<Long, Long> getXidMinMax() throws SQLException {
         Config config = getConfig();
         String sql = SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK
                 .replace("$schemaName", config.fromSchemaName())
@@ -160,18 +159,18 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         selectMaxXmin.setLong(1, getStart());
         selectMaxXmin.setLong(2, getEnd());
         ResultSet set = selectMaxXmin.executeQuery();
-        int xidmin = 0;
-        int xidmax = 0;
+        long xidmin = 0;
+        long xidmax = 0;
         while (set.next()) {
-            xidmin = set.getInt("xidmin");
-            xidmax = set.getInt("xidmax");
+            xidmin = set.getLong("xidmin");
+            xidmax = set.getLong("xidmax");
         }
         set.close();
         selectMaxXmin.close();
         return Map.entry(xidmin, xidmax);
     }
 
-    public void insertParentChunk(Integer xidMin)
+    public void insertParentChunk(Long xidMin)
             throws SQLException, JsonProcessingException {
         PreparedStatement ps = getSourceConnection().prepareStatement(DML_INSERT_CTID_CHUNKS);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -179,8 +178,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         ps.setInt(1, getId());
         ps.setLong(2, getStart());
         ps.setLong(3, getEnd());
-        ps.setInt(4, xidMin);
-        ps.setInt(5, getXidMax());
+        ps.setLong(4, xidMin);
+        ps.setLong(5, getXidMax());
         ps.setString(6, getConfig().fromTaskName());
         ps.setString(7, getSourceTable().getSchemaName());
         ps.setString(8, getSourceTable().getTableName());
@@ -256,7 +255,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         PreparedStatement st = fromConnection.prepareStatement(getFetchQuery());
         st.setLong(1, getStart());
         st.setLong(2, getEnd());
-        st.setInt(3, getXidMin());
+        st.setLong(3, getXidMin());
         ResultSet rs = st.executeQuery();
         int upserted = 0;
         if (rs.isBeforeFirst()) {

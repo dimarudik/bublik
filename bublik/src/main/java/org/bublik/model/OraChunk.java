@@ -22,8 +22,8 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public Integer getXidMin() {
-        return 0;
+    public Long getXidMin() {
+        return 0L;
     }
 
 

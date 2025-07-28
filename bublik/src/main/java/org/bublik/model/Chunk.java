@@ -152,7 +152,7 @@ public abstract class Chunk<T> implements ChunkService {
 
     public abstract Integer getParentId();
 
-    public abstract Integer getXidMin();
+    public abstract Long getXidMin();
 
 
     public Chunk<?> assignSourceConnection() throws SQLException {

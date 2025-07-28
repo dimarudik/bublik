@@ -296,10 +296,16 @@ public class ColumnUtil {
 
     private static void createTableCtidChunks(Connection connection) {
         try {
-            Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
-            dropTable.close();
-            connection.commit();
+            try {
+                Statement dropTable = connection.createStatement();
+                dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
+                dropTable.close();
+                connection.commit();
+            } catch (SQLException ex) {
+                connection.rollback();
+                log.error("Error dropping table ctid_chunks, it may not exist yet.");
+//                log.error("{}", getStackTrace(ex));
+            }
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
             createTable.close();
