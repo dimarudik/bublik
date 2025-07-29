@@ -189,7 +189,7 @@ public class App {
                 log.info("Bublik starting...");
                 Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
                 assert sourceStorage != null;
-                sourceStorage.start(config);
+                sourceStorage.start(config, sync);
                 log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");
                 if (sync) {
                     log.info("To run synchronization of data from source to target, please use the following command: \n" +

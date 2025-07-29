@@ -10,16 +10,16 @@ import java.sql.SQLException;
 public interface ChunkService {
     ThreadLocal<Chunk<?>> CHUNK_THREAD_LOCAL = new ThreadLocal<>();
 
-    Chunk<?> saveChunkStatus(ChunkStatus status, Integer errNum, String errMsg) throws SQLException;
-    Chunk<?> saveChunkRows(int rows) throws SQLException;
+    Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) throws SQLException;
+    Chunk<?> saveChunkRows(int rows, boolean sync) throws SQLException;
     Chunk<?> saveChunkUpserted() throws SQLException;
-    Chunk<?> saveConfig() throws SQLException;
+    Chunk<?> saveConfig(boolean sync) throws SQLException;
     Chunk<?> assignSourceResultSet() throws SQLException;
     ResultSet getData(Connection connection, String query) throws SQLException;
     void insertProcessedChunkInfo(Connection connection, int rows) throws SQLException;
 
-    default Chunk<?> saveChunkStatus(ChunkStatus status) throws SQLException {
-        return saveChunkStatus(status, null, null);
+    default Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync) throws SQLException {
+        return saveChunkStatus(status, sync, null, null);
     }
 
     static void set(Chunk<?> chunk) {

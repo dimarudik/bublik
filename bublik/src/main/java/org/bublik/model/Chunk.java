@@ -167,6 +167,11 @@ public abstract class Chunk<T> implements ChunkService {
         }
     }
 
+    public Chunk<?> assignSourceConnection(Connection connection) throws SQLException {
+        setSourceConnection(connection);
+        return this;
+    }
+
     @Override
     public Chunk<?> assignSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
@@ -175,22 +180,41 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public Chunk<?> copyChunk() throws SQLException {
+    public Chunk<?> copyChunk(boolean sync) throws SQLException {
         this
                 .assignSourceConnection()
-                .saveChunkStatus(ChunkStatus.ASSIGNED, null, null)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-                .saveConfig()
-                .saveChunkRows(getRows())
-                .saveChunkStatus(ChunkStatus.PROCESSED, null, null)
-                .closeChunkSourceConnection();
+                .saveConfig(sync)
+                .saveChunkRows(getRows(), sync)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
+                .closeChunkSourceConnection(sync);
         LogMessage logMessage = getLogMessage();
         logMessage.loggerChunkInfo();
         if (getSourceConnection().isValid(0)) {
             getSourceConnection().close();
         }
         return this;
+    }
+
+    public void copyChunkInSync(Connection connection, boolean sync) throws SQLException {
+        this
+                .assignSourceConnection(connection)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
+                .assignSourceResultSet()
+                .assignResultLogMessage()
+                .saveConfig(sync)
+                .saveChunkRows(getRows(), sync)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
+                .closeChunkSourceConnection(sync);
+        LogMessage logMessage = getLogMessage();
+        logMessage.loggerChunkInfo();
+/*
+        if (getSourceConnection().isValid(0)) {
+            getSourceConnection().close();
+        }
+*/
     }
 
     public Chunk<?> assignResultLogMessage() throws SQLException {
@@ -206,13 +230,13 @@ public abstract class Chunk<T> implements ChunkService {
         }
     }
 
-    public Chunk<?> closeChunkSourceConnection() throws SQLException {
+    public Chunk<?> closeChunkSourceConnection(boolean sync) throws SQLException {
         Connection connection = getSourceConnection();
-        if (connection.isValid(0)) {
+        if (connection.isValid(0) && !sync) {
             connection.close();
-        } else {
+        } /*else {
             throw new RuntimeException();
-        }
+        }*/
         return this;
     }
 

@@ -101,8 +101,12 @@ public abstract class SQLConstants {
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks where status = 'UNASSIGNED'";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
-            "select max(xmin::text::int8) xidmin, max(xmax::text::int8) xidmax from $schemaName.$tableName " +
-                    "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid";
+//            "select max(xmin::text::int8) xidmin, max(xmax::text::int8) xidmax from $schemaName.$tableName " +
+//                    "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid";
+            "select xmin as xidmin, 0 as xidmax from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid and " +
+                    "age(xmin) = " +
+                    "(select min(age(xmin)) from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid " +
+                    "and age(xmin) > 0)";
     public static final String DML_UPDATE_XID_OF_CTID_CHUNKS =
             "update public.ctid_chunks set xidmin = ?, xidmax = ? where chunk_id = ?";
     public static final String DML_UPDATE_XID_OF_CTID_CHUNKS_BY_LAST_ID =

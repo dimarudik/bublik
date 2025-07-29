@@ -268,6 +268,8 @@ public class ColumnUtil {
                         connection.prepareStatement(sql);
                 selectMaxXmin.setLong(1, start_page);
                 selectMaxXmin.setLong(2, end_page);
+                selectMaxXmin.setLong(3, start_page);
+                selectMaxXmin.setLong(4, end_page);
                 ResultSet set = selectMaxXmin.executeQuery();
                 long xidmin = 0;
                 long xidmax = 0;

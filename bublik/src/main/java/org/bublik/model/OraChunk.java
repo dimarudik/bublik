@@ -28,7 +28,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
 
 
     @Override
-    public OraChunk<T> saveChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
+    public OraChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) {
         try {
             Connection connection = this.getSourceConnection();
             if (errMsg == null) {
@@ -56,7 +56,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveChunkRows(int rows) throws SQLException {
+    public Chunk<?> saveChunkRows(int rows, boolean sync) throws SQLException {
         return this;
     }
 
@@ -66,7 +66,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveConfig() throws SQLException {
+    public Chunk<?> saveConfig(boolean sync) throws SQLException {
         return null;
     }
 
@@ -94,7 +94,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveChunkStatus(ChunkStatus status) throws SQLException {
-        return super.saveChunkStatus(status);
+    public Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync) throws SQLException {
+        return super.saveChunkStatus(status, sync);
     }
 }

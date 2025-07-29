@@ -54,7 +54,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public PGChunk<T> saveChunkStatus(ChunkStatus status, Integer errNum, String errMsg) throws SQLException {
+    public PGChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) throws SQLException {
         if (status != null) {
             Connection connection = this.getSourceConnection();
             PreparedStatement updateStatus;
@@ -72,14 +72,15 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             }
             int rows = updateStatus.executeUpdate();
             updateStatus.close();
-            connection.commit();
+            if (!sync)
+                connection.commit();
         }
 //        LOGGER.debug("setChunkStatus {}", status);
         return this;
     }
 
     @Override
-    public Chunk<?> saveChunkRows(int copied) throws SQLException {
+    public Chunk<?> saveChunkRows(int copied, boolean sync) throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_COPIED_CTID_CHUNKS);
@@ -87,7 +88,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         updateStatus.setInt(2, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
-        connection.commit();
+        if (!sync)
+            connection.commit();
         return this;
     }
 
@@ -106,7 +108,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveConfig() throws SQLException {
+    public Chunk<?> saveConfig(boolean sync) throws SQLException {
 //        ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 //        mapper.writeValue(Paths.get(outputFileName).toFile(), configs);
         try {
@@ -119,7 +121,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             updateStatus.setInt(2, this.getId());
             int n = updateStatus.executeUpdate();
             updateStatus.close();
-            connection.commit();
+            if (!sync)
+                connection.commit();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -154,10 +157,11 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         String sql = SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK
                 .replace("$schemaName", config.fromSchemaName())
                 .replace("$tableName", config.fromTableName());
-        PreparedStatement selectMaxXmin =
-                getSourceConnection().prepareStatement(sql);
+        PreparedStatement selectMaxXmin = getSourceConnection().prepareStatement(sql);
         selectMaxXmin.setLong(1, getStart());
         selectMaxXmin.setLong(2, getEnd());
+        selectMaxXmin.setLong(3, getStart());
+        selectMaxXmin.setLong(4, getEnd());
         ResultSet set = selectMaxXmin.executeQuery();
         long xidmin = 0;
         long xidmax = 0;
@@ -243,7 +247,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         this
                 .insertOnConflict()
                 .saveChunkUpserted()
-                .saveChunkStatus(getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED);
+                .saveChunkStatus(getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED, false);
         log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}",
                 getId(), getConfig().fromTaskName(), getConfig().fromSchemaName(),
                 getTargetTable().getTableName(), getUpserted());
@@ -253,9 +257,11 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         Connection fromConnection = getSourceConnection();
         Connection toConnection = getTargetConnection();
         PreparedStatement st = fromConnection.prepareStatement(getFetchQuery());
+//        log.info("{}", getFetchQuery());
         st.setLong(1, getStart());
         st.setLong(2, getEnd());
         st.setLong(3, getXidMin());
+        st.setLong(4, getXidMin());
         ResultSet rs = st.executeQuery();
         int upserted = 0;
         if (rs.isBeforeFirst()) {

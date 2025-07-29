@@ -944,7 +944,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public String buildFetchStatementGreaterXidMin(Config config) {
         return buildFetchStatement(config) + " and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "xmin::text::int8 > ?";
+                "xmin::text::int8 > ? and age(xmin) < age(?::text::xid) and age(xmin) > 0";
     }
 
 
@@ -990,17 +990,17 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         chunk.setSourceConnection(fromConnection);
                         chunk.setTargetConnection(toConnection);
                         chunk.upsertToTarget();
-                        chunk.closeChunkSourceConnection();
+                        chunk.closeChunkSourceConnection(true);
                         chunk.closeChunkTargetConnection();
                     } catch (SQLException e) {
                         log.error(getStackTrace(e));
                         try {
-                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
-                            chunk.closeChunkSourceConnection();
+                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
+                            chunk.closeChunkSourceConnection(true);
                         } catch (SQLException ex) {
                             log.error("{}", getStackTrace(ex));
                             try {
-                                chunk.closeChunkSourceConnection();
+                                chunk.closeChunkSourceConnection(true);
                             } catch (SQLException exc) {
                                 log.error("{}",getStackTrace(exc));
                             }

@@ -6,7 +6,6 @@ import org.bublik.constants.ChunkStatus;
 import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
-import org.bublik.model.LogMessage;
 import org.bublik.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,59 +69,65 @@ public abstract class JDBCStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs) throws SQLException {
+    public void start(List<Config> configs, boolean sync) throws SQLException {
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
-        ExecutorService service = Executors.newFixedThreadPool(threadCount);
         Properties properties = getConnectionProperty().getToProperty();
         List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
-        chunkList.forEach(chunk -> service
-                .submit(() -> {
-                    Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
-                    chunk.setTargetStorage(targetStorage);
-                    try {
-                        return chunk.copyChunk();
-                    } catch (Exception e) {
-                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+        if (!sync) {
+            ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            chunkList.forEach(chunk -> service
+                    .submit(() -> {
+                        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+                        chunk.setTargetStorage(targetStorage);
                         try {
-                            if (chunk.getSourceConnection().isValid(0)) {
-                                chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
-                                chunk.getSourceConnection().close();
+                            return chunk.copyChunk(sync);
+                        } catch (Exception e) {
+                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                            try {
+                                if (chunk.getSourceConnection().isValid(0)) {
+                                    chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e));
+                                    chunk.getSourceConnection().close();
+                                }
+                            } catch (SQLException exception) {
+                                log.error("{}", getStackTrace(exception));
                             }
-                        } catch (SQLException exception) {
-                            log.error("{}", getStackTrace(exception));
+                            assert targetStorage != null;
+                            targetStorage.closeStorage();
+                            throw e;
                         }
-                        assert targetStorage != null;
-                        targetStorage.closeStorage();
-                        throw e;
+                    })
+            );
+            service.shutdown();
+            service.close();
+        } else {
+            Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+            Connection sourceConnection = this.getConnection();
+            sourceConnection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            chunkList.forEach(chunk -> {
+                chunk.setTargetStorage(targetStorage);
+                try {
+                    chunk.copyChunkInSync(sourceConnection, sync);
+                } catch (Exception e) {
+                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                    try {
+                        if (chunk.getSourceConnection().isValid(0)) {
+                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e));
+                            chunk.getSourceConnection().close();
+                        }
+                    } catch (SQLException exception) {
+                        log.error("{}", getStackTrace(exception));
                     }
-                }));
-        service.shutdown();
-        service.close();
+                }
+            });
+            sourceConnection.commit();
+            sourceConnection.close();
+            assert targetStorage != null;
+            targetStorage.closeStorage();
+        }
     }
 
     @Override
     public void closeStorage(){
 
     }
-
-/*
-    public Chunk<?> copyChunk(Chunk<?> chunk) throws SQLException {
-        Chunk<?> c = chunk
-                .assignSourceConnection()
-                .saveChunkStatus(ChunkStatus.ASSIGNED, null, null)
-                .assignSourceResultSet()
-                .assignResultLogMessage()
-                .saveConfig()
-                .saveChunkRows(chunk.getRows())
-                .saveChunkStatus(ChunkStatus.PROCESSED, null, null)
-                .closeChunkSourceConnection();
-        LogMessage logMessage = c.getLogMessage();
-        logMessage.loggerChunkInfo();
-        if (chunk.getSourceConnection().isValid(0)) {
-            chunk.getSourceConnection().close();
-        }
-        return c;
-    }
-*/
-
 }
