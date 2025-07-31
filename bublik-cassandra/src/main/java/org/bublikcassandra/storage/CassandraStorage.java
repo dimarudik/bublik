@@ -74,7 +74,12 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs) throws SQLException {
+    public void start(List<Config> configs, boolean sync) throws SQLException {
+
+    }
+
+    @Override
+    public void sync() throws SQLException {
 
     }
 
@@ -336,6 +341,36 @@ public class CassandraStorage extends Storage {
     @Override
     public void closeStorage() {
         cqlSession.close();
+    }
+
+    @Override
+    public String buildFetchStatement(Config config) {
+        return "";
+    }
+
+    @Override
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+        return Map.of();
+    }
+
+    @Override
+    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+        return Map.of();
+    }
+
+    @Override
+    public Table createTable(Config config) {
+        return null;
+    }
+
+    @Override
+    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+
+    }
+
+    @Override
+    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+
     }
 
     private int getBatchSize(ConnectionProperty connectionProperty) {

@@ -198,7 +198,7 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public void copyChunkInSync(Connection connection, boolean sync) throws SQLException {
+    public void copyChunkSync(Connection connection, boolean sync) throws SQLException {
         this
                 .assignSourceConnection(connection)
                 .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
@@ -210,11 +210,6 @@ public abstract class Chunk<T> implements ChunkService {
                 .closeChunkSourceConnection(sync);
         LogMessage logMessage = getLogMessage();
         logMessage.loggerChunkInfo();
-/*
-        if (getSourceConnection().isValid(0)) {
-            getSourceConnection().close();
-        }
-*/
     }
 
     public Chunk<?> assignResultLogMessage() throws SQLException {

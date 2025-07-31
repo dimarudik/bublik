@@ -62,12 +62,12 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
 
     @Override
     public Chunk<?> saveChunkUpserted() throws SQLException {
-        return null;
+        return this;
     }
 
     @Override
     public Chunk<?> saveConfig(boolean sync) throws SQLException {
-        return null;
+        return this;
     }
 
     @Override

@@ -14,7 +14,12 @@ public interface TableService {
     String getFinalSchemaName();
     String getHintClause();
     String getTaskName();
-    List<Column> getPKColumns(Connection connection) throws SQLException;
+    List<Column> getAllColumns(Connection connection) throws SQLException;
+    List<Column> getPrimaryKeyColumns(Connection connection) throws SQLException;
+    List<Index> getIndexes(Connection connection) throws SQLException;
+    boolean hasPrimaryKey();
+    void createPrimaryKey(Connection connection);
+    void createIndex(Connection connection);
     Map<String, String> getColumnToColumn(Connection connection) throws SQLException;
 
     static Class<? extends Table[]> getTableArrayClass(Connection connection) throws SQLException {

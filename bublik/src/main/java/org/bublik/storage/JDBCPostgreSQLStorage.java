@@ -303,7 +303,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, dataType)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -311,7 +316,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(columnName, new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, dataType)));
+                            .forEach(i -> columnMap.put(columnName,
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null)));
                 }
 
                 if (encryptedEntityMap != null) {
@@ -324,7 +334,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 }
                                 return false;
                             })
-                            .forEach(i -> columnMap.put(columnName, new Column(columnPosition, i.getValue().targetEncColumnName(), columnType.equals("bigserial") ? "bigint" : columnType, dataType)));
+                            .forEach(i -> columnMap.put(columnName,
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue().targetEncColumnName(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null)));
                 }
 
                 if (cryptoToColumnMap != null) {
@@ -332,7 +347,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, dataType)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -340,7 +360,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType, dataType)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getKey(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null)));
                 }
             }
             resultSet.close();
@@ -371,7 +396,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getValue(), new Column(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType, dataType)));
+                            .forEach(i -> columnMap.put(i.getValue(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getKey(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null)));
                 }
             }
             resultSet.close();
@@ -408,9 +438,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .forEach(entry -> columnMap.put(
                                 columnName,
                                     new PGEncryptedColumn(
-                                        new Column(columnPosition,
+                                        new Column(
+                                                columnPosition,
                                                 entry.getValue().targetEncColumnName() == null ? entry.getValue().targetEncMetaColumnName() : entry.getValue().targetEncColumnName(),
-                                                columnType.equals("bigserial") ? "bigint" : columnType, null),
+                                                columnType.equals("bigserial") ? "bigint" : columnType,
+                                                null, null, null, null, null),
                                         entry.getValue()
                             )));
                 }
@@ -962,7 +994,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .stream()
                 .filter(table -> {
                     try {
-                        return !table.getPKColumns(targetConnection).isEmpty();
+                        table.setPkColumns(table.getPrimaryKeyColumns(targetConnection));
+                        return table.hasPrimaryKey();
                     } catch (SQLException e) {
                         try {
                             targetConnection.close();
@@ -982,7 +1015,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         copyChunks.values()
-                .forEach(chunk -> service.submit(() -> {
+                .forEach(chunk ->
+                                service.submit(() -> {
                     try {
                         chunk.setTargetStorage(targetStorage);
                         Connection fromConnection = this.getConnection();
@@ -990,7 +1024,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         chunk.setSourceConnection(fromConnection);
                         chunk.setTargetConnection(toConnection);
                         chunk.upsertToTarget();
-                        chunk.closeChunkSourceConnection(true);
+                        chunk.closeChunkSourceConnection(false);
                         chunk.closeChunkTargetConnection();
                     } catch (SQLException e) {
                         log.error(getStackTrace(e));
@@ -1140,5 +1174,88 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         rs.close();
         ps.close();
         return chunkMap;
+    }
+
+    @Override
+    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+        try {
+            Connection sourceConnection = getConnection();
+            Connection targetConnection = targetStorage.getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table sourceTable = entry.getKey();
+                Table targetTable = entry.getValue();
+                List<Column> sourcePKColumns = sourceTable.getPkColumns();
+                if (!sourcePKColumns.isEmpty()) {
+                    sourceTable.setPkColumns(sourcePKColumns);
+                    targetTable.setPkColumns(sourcePKColumns);
+                    targetTable.createPrimaryKey(targetConnection);
+//                    log.info("Creating primary key for table {}.{} in target storage", targetTable.getSchemaName(), targetTable.getTableName());
+                } else {
+                    throw new SQLException("Source table " + sourceTable.getSchemaName() + "." + sourceTable.getTableName() +
+                            " has no primary key, cannot create primary key in target table " +
+                            targetTable.getSchemaName() + "." + targetTable.getTableName());
+                }
+            }
+            sourceConnection.close();
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+        try {
+            Connection sourceConnection = getConnection();
+            Connection targetConnection = targetStorage.getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table sourceTable = entry.getKey();
+                sourceTable.createIndex(sourceConnection);
+            }
+            sourceConnection.close();
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+        Map<Table, Table> tables = new HashMap<>();
+        for (Config c : configs) {
+            tables.put(new  PGTable(c.fromSchemaName(), c.fromTableName()), targetStorage.createTable(c));
+        }
+        return tables;
+    }
+
+    @Override
+    public Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage) {
+        Map<Table, Table> enrichedTables = new HashMap<>();
+        try {
+            Connection sourceConnection = getConnection();
+            Connection targetConnection = targetStorage.getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table sourceTable = entry.getKey();
+                Table targetTable = entry.getValue();
+                List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
+                List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
+                List<Index> sourceIndexes = sourceTable.getIndexes(sourceConnection);
+                sourceTable.setPkColumns(allSourceColumns);
+                sourceTable.setPkColumns(sourcePKColumns);
+                sourceTable.setIndexes(sourceIndexes);
+                targetTable.setPkColumns(sourcePKColumns);
+                enrichedTables.put(sourceTable, targetTable);
+            }
+            sourceConnection.close();
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+        return enrichedTables;
+    }
+
+    @Override
+    public Table createTable(Config config) {
+        return new PGTable(config.toSchemaName(), config.toTableName());
     }
 }

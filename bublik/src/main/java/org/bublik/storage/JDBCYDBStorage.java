@@ -284,7 +284,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, null)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            null, null, null, null, null)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -292,7 +297,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(columnName, new Column(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType, null)));
+                            .forEach(i -> columnMap.put(columnName,
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            null, null, null, null, null)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -300,7 +310,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                             .entrySet()
                             .stream()
                             .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new Column(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType, null)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getKey(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            null, null, null, null, null)));
                 }
             }
             resultSet.close();
@@ -308,6 +323,34 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             log.error("{}", e.getMessage());
         }
         return columnMap;
+    }
+
+    @Override
+    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+    }
+
+    @Override
+    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+
+    }
+
+    @Override
+    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+        Map<Table, Table> tables = new HashMap<>();
+        for (Config c : configs) {
+            tables.put(new YDBTable(c.fromSchemaName(), c.fromTableName()), targetStorage.createTable(c));
+        }
+        return tables;
+    }
+
+    @Override
+    public Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage) {
+        return Map.of();
+    }
+
+    @Override
+    public Table createTable(Config config) {
+        return new YDBTable(config.toSchemaName(), config.toTableName());
     }
 
     public String batchInsertStatement(Config config) {

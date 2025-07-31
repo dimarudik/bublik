@@ -219,7 +219,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
 //        sb.setLength(sb.length() - 2);
         sb.append(")");
         sb.append(" ON CONFLICT (");
-        List<Column> pkColumns = getTargetTable().getPKColumns(getTargetConnection());
+        List<Column> pkColumns = getTargetTable().getPrimaryKeyColumns(getTargetConnection());
         if (pkColumns.isEmpty()) {
             throw new SQLException("No primary key columns found for table: " + getTargetTable().getTableName());
         }
@@ -248,9 +248,11 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 .insertOnConflict()
                 .saveChunkUpserted()
                 .saveChunkStatus(getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED, false);
-        log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}",
-                getId(), getConfig().fromTaskName(), getConfig().fromSchemaName(),
-                getTargetTable().getTableName(), getUpserted());
+        if (getUpserted() > 0) {
+            log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}",
+                    getId(), getConfig().fromTaskName(), getConfig().fromSchemaName(),
+                    getTargetTable().getTableName(), getUpserted());
+        }
     }
 
     public Chunk<?> insertOnConflict() throws SQLException {

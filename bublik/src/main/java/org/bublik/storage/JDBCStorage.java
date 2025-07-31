@@ -6,6 +6,7 @@ import org.bublik.constants.ChunkStatus;
 import org.bublik.model.Chunk;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
+import org.bublik.model.Table;
 import org.bublik.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,62 +73,82 @@ public abstract class JDBCStorage extends Storage {
     public void start(List<Config> configs, boolean sync) throws SQLException {
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
         Properties properties = getConnectionProperty().getToProperty();
-        List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
+        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
+        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
         if (!sync) {
-            ExecutorService service = Executors.newFixedThreadPool(threadCount);
-            chunkList.forEach(chunk -> service
-                    .submit(() -> {
-                        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
-                        chunk.setTargetStorage(targetStorage);
-                        try {
-                            return chunk.copyChunk(sync);
-                        } catch (Exception e) {
-                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
-                            try {
-                                if (chunk.getSourceConnection().isValid(0)) {
-                                    chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e));
-                                    chunk.getSourceConnection().close();
-                                }
-                            } catch (SQLException exception) {
-                                log.error("{}", getStackTrace(exception));
-                            }
-                            assert targetStorage != null;
-                            targetStorage.closeStorage();
-                            throw e;
-                        }
-                    })
-            );
-            service.shutdown();
-            service.close();
+            startNOSync(chunks, targetStorage);
         } else {
-            Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
-            Connection sourceConnection = this.getConnection();
-            sourceConnection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-            chunkList.forEach(chunk -> {
-                chunk.setTargetStorage(targetStorage);
-                try {
-                    chunk.copyChunkInSync(sourceConnection, sync);
-                } catch (Exception e) {
-                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
-                    try {
-                        if (chunk.getSourceConnection().isValid(0)) {
-                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e));
-                            chunk.getSourceConnection().close();
-                        }
-                    } catch (SQLException exception) {
-                        log.error("{}", getStackTrace(exception));
-                    }
-                }
-            });
-            sourceConnection.commit();
-            sourceConnection.close();
             assert targetStorage != null;
-            targetStorage.closeStorage();
+            startSync(chunks, targetStorage, configs);
         }
+        assert targetStorage != null;
+        targetStorage.closeStorage();
+        this.closeStorage();
+    }
+
+    private void startSync(List<Chunk<?>> chunks, Storage targetStorage, List<Config> configs) throws SQLException {
+        Connection sourceConnection = this.getConnection();
+        sourceConnection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        chunks.forEach(chunk -> {
+            chunk.setTargetStorage(targetStorage);
+            try {
+                chunk.copyChunkSync(sourceConnection, true);
+            } catch (Exception e) {
+                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                try {
+                    if (chunk.getSourceConnection().isValid(0)) {
+                        chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, true, null, getStackTrace(e));
+                        chunk.getSourceConnection().close();
+                    }
+                } catch (SQLException exception) {
+                    log.error("{}", getStackTrace(exception));
+                }
+            }
+        });
+        sourceConnection.commit();
+//        sourceConnection.close();
+//        Connection sourceConnection = getConnection();
+        Connection targetConnection = targetStorage.getConnection();
+        Map<Table, Table> mapOfTables = getMapOfTables(configs, targetStorage);
+        Map<Table, Table> enrichedMapOfTables = enrichMapOfTables(mapOfTables, targetStorage);
+        targetStorage.createPrimaryKey(enrichedMapOfTables, targetStorage);
+        targetStorage.createIndex(enrichedMapOfTables, targetStorage);
+        sourceConnection.close();
+        targetConnection.close();
+    }
+
+    private void startNOSync(List<Chunk<?>> chunks, Storage targetStorage) {
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        chunks.forEach(chunk -> service
+                .submit(() -> {
+                    chunk.setTargetStorage(targetStorage);
+                    try {
+                        return chunk.copyChunk(false);
+                    } catch (Exception e) {
+                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                        try {
+                            if (chunk.getSourceConnection().isValid(0)) {
+                                chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
+                                chunk.getSourceConnection().close();
+                            }
+                        } catch (SQLException exception) {
+                            log.error("{}", getStackTrace(exception));
+                        }
+                        throw e;
+                    }
+                })
+        );
+        service.shutdown();
+        service.close();
     }
 
     @Override
-    public void closeStorage(){
-
+    public void closeStorage() {
+        if (dataSource instanceof HikariDataSource hikariDataSource) {
+            hikariDataSource.close();
+            log.info("HikariDataSource closed successfully.");
+        } else {
+            log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
+        }
     }
 }

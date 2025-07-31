@@ -19,7 +19,7 @@ public class App {
         }
     }
 
-    public static void doIt(String[] args, int threadCount) {
+    public static void doIt(String[] arr, int threadCount) {
         ExecutorService service = Executors.newFixedThreadPool(threadCount + 1);
         AtomicInteger counterUpdatedTimestamp = new AtomicInteger(0);
         AtomicInteger counterUpdatedTimestampTZ = new AtomicInteger(0);
@@ -29,7 +29,7 @@ public class App {
             int tmp = i;
             service
                     .submit(() -> {
-                        try (Connection connection = DriverManager.getConnection(args[0])) {
+                        try (Connection connection = DriverManager.getConnection(arr[0])) {
                             int c = Math.toIntExact(Thread.currentThread().threadId() % 3);
                             switch (c) {
                                 case 0: {
@@ -37,17 +37,22 @@ public class App {
                                         int d = insert(connection);
                                         counterOfInserted.addAndGet(d);
                                     }
+                                    break;
                                 }
                                 case 1: {
                                     int count = updateTimestamptzByRange(connection, threadCount);
                                     counterUpdatedTimestampTZ.addAndGet(count);
+                                    break;
                                 }
                                 case 2: {
                                     for (int j = 0; j < 100; j++) {
                                         int d = updateTimestamp(connection);
                                         counterUpdatedTimestamp.addAndGet(d);
                                     }
+                                    break;
                                 }
+                                default:
+                                    break;
                             }
                         } catch (SQLException e) {
                             e.printStackTrace();
@@ -64,7 +69,9 @@ public class App {
     }
 
     public static int updateTimestamp(Connection connection) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("update s50k set timestamp = now() where id = ?");
+        PreparedStatement statement = connection.prepareStatement(
+//                "update s50k set timestamp = now() where id = ?");
+                "update s50k set timestamp = now(), uuid = gen_random_uuid() where id = ?");
         int id = getRandomInt(1, 60000);
         statement.setInt(1, id);
         int d = statement.executeUpdate();
@@ -102,7 +109,7 @@ public class App {
                 "            else null end as current_mood, " +
                 "        now() as time " +
                 "    from generate_series( (select max(id) + 1 from s50k) , (select max(id) + 1 from s50k) + ? ) as n");
-        int count = getRandomInt(1, 2500);
+        int count = getRandomInt(1, 5000);
         statement.setInt(1, count);
         int d = statement.executeUpdate();
 //        System.out.println("inserted: " + d);

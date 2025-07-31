@@ -24,6 +24,12 @@ public interface StorageService {
     void closeStorage();
     String buildFetchStatement(Config config);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
+    Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage);
+    Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage);
+    Table createTable(Config config);
+    void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage);
+    void createIndex(Map<Table, Table> tables, Storage targetStorage);
+
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
         try {

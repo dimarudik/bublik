@@ -145,4 +145,33 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
         return Map.of();
     }
+
+    @Override
+    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+
+    }
+
+    @Override
+    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+
+    }
+
+    @Override
+    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+        Map<Table, Table> tables = new HashMap<>();
+        for (Config c : configs) {
+            tables.put(new OraTable(c.fromSchemaName(), c.fromTableName()), targetStorage.createTable(c));
+        }
+        return tables;
+    }
+
+    @Override
+    public Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage) {
+        return Map.of();
+    }
+
+    @Override
+    public Table createTable(Config config) {
+        return new OraTable(config.toSchemaName(), config.toTableName());
+    }
 }

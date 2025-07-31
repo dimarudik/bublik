@@ -51,8 +51,33 @@ public class YDBTable extends Table {
     }
 
     @Override
-    public List<Column> getPKColumns(Connection connection) throws SQLException {
+    public List<Column> getAllColumns(Connection connection) throws SQLException {
         return List.of();
+    }
+
+    @Override
+    public List<Column> getPrimaryKeyColumns(Connection connection) throws SQLException {
+        return List.of();
+    }
+
+    @Override
+    public List<Index> getIndexes(Connection connection) throws SQLException {
+        return List.of();
+    }
+
+    @Override
+    public boolean hasPrimaryKey() {
+        return false;
+    }
+
+    @Override
+    public void createPrimaryKey(Connection connection) {
+
+    }
+
+    @Override
+    public void createIndex(Connection connection) {
+
     }
 
     @Override

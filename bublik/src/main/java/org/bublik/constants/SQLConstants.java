@@ -129,6 +129,9 @@ public abstract class SQLConstants {
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS =
             "update public.ctid_chunks set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
 
+    public static final String SQL_INDEX_DEFINITION =
+            "select indexdef from pg_indexes where schemaname = ? and tablename = ? and indexname = ?";
+
     public static String getTableName(String schemaName, String tableName) {
         return schemaName + "." + tableName;
         }

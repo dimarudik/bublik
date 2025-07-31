@@ -20,5 +20,7 @@ public record Config(
         Map<String, String> expressionToColumn,
         Map<String, EncryptedColumn> expressionToCrypto,
         Map<String, String> cryptoToColumn,
-        Map<String, List<String>> columnFromMany
-) {}
+        Map<String, List<String>> columnFromMany,
+        List<String> toPrimaryKeys
+) {
+}

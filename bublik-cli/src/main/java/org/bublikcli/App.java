@@ -1,41 +1,32 @@
 package org.bublikcli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.commons.cli.*;
 import org.bublik.constants.ENVProperties;
-import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
-import org.bublik.model.Table;
 import org.bublik.service.StorageService;
-import org.bublik.service.TableService;
 import org.bublik.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
+import static org.bublikcli.addons.Utils.*;
 import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
-import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
 
 /*
 java -cp ./chekist/target/chekist-1.0-SNAPSHOT.jar:./cli/target/bublik-cli-1.2.0.jar org.bublikcli.App -k 1000 -c ./cli/config/pg2pg-sec.yaml -m ./cli/config/pg2pg-sec.json
 */
 
-//@Slf4j
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
 
@@ -190,11 +181,7 @@ public class App {
                 Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
                 assert sourceStorage != null;
                 sourceStorage.start(config, sync);
-                log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");
-                if (sync) {
-                    log.info("To run synchronization of data from source to target, please use the following command: \n" +
-                            "\u001B[31mjava -jar bublik-cli-1.x.x.jar -s -c config.yaml\u001B[0m");
-                }
+//                log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
                 throw new RuntimeException(e);
@@ -268,99 +255,5 @@ public class App {
         connectionProperty.setFromProperties(fromENVMap);
         connectionProperty.setToProperties(toENVMap);
         return connectionProperty;
-    }
-
-    private static ConnectionProperty connectionProperty(String configFileName) throws IOException {
-        ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
-        mapperYAML.findAndRegisterModules();
-        return mapperYAML.readValue(Paths.get(configFileName).toFile(), ConnectionProperty.class);
-    }
-
-    private static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
-        ConnectionProperty properties = connectionProperty(configFileName);
-        ObjectMapper mapperJSON = new ObjectMapper();
-        Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
-                properties.getFromProperty());
-        List<Table> tableList =
-                List.of(mapperJSON.readValue(Paths.get(listOfTablesFileName).toFile(),
-                        TableService.getTableArrayClass(connection)
-                ));
-        List<Config> configs = new ArrayList<>();
-        ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-        for (Table t : tableList) {
-            if (t.exists(connection)) {
-                configs.add(new Config(
-                        null,
-                        t.getFinalSchemaName(),
-                        t.getFinalTableName(true),
-                        null,
-                        null,
-                        t.getSchemaName(),
-                        t.getTableName(),
-                        t.getHintClause(),
-                        "1 = 1",
-                        t.getTaskName(),
-                        null,
-                        null,
-                        t.getColumnToColumn(connection),
-                        null,
-                        null,
-                        null,
-                        null
-                ));
-            } else {
-                mapper.writeValue(Paths.get(outputFileName).toFile(), null);
-                connection.close();
-                throw new TableNotExistsException(t.getSchemaName(), t.getTableName());
-            }
-        }
-        mapper.writeValue(Paths.get(outputFileName).toFile(), configs);
-        System.out.println(MAPPING_FILE_CREATED + outputFileName);
-        connection.close();
-    }
-
-    private static void createOGGFile(String mappingDefFileName, String oggFileName, String csn) {
-        try {
-            ObjectMapper mapperJSON = new ObjectMapper();
-            FileWriter fileWriter = new FileWriter(oggFileName);
-            PrintWriter printWriter = new PrintWriter(fileWriter);
-            List<Config> config =
-                    List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
-                            Config[].class));
-            config.forEach(c -> {
-                StringBuffer tmpString = new StringBuffer();
-                tmpString.append("TABLE ");
-                tmpString.append(c.fromSchemaName());
-                tmpString.append(".");
-                tmpString.append(c.fromTableName());
-                tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", FILTER (" + c.fetchWhereClause() + ")");
-                tmpString.append(";");
-                printWriter.println(tmpString);
-            });
-            config.forEach(c -> {
-                StringBuffer tmpString = new StringBuffer();
-                tmpString.append("MAP ");
-                tmpString.append(c.fromSchemaName());
-                tmpString.append(".");
-                tmpString.append(c.fromTableName());
-                tmpString.append(", TARGET ");
-                tmpString.append(c.toSchemaName());
-                tmpString.append(".");
-                tmpString.append(c.toTableName());
-                tmpString.append(", &\n\tCOLMAP ");
-                String mapAsString = c.columnToColumn().keySet().stream()
-                        .map(key -> "\t" + c.columnToColumn().get(key) + "=" + key)
-                        .collect(Collectors.joining(", & \n", "(USEDEFAULTS, &\n", ")"));
-                tmpString.append(mapAsString);
-                tmpString.append(", &\n\tFILTER ( @GETENV ('TRANSACTION', 'CSN') > ").append(csn).append(" )");
-                tmpString.append(c.fetchWhereClause().equals("1 = 1") ? "" : ", &\n\tKEYCOLS (id)");
-                tmpString.append(";");
-                printWriter.println(tmpString);
-            });
-            printWriter.close();
-            fileWriter.close();
-        } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
-        }
     }
 }

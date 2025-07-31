@@ -1,6 +1,6 @@
 package org.bublik.service;
 
-public interface SQLSyntaxService {
+public interface NameSyntaxService {
     default boolean isCaseSensitiveWord(String word){
         return word.charAt(0) == '"' && word.charAt(word.length() - 1) == '"';
     }
