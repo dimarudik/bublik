@@ -75,18 +75,28 @@ public abstract class JDBCStorage extends Storage {
         Properties properties = getConnectionProperty().getToProperty();
         List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+        Map<Table, Table> mapOfTables = getMapOfTables(configs, targetStorage);
+        Map<Table, Table> enrichedMapOfTables = enrichMapOfTables(mapOfTables, targetStorage);
+        enrichedMapOfTables
+                .forEach((sourceTable, targetTable) -> {
+                    try {
+                        createTableIfNotExists(targetTable, targetStorage);
+                    } catch (SQLException e) {
+                        log.error("{}", getStackTrace(e));
+                    }
+                });
         if (!sync) {
             startNOSync(chunks, targetStorage);
         } else {
             assert targetStorage != null;
-            startSync(chunks, targetStorage, configs);
+            startSync(chunks, targetStorage, enrichedMapOfTables);
         }
         assert targetStorage != null;
         targetStorage.closeStorage();
         this.closeStorage();
     }
 
-    private void startSync(List<Chunk<?>> chunks, Storage targetStorage, List<Config> configs) throws SQLException {
+    private void startSync(List<Chunk<?>> chunks, Storage targetStorage, Map<Table, Table> enrichedMapOfTables) throws SQLException {
         Connection sourceConnection = this.getConnection();
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
         chunks.forEach(chunk -> {
@@ -106,11 +116,7 @@ public abstract class JDBCStorage extends Storage {
             }
         });
         sourceConnection.commit();
-//        sourceConnection.close();
-//        Connection sourceConnection = getConnection();
         Connection targetConnection = targetStorage.getConnection();
-        Map<Table, Table> mapOfTables = getMapOfTables(configs, targetStorage);
-        Map<Table, Table> enrichedMapOfTables = enrichMapOfTables(mapOfTables, targetStorage);
         targetStorage.createPrimaryKey(enrichedMapOfTables, targetStorage);
         targetStorage.createIndex(enrichedMapOfTables, targetStorage);
         sourceConnection.close();

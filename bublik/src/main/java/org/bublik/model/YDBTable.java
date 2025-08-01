@@ -61,8 +61,18 @@ public class YDBTable extends Table {
     }
 
     @Override
+    public List<Column> getImportedKeyColumns(Connection connection) throws SQLException {
+        return List.of();
+    }
+
+    @Override
     public List<Index> getIndexes(Connection connection) throws SQLException {
         return List.of();
+    }
+
+    @Override
+    public Map.Entry<Integer, List<TableOption>> getOptions(Connection connection) throws SQLException {
+        return null;
     }
 
     @Override
@@ -83,5 +93,10 @@ public class YDBTable extends Table {
     @Override
     public Map<String, String> getColumnToColumn(Connection connection) throws SQLException {
         return Map.of();
+    }
+
+    @Override
+    public void createTableIfNotExists(Connection connection) throws SQLException {
+
     }
 }

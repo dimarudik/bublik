@@ -12,9 +12,13 @@ public class Column implements NameSyntaxService, ColumnService, Comparable<Colu
     private final String defaultValue;
     private final String isAutoIncrement;
     private final String isGenerated;
+    private final int decimalDigits;
+    private final String columnComment;
+    private final int charOctetLength;
 
-    public Column(Integer columnPosition, String columnName, String columnType, Integer dataType,
-                  Integer isNullable, String defaultValue, String isAutoIncrement, String isGenerated) {
+    public Column(Integer columnPosition, String columnName, String columnType, Integer dataType, Integer isNullable,
+                  String defaultValue, String isAutoIncrement, String isGenerated, int decimalDigits,
+                  String columnComment, int charOctetLength) {
         this.columnPosition = columnPosition;
         this.columnName = columnName;
         this.columnType = columnType;
@@ -23,6 +27,9 @@ public class Column implements NameSyntaxService, ColumnService, Comparable<Colu
         this.defaultValue = defaultValue;
         this.isAutoIncrement = isAutoIncrement;
         this.isGenerated = isGenerated;
+        this.decimalDigits = decimalDigits;
+        this.columnComment = columnComment;
+        this.charOctetLength = charOctetLength;
     }
 
     public Integer getColumnPosition() {
@@ -55,6 +62,18 @@ public class Column implements NameSyntaxService, ColumnService, Comparable<Colu
 
     public String getIsGenerated() {
         return isGenerated;
+    }
+
+    public int getDecimalDigits() {
+        return decimalDigits;
+    }
+
+    public String getColumnComment() {
+        return columnComment;
+    }
+
+    public int getCharOctetLength() {
+        return charOctetLength;
     }
 
     @Override

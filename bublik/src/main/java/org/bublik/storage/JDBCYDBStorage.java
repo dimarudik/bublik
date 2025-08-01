@@ -289,7 +289,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null)));
+                                            null, null, null, null, null, 0 , null, 0)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -302,7 +302,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null)));
+                                            null, null, null, null, null, 0 , null, 0)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -315,7 +315,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null)));
+                                            null, null, null, null, null, 0 , null, 0)));
                 }
             }
             resultSet.close();
@@ -331,6 +331,11 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     @Override
     public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+
+    }
+
+    @Override
+    public void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException {
 
     }
 

@@ -29,6 +29,7 @@ public interface StorageService {
     Table createTable(Config config);
     void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage);
     void createIndex(Map<Table, Table> tables, Storage targetStorage);
+    void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException;
 
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {

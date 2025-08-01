@@ -59,8 +59,18 @@ public class OraTable extends Table {
     }
 
     @Override
+    public List<Column> getImportedKeyColumns(Connection connection) throws SQLException {
+        return List.of();
+    }
+
+    @Override
     public List<Index> getIndexes(Connection connection) throws SQLException {
         return List.of();
+    }
+
+    @Override
+    public Map.Entry<Integer, List<TableOption>> getOptions(Connection connection) throws SQLException {
+        return null;
     }
 
     @Override
@@ -92,5 +102,10 @@ public class OraTable extends Table {
             map.put(finalColumnName, finalColumnName);
         }
         return map;
+    }
+
+    @Override
+    public void createTableIfNotExists(Connection connection) throws SQLException {
+
     }
 }

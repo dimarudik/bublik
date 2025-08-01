@@ -9,11 +9,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class Table implements TableService, NameSyntaxService {
     private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
+    private Integer id;
     private String schemaName;
     private String tableName;
     private List<Column> columns;
     private List<Column> pkColumns;
     private List<Index> indexes;
+    private List<ForeignKey> foreignKeys;
+    private List<TableOption> options;
 
     public Table() {}
 
@@ -56,6 +59,22 @@ public abstract class Table implements TableService, NameSyntaxService {
 
     public void setIndexes(List<Index> indexes) {
         this.indexes = indexes;
+    }
+
+    public List<TableOption> getOptions() {
+        return options;
+    }
+
+    public void setOptions(List<TableOption> options) {
+        this.options = options;
+    }
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     @Override

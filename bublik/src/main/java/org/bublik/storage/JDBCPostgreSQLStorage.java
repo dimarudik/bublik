@@ -308,7 +308,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null)));
+                                            dataType, null, null, null, null, 0, null, 0)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -321,7 +321,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null)));
+                                            dataType, null, null, null, null, 0 , null, 0)));
                 }
 
                 if (encryptedEntityMap != null) {
@@ -339,7 +339,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue().targetEncColumnName(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null)));
+                                            dataType, null, null, null, null, 0 , null, 0)));
                 }
 
                 if (cryptoToColumnMap != null) {
@@ -352,7 +352,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null)));
+                                            dataType, null, null, null, null, 0 , null, 0)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -365,7 +365,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null)));
+                                            dataType, null, null, null, null, 0 , null, 0)));
                 }
             }
             resultSet.close();
@@ -401,7 +401,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null)));
+                                            dataType, null, null, null, null, 0 , null, 0)));
                 }
             }
             resultSet.close();
@@ -442,7 +442,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                                 columnPosition,
                                                 entry.getValue().targetEncColumnName() == null ? entry.getValue().targetEncMetaColumnName() : entry.getValue().targetEncColumnName(),
                                                 columnType.equals("bigserial") ? "bigint" : columnType,
-                                                null, null, null, null, null),
+                                                null, null, null, null, null, 0 , null, 0),
                                         entry.getValue()
                             )));
                 }
@@ -1220,6 +1220,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
+    public void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException {
+        Connection targetConnection = targetStorage.getConnection();
+        table.createTableIfNotExists(targetConnection);
+        targetConnection.close();
+    }
+
+    @Override
     public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
         Map<Table, Table> tables = new HashMap<>();
         for (Config c : configs) {
@@ -1240,10 +1247,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
                 List<Index> sourceIndexes = sourceTable.getIndexes(sourceConnection);
+                List<Column> importedKeyColumns = sourceTable.getImportedKeyColumns(sourceConnection);
+                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(sourceConnection);
+                sourceTable.setId(options.getKey());
+                sourceTable.setOptions(options.getValue());
                 sourceTable.setPkColumns(allSourceColumns);
                 sourceTable.setPkColumns(sourcePKColumns);
                 sourceTable.setIndexes(sourceIndexes);
                 targetTable.setPkColumns(sourcePKColumns);
+                targetTable.setColumns(allSourceColumns);
+                targetTable.setOptions(options.getValue());
                 enrichedTables.put(sourceTable, targetTable);
             }
             sourceConnection.close();

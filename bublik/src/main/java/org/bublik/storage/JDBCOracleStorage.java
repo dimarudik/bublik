@@ -157,6 +157,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
+    public void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException {
+
+    }
+
+    @Override
     public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
         Map<Table, Table> tables = new HashMap<>();
         for (Config c : configs) {

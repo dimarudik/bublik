@@ -129,8 +129,15 @@ public abstract class SQLConstants {
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS =
             "update public.ctid_chunks set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
 
-    public static final String SQL_INDEX_DEFINITION =
+    public static final String SQL_PG_INDEX_DEFINITION =
             "select indexdef from pg_indexes where schemaname = ? and tablename = ? and indexname = ?";
+    public static final String SQL_PG_TABLE_OPTIONS =
+            "select c.oid::int4 as oid, c.reloptions from pg_class c, pg_namespace n " +
+                    "where n.oid = c.relnamespace and n.nspname = ? and c.relname = ?";
+    public static final String DDL_PG_CREATE_TABLE =
+            "create table if not exists $schemaName.$tableName ($columnDefinition) ";
+    public static final String DDL_PG_CREATE_TABLE_OPTION_CLAUSE =
+            "with ($tableOption) ";
 
     public static String getTableName(String schemaName, String tableName) {
         return schemaName + "." + tableName;
