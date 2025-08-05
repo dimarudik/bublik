@@ -24,12 +24,13 @@ public interface StorageService {
     void closeStorage();
     String buildFetchStatement(Config config);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
-    Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage);
-    Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage);
-    Table createTable(Config config);
-    void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage);
-    void createIndex(Map<Table, Table> tables, Storage targetStorage);
-    void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException;
+    Map<Table, Table> configsToTables(List<Config> configs);
+    Table configToTable(Config config);
+    void enrichSourceTables();
+    void enrichTargetTables(Map<Table, Table> tables);
+    void createPrimaryKey();
+    void createIndexes();
+    void createTable(Table table) throws SQLException;
 
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {

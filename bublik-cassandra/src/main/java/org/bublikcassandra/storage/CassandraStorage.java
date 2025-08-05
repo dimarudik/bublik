@@ -354,22 +354,37 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
-    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+    public Map<Table, Table> configsToTables(List<Config> configs) {
         return Map.of();
     }
 
     @Override
-    public Table createTable(Config config) {
+    public void enrichSourceTables() {
+
+    }
+
+    @Override
+    public void enrichTargetTables(Map<Table, Table> tables) {
+
+    }
+
+    @Override
+    public Table configToTable(Config config) {
         return null;
     }
 
     @Override
-    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+    public void createPrimaryKey() {
 
     }
 
     @Override
-    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+    public void createIndexes() {
+
+    }
+
+    @Override
+    public void createTable(Table table) throws SQLException {
 
     }
 

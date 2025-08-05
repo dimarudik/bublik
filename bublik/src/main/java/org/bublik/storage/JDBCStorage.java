@@ -75,12 +75,15 @@ public abstract class JDBCStorage extends Storage {
         Properties properties = getConnectionProperty().getToProperty();
         List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
-        Map<Table, Table> mapOfTables = getMapOfTables(configs, targetStorage);
-        Map<Table, Table> enrichedMapOfTables = enrichMapOfTables(mapOfTables, targetStorage);
-        enrichedMapOfTables
+        assert targetStorage != null;
+        setTables(configsToTables(configs));
+        enrichSourceTables();
+        targetStorage.enrichTargetTables(getTables());
+        Map<Table, Table> tables = getTables();
+        tables
                 .forEach((sourceTable, targetTable) -> {
                     try {
-                        createTableIfNotExists(targetTable, targetStorage);
+                        targetStorage.createTable(targetTable);
                     } catch (SQLException e) {
                         log.error("{}", getStackTrace(e));
                     }
@@ -88,15 +91,13 @@ public abstract class JDBCStorage extends Storage {
         if (!sync) {
             startNOSync(chunks, targetStorage);
         } else {
-            assert targetStorage != null;
-            startSync(chunks, targetStorage, enrichedMapOfTables);
+            startSync(chunks, targetStorage);
         }
-        assert targetStorage != null;
         targetStorage.closeStorage();
         this.closeStorage();
     }
 
-    private void startSync(List<Chunk<?>> chunks, Storage targetStorage, Map<Table, Table> enrichedMapOfTables) throws SQLException {
+    private void startSync(List<Chunk<?>> chunks, Storage targetStorage) throws SQLException {
         Connection sourceConnection = this.getConnection();
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
         chunks.forEach(chunk -> {
@@ -117,8 +118,9 @@ public abstract class JDBCStorage extends Storage {
         });
         sourceConnection.commit();
         Connection targetConnection = targetStorage.getConnection();
-        targetStorage.createPrimaryKey(enrichedMapOfTables, targetStorage);
-        targetStorage.createIndex(enrichedMapOfTables, targetStorage);
+        targetStorage.setTables(getTables());
+        targetStorage.createPrimaryKey();
+        targetStorage.createIndexes();
         sourceConnection.close();
         targetConnection.close();
     }
@@ -155,6 +157,19 @@ public abstract class JDBCStorage extends Storage {
             log.info("HikariDataSource closed successfully.");
         } else {
             log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
+        }
+    }
+
+    @Override
+    public void enrichTargetTables(Map<Table, Table> tables) {
+        for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+            Table sourceTable = entry.getKey();
+            Table targetTable = entry.getValue();
+
+            targetTable.setColumns(sourceTable.getColumns());
+            targetTable.setPkColumns(sourceTable.getPkColumns());
+            targetTable.setIndexes(sourceTable.getIndexes());
+            targetTable.setOptions(sourceTable.getOptions());
         }
     }
 }

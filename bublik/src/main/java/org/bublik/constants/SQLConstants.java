@@ -131,6 +131,30 @@ public abstract class SQLConstants {
 
     public static final String SQL_PG_INDEX_DEFINITION =
             "select indexdef from pg_indexes where schemaname = ? and tablename = ? and indexname = ?";
+    public static final String SQL_PG_INDEX_BASIC_COLUMNS =
+            "select ix.indexrelid as id, i.relname, ix.indisunique as uniq, ix.indisprimary as pri, " +
+            "case ix.indoption[array_position(ix.indkey, a.attnum)] " +
+            "when 0 then '' when 1 then 'desc nulls last' when 2 then 'nulls first' when 3 then 'desc nulls first' end as ascdesc, " +
+            "ix.indkey, array_position(ix.indkey, a.attnum)+1 as pos, ix.indnkeyatts, ix.indnatts, a.attname as name, a.attnum as num, " +
+            "pg_get_expr(ix.indpred, t.relname::regclass) as filter, " +
+            "pg_get_indexdef(i.relname::regclass) as indexdef " +
+            "from pg_class t, pg_index ix, pg_class i, pg_attribute a, pg_namespace n " +
+            "where n.oid = t.relnamespace and n.nspname = ? and t.relname = ? and ix.indisunique = ? " +
+            "and t.oid = ix.indrelid and ix.indexrelid = i.oid and t.oid = a.attrelid and t.relkind = 'r' " +
+            "and not exists (select oid from pg_constraint c where c.conindid = ix.indexrelid) " +
+            "and a.attnum = any(ix.indkey[0:ix.indnkeyatts-1]) and ix.indisprimary = false";
+    public static final String SQL_PG_INDEX_INCLUDE_COLUMNS =
+            "select ix.indexrelid as id, i.relname, ix.indisunique as uniq, ix.indisprimary as pri, " +
+            "case ix.indoption[array_position(ix.indkey, a.attnum)] " +
+            "when 0 then '' when 1 then 'desc nulls last' when 2 then 'nulls first' when 3 then 'desc nulls first' end as ascdesc, " +
+            "ix.indkey, array_position(ix.indkey, a.attnum)+1 as pos, ix.indnkeyatts, ix.indnatts, a.attname as name, a.attnum as num, " +
+            "pg_get_expr(ix.indpred, t.relname::regclass) as filter, " +
+            "pg_get_indexdef(i.relname::regclass) as indexdef " +
+            "from pg_class t, pg_index ix, pg_class i, pg_attribute a, pg_namespace n " +
+            "where n.oid = t.relnamespace and n.nspname = ? and t.relname = ? and ix.indisunique = ? " +
+            "and t.oid = ix.indrelid and ix.indexrelid = i.oid and t.oid = a.attrelid and t.relkind = 'r' " +
+            "and not exists (select oid from pg_constraint c where c.conindid = ix.indexrelid) " +
+            "and a.attnum = any(ix.indkey[ix.indnkeyatts:]) and ix.indisprimary = false";
     public static final String SQL_PG_TABLE_OPTIONS =
             "select c.oid::int4 as oid, c.reloptions from pg_class c, pg_namespace n " +
                     "where n.oid = c.relnamespace and n.nspname = ? and c.relname = ?";

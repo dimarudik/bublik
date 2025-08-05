@@ -15,10 +15,11 @@ public class Column implements NameSyntaxService, ColumnService, Comparable<Colu
     private final int decimalDigits;
     private final String columnComment;
     private final int charOctetLength;
+    private final String ascOrDesc;
 
     public Column(Integer columnPosition, String columnName, String columnType, Integer dataType, Integer isNullable,
                   String defaultValue, String isAutoIncrement, String isGenerated, int decimalDigits,
-                  String columnComment, int charOctetLength) {
+                  String columnComment, int charOctetLength, String ascOrDesc) {
         this.columnPosition = columnPosition;
         this.columnName = columnName;
         this.columnType = columnType;
@@ -30,6 +31,7 @@ public class Column implements NameSyntaxService, ColumnService, Comparable<Colu
         this.decimalDigits = decimalDigits;
         this.columnComment = columnComment;
         this.charOctetLength = charOctetLength;
+        this.ascOrDesc = ascOrDesc;
     }
 
     public Integer getColumnPosition() {
@@ -76,8 +78,16 @@ public class Column implements NameSyntaxService, ColumnService, Comparable<Colu
         return charOctetLength;
     }
 
+    public String getAscOrDesc() {
+        return ascOrDesc;
+    }
+
     @Override
     public int compareTo(Column column) {
         return getColumnPosition().compareTo(column.getColumnPosition());
+    }
+
+    public String getColumnNameWithAscOrDesc() {
+        return columnName + " " + ascOrDesc;
     }
 }

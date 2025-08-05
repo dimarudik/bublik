@@ -66,7 +66,7 @@ public class YDBTable extends Table {
     }
 
     @Override
-    public List<Index> getIndexes(Connection connection) throws SQLException {
+    public List<Index> getTableIndexes(Connection connection) throws SQLException {
         return List.of();
     }
 
@@ -86,7 +86,7 @@ public class YDBTable extends Table {
     }
 
     @Override
-    public void createIndex(Connection connection) {
+    public void createIndexes(Connection connection) {
 
     }
 
@@ -96,7 +96,7 @@ public class YDBTable extends Table {
     }
 
     @Override
-    public void createTableIfNotExists(Connection connection) throws SQLException {
+    public void createTable(Connection connection) throws SQLException {
 
     }
 }

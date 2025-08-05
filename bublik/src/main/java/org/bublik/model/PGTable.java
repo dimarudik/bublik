@@ -132,12 +132,15 @@ public class PGTable extends Table {
                     isGenerated,
                     decimalDigits,
                     remark,
-                    charOctetLength
+                    charOctetLength,
+                    null
             ));
-            log.info("Column: {}, Type: {}, Data Type: {}, Nullable: {}, Default: {}, " +
+/*
+            log.info("Position: {} Column: {}, Type: {}, Data Type: {}, Nullable: {}, Default: {}, " +
                             "Auto Increment: {}, Generated: {}, Decimal Digits: {}, Remark: {}, Char Octet Length: {}",
-                    columnName, columnType, dataType, nullable, columnDefault,
+                    ordinalPosition, columnName, columnType, dataType, nullable, columnDefault,
                     isAutoIncrement, isGenerated, decimalDigits, remark, charOctetLength);
+*/
         }
         columns.sort(Column::compareTo);
         return columns;
@@ -163,7 +166,8 @@ public class PGTable extends Table {
                     null,
                     0,
                     null,
-                    0)
+                    0,
+                    null)
             );
         }
         rs.close();
@@ -172,7 +176,116 @@ public class PGTable extends Table {
     }
 
     @Override
-    public List<Index> getIndexes(Connection connection) throws SQLException {
+    public List<Index> getTableIndexes(Connection connection) throws SQLException {
+        Map<Integer, Index> nonUniqueIndexesBasicColumns = getTableIndexes(connection, false, true);
+        Map<Integer, Index> nonUniqueIndexesIncludeColumns = getTableIndexes(connection, false, false);
+        Map<Integer, Index> UniqueIndexesBasicColumns = getTableIndexes(connection, true, true);
+        Map<Integer, Index> UniqueIndexesIncludeColumns = getTableIndexes(connection, true, false);
+        Map<Integer, Index> indexes = combineIndexes(
+                combineIndexes(nonUniqueIndexesBasicColumns, nonUniqueIndexesIncludeColumns),
+                combineIndexes(UniqueIndexesBasicColumns, UniqueIndexesIncludeColumns)
+        );
+/*
+        indexes.forEach((integer, index) ->
+                log.info("\nIndex: {}, Unique: {}, Columns: {}, Include Columns: {}, Filter Condition: {}, Definition: {}",
+                        index.getIndexName(), index.isUnique(),
+                        index.getColumns().values(), index.getIncludeColumns().values(),
+                        index.getFilterCondition(), index.getIndexDef())
+        );
+*/
+        return new ArrayList<>(indexes.values());
+    }
+
+    private Map<Integer, Index> combineIndexes(
+            Map<Integer, Index> basicIndexes,
+            Map<Integer, Index> includeIndexes) {
+        Map<Integer, Index> combinedIndexes = new HashMap<>(basicIndexes);
+        for (Map.Entry<Integer, Index> entry : includeIndexes.entrySet()) {
+            int id = entry.getKey();
+            Index index = entry.getValue();
+            if (combinedIndexes.containsKey(id)) {
+                Index existingIndex = combinedIndexes.get(id);
+                existingIndex.getIncludeColumns().putAll(index.getIncludeColumns());
+                combinedIndexes.put(id, existingIndex);
+            } else {
+                combinedIndexes.put(id, index);
+            }
+        }
+        return combinedIndexes;
+    }
+
+    private Map<Integer, Index> getTableIndexes(Connection connection, boolean isUnique, boolean basic) throws SQLException {
+        Map<Integer, Index> indexes = new HashMap<>();
+        PreparedStatement ps = connection.prepareStatement(
+                basic ? SQL_PG_INDEX_BASIC_COLUMNS : SQL_PG_INDEX_INCLUDE_COLUMNS);
+        ps.setString(1, getFinalSchemaName(true));
+        ps.setString(2, getFinalTableName(true));
+        ps.setBoolean(3, isUnique);
+        ResultSet rs = ps.executeQuery();
+        if(rs.isBeforeFirst()) {
+            while (rs.next()) {
+                // Common index entities
+                int id = rs.getInt("id");
+                String indexName = rs.getString("relname");
+                boolean isUniq = rs.getBoolean("uniq");
+                String filterCondition = rs.getString("filter");
+                String indexDef = rs.getString("indexdef");
+                // Columns in the index
+                Map<Short, Column> columns = new TreeMap<>();
+                int ordinalPosition = rs.getInt("pos");
+                String columnName = rs.getString("name");
+                String ascOrDesc = rs.getString("ascdesc");
+                Column column = new Column(
+                        ordinalPosition,
+                        columnName,
+                        null, // columnType is not used here
+                        null, // dataType is not used here
+                        null, // nullable is not used here
+                        null, // defaultValue is not used here
+                        null, // isAutoIncrement is not used here
+                        null, // isGenerated is not used here
+                        0, // decimalDigits is not used here
+                        null, // columnComment is not used here
+                        0, // charOctetLength is not used here
+                        ascOrDesc
+                );
+                if (indexes.containsKey(id)) {
+                    Index existingIndex = indexes.get(id);
+                    if (basic) {
+                        Map<Short, Column> map = existingIndex.getColumns();
+                        map.put((short) ordinalPosition, column);
+                        indexes.put(id, existingIndex);
+                    } else {
+                        Map<Short, Column> map = existingIndex.getIncludeColumns();
+                        map.put((short) ordinalPosition, column);
+                        indexes.put(id, existingIndex);
+                    }
+                } else {
+                    Map<Short, Column> columnBasicMap = new TreeMap<>();
+                    Map<Short, Column> columnIncludeMap = new TreeMap<>();
+                    if (basic) {
+                        columnBasicMap.put((short) ordinalPosition, column);
+                    } else {
+                        columnIncludeMap.put((short) ordinalPosition, column);
+                    }
+                    indexes.put(id, new Index(
+                            id,
+                            indexName,
+                            columnBasicMap,
+                            columnIncludeMap,
+                            isUniq,
+                            filterCondition,
+                            indexDef));
+                }
+            }
+        }
+        rs.close();
+        ps.close();
+        return indexes;
+    }
+
+    @Deprecated
+    public List<Index> getTableIndexesOld(Connection connection) throws SQLException {
         Map<String, Index> indexes = new HashMap<>();
         try {
             ResultSet rs = connection.getMetaData().getIndexInfo(
@@ -209,7 +322,8 @@ public class PGTable extends Table {
                         null,  // isGenerated is not used here
                         0, // decimalDigits is not used here
                         null, // columnComment is not used here
-                        0 // charOctetLength is not used here
+                        0, // charOctetLength is not used here
+                        ascOrDesc
                 );
                 if (indexes.containsKey(indexName)) {
                     Index existingIndex = indexes.get(indexName);
@@ -218,26 +332,34 @@ public class PGTable extends Table {
                     indexes.put(indexName, existingIndex);
                 } else {
                     indexes.put(indexName, new Index(
-                            this,
+                            null,
                             indexName,
                             new TreeMap<>() {{
                                 put(ordinalPosition, column);
                             }},
+                            null,
                             nonUnique,
-                            ascOrDesc,
                             filterCondition,
                             indexDefinition
                     ));
                 }
+/*
+                log.info("Index: {}, Non-Unique: {}, Ordinal Position: {}, Column Name: {}, " +
+                                "Asc/Desc: {}, Filter Condition: {}, Definition: {}",
+                        indexName, nonUnique, ordinalPosition, columnName, ascOrDesc,
+                        filterCondition, indexDefinition);
+*/
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+/*
         indexes.forEach((s, index) ->
-            log.info("Index: {}, Non-Unique: {}, Asc/Desc: {}, Filter Condition: {}, Definition: {}",
-                    index.getIndexName(), index.isNonUnique(), index.getAscOrDesc(),
+            log.info("Index: {}, Non-Unique: {}, Filter Condition: {}, Definition: {}",
+                    index.getIndexName(), index.isNonUnique(),
                     index.getFilterCondition(), index.getIndexDef())
         );
+*/
         return indexes.values().stream().toList();
     }
 
@@ -258,8 +380,10 @@ public class PGTable extends Table {
                     options.add(new TableOption(option));
                 }
             }
+/*
             log.info("Table Options for {}.{}: OID: {}, RelOptions: {}",
                     getFinalSchemaName(true), getFinalTableName(true), oid, relOptionsArray);
+*/
         }
         return new AbstractMap.SimpleEntry<>(oid, options);
     }
@@ -292,8 +416,9 @@ public class PGTable extends Table {
     }
 
     @Override
-    public void createIndex(Connection connection) {
-
+    public void createIndexes(Connection connection) {
+        List<Index> indexes = getIndexes();
+        indexes.forEach(i -> i.createIndex(this, connection));
     }
 
     @Override
@@ -313,7 +438,7 @@ public class PGTable extends Table {
     }
 
     @Override
-    public void createTableIfNotExists(Connection connection) throws SQLException {
+    public void createTable(Connection connection) throws SQLException {
         String columnDefinition = getColumnDefinition();
         String query = DDL_PG_CREATE_TABLE
                 .replace("$schemaName", getFinalSchemaName(true))
@@ -322,7 +447,7 @@ public class PGTable extends Table {
         if (this.getOptions() != null) {
             query += " WITH (" + getOptionDefinition() + ")";
         }
-        log.info("{}", query);
+//        log.info("{}", query);
         Statement statement = connection.createStatement();
         statement.execute(query);
         connection.commit();

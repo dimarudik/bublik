@@ -308,7 +308,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0, null, 0)));
+                                            dataType, null, null, null, null, 0, null, 0, null)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -321,7 +321,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0)));
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (encryptedEntityMap != null) {
@@ -339,7 +339,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue().targetEncColumnName(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0)));
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (cryptoToColumnMap != null) {
@@ -352,7 +352,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0)));
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -365,7 +365,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0)));
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
             }
             resultSet.close();
@@ -401,7 +401,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0)));
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
             }
             resultSet.close();
@@ -442,7 +442,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                                 columnPosition,
                                                 entry.getValue().targetEncColumnName() == null ? entry.getValue().targetEncMetaColumnName() : entry.getValue().targetEncColumnName(),
                                                 columnType.equals("bigserial") ? "bigint" : columnType,
-                                                null, null, null, null, null, 0 , null, 0),
+                                                null, null, null, null, null, 0 , null, 0, null),
                                         entry.getValue()
                             )));
                 }
@@ -1177,26 +1177,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+    public void createPrimaryKey() {
+        Map<Table, Table> tables = getTables();
         try {
-            Connection sourceConnection = getConnection();
-            Connection targetConnection = targetStorage.getConnection();
+            Connection targetConnection = getConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
-                Table sourceTable = entry.getKey();
                 Table targetTable = entry.getValue();
-                List<Column> sourcePKColumns = sourceTable.getPkColumns();
-                if (!sourcePKColumns.isEmpty()) {
-                    sourceTable.setPkColumns(sourcePKColumns);
-                    targetTable.setPkColumns(sourcePKColumns);
-                    targetTable.createPrimaryKey(targetConnection);
-//                    log.info("Creating primary key for table {}.{} in target storage", targetTable.getSchemaName(), targetTable.getTableName());
-                } else {
-                    throw new SQLException("Source table " + sourceTable.getSchemaName() + "." + sourceTable.getTableName() +
-                            " has no primary key, cannot create primary key in target table " +
-                            targetTable.getSchemaName() + "." + targetTable.getTableName());
-                }
+                targetTable.createPrimaryKey(targetConnection);
             }
-            sourceConnection.close();
             targetConnection.close();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
@@ -1204,15 +1192,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
+    public void createIndexes() {
+        Map<Table, Table> tables = getTables();
         try {
-            Connection sourceConnection = getConnection();
-            Connection targetConnection = targetStorage.getConnection();
+            Connection targetConnection = getConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
-                Table sourceTable = entry.getKey();
-                sourceTable.createIndex(sourceConnection);
+                Table taregtTable = entry.getValue();
+                taregtTable.createIndexes(targetConnection);
             }
-            sourceConnection.close();
             targetConnection.close();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
@@ -1220,55 +1207,48 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException {
-        Connection targetConnection = targetStorage.getConnection();
-        table.createTableIfNotExists(targetConnection);
+    public void createTable(Table table) throws SQLException {
+        Connection targetConnection = getConnection();
+        table.createTable(targetConnection);
         targetConnection.close();
     }
 
     @Override
-    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+    public Map<Table, Table> configsToTables(List<Config> configs) {
         Map<Table, Table> tables = new HashMap<>();
         for (Config c : configs) {
-            tables.put(new  PGTable(c.fromSchemaName(), c.fromTableName()), targetStorage.createTable(c));
+            tables.put(new  PGTable(c.fromSchemaName(), c.fromTableName()), configToTable(c));
         }
         return tables;
     }
 
     @Override
-    public Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage) {
-        Map<Table, Table> enrichedTables = new HashMap<>();
+    public void enrichSourceTables() {
+        Map<Table, Table> tables = getTables();
         try {
             Connection sourceConnection = getConnection();
-            Connection targetConnection = targetStorage.getConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table sourceTable = entry.getKey();
-                Table targetTable = entry.getValue();
                 List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
-                List<Index> sourceIndexes = sourceTable.getIndexes(sourceConnection);
+                List<Index> sourceIndexes = sourceTable.getTableIndexes(sourceConnection);
                 List<Column> importedKeyColumns = sourceTable.getImportedKeyColumns(sourceConnection);
                 Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(sourceConnection);
+
                 sourceTable.setId(options.getKey());
                 sourceTable.setOptions(options.getValue());
-                sourceTable.setPkColumns(allSourceColumns);
+                sourceTable.setColumns(allSourceColumns);
                 sourceTable.setPkColumns(sourcePKColumns);
                 sourceTable.setIndexes(sourceIndexes);
-                targetTable.setPkColumns(sourcePKColumns);
-                targetTable.setColumns(allSourceColumns);
-                targetTable.setOptions(options.getValue());
-                enrichedTables.put(sourceTable, targetTable);
             }
             sourceConnection.close();
-            targetConnection.close();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
         }
-        return enrichedTables;
     }
 
     @Override
-    public Table createTable(Config config) {
+    public Table configToTable(Config config) {
         return new PGTable(config.toSchemaName(), config.toTableName());
     }
 }

@@ -289,7 +289,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null, 0 , null, 0)));
+                                            null, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -302,7 +302,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null, 0 , null, 0)));
+                                            null, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -315,7 +315,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null, 0 , null, 0)));
+                                            null, null, null, null, null, 0 , null, 0, null)));
                 }
             }
             resultSet.close();
@@ -326,35 +326,35 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void createPrimaryKey(Map<Table, Table> tables, Storage targetStorage) {
+    public void createPrimaryKey() {
     }
 
     @Override
-    public void createIndex(Map<Table, Table> tables, Storage targetStorage) {
-
-    }
-
-    @Override
-    public void createTableIfNotExists(Table table, Storage targetStorage) throws SQLException {
+    public void createIndexes() {
 
     }
 
     @Override
-    public Map<Table, Table> getMapOfTables(List<Config> configs, Storage targetStorage) {
+    public void createTable(Table table) throws SQLException {
+
+    }
+
+    @Override
+    public Map<Table, Table> configsToTables(List<Config> configs) {
         Map<Table, Table> tables = new HashMap<>();
         for (Config c : configs) {
-            tables.put(new YDBTable(c.fromSchemaName(), c.fromTableName()), targetStorage.createTable(c));
+            tables.put(new YDBTable(c.fromSchemaName(), c.fromTableName()), configToTable(c));
         }
         return tables;
     }
 
     @Override
-    public Map<Table, Table> enrichMapOfTables(Map<Table, Table> tables, Storage targetStorage) {
-        return Map.of();
+    public void enrichSourceTables() {
+
     }
 
     @Override
-    public Table createTable(Config config) {
+    public Table configToTable(Config config) {
         return new YDBTable(config.toSchemaName(), config.toTableName());
     }
 
