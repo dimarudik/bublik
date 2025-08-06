@@ -1,13 +1,13 @@
 package org.bublik.model;
 
-import org.bublik.service.IndexService;
+import org.bublik.service.DDLService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.util.Map;
 
-public class Index implements IndexService {
+public class Index implements DDLService {
     private static final Logger log = LoggerFactory.getLogger(Index.class);
 
     private final Integer id;
@@ -58,7 +58,7 @@ public class Index implements IndexService {
     }
 
     @Override
-    public void createIndex(Table table, Connection connection) {
+    public void create(Table table, Connection connection) {
         String sqlInclude = includeColumns.isEmpty() ? "" : " INCLUDE (" +
                 String.join(", ", includeColumns.values().stream().map(Column::getColumnName).toList()) + ")";
         String sql = String.format(

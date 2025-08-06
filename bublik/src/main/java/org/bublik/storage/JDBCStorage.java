@@ -74,20 +74,15 @@ public abstract class JDBCStorage extends Storage {
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
         Properties properties = getConnectionProperty().getToProperty();
         List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
+        Storage sourceStorage = this;
         Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
         assert targetStorage != null;
-        setTables(configsToTables(configs));
-        enrichSourceTables();
-        targetStorage.enrichTargetTables(getTables());
-        Map<Table, Table> tables = getTables();
-        tables
-                .forEach((sourceTable, targetTable) -> {
-                    try {
-                        targetStorage.createTable(targetTable);
-                    } catch (SQLException e) {
-                        log.error("{}", getStackTrace(e));
-                    }
-                });
+        Map<Table, Table> sourceTables = configsToTables(configs);
+        sourceStorage.setTables(sourceTables);
+        sourceStorage.enrichSourceTables();
+        targetStorage.enrichTargetTables(sourceTables);
+        targetStorage.setTables(sourceTables);
+        targetStorage.createTables();
         if (!sync) {
             startNOSync(chunks, targetStorage);
         } else {
@@ -119,8 +114,10 @@ public abstract class JDBCStorage extends Storage {
         sourceConnection.commit();
         Connection targetConnection = targetStorage.getConnection();
         targetStorage.setTables(getTables());
-        targetStorage.createPrimaryKey();
+        targetStorage.createPrimaryKeys();
+        targetStorage.createUniqueConstraints();
         targetStorage.createIndexes();
+        targetStorage.createForeignKeys();
         sourceConnection.close();
         targetConnection.close();
     }
@@ -170,6 +167,32 @@ public abstract class JDBCStorage extends Storage {
             targetTable.setPkColumns(sourceTable.getPkColumns());
             targetTable.setIndexes(sourceTable.getIndexes());
             targetTable.setOptions(sourceTable.getOptions());
+            targetTable.setUniqueConstraints(sourceTable.getUniqueConstraints());
+            targetTable.setForeignKeys(sourceTable.getForeignKeys());
         }
+    }
+
+    @Override
+    public boolean tableInSourceList(Table table) {
+        return inList(getTables().keySet().stream().toList() , table);
+    }
+
+    @Override
+    public boolean tableInTargetList(Table table) {
+        return inList(getTables().values().stream().toList() , table);
+    }
+
+    private boolean inList(List<Table> tables, Table table) {
+        return tables.contains(table);
+    }
+
+    @Override
+    public Table getTagetTableBySourceTable(Table sourceTable) {
+        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
+            if (entry.getKey().equals(sourceTable)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 }

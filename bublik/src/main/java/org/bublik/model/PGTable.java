@@ -1,5 +1,6 @@
 package org.bublik.model;
 
+import org.bublik.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,8 +60,8 @@ public class PGTable extends Table {
     }
 
     @Override
-    public List<Column> getImportedKeyColumns(Connection connection) throws SQLException {
-        List<Column> columns = new ArrayList<>();
+    public List<ForeignKey> getForeignKeys(Connection connection, Storage storage) throws SQLException {
+        Map<String, ForeignKey> foreignKeys = new HashMap<>();
         ResultSet rs = connection.getMetaData().getImportedKeys(
                 null,
                 getFinalSchemaName(),
@@ -78,27 +79,92 @@ public class PGTable extends Table {
             String updateRule = rs.getString("UPDATE_RULE");
             String deleteRule = rs.getString("DELETE_RULE");
             short deferrability = rs.getShort("DEFERRABILITY");
-            log.info("Imported Key of {}: PK Table: {}.{}, PK Column: {}, Ordinal Position: {}, " +
+            if (foreignKeys.containsKey(fkName)) {
+                ForeignKey existingForeignKey = foreignKeys.get(fkName);
+                existingForeignKey.getPkColumns().add(new Column(
+                        (int) ordinalPosition,
+                        pkColumnName,
+                        null, // columnType is not used here
+                        null, // dataType is not used here
+                        null, // nullable is not used here
+                        null, // defaultValue is not used here
+                        null, // isAutoIncrement is not used here
+                        null, // isGenerated is not used here
+                        0, // decimalDigits is not used here
+                        null, // columnComment is not used here
+                        0, // charOctetLength is not used here
+                        null // ascOrDesc is not used here
+                ));
+                existingForeignKey.getFkColumns().add(new Column(
+                        (int) ordinalPosition,
+                        fkColumnName,
+                        null, // columnType is not used here
+                        null, // dataType is not used here
+                        null, // nullable is not used here
+                        null, // defaultValue is not used here
+                        null, // isAutoIncrement is not used here
+                        null, // isGenerated is not used here
+                        0, // decimalDigits is not used here
+                        null, // columnComment is not used here
+                        0, // charOctetLength is not used here
+                        null // ascOrDesc is not used here
+                ));
+            } else {
+                Table pkTable = storage.getTagetTableBySourceTable(new PGTable(pkSchemaName, pkTableName));
+                Table fkTable = storage.getTagetTableBySourceTable(new PGTable(fkSchemaName, fkTableName));
+//                Тут
+                if (pkTable != null && fkTable != null) {
+                    ForeignKey foreignKey = new ForeignKey(
+                            fkTable,
+                            new ArrayList<>() {{
+                                add(new Column(
+                                        (int) ordinalPosition,
+                                        fkColumnName,
+                                        null, // columnType is not used here
+                                        null, // dataType is not used here
+                                        null, // nullable is not used here
+                                        null, // defaultValue is not used here
+                                        null, // isAutoIncrement is not used here
+                                        null, // isGenerated is not used here
+                                        0, // decimalDigits is not used here
+                                        null, // columnComment is not used here
+                                        0, // charOctetLength is not used here
+                                        null // ascOrDesc is not used here
+                                ));
+                            }},
+                            pkTable,
+                            new ArrayList<>() {{
+                                add(new Column(
+                                        (int) ordinalPosition,
+                                        pkColumnName,
+                                        null, // columnType is not used here
+                                        null, // dataType is not used here
+                                        null, // nullable is not used here
+                                        null, // defaultValue is not used here
+                                        null, // isAutoIncrement is not used here
+                                        null, // isGenerated is not used here
+                                        0, // decimalDigits is not used here
+                                        null, // columnComment is not used here
+                                        0, // charOctetLength is not used here
+                                        null // ascOrDesc is not used here
+                                ));
+                            }},
+                            pkName,
+                            fkName,
+                            updateRule,
+                            deleteRule,
+                            deferrability);
+                    foreignKeys.put(fkName, foreignKey);
+                }
+            }
+            log.info("Foreign Key of {}: PK Table: {}.{}, PK Column: {}, Ordinal Position: {}, " +
                             "FK Table: {}.{}, FK Column: {}, FK Name: {}, PK Name: {}, " +
                             "Update Rule: {}, Delete Rule: {}, Deferrability: {}",
                     getFinalTableName(false), pkSchemaName, pkTableName, pkColumnName, ordinalPosition,
                     fkSchemaName, fkTableName, fkColumnName, fkName, pkName,
                     updateRule, deleteRule, deferrability);
-/*
-            columns.add(new Column(
-                    ordinalPosition,
-                    columnName,
-                    columnType,
-                    dataType,
-                    nullable,
-                    columnDefault,
-                    isAutoIncrement,
-                    isGenerated
-            ));
-*/
         }
-//        columns.sort(Column::compareTo);
-        return columns;
+        return new ArrayList<>(foreignKeys.values());
     }
 
     @Override
@@ -185,15 +251,62 @@ public class PGTable extends Table {
                 combineIndexes(nonUniqueIndexesBasicColumns, nonUniqueIndexesIncludeColumns),
                 combineIndexes(UniqueIndexesBasicColumns, UniqueIndexesIncludeColumns)
         );
-/*
-        indexes.forEach((integer, index) ->
-                log.info("\nIndex: {}, Unique: {}, Columns: {}, Include Columns: {}, Filter Condition: {}, Definition: {}",
-                        index.getIndexName(), index.isUnique(),
-                        index.getColumns().values(), index.getIncludeColumns().values(),
-                        index.getFilterCondition(), index.getIndexDef())
-        );
-*/
         return new ArrayList<>(indexes.values());
+    }
+
+    @Override
+    public List<UniqueConstraint> getUniqueConstraints(Connection connection) throws SQLException {
+        PreparedStatement ps = connection.prepareStatement(SQL_PG_UNIQUE_CONSTRAINTS);
+        ps.setString(1, getFinalSchemaName(true));
+        ps.setString(2, getFinalTableName(true));
+        ResultSet rs = ps.executeQuery();
+        Map<String, UniqueConstraint> uniqueConstraintMap = new HashMap<>();
+        while (rs.next()) {
+            String constraintName = rs.getString("conname");
+            boolean nullsNotDistinct = rs.getBoolean("indnullsnotdistinct");
+            int ordinalPosition = rs.getInt("pos");
+            String columnName = rs.getString("attname");
+            if (uniqueConstraintMap.containsKey(constraintName)) {
+                UniqueConstraint existingConstraint = uniqueConstraintMap.get(constraintName);
+                existingConstraint.getColumns().put((short) ordinalPosition, new Column(
+                        ordinalPosition,
+                        columnName,
+                        null, // columnType is not used here
+                        null, // dataType is not used here
+                        null, // nullable is not used here
+                        null, // defaultValue is not used here
+                        null, // isAutoIncrement is not used here
+                        null, // isGenerated is not used here
+                        0, // decimalDigits is not used here
+                        null, // columnComment is not used here
+                        0, // charOctetLength is not used here
+                        null // ascOrDesc is not used here
+                ));
+            } else {
+                uniqueConstraintMap.put(constraintName, new UniqueConstraint(
+                        constraintName,
+                        new TreeMap<>() {{
+                            put((short) ordinalPosition, new Column(
+                                    ordinalPosition,
+                                    columnName,
+                                    null, // columnType is not used here
+                                    null, // dataType is not used here
+                                    null, // nullable is not used here
+                                    null, // defaultValue is not used here
+                                    null, // isAutoIncrement is not used here
+                                    null, // isGenerated is not used here
+                                    0, // decimalDigits is not used here
+                                    null, // columnComment is not used here
+                                    0, // charOctetLength is not used here
+                                    null // ascOrDesc is not used here
+                            ));
+                        }},
+                        nullsNotDistinct));
+            }
+        }
+        rs.close();
+        ps.close();
+        return new ArrayList<>(uniqueConstraintMap.values());
     }
 
     private Map<Integer, Index> combineIndexes(
@@ -284,85 +397,6 @@ public class PGTable extends Table {
         return indexes;
     }
 
-    @Deprecated
-    public List<Index> getTableIndexesOld(Connection connection) throws SQLException {
-        Map<String, Index> indexes = new HashMap<>();
-        try {
-            ResultSet rs = connection.getMetaData().getIndexInfo(
-                    null,
-                    getFinalSchemaName(),
-                    getFinalTableName(false),
-                    false,
-                    false
-            );
-            while (rs.next()) {
-                boolean nonUnique = rs.getBoolean("NON_UNIQUE");
-                String indexName = rs.getString("INDEX_NAME");
-                short ordinalPosition = rs.getShort("ORDINAL_POSITION");
-                String columnName = rs.getString("COLUMN_NAME");
-                String ascOrDesc = rs.getString("ASC_OR_DESC");
-                String filterCondition = rs.getString("FILTER_CONDITION");
-                PreparedStatement ps = connection.prepareStatement(SQL_PG_INDEX_DEFINITION);
-                ps.setString(1, getFinalSchemaName(true));
-                ps.setString(2, getFinalTableName(true));
-                ps.setString(3, indexName);
-                ResultSet set = ps.executeQuery();
-                String indexDefinition = "";
-                while (set.next()) {
-                    indexDefinition = set.getString("indexdef");
-                }
-                Column column = new Column(
-                        null, // columnPosition is not used here
-                        columnName,
-                        null, // columnType is not used here
-                        null, // dataType is not used here
-                        null, // nullable is not used here
-                        null, // defaultValue is not used here
-                        null, // isAutoIncrement is not used here
-                        null,  // isGenerated is not used here
-                        0, // decimalDigits is not used here
-                        null, // columnComment is not used here
-                        0, // charOctetLength is not used here
-                        ascOrDesc
-                );
-                if (indexes.containsKey(indexName)) {
-                    Index existingIndex = indexes.get(indexName);
-                    Map<Short, Column> map = existingIndex.getColumns();
-                    map.put(ordinalPosition, column);
-                    indexes.put(indexName, existingIndex);
-                } else {
-                    indexes.put(indexName, new Index(
-                            null,
-                            indexName,
-                            new TreeMap<>() {{
-                                put(ordinalPosition, column);
-                            }},
-                            null,
-                            nonUnique,
-                            filterCondition,
-                            indexDefinition
-                    ));
-                }
-/*
-                log.info("Index: {}, Non-Unique: {}, Ordinal Position: {}, Column Name: {}, " +
-                                "Asc/Desc: {}, Filter Condition: {}, Definition: {}",
-                        indexName, nonUnique, ordinalPosition, columnName, ascOrDesc,
-                        filterCondition, indexDefinition);
-*/
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-/*
-        indexes.forEach((s, index) ->
-            log.info("Index: {}, Non-Unique: {}, Filter Condition: {}, Definition: {}",
-                    index.getIndexName(), index.isNonUnique(),
-                    index.getFilterCondition(), index.getIndexDef())
-        );
-*/
-        return indexes.values().stream().toList();
-    }
-
     @Override
     public Map.Entry<Integer, List<TableOption>> getOptions(Connection connection) throws SQLException {
         int oid = 0;
@@ -418,7 +452,19 @@ public class PGTable extends Table {
     @Override
     public void createIndexes(Connection connection) {
         List<Index> indexes = getIndexes();
-        indexes.forEach(i -> i.createIndex(this, connection));
+        indexes.forEach(i -> i.create(this, connection));
+    }
+
+    @Override
+    public void createUniqueConstraints(Connection connection) {
+        List<UniqueConstraint> uniqueConstraints = getUniqueConstraints();
+        uniqueConstraints.forEach(uc -> uc.create(this, connection));
+    }
+
+    @Override
+    public void createForeignKeys(Connection connection) {
+        List<ForeignKey> foreignKeys = getForeignKeys();
+        foreignKeys.forEach(fk -> fk.create(this, connection));
     }
 
     @Override
@@ -438,16 +484,16 @@ public class PGTable extends Table {
     }
 
     @Override
-    public void createTable(Connection connection) throws SQLException {
+    public void create(Connection connection) throws SQLException {
         String columnDefinition = getColumnDefinition();
         String query = DDL_PG_CREATE_TABLE
                 .replace("$schemaName", getFinalSchemaName(true))
                 .replace("$tableName", getFinalTableName(true))
                 .replace("$columnDefinition", columnDefinition);
-        if (this.getOptions() != null) {
+        if (this.getOptions() != null && !getOptions().isEmpty()) {
             query += " WITH (" + getOptionDefinition() + ")";
         }
-//        log.info("{}", query);
+        log.info("{}", query);
         Statement statement = connection.createStatement();
         statement.execute(query);
         connection.commit();
@@ -470,7 +516,7 @@ public class PGTable extends Table {
                     column.getColumnType().equals("character") ||
                     column.getColumnType().equals("bpchar")
             ) {
-                if (column.getCharOctetLength() > 0) {
+                if (column.getCharOctetLength() > 0 && column.getCharOctetLength() < 100000) {
                     columnDefinition.append("(").append(column.getCharOctetLength());
                     if (column.getDecimalDigits() > 0) {
                         columnDefinition.append(", ").append(column.getDecimalDigits());
@@ -495,7 +541,7 @@ public class PGTable extends Table {
 
     private String getOptionDefinition() {
         StringBuilder optionDefinition = new StringBuilder();
-        if (this.getOptions() != null){
+        if (this.getOptions() != null) {
             for (TableOption option : this.getOptions()) {
                 if (!optionDefinition.isEmpty()) {
                     optionDefinition.append(", ");

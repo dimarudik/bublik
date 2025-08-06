@@ -26,12 +26,16 @@ public interface StorageService {
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
     Map<Table, Table> configsToTables(List<Config> configs);
     Table configToTable(Config config);
+    Table getTagetTableBySourceTable(Table table);
+    boolean tableInSourceList(Table table);
+    boolean tableInTargetList(Table table);
     void enrichSourceTables();
     void enrichTargetTables(Map<Table, Table> tables);
-    void createPrimaryKey();
+    void createTables();
+    void createPrimaryKeys();
+    void createUniqueConstraints();
     void createIndexes();
-    void createTable(Table table) throws SQLException;
-
+    void createForeignKeys();
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
         try {

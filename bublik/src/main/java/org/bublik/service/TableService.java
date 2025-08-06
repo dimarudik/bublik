@@ -1,6 +1,7 @@
 package org.bublik.service;
 
 import org.bublik.model.*;
+import org.bublik.storage.Storage;
 import org.postgresql.PGConnection;
 
 import java.sql.Connection;
@@ -16,14 +17,17 @@ public interface TableService {
     String getTaskName();
     List<Column> getAllColumns(Connection connection) throws SQLException;
     List<Column> getPrimaryKeyColumns(Connection connection) throws SQLException;
-    List<Column> getImportedKeyColumns(Connection connection) throws SQLException;
+    List<ForeignKey> getForeignKeys(Connection connection, Storage storage) throws SQLException;
     List<Index> getTableIndexes(Connection connection) throws SQLException;
+    List<UniqueConstraint> getUniqueConstraints(Connection connection) throws SQLException;
     Map.Entry<Integer, List<TableOption>> getOptions(Connection connection) throws SQLException;
     boolean hasPrimaryKey();
     void createPrimaryKey(Connection connection);
     void createIndexes(Connection connection);
+    void createUniqueConstraints(Connection connection);
+    void createForeignKeys(Connection connection);
     Map<String, String> getColumnToColumn(Connection connection) throws SQLException;
-    void createTable(Connection connection) throws SQLException;
+    void create(Connection connection) throws SQLException;
 
     static Class<? extends Table[]> getTableArrayClass(Connection connection) throws SQLException {
         if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {

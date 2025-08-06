@@ -1177,7 +1177,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createPrimaryKey() {
+    public void createPrimaryKeys() {
         Map<Table, Table> tables = getTables();
         try {
             Connection targetConnection = getConnection();
@@ -1207,10 +1207,48 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createTable(Table table) throws SQLException {
-        Connection targetConnection = getConnection();
-        table.createTable(targetConnection);
-        targetConnection.close();
+    public void createTables() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.create(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createForeignKeys() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.createForeignKeys(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createUniqueConstraints() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.createUniqueConstraints(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
     }
 
     @Override
@@ -1231,8 +1269,9 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 Table sourceTable = entry.getKey();
                 List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
+                List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(sourceConnection);
                 List<Index> sourceIndexes = sourceTable.getTableIndexes(sourceConnection);
-                List<Column> importedKeyColumns = sourceTable.getImportedKeyColumns(sourceConnection);
+                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(sourceConnection, this);
                 Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(sourceConnection);
 
                 sourceTable.setId(options.getKey());
@@ -1240,6 +1279,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 sourceTable.setColumns(allSourceColumns);
                 sourceTable.setPkColumns(sourcePKColumns);
                 sourceTable.setIndexes(sourceIndexes);
+                sourceTable.setUniqueConstraints(uniqueConstraints);
+                sourceTable.setForeignKeys(foreignKeys);
             }
             sourceConnection.close();
         } catch (SQLException e) {

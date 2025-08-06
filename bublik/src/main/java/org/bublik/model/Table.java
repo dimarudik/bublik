@@ -4,6 +4,7 @@ import org.bublik.service.NameSyntaxService;
 import org.bublik.service.TableService;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,6 +18,7 @@ public abstract class Table implements TableService, NameSyntaxService {
     private List<Index> indexes;
     private List<ForeignKey> foreignKeys;
     private List<TableOption> options;
+    private List<UniqueConstraint> uniqueConstraints;
 
     public Table() {}
 
@@ -77,8 +79,30 @@ public abstract class Table implements TableService, NameSyntaxService {
         this.id = id;
     }
 
+    public List<UniqueConstraint> getUniqueConstraints() {
+        return uniqueConstraints;
+    }
+
+    public void setUniqueConstraints(List<UniqueConstraint> uniqueConstraints) {
+        this.uniqueConstraints = uniqueConstraints;
+    }
+
+    public List<ForeignKey> getForeignKeys() {
+        return foreignKeys;
+    }
+
+    public void setForeignKeys(List<ForeignKey> foreignKeys) {
+        this.foreignKeys = foreignKeys;
+    }
+
     @Override
     public String getTaskName() {
         return getFinalTableName(false).toUpperCase() + "_TASK";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Table table)) return false;
+        return schemaName.equals(table.schemaName) && tableName.equals(table.tableName);
     }
 }

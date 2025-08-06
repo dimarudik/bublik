@@ -369,17 +369,47 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
+    public void createTables() {
+
+    }
+
+    @Override
     public Table configToTable(Config config) {
         return null;
     }
 
     @Override
-    public void createPrimaryKey() {
+    public Table getTagetTableBySourceTable(Table table) {
+        return null;
+    }
+
+    @Override
+    public boolean tableInSourceList(Table table) {
+        return false;
+    }
+
+    @Override
+    public boolean tableInTargetList(Table table) {
+        return false;
+    }
+
+    @Override
+    public void createPrimaryKeys() {
+
+    }
+
+    @Override
+    public void createUniqueConstraints() {
 
     }
 
     @Override
     public void createIndexes() {
+
+    }
+
+    @Override
+    public void createForeignKeys() {
 
     }
 

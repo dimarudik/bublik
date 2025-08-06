@@ -1,5 +1,7 @@
 package org.bublik.model;
 
+import org.bublik.storage.Storage;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -59,12 +61,17 @@ public class OraTable extends Table {
     }
 
     @Override
-    public List<Column> getImportedKeyColumns(Connection connection) throws SQLException {
+    public List<ForeignKey> getForeignKeys(Connection connection, Storage storage) throws SQLException {
         return List.of();
     }
 
     @Override
     public List<Index> getTableIndexes(Connection connection) throws SQLException {
+        return List.of();
+    }
+
+    @Override
+    public List<UniqueConstraint> getUniqueConstraints(Connection connection) throws SQLException {
         return List.of();
     }
 
@@ -89,6 +96,16 @@ public class OraTable extends Table {
     }
 
     @Override
+    public void createUniqueConstraints(Connection connection) {
+
+    }
+
+    @Override
+    public void createForeignKeys(Connection connection) {
+
+    }
+
+    @Override
     public Map<String, String> getColumnToColumn(Connection connection) throws SQLException {
         Map<String, String> map = new HashMap<>();
         ResultSet columnsUpCase = connection.getMetaData().getColumns(
@@ -105,7 +122,7 @@ public class OraTable extends Table {
     }
 
     @Override
-    public void createTable(Connection connection) throws SQLException {
+    public void create(Connection connection) throws SQLException {
 
     }
 }

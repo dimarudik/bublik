@@ -147,7 +147,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void createPrimaryKey() {
+    public void createPrimaryKeys() {
 
     }
 
@@ -157,7 +157,12 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void createTable(Table table) throws SQLException {
+    public void createForeignKeys() {
+
+    }
+
+    @Override
+    public void createUniqueConstraints() {
 
     }
 
@@ -172,6 +177,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
 
     @Override
     public void enrichSourceTables() {
+
+    }
+
+    @Override
+    public void createTables() {
 
     }
 
