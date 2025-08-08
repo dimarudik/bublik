@@ -1113,9 +1113,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     log.info("New PARENT ChunkId: {} start: {} end: {} with xidmin {}",
                             chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
                 } else {
-                    chunk.saveChunkStatus(ChunkStatus.UNCHANGED, false, null, null);
-//                    log.info("ChunkId: {} start: {} end: {} with xidmin {} is UNCHANGED",
-//                            chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
+//                    if (chunk.getChunkStatus().equals(ChunkStatus.SYNCED)) {
+//                    log.info("{}", chunk.getChunkStatus());
+                        chunk.saveChunkStatus(ChunkStatus.UNCHANGED, false, null, null);
+//                        log.info("ChunkId: {} start: {} end: {} with xidmin {} is UNCHANGED",
+//                                chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
+//                    }
                 }
             }
         } catch (SQLException | IOException e) {
@@ -1152,7 +1155,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             rs.getLong("xidmin"),
                             rs.getLong("xidmax"),
                             connection,
-                            buildFetchStatementGreaterXidMin(config)
+                            buildFetchStatementGreaterXidMin(config),
+                            ChunkStatus.valueOf(rs.getString("status"))
                     ));
                 } catch (IOException e) {
                     throw new RuntimeException();

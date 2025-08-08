@@ -30,6 +30,7 @@ public abstract class Chunk<T> implements ChunkService {
     private int rows;
     private String batchInsertQuery;
     private int upserted;
+    private ChunkStatus chunkStatus;
 
     public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
                  String fetchQuery, Storage sourceStorage) {
@@ -148,6 +149,14 @@ public abstract class Chunk<T> implements ChunkService {
 
     public void setUpserted(int upserted) {
         this.upserted = upserted;
+    }
+
+    public ChunkStatus getChunkStatus() {
+        return chunkStatus;
+    }
+
+    public void setChunkStatus(ChunkStatus chunkStatus) {
+        this.chunkStatus = chunkStatus;
     }
 
     public abstract Integer getParentId();

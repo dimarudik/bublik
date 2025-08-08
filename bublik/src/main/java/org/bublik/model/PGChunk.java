@@ -32,13 +32,14 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage,
-                   Integer parentId, Long xidMin, Long xidMax, Connection sourceConnection, String fetchQuery) {
+                   Integer parentId, Long xidMin, Long xidMax, Connection sourceConnection, String fetchQuery, ChunkStatus chunkStatus) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
         this.parentId = parentId;
         this.xidMin = xidMin;
         this.xidMax = xidMax;
         this.setTargetTable(targetTable);
         this.setSourceConnection(sourceConnection);
+        this.setChunkStatus(chunkStatus);
     }
 
     public Integer getParentId() {

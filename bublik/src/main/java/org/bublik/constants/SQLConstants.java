@@ -85,7 +85,7 @@ public abstract class SQLConstants {
                     "pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total" +
                     " from public.ctid_chunks o where status = ANY (?) and xidmin is not null group by schema_name, table_name, task_name, config";
     public static final String SQL_CHUNKS_SYNC =
-            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
+            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
                     " from public.ctid_chunks where status = ANY (?) and xidmin is not null order by xidmin";
     public static final String SQL_CHUNKS_SYNC_WITHOUT_XIDMIN =
             "select chunk_id, parent_id, last_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
