@@ -60,7 +60,7 @@ public class PGTable extends Table {
     }
 
     @Override
-    public List<ForeignKey> getForeignKeys(Connection connection, Storage storage) throws SQLException {
+    public List<ForeignKey> getForeignKeys(Connection connection, Storage storage, Table targetTable) throws SQLException {
         Map<String, ForeignKey> foreignKeys = new HashMap<>();
         ResultSet rs = connection.getMetaData().getImportedKeys(
                 null,
@@ -110,12 +110,11 @@ public class PGTable extends Table {
                         null // ascOrDesc is not used here
                 ));
             } else {
-                Table pkTable = storage.getTagetTableBySourceTable(new PGTable(pkSchemaName, pkTableName));
-                Table fkTable = storage.getTagetTableBySourceTable(new PGTable(fkSchemaName, fkTableName));
-//                Тут
-                if (pkTable != null && fkTable != null) {
+                Table fkTable = new PGTable(fkSchemaName, fkTableName);
+                Table pkTable = storage.getSourceTableByTargetTable(new PGTable(pkSchemaName, pkTableName));
+                if (fkTable.equals(targetTable) && pkTable != null) {
                     ForeignKey foreignKey = new ForeignKey(
-                            fkTable,
+                            targetTable,
                             new ArrayList<>() {{
                                 add(new Column(
                                         (int) ordinalPosition,
@@ -157,13 +156,20 @@ public class PGTable extends Table {
                     foreignKeys.put(fkName, foreignKey);
                 }
             }
+/*
             log.info("Foreign Key of {}: PK Table: {}.{}, PK Column: {}, Ordinal Position: {}, " +
                             "FK Table: {}.{}, FK Column: {}, FK Name: {}, PK Name: {}, " +
                             "Update Rule: {}, Delete Rule: {}, Deferrability: {}",
                     getFinalTableName(false), pkSchemaName, pkTableName, pkColumnName, ordinalPosition,
                     fkSchemaName, fkTableName, fkColumnName, fkName, pkName,
                     updateRule, deleteRule, deferrability);
+*/
         }
+        foreignKeys.values().forEach(fk -> log.info("{}.{} : {}.{} {}.{}",
+                getSchemaName(), getTableName(),
+                fk.getPkTable().getSchemaName(), fk.getPkTable().getTableName(),
+                fk.getFkTable().getSchemaName(), fk.getFkTable().getTableName()));
+
         return new ArrayList<>(foreignKeys.values());
     }
 

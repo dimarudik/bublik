@@ -72,7 +72,7 @@ public class Index implements DDLService {
                 sqlInclude,
                 filterCondition != null ? "WHERE " + filterCondition : ""
         );
-        log.info("{}", sql);
+//        log.info("{}", sql);
         try {
             connection.createStatement().execute(sql);
             connection.commit();

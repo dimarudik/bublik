@@ -967,10 +967,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "ctid >= " + "concat('(', ? ,',1)')::tid" +
+                "ctid >= concat('(', ? ,',1)')::tid" +
                 " and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "ctid < " + "concat('(', ? ,',1)')::tid";
+                "ctid < concat('(', ? ,',1)')::tid";
     }
 
     public String buildFetchStatementGreaterXidMin(Config config) {
@@ -990,23 +990,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         chunkStatuses.add(ChunkStatus.PROCESSED);
         chunkStatuses.add(ChunkStatus.UNCHANGED);
         List<Table> targetTables = createSyncChunksGraterMaxCtidEndPage(connection, chunkStatuses);
-        targetTables
-                .stream()
-                .filter(table -> {
-                    try {
-                        table.setPkColumns(table.getPrimaryKeyColumns(targetConnection));
-                        return table.hasPrimaryKey();
-                    } catch (SQLException e) {
-                        try {
-                            targetConnection.close();
-                        } catch (SQLException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                        throw new RuntimeException(e);
-                    }
-                })
-                .findAny()
-                .orElseThrow(() -> new RuntimeException("There is no table with PK in target storage!"));
         targetConnection.close();
 
         Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(connection, chunkStatuses);
@@ -1094,7 +1077,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
                     }
                     tables.add(new PGTable(config.toSchemaName(), config.toTableName()));
-                } catch (IOException e) {
+                } catch (SQLException | IOException e) {
+                    log.error("{}", getStackTrace(e));
                     throw new RuntimeException(e);
                 }
             }
@@ -1128,6 +1112,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     chunk.insertParentChunk(xidMinMax.getKey());
                     log.info("New PARENT ChunkId: {} start: {} end: {} with xidmin {}",
                             chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
+                } else {
+                    chunk.saveChunkStatus(ChunkStatus.UNCHANGED, false, null, null);
+//                    log.info("ChunkId: {} start: {} end: {} with xidmin {} is UNCHANGED",
+//                            chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
                 }
             }
         } catch (SQLException | IOException e) {
@@ -1271,7 +1259,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
                 List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(sourceConnection);
                 List<Index> sourceIndexes = sourceTable.getTableIndexes(sourceConnection);
-                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(sourceConnection, this);
+                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(sourceConnection, this, entry.getValue());
                 Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(sourceConnection);
 
                 sourceTable.setId(options.getKey());

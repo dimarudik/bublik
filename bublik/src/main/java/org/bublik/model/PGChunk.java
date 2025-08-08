@@ -249,9 +249,9 @@ public class PGChunk<T extends Long> extends Chunk<T> {
                 .saveChunkUpserted()
                 .saveChunkStatus(getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED, false);
         if (getUpserted() > 0) {
-            log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {}",
+            log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {} xmin > {}",
                     getId(), getConfig().fromTaskName(), getConfig().fromSchemaName(),
-                    getTargetTable().getTableName(), getUpserted());
+                    getTargetTable().getTableName(), getUpserted(), getXidMin());
         }
     }
 

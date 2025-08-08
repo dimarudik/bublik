@@ -4,7 +4,6 @@ import org.bublik.service.NameSyntaxService;
 import org.bublik.service.TableService;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -96,7 +95,7 @@ public abstract class Table implements TableService, NameSyntaxService {
     }
 
     @Override
-    public String getTaskName() {
+    public String getTableTaskName() {
         return getFinalTableName(false).toUpperCase() + "_TASK";
     }
 

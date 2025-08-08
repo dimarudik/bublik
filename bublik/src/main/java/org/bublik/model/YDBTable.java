@@ -63,7 +63,7 @@ public class YDBTable extends Table {
     }
 
     @Override
-    public List<ForeignKey> getForeignKeys(Connection connection, Storage storage) throws SQLException {
+    public List<ForeignKey> getForeignKeys(Connection connection, Storage storage, Table table) throws SQLException {
         return List.of();
     }
 

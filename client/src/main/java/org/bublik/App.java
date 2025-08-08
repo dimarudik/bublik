@@ -6,6 +6,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.bublik.SQLConstants.*;
+
 public class App {
     public static void main(String[] args) {
         int threadCount = 20;
@@ -21,8 +23,8 @@ public class App {
 
     public static void doIt(String[] arr, int threadCount) {
         ExecutorService service = Executors.newFixedThreadPool(threadCount + 1);
-        AtomicInteger counterUpdatedTimestamp = new AtomicInteger(0);
-        AtomicInteger counterUpdatedTimestampTZ = new AtomicInteger(0);
+        AtomicInteger counterUpdatedById = new AtomicInteger(0);
+        AtomicInteger counterUpdatedByRange = new AtomicInteger(0);
         AtomicInteger counterOfInserted = new AtomicInteger(0);
 
         for (int i = 0; i < threadCount; i++) {
@@ -34,20 +36,24 @@ public class App {
                             switch (c) {
                                 case 0: {
                                     if (tmp == 0) {
-                                        int d = insert(connection);
+                                        int d = insert(connection, true);
                                         counterOfInserted.addAndGet(d);
+                                        for (int j = 0; j < 500; j++) {
+                                            int k = insert(connection, false);
+                                            counterOfInserted.addAndGet(k);
+                                        }
                                     }
                                     break;
                                 }
                                 case 1: {
-                                    int count = updateTimestamptzByRange(connection, threadCount);
-                                    counterUpdatedTimestampTZ.addAndGet(count);
+                                    int count = updateByRange(connection, threadCount);
+                                    counterUpdatedByRange.addAndGet(count);
                                     break;
                                 }
                                 case 2: {
-                                    for (int j = 0; j < 100; j++) {
-                                        int d = updateTimestamp(connection);
-                                        counterUpdatedTimestamp.addAndGet(d);
+                                    for (int j = 0; j < 300; j++) {
+                                        int d = updateById(connection, !(j % 3 == 0));
+                                        counterUpdatedById.addAndGet(d);
                                     }
                                     break;
                                 }
@@ -63,24 +69,22 @@ public class App {
         service.shutdown();
         service.close();
         System.out.println("Total inserted: " + counterOfInserted);
-        System.out.println("Total unique updated timestamp: " + counterUpdatedTimestamp);
-        System.out.println("Total range updated timestamptz: " + counterUpdatedTimestampTZ);
+        System.out.println("Total unique updated: " + counterUpdatedById);
+        System.out.println("Total range updated: " + counterUpdatedByRange);
 
     }
 
-    public static int updateTimestamp(Connection connection) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(
-//                "update s50k set timestamp = now() where id = ?");
-                "update s50k set timestamp = now(), uuid = gen_random_uuid() where id = ?");
-        int id = getRandomInt(1, 60000);
+    public static int updateById(Connection connection, boolean tail) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(tail ? UPDATE_TAIL_OF_LIKES_BY_ID : UPDATE_LIKES_BY_ID);
+        int id = tail ? getRandomInt(1, 1000) : getRandomInt(1, 1000000);
         statement.setInt(1, id);
         int d = statement.executeUpdate();
         statement.close();
         return d;
     }
 
-    public static int updateTimestamptzByRange(Connection connection, int threadCount) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("update s50k set timestamptz = now() where id between ? and ?");
+    public static int updateByRange(Connection connection, int threadCount) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(UPDATE_LIKES_BETWEEN_ID);
         int t = Math.toIntExact(Thread.currentThread().threadId()) % threadCount * 10;
         int start = getRandomInt(t, t + 100);
         int end = getRandomInt(start, start + 500);
@@ -88,31 +92,14 @@ public class App {
         statement.setInt(2, end);
         int d = statement.executeUpdate();
         statement.close();
-//        System.out.println(start + " " + end + " " + (end - start + 1) + " " + t);
         return d;
     }
 
-    public static int insert(Connection connection) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(
-                "insert into s50k (id, uuid, \"Primary\", boolean, " +
-                "        int2, int4, int8, smallint, bigint, numeric, float8, " +
-                "        date, timestamp, timestamptz, description, current_mood, time) " +
-                "    select n as id, gen_random_uuid() as uuid, 'PostgreSQL ' || n as name, " +
-                "        case when mod(n, 2) = 0 then false else true end as boolean, " +
-                "        0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8, " +
-                "        current_date, current_timestamp, current_timestamp, " +
-                "        rpad('PostgreSQL', 100, '*') as description, " +
-                "        case " +
-                "            when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood " +
-                "            when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood " +
-                "            when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood " +
-                "            else null end as current_mood, " +
-                "        now() as time " +
-                "    from generate_series( (select max(id) + 1 from s50k) , (select max(id) + 1 from s50k) + ? ) as n");
-        int count = getRandomInt(1, 5000);
+    public static int insert(Connection connection, boolean batch) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(BATCH_INSERT_LIKES);
+        int count = batch ? getRandomInt(1, 5000) : 0;
         statement.setInt(1, count);
         int d = statement.executeUpdate();
-//        System.out.println("inserted: " + d);
         statement.close();
         return d;
     }

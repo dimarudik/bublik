@@ -96,7 +96,7 @@ public class Utils {
                         t.getTableName(),
                         t.getHintClause(),
                         "1 = 1",
-                        t.getTaskName(),
+                        t.getTableTaskName(),
                         null,
                         null,
                         t.getColumnToColumn(connection),

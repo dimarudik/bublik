@@ -27,6 +27,7 @@ public interface StorageService {
     Map<Table, Table> configsToTables(List<Config> configs);
     Table configToTable(Config config);
     Table getTagetTableBySourceTable(Table table);
+    Table getSourceTableByTargetTable(Table table);
     boolean tableInSourceList(Table table);
     boolean tableInTargetList(Table table);
     void enrichSourceTables();

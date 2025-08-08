@@ -14,10 +14,10 @@ public interface TableService {
     String getFinalTableName(boolean withQuotes);
     String getFinalSchemaName();
     String getHintClause();
-    String getTaskName();
+    String getTableTaskName();
     List<Column> getAllColumns(Connection connection) throws SQLException;
     List<Column> getPrimaryKeyColumns(Connection connection) throws SQLException;
-    List<ForeignKey> getForeignKeys(Connection connection, Storage storage) throws SQLException;
+    List<ForeignKey> getForeignKeys(Connection connection, Storage storage, Table targetTable) throws SQLException;
     List<Index> getTableIndexes(Connection connection) throws SQLException;
     List<UniqueConstraint> getUniqueConstraints(Connection connection) throws SQLException;
     Map.Entry<Integer, List<TableOption>> getOptions(Connection connection) throws SQLException;

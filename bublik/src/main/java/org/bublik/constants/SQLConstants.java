@@ -79,38 +79,40 @@ public abstract class SQLConstants {
             "values (?, ?, ?, ?, ?, ?, ?, ?, to_json(?::json), ?, ?)";
     public static final String SQL_CHUNKS_AVG_SYNC =
             // тут можно переделать на max(end_page - start_page) as pages_in_chunk
-//            "select schema_name, table_name, task_name, config, AVG(end_page - start_page) as pages_in_chunk, " +
             "select schema_name, table_name, task_name, config, MIN(end_page) - MIN(start_page) as pages_in_chunk, " +
                     "MAX(end_page) max_ctid_end_page, " +
                     "MAX(chunk_id) last_id, " +
-//                    "0 as max_xid_min, " +
-//                    "MAX(xidmin) max_xid_min, " +
                     "pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total" +
                     " from public.ctid_chunks o where status = ANY (?) and xidmin is not null group by schema_name, table_name, task_name, config";
     public static final String SQL_CHUNKS_SYNC =
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
-                    " from public.ctid_chunks where status = ANY (?) and xidmin is not null";
+                    " from public.ctid_chunks where status = ANY (?) and xidmin is not null order by xidmin";
     public static final String SQL_CHUNKS_SYNC_WITHOUT_XIDMIN =
             "select chunk_id, parent_id, last_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
                     " from public.ctid_chunks where status = ANY (?) and xidmin is null";
     public static final String DML_BATCH_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (start_page, end_page, copied, task_name, " +
-                    "schema_name, table_name, status, config, required, last_id ) " +
-                    "(select * from (select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as copied, ? task_name, " +
-                    "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+            "schema_name, table_name, status, config, required, last_id ) " +
+            "(select * from (select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as copied, ? task_name, " +
+            "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks where status = 'UNASSIGNED'";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
 //            "select max(xmin::text::int8) xidmin, max(xmax::text::int8) xidmax from $schemaName.$tableName " +
 //                    "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid";
-            "select xmin as xidmin, 0 as xidmax from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid and " +
-                    "age(xmin) = " +
-                    "(select min(age(xmin)) from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid " +
-                    "and age(xmin) > 0)";
+            "select xmin as xidmin, 0 as xidmax from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and " +
+            "ctid < concat('(', ?,',1)')::tid and " +
+            "age(xmin) = " +
+            "(select min(age(xmin)) from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid " +
+            "and age(xmin) > 0)";
     public static final String DML_UPDATE_XID_OF_CTID_CHUNKS =
             "update public.ctid_chunks set xidmin = ?, xidmax = ? where chunk_id = ?";
     public static final String DML_UPDATE_XID_OF_CTID_CHUNKS_BY_LAST_ID =
-            "update public.ctid_chunks o set xidmin = (select xidmin from public.ctid_chunks i where i.chunk_id = o.last_id) where chunk_id = ?";
+//            "update public.ctid_chunks o set xidmin = (select xidmin from public.ctid_chunks i where i.chunk_id = o.last_id) where chunk_id = ?";
+            "update public.ctid_chunks o set " +
+            "xidmin = (select min(xidmin) from public.ctid_chunks i " +
+            "where i.chunk_id < o.last_id and i.task_name = o.task_name) " +
+            "where chunk_id = ?";
     public static final String PLSQL_DROP_TASK = "CALL DBMS_PARALLEL_EXECUTE.DROP_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_TASK = "CALL DBMS_PARALLEL_EXECUTE.CREATE_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_CHUNK =

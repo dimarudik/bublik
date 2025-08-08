@@ -195,4 +195,14 @@ public abstract class JDBCStorage extends Storage {
         }
         return null;
     }
+
+    @Override
+    public Table getSourceTableByTargetTable(Table targetTable) {
+        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
+            if (entry.getValue().equals(targetTable)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
 }
