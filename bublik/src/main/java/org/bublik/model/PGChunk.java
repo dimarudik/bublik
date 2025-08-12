@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.bublik.constants.SQLConstants.*;
+import static org.bublik.exception.Utils.getStackTrace;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
@@ -104,7 +105,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         updateStatus.setInt(3, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
-        connection.commit();
+//        connection.commit();
         return this;
     }
 
@@ -193,7 +194,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         ps.setInt(11, 0);
         ps.executeUpdate();
         ps.close();
-        getSourceConnection().commit();
+//        getSourceConnection().commit();
     }
 
     public String buildInsertOnConflictQuery() throws SQLException {
@@ -256,38 +257,62 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         }
     }
 
-    public Chunk<?> insertOnConflict() throws SQLException {
-        Connection fromConnection = getSourceConnection();
-        Connection toConnection = getTargetConnection();
-        PreparedStatement st = fromConnection.prepareStatement(getFetchQuery());
-//        log.info("{}", getFetchQuery());
-        st.setLong(1, getStart());
-        st.setLong(2, getEnd());
-        st.setLong(3, getXidMin());
-        st.setLong(4, getXidMin());
-        ResultSet rs = st.executeQuery();
-        int upserted = 0;
-        if (rs.isBeforeFirst()) {
-            setBatchInsertQuery(buildInsertOnConflictQuery());
-            PreparedStatement ps = toConnection.prepareStatement(getBatchInsertQuery());
-            while (rs.next()) {
-                Map<String, Column> columnMap = this.getTargetStorage().readTargetColumnsAndTypes(toConnection, this);
-                int index = 1;
-                for (Map.Entry<String, Column> entry : columnMap.entrySet()) {
-                    String columnName = entry.getKey();
-                    Column targetColumn = entry.getValue();
-                    ps.setObject(index++, rs.getObject(columnName.replaceAll("\"", "")), targetColumn.getDataType());
+    public Chunk<?> insertOnConflict() {
+        try {
+            Connection fromConnection = getSourceConnection();
+            Connection toConnection = getTargetConnection();
+            PreparedStatement st = fromConnection.prepareStatement(getFetchQuery());
+//            log.info("{}", getFetchQuery());
+            st.setLong(1, getStart());
+            st.setLong(2, getEnd());
+            st.setLong(3, getXidMin());
+            st.setLong(4, getXidMin());
+            ResultSet rs = st.executeQuery();
+            int upserted = 0;
+            if (rs.isBeforeFirst()) {
+                setBatchInsertQuery(buildInsertOnConflictQuery());
+                PreparedStatement ps = toConnection.prepareStatement(getBatchInsertQuery());
+                while (rs.next()) {
+                    Map<String, Column> columnMap = this.getTargetStorage().readTargetColumnsAndTypes(toConnection, this);
+                    int index = 1;
+                    for (Map.Entry<String, Column> entry : columnMap.entrySet()) {
+                        String columnName = entry.getKey();
+                        Column targetColumn = entry.getValue();
+                        ps.setObject(index++, rs.getObject(columnName.replaceAll("\"", "")), targetColumn.getDataType());
+                    }
+                    ps.addBatch();
+                    upserted++;
                 }
-                ps.addBatch();
-                upserted++;
+                int[] n = ps.executeBatch();
+                ps.close();
+                toConnection.commit();
             }
-            int[] n = ps.executeBatch();
-            ps.close();
-            toConnection.commit();
+            setUpserted(upserted);
+            st.close();
+            rs.close();
+        } catch (SQLException e) {
+            log.error("ChunkId = {}  {}", getId(), getStackTrace(e));
+            throw new RuntimeException(e);
         }
-        setUpserted(upserted);
-        st.close();
-        rs.close();
         return this;
+    }
+
+    public int getHeapBlksTotal() {
+        try {
+            Connection connection = getSourceConnection();
+            PreparedStatement ps = connection.prepareStatement(SQL_HEAP_BLKS_TOTAL_SYNC);
+            ps.setLong(1, getId());
+            ResultSet rs = ps.executeQuery();
+            int heapBlksTotal = 0;
+            if (rs.next()) {
+                heapBlksTotal = rs.getInt("heap_blks_total");
+            }
+            rs.close();
+            ps.close();
+            return heapBlksTotal;
+        } catch (SQLException e) {
+            log.error("Error getting heap blocks total for chunkId = {}: {}", getId(), getStackTrace(e));
+            return 0;
+        }
     }
 }

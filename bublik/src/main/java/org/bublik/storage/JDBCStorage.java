@@ -86,7 +86,12 @@ public abstract class JDBCStorage extends Storage {
         if (!sync) {
             startNOSync(chunks, targetStorage);
         } else {
-            startSync(chunks, targetStorage);
+            try {
+                startSync(chunks, targetStorage);
+            } catch (Exception e) {
+                targetStorage.closeStorage();
+                this.closeStorage();
+            }
         }
         targetStorage.closeStorage();
         this.closeStorage();
@@ -94,21 +99,24 @@ public abstract class JDBCStorage extends Storage {
 
     private void startSync(List<Chunk<?>> chunks, Storage targetStorage) throws SQLException {
         Connection sourceConnection = this.getConnection();
-        sourceConnection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+        sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
             try {
                 chunk.copyChunkSync(sourceConnection, true);
             } catch (Exception e) {
                 log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+/*
                 try {
                     if (chunk.getSourceConnection().isValid(0)) {
                         chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, true, null, getStackTrace(e));
                         chunk.getSourceConnection().close();
                     }
-                } catch (SQLException exception) {
-                    log.error("{}", getStackTrace(exception));
+                } catch (SQLException ex) {
+                    log.error("{}", getStackTrace(ex));
                 }
+*/
+                throw new RuntimeException(e);
             }
         });
         sourceConnection.commit();

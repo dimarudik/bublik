@@ -46,13 +46,19 @@ public class App {
                                     break;
                                 }
                                 case 1: {
-                                    int count = updateByRange(connection, threadCount);
-                                    counterUpdatedByRange.addAndGet(count);
+                                    {
+                                        int count = updateByRange(connection, threadCount, "public", "likes");
+                                        counterUpdatedByRange.addAndGet(count);
+                                    }
+                                    {
+                                        int count = updateByRange(connection, threadCount, "public", "users");
+                                        counterUpdatedByRange.addAndGet(count);
+                                    }
                                     break;
                                 }
                                 case 2: {
                                     for (int j = 0; j < 300; j++) {
-                                        int d = updateById(connection, !(j % 3 == 0));
+                                        int d = updateById(connection, !(j % 3 == 0), "public", "likes");
                                         counterUpdatedById.addAndGet(d);
                                     }
                                     break;
@@ -74,8 +80,10 @@ public class App {
 
     }
 
-    public static int updateById(Connection connection, boolean tail) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(tail ? UPDATE_TAIL_OF_LIKES_BY_ID : UPDATE_LIKES_BY_ID);
+    public static int updateById(Connection connection, boolean tail, String schemaName, String tableName) throws SQLException {
+        String s = tail ? UPDATE_TAIL_BY_ID : UPDATE_BY_ID;
+        String sql = s.replace("$schemaName", schemaName).replace("$tableName", tableName);
+        PreparedStatement statement = connection.prepareStatement(sql);
         int id = tail ? getRandomInt(1, 1000) : getRandomInt(1, 1000000);
         statement.setInt(1, id);
         int d = statement.executeUpdate();
@@ -83,8 +91,9 @@ public class App {
         return d;
     }
 
-    public static int updateByRange(Connection connection, int threadCount) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement(UPDATE_LIKES_BETWEEN_ID);
+    public static int updateByRange(Connection connection, int threadCount, String schemaName, String tableName) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(UPDATE_BETWEEN_ID.
+                replace("$schemaName", schemaName).replace("$tableName", tableName));
         int t = Math.toIntExact(Thread.currentThread().threadId()) % threadCount * 10;
         int start = getRandomInt(t, t + 100);
         int end = getRandomInt(start, start + 500);

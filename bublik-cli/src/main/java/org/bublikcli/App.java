@@ -204,7 +204,7 @@ public class App {
             switch (fromDriver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
                 case "org.postgresql.Driver" ->  {
-                    fillCtidChunks(config, fromConnection, rowsParameter);
+                    fillCtidChunksV2(config, fromConnection, rowsParameter);
                     if (sync) {
                         updateXidOfCtidChunks(fromConnection);
                     }

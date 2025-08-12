@@ -40,7 +40,7 @@ public abstract class SQLConstants {
             "start_ts timestamp, " +
             "end_ts timestamp, " +
             "err_msg varchar(2048), " +
-            "unique (xidmin, start_page, end_page, task_name, status) )";
+            "unique (parent_id, xidmin, start_page, end_page, task_name, status) )";
     public static final String DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX =
             "truncate table public.bublik_outbox;";
     public static final String DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX =
@@ -77,16 +77,27 @@ public abstract class SQLConstants {
     public static final String DML_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (parent_id, start_page, end_page, xidmin, xidmax, task_name, schema_name, table_name, config, status, copied) " +
             "values (?, ?, ?, ?, ?, ?, ?, ?, to_json(?::json), ?, ?)";
+    public static final String SQL_HEAP_BLKS_TOTAL_SYNC =
+            // тут можно переделать на max(end_page - start_page) as pages_in_chunk
+            "select pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total " +
+            "from public.ctid_chunks o where chunk_id = ?";
     public static final String SQL_CHUNKS_AVG_SYNC =
             // тут можно переделать на max(end_page - start_page) as pages_in_chunk
             "select schema_name, table_name, task_name, config, MIN(end_page) - MIN(start_page) as pages_in_chunk, " +
-                    "MAX(end_page) max_ctid_end_page, " +
-                    "MAX(chunk_id) last_id, " +
-                    "pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total" +
-                    " from public.ctid_chunks o where status = ANY (?) and xidmin is not null group by schema_name, table_name, task_name, config";
+            "MAX(end_page) max_ctid_end_page, " +
+            "MAX(chunk_id) last_id, " +
+            "pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total" +
+            " from public.ctid_chunks o where status = ANY (?) and xidmin is not null group by schema_name, table_name, task_name, config";
     public static final String SQL_CHUNKS_SYNC =
-            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
-                    " from public.ctid_chunks where status = ANY (?) and xidmin is not null order by xidmin";
+//            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
+//            " from public.ctid_chunks where status = ANY (?) and xidmin is not null order by xidmin";
+            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status from " +
+            "((select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
+            "from public.ctid_chunks where status = ANY (?) and xidmin is not null) " +
+            "union all " +
+            "(select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
+            "from ctid_chunks r where not exists (select p.chunk_id from ctid_chunks p where p.parent_id = r.chunk_id) and r.status = 'SYNCED')) a " +
+            "order by xidmin";
     public static final String SQL_CHUNKS_SYNC_WITHOUT_XIDMIN =
             "select chunk_id, parent_id, last_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config " +
                     " from public.ctid_chunks where status = ANY (?) and xidmin is null";
@@ -95,12 +106,17 @@ public abstract class SQLConstants {
             "schema_name, table_name, status, config, required, last_id ) " +
             "(select * from (select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as copied, ? task_name, " +
             "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+    public static final String DML_BATCH_INSERT_CTID_CHUNKS_V2 =
+            "insert into public.ctid_chunks (start_page, end_page, copied, task_name, " +
+            "schema_name, table_name, status, config, required, last_id, xidmin ) " +
+            "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
+            "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id, ? as xidmin from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks where status = 'UNASSIGNED'";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
 //            "select max(xmin::text::int8) xidmin, max(xmax::text::int8) xidmax from $schemaName.$tableName " +
 //                    "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid";
-            "select xmin as xidmin, 0 as xidmax from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and " +
+            "select max(xmin::text::int8) as xidmin, 0 as xidmax from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and " +
             "ctid < concat('(', ?,',1)')::tid and " +
             "age(xmin) = " +
             "(select min(age(xmin)) from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid " +
@@ -166,6 +182,8 @@ public abstract class SQLConstants {
     public static final String SQL_PG_TABLE_OPTIONS =
             "select c.oid::int4 as oid, c.reloptions from pg_class c, pg_namespace n " +
             "where n.oid = c.relnamespace and n.nspname = ? and c.relname = ?";
+    public static String SQL_TOTAL_CHUNKS =
+            "select count(1) total_chunks from public.ctid_chunks";
 
     public static final String DDL_PG_CREATE_TABLE =
             "create table if not exists $schemaName.$tableName ($columnDefinition) ";

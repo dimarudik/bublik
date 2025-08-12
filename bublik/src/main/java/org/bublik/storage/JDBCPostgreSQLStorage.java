@@ -34,6 +34,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.exception.Utils.getStackTrace;
@@ -967,8 +968,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "ctid >= concat('(', ? ,',1)')::tid" +
-                " and " +
+                "ctid >= concat('(', ? ,',1)')::tid and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
                 "ctid < concat('(', ? ,',1)')::tid";
     }
@@ -976,62 +976,145 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public String buildFetchStatementGreaterXidMin(Config config) {
         return buildFetchStatement(config) + " and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "xmin::text::int8 > ? and age(xmin) < age(?::text::xid) and age(xmin) > 0";
+                "xmin::text::int8 > ? and age(xmin) < age(?::text::xid) and age(xmin) > 0 ";
     }
-
 
     @Override
     public void sync() throws SQLException {
-        Connection connection = getConnection();
-        Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
-        assert targetStorage != null;
-        Connection targetConnection = targetStorage.getConnection();
-        List<ChunkStatus> chunkStatuses = new ArrayList<>();
-        chunkStatuses.add(ChunkStatus.PROCESSED);
-        chunkStatuses.add(ChunkStatus.UNCHANGED);
-        List<Table> targetTables = createSyncChunksGraterMaxCtidEndPage(connection, chunkStatuses);
-        targetConnection.close();
+        syncV1();
+    }
 
-        Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(connection, chunkStatuses);
-        createSyncChunks(copyChunks);
-        connection.close();
+    public void syncV1() throws SQLException {
 
-        ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        copyChunks.values()
-                .forEach(chunk ->
-                                service.submit(() -> {
-                    try {
-                        chunk.setTargetStorage(targetStorage);
-                        Connection fromConnection = this.getConnection();
-                        Connection toConnection = targetStorage.getConnection();
-                        chunk.setSourceConnection(fromConnection);
-                        chunk.setTargetConnection(toConnection);
-                        chunk.upsertToTarget();
-                        chunk.closeChunkSourceConnection(false);
-                        chunk.closeChunkTargetConnection();
-                    } catch (SQLException e) {
-                        log.error(getStackTrace(e));
-                        try {
-                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
-                            chunk.closeChunkSourceConnection(true);
-                        } catch (SQLException ex) {
-                            log.error("{}", getStackTrace(ex));
-                            try {
-                                chunk.closeChunkSourceConnection(true);
-                            } catch (SQLException exc) {
-                                log.error("{}",getStackTrace(exc));
-                            }
-                        }
-                        throw new RuntimeException(e);
-                    }
-                })
-                );
-        service.shutdown();
-        service.close();
+        while (emptyIterations.get() < 100) {
+            Connection sourceConnection = getConnection();
+            int totalChunksBefore = getTotalChunks(sourceConnection);
+            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
+            assert targetStorage != null;
+            Connection targetConnection = targetStorage.getConnection();
+            List<ChunkStatus> chunkStatuses = new ArrayList<>();
+            chunkStatuses.add(ChunkStatus.PROCESSED);
+            chunkStatuses.add(ChunkStatus.UNCHANGED);
+//            List<Table> targetTables = createSyncChunksGraterMaxCtidEndPage(sourceConnection, chunkStatuses);
+            targetConnection.close();
+
+            Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(sourceConnection, chunkStatuses);
+//            createSyncChunks(copyChunks);
+            sourceConnection.close();
+
+//            int thCount = 2;
+            ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            copyChunks.values()
+                    .forEach(chunk ->
+                            service.submit(() -> {
+                                try {
+                                    chunk.setTargetStorage(targetStorage);
+                                    Connection fromConnection = this.getConnection();
+//                                    PGConnection pgFromConnection = fromConnection.unwrap(PGConnection.class);
+//                                    log.info("pid: {} ChunkId: {}",pgFromConnection.getBackendPID(), chunk.getId());
+                                    fromConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+                                    Connection toConnection = targetStorage.getConnection();
+                                    chunk.setSourceConnection(fromConnection);
+                                    chunk.setTargetConnection(toConnection);
+                                    chunk
+                                        .insertOnConflict()
+                                        .saveChunkUpserted();
+                                    Map.Entry<Long, Long> xidMinMax = chunk.getXidMinMax();
+                                    if (chunk.getUpserted() > 0) {
+                                        chunk.saveChunkStatus(ChunkStatus.SYNCED, true);
+                                        log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {} xmin > {}",
+                                                chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
+                                                chunk.getTargetTable().getTableName(), chunk.getUpserted(), chunk.getXidMin());
+                                        chunk.insertParentChunk(xidMinMax.getKey());
+                                    }
+                                    long maxEndPage = copyChunks
+                                            .values()
+                                            .stream()
+                                            .map(c -> (PGChunk<?>) c)
+                                            .filter(c -> c.getSourceTable().equals(chunk.getSourceTable()))
+                                            .map(Chunk::getEnd)
+                                            .max(Long::compareTo)
+                                            .orElseThrow();
+
+                                    if (maxEndPage == chunk.getEnd()) {
+                                        int heapBlksTotal = chunk.getHeapBlksTotal();
+                                        if (heapBlksTotal > maxEndPage) {
+                                            long pagesInChunk = chunk.getEnd() - chunk.getStart();
+                                            long endPage = Math.max((maxEndPage + pagesInChunk), heapBlksTotal);
+                                            insertCtidChunksV2(
+                                                    fromConnection,
+                                                    chunk.getConfig(),
+                                                    chunk.getSourceTable(),
+                                                    maxEndPage,
+                                                    endPage,
+                                                    pagesInChunk,
+                                                    ChunkStatus.PROCESSED,
+                                                    0,
+                                                    chunk.getId(),
+                                                    chunk.getXidMin());
+                                        }
+
 /*
-        // 3. Check PK at the target tables
-//        List<Column> d = chunks.values().stream().findFirst().get().getSourceTable().getPKColumns(connection);
+                                        log.info("PostgreSQL ChunkId = {}  taskName = {} Schema = {} Table = {} heap_blks_total = {}",
+                                                chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
+                                                chunk.getTargetTable().getTableName(), heapBlksTotal);
 */
+                                    }
+                                    fromConnection.commit();
+                                    chunk.closeChunkSourceConnection(false);
+                                    chunk.closeChunkTargetConnection();
+                                } catch (Exception e) {
+                                    log.error(getStackTrace(e));
+                                    try {
+                                        chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
+                                        chunk.closeChunkSourceConnection(true);
+                                    } catch (SQLException ex) {
+                                        log.error("{}", getStackTrace(ex));
+                                        try {
+                                            chunk.closeChunkSourceConnection(true);
+                                        } catch (SQLException exc) {
+                                            log.error("{}", getStackTrace(exc));
+                                        }
+                                    }
+                                    service.shutdownNow();
+                                    service.close();
+                                    throw new RuntimeException(e);
+                                }
+                            })
+                    );
+            service.shutdown();
+            service.close();
+
+            sourceConnection = getConnection();
+            int totalChunksAfter = getTotalChunks(sourceConnection);
+            sourceConnection.close();
+
+            if ((totalChunksBefore - totalChunksAfter) == 0) {
+                emptyIterations.addAndGet(1);
+            } else {
+                emptyIterations.set(0);
+            }
+            int sleepCount= emptyIterations.get();
+            if (sleepCount > 0) {
+                try {
+                    Thread.sleep(sleepCount * 10L);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            log.info("Total empty iterations: {}", emptyIterations.get());
+        }
+
+    }
+
+    private int getTotalChunks(Connection connection) throws SQLException {
+        Statement st = connection.createStatement();
+        ResultSet rs = st.executeQuery(SQL_TOTAL_CHUNKS);
+        rs.next();
+        int totalChunks = rs.getInt("total_chunks");
+        rs.close();
+        st.close();
+        return totalChunks;
     }
 
     private List<Table> createSyncChunksGraterMaxCtidEndPage(Connection connection, List<ChunkStatus> statuses) throws SQLException {
@@ -1060,7 +1143,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     Config config = objectMapper.readValue(stringConfig, Config.class);
                     if (heapBlksTotal > maxCtidEndPage) {
                         Table table = new PGTable(schemaName, tableName);
-                        insertCtidChunks(
+                        insertCtidChunksV2(
                                 connection,
                                 config,
                                 table,
@@ -1070,7 +1153,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 pagesInChunk,
                                 ChunkStatus.UNCHANGED,
                                 0,
-                                last_id);
+                                last_id,
+                                0);
                         connection.commit();
                         log.info("NEW Chunk pagesInChunk: {} maxCtidEndPage: {} maxCtidEndPage + pagesInChunk: {} with last_id {}",
                                 pagesInChunk, maxCtidEndPage, maxCtidEndPage + pagesInChunk, last_id);

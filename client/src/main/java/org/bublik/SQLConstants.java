@@ -21,20 +21,20 @@ public class SQLConstants {
             "            else null end as current_mood, " +
             "        now() as time " +
             "    from generate_series( (select max(id) + 1 from s50k) , (select max(id) + 1 from s50k) + ? ) as n";
-    public static final String UPDATE_LIKES_BY_ID =
-            "update likes set touch_count = touch_count + 1, item_id = (floor(random() * 100000 + 1)::int) " +
-                    "where like_id = (select max(like_id) - 1000 + ? from likes) ";
-    public static final String UPDATE_TAIL_OF_LIKES_BY_ID =
-            "update likes set touch_count = touch_count + 1, item_id = (floor(random() * 100000 + 1)::int) " +
-            "where like_id = (select max(like_id) - 1000 + ? from likes) ";
-    public static final String UPDATE_LIKES_BETWEEN_ID =
-            "update likes set touch_count = 0 where like_id between ? and ?";
+    public static final String UPDATE_BY_ID =
+            "update $schemaName.$tableName set touch_count = touch_count + 1, item_id = (floor(random() * 100000 + 1)::int) " +
+            "where id = ? ";
+    public static final String UPDATE_TAIL_BY_ID =
+            "update $schemaName.$tableName set touch_count = touch_count + 1, item_id = (floor(random() * 100000 + 1)::int) " +
+            "where id = (select max(id) - 1000 + ? from likes) ";
+    public static final String UPDATE_BETWEEN_ID =
+            "update $schemaName.$tableName set touch_count = 0 where id between ? and ?";
     public static final String BATCH_INSERT_LIKES =
-            "insert into likes (like_id, user_id, item_id, r) " +
-            "    select num as like_id, " +
+            "insert into likes (id, user_id, item_id, r) " +
+            "    select num as id, " +
             "       floor(random() * 100000 + 1)::int as user_id, " +
             "       floor(random() * 100000 + 1)::int as item_id,  " +
             "       ('Bublik is the best tool for migration ',100,'*') as r" +
-            "    from generate_series((select max(like_id) + 1 from likes) , (select max(like_id) + 1 from likes) + ? ) as num " +
+            "    from generate_series((select max(id) + 1 from likes) , (select max(id) + 1 from likes) + ? ) as num " +
             "on conflict (user_id, item_id) do nothing";
 }

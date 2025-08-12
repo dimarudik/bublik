@@ -104,4 +104,8 @@ public abstract class Table implements TableService, NameSyntaxService {
         if (!(o instanceof Table table)) return false;
         return schemaName.equals(table.schemaName) && tableName.equals(table.tableName);
     }
+
+    public String getTableFullName() {
+        return getSchemaName() + "." + getTableName();
+    }
 }
