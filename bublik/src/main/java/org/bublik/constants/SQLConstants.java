@@ -157,6 +157,8 @@ public abstract class SQLConstants {
 
     public static final String SQL_PG_INDEX_DEFINITION =
             "select indexdef from pg_indexes where schemaname = ? and tablename = ? and indexname = ?";
+    public static final String SQL_PG_CURRENT_LSN_AND_XID =
+            "select pg_current_wal_lsn(), pg_current_xact_id()";
     public static final String SQL_PG_INDEX_BASIC_COLUMNS =
             "select ix.indexrelid as id, i.relname, ix.indisunique as uniq, ix.indisprimary as pri, " +
             "case ix.indoption[array_position(ix.indkey, a.attnum)] " +

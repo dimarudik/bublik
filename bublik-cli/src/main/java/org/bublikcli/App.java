@@ -173,15 +173,15 @@ public class App {
             log.info("SOURCE: {}", connectionProperty.getFromProperty().getProperty("url"));
             log.info("SOURCE USERNAME: {}", connectionProperty.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
-            List<Config> config =
+            List<Config> configs =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
-            createChunks(connectionProperty, rowsParameter, config, sync);
+            createChunks(connectionProperty, rowsParameter, configs, sync);
             try {
                 log.info("Bublik starting...");
                 Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
                 assert sourceStorage != null;
-                sourceStorage.start(config, sync);
+                sourceStorage.start(configs, sync, rowsParameter);
 //                log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
@@ -205,9 +205,12 @@ public class App {
             switch (fromDriver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
                 case "org.postgresql.Driver" ->  {
-                    fillCtidChunksV2(config, fromConnection, rowsParameter);
                     if (sync) {
-                        updateXidOfCtidChunks(fromConnection);
+//                        fillCtidChunksV2(config, fromConnection, rowsParameter);
+//                        updateXidOfCtidChunks(fromConnection);
+                    } else {
+                        fillCtidChunksV2(config, fromConnection, rowsParameter, false);
+
                     }
                 }
                 default -> throw new RuntimeException();

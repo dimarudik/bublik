@@ -5,6 +5,7 @@ import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.TableService;
+import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
+    public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        return null;
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
 //        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
@@ -53,7 +59,6 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
-//                System.out.println(resultSet.getString("task_name"));
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
                 if (!sourceTable.exists(initialConnection)) {
@@ -83,9 +88,13 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
+        return Map.of();
+    }
+
+    @Override
     public String buildStartEndOfChunk(List<Config> configs) {
         List<String> taskAndWhere = new ArrayList<>();
-//        configs.forEach(System.out::println);
         configs.forEach(sqlStatement -> {
             String tmp = sqlStatement.fromTaskWhereClause() == null ? "'" : "' and " + sqlStatement.fromTaskWhereClause();
             taskAndWhere.add(sqlStatement.fromTaskName() + tmp);

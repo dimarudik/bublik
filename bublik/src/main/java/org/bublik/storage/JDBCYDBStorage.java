@@ -9,6 +9,7 @@ import org.bublik.exception.TargetSQLException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.TableService;
+import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +61,17 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
+    public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        return null;
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        return Map.of();
+    }
+
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
         return Map.of();
     }
 

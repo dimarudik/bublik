@@ -8,6 +8,7 @@ import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
 import org.bublik.model.Table;
 import org.bublik.service.StorageService;
+import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.ColumnUtil.fillCtidChunksV2;
 
 public abstract class JDBCStorage extends Storage {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
@@ -70,10 +72,8 @@ public abstract class JDBCStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync) throws SQLException {
-        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
+    public void start(List<Config> configs, boolean sync, int rows) throws SQLException {
         Properties properties = getConnectionProperty().getToProperty();
-        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         Storage sourceStorage = this;
         Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
         assert targetStorage != null;
@@ -84,11 +84,12 @@ public abstract class JDBCStorage extends Storage {
         targetStorage.setTables(sourceTables);
         targetStorage.createTables();
         if (!sync) {
-            startNOSync(chunks, targetStorage);
+            startNOSync(targetStorage, configs);
         } else {
             try {
-                startSync(chunks, targetStorage);
+                startSync(targetStorage, configs, rows);
             } catch (Exception e) {
+                log.info("{}", getStackTrace(e));
                 targetStorage.closeStorage();
                 this.closeStorage();
             }
@@ -97,25 +98,20 @@ public abstract class JDBCStorage extends Storage {
         this.closeStorage();
     }
 
-    private void startSync(List<Chunk<?>> chunks, Storage targetStorage) throws SQLException {
+    private void startSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
         Connection sourceConnection = this.getConnection();
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        Map.Entry<String,Long> lsnXid = getSystemChangeNumberWithTrxId();
+        log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
+        fillCtidChunksV2(configs, sourceConnection, rows, true);
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
+        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
             try {
                 chunk.copyChunkSync(sourceConnection, true);
             } catch (Exception e) {
                 log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
-/*
-                try {
-                    if (chunk.getSourceConnection().isValid(0)) {
-                        chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, true, null, getStackTrace(e));
-                        chunk.getSourceConnection().close();
-                    }
-                } catch (SQLException ex) {
-                    log.error("{}", getStackTrace(ex));
-                }
-*/
                 throw new RuntimeException(e);
             }
         });
@@ -130,7 +126,9 @@ public abstract class JDBCStorage extends Storage {
         targetConnection.close();
     }
 
-    private void startNOSync(List<Chunk<?>> chunks, Storage targetStorage) {
+    private void startNOSync(Storage targetStorage, List<Config> configs) throws SQLException {
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
+        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         chunks.forEach(chunk -> service
                 .submit(() -> {

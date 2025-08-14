@@ -17,6 +17,7 @@ import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
+import org.postgresql.replication.LogSequenceNumber;
 import org.postgresql.util.PGInterval;
 import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static org.bublik.constants.SQLConstants.SQL_PG_CURRENT_LSN_AND_XID;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
@@ -64,30 +66,27 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        Connection connection = getConnection();
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, connection);
+        connection.close();
+        return chunkMap;
+    }
+
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
-//        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
         for (Config c : configs)
             sb.append("\n").append(buildFetchStatement(c));
         log.debug("SQL to fetch chunks: {}", sb);
-        Connection initialConnection = getConnection();
-        PreparedStatement statement = initialConnection.prepareStatement(sql);
+        PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
-//                log.info("Fetched {} chunks from PostgreSQL", chunkHashMap.size());
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
-/*
-                if (!sourceTable.exists(initialConnection)) {
-                    initialConnection.close();
-                    log.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
-                            sourceTable.getTableName());
-                    throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
-                }
-*/
+                Table sourceTable = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
                 String query = buildFetchStatement(config);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new PGChunk<>(
@@ -104,7 +103,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
         resultSet.close();
         statement.close();
-        initialConnection.close();
         return chunkHashMap;
     }
 
@@ -943,7 +941,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
-                "xmax::text::xid8) as xmax_status " +
+//                "xmax::text::xid8) as xmax_status " +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +
@@ -1073,5 +1071,19 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     @Override
     public Table configToTable(Config config) {
         return new PGTable(config.toSchemaName(), config.toTableName());
+    }
+
+    @Override
+    public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        try (Statement st = getConnection().createStatement();
+             ResultSet rs = st.executeQuery(SQL_PG_CURRENT_LSN_AND_XID)) {
+            if (rs.next()) {
+                String lsn = rs.getString(1);
+                Long xid = rs.getLong(2);
+                return Map.entry(LogSequenceNumber.valueOf(lsn).asString(), xid);
+            } else {
+                return Map.entry(LogSequenceNumber.INVALID_LSN.asString(), 0L);
+            }
+        }
     }
 }

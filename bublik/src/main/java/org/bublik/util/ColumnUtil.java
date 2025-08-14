@@ -9,6 +9,7 @@ import org.bublik.constants.ChunkStatus;
 import org.bublik.model.Config;
 import org.bublik.model.Table;
 import org.bublik.service.TableService;
+import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,7 +142,7 @@ public class ColumnUtil {
 
     public static void fillCtidChunks(List<Config> configs, Connection connection, int required) {
         log.debug("Creating chunks...");
-        createTableCtidChunks(connection);
+        createTableCtidChunks(connection, false);
         try {
             for (Config config : configs) {
                 long reltuples = 0;
@@ -189,9 +190,9 @@ public class ColumnUtil {
         }
     }
 
-    public static void fillCtidChunksV2 (List<Config> configs, Connection connection, int required) {
-        log.debug("Creating chunks...");
-        createTableCtidChunks(connection);
+    public static void fillCtidChunksV2 (List<Config> configs, Connection connection, int required, boolean sync) {
+        log.info("Creating chunks...");
+        createTableCtidChunks(connection, sync);
         try {
             for (Config config : configs) {
                 long reltuples = 0;
@@ -231,7 +232,9 @@ public class ColumnUtil {
                     insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
                 }
             }
-            connection.commit();
+            if (!sync) {
+                connection.commit();
+            }
             log.info("Ctid chunks created successfully");
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
@@ -380,7 +383,7 @@ public class ColumnUtil {
         }
     }
 
-    private static void createTableCtidChunks(Connection connection) {
+    private static void createTableCtidChunks(Connection connection, boolean sync) {
         try {
             try {
                 Statement dropTable = connection.createStatement();
@@ -398,7 +401,9 @@ public class ColumnUtil {
             Statement truncateTable = connection.createStatement();
             truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS);
             truncateTable.close();
-            connection.commit();
+            if (!sync) {
+                connection.commit();
+            }
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
         }
@@ -432,6 +437,19 @@ public class ColumnUtil {
             connection.commit();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
+        }
+    }
+
+    public static LogSequenceNumber getCurrentLSN(Connection sqlConnection) throws SQLException {
+        try (Statement st = sqlConnection.createStatement();
+             ResultSet rs = st.executeQuery(SQL_PG_CURRENT_LSN_AND_XID)) {
+            if (rs.next()) {
+                String lsn = rs.getString(1);
+                System.out.println(lsn);
+                return LogSequenceNumber.valueOf(lsn);
+            } else {
+                return LogSequenceNumber.INVALID_LSN;
+            }
         }
     }
 

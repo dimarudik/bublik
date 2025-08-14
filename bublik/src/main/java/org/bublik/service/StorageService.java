@@ -2,6 +2,7 @@ package org.bublik.service;
 
 import org.bublik.model.*;
 import org.bublik.storage.*;
+import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,8 +17,10 @@ import java.util.Properties;
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    void start(List<Config> configs, boolean sync) throws SQLException;
+    Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
+    void start(List<Config> configs, boolean sync, int rows) throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
+    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
