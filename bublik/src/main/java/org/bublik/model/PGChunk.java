@@ -247,7 +247,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
 
     public void upsertToTarget() throws SQLException {
         this
-                .insertOnConflict()
+                .insertOnConflict(0L)
                 .saveChunkUpserted()
                 .saveChunkStatus(getUpserted() > 0 ? ChunkStatus.SYNCED : ChunkStatus.UNCHANGED, false);
         if (getUpserted() > 0) {
@@ -257,16 +257,54 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         }
     }
 
-    public Chunk<?> insertOnConflict() {
+    public long getUncommitted() {
+        try {
+            Connection connection = getSourceConnection();
+            PreparedStatement ps = connection.prepareStatement(SQL_SELECT_HAS_UNCOMMITED_TRANSACTIONS
+                    .replace("$schemaName", getTargetTable().getSchemaName())
+                    .replace("$tableName", getTargetTable().getTableName()));
+            ps.setLong(1, getStart());
+            ps.setLong(2, getEnd());
+//            log.info("{}", ps);
+            ResultSet rs = ps.executeQuery();
+            long uncommitted = 0;
+            if (rs.next()) {
+                uncommitted = rs.getLong("uncommitted");
+            }
+            rs.close();
+            ps.close();
+            return uncommitted;
+        } catch (SQLException e) {
+            log.error("Error getting uncommitted for chunkId = {}: {}", getId(), getStackTrace(e));
+            return 0;
+        }
+    }
+
+    public void updateXidmax(Long xidMax) {
+        try {
+            Connection connection = getSourceConnection();
+            PreparedStatement ps = connection.prepareStatement(DML_UPDATE_XIDMAX_CTID_CHUNKS);
+            ps.setLong(1, xidMax);
+            ps.setInt(2, getId());
+//            log.info("{}", ps);
+            ps.executeUpdate();
+            ps.close();
+        } catch (SQLException e) {
+            log.error("Error updating xidmax for chunkId = {}: {}", getId(), getStackTrace(e));
+        }
+    }
+
+    public Chunk<?> insertOnConflict(Long xidMin) {
         try {
             Connection fromConnection = getSourceConnection();
             Connection toConnection = getTargetConnection();
             PreparedStatement st = fromConnection.prepareStatement(getFetchQuery());
-//            log.info("{}", getFetchQuery());
             st.setLong(1, getStart());
             st.setLong(2, getEnd());
             st.setLong(3, getXidMin());
             st.setLong(4, getXidMin());
+            st.setLong(5, xidMin);
+//            log.info("{}", st);
             ResultSet rs = st.executeQuery();
             int upserted = 0;
             if (rs.isBeforeFirst()) {

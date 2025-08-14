@@ -959,6 +959,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
+                ", pg_xact_status("+ (config.fromTableAlias() == null ? "" : config.fromTableAlias()) +
+                "xmax::text::xid8) as xmax_status " +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +
@@ -976,7 +978,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public String buildFetchStatementGreaterXidMin(Config config) {
         return buildFetchStatement(config) + " and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "xmin::text::int8 > ? and age(xmin) < age(?::text::xid) and age(xmin) > 0 ";
+                "xmin::text::int8 > ? and age(xmin) < age(?::text::xid) and age(xmin) > 0 " +
+                "and xmin::text::int8 <= ?";
     }
 
     @Override
@@ -1016,49 +1019,68 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                     Connection toConnection = targetStorage.getConnection();
                                     chunk.setSourceConnection(fromConnection);
                                     chunk.setTargetConnection(toConnection);
-                                    chunk
-                                        .insertOnConflict()
-                                        .saveChunkUpserted();
-                                    Map.Entry<Long, Long> xidMinMax = chunk.getXidMinMax();
-                                    if (chunk.getUpserted() > 0) {
-                                        chunk.saveChunkStatus(ChunkStatus.SYNCED, true);
-                                        log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {} xmin > {}",
+                                    long xmaxUncommmit = chunk.getUncommitted();
+                                    if (xmaxUncommmit > 0) {
+                                        chunk.updateXidmax(xmaxUncommmit);
+                                        log.warn("PostgreSQL ChunkId = {}  taskName = {} Schema = {} Table = {} has uncommitted rows with xmax {}",
                                                 chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
-                                                chunk.getTargetTable().getTableName(), chunk.getUpserted(), chunk.getXidMin());
-                                        chunk.insertParentChunk(xidMinMax.getKey());
-                                    }
-                                    long maxEndPage = copyChunks
-                                            .values()
-                                            .stream()
-                                            .map(c -> (PGChunk<?>) c)
-                                            .filter(c -> c.getSourceTable().equals(chunk.getSourceTable()))
-                                            .map(Chunk::getEnd)
-                                            .max(Long::compareTo)
-                                            .orElseThrow();
+                                                chunk.getTargetTable().getTableName(), xmaxUncommmit);
+                                    } else {
+                                        Map.Entry<Long, Long> xidMinMax = chunk.getXidMinMax();
+                                        long xidMin = xidMinMax.getKey();
+/*
+                                        log.info("ChunkId = {}  from = {} to {} taskName = {} Schema = {} Table = {} rows = {} xmin > {} and xmin <= {} and xmax = {}",
+                                                chunk.getId(), chunk.getStart(), chunk.getEnd(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
+                                                chunk.getTargetTable().getTableName(), chunk.getUpserted(), chunk.getXidMin(), xidMinMax.getKey(), xidMin);
+*/
+                                        chunk
+                                                .insertOnConflict(xidMin)
+                                                .saveChunkUpserted();
+                                        if (chunk.getUpserted() > 0) {
+                                            chunk.saveChunkStatus(ChunkStatus.SYNCED, true);
+                                            log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {} xmin > {} and xmin <= {} and xmax = {}",
+                                                    chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
+                                                    chunk.getTargetTable().getTableName(), chunk.getUpserted(), chunk.getXidMin(), xidMinMax.getKey(), xidMin);
+                                            long newXidMin = chunk.getXidMin();
+                                            if (newXidMin > 0) {
 
-                                    if (maxEndPage == chunk.getEnd()) {
-                                        int heapBlksTotal = chunk.getHeapBlksTotal();
-                                        if (heapBlksTotal > maxEndPage) {
-                                            long pagesInChunk = chunk.getEnd() - chunk.getStart();
-                                            long endPage = Math.max((maxEndPage + pagesInChunk), heapBlksTotal);
-                                            insertCtidChunksV2(
-                                                    fromConnection,
-                                                    chunk.getConfig(),
-                                                    chunk.getSourceTable(),
-                                                    maxEndPage,
-                                                    endPage,
-                                                    pagesInChunk,
-                                                    ChunkStatus.PROCESSED,
-                                                    0,
-                                                    chunk.getId(),
-                                                    chunk.getXidMin());
+                                            }
+                                            chunk.insertParentChunk(xidMin);
                                         }
+
+                                        long maxEndPage = copyChunks
+                                                .values()
+                                                .stream()
+                                                .map(c -> (PGChunk<?>) c)
+                                                .filter(c -> c.getSourceTable().equals(chunk.getSourceTable()))
+                                                .map(Chunk::getEnd)
+                                                .max(Long::compareTo)
+                                                .orElseThrow();
+
+                                        if (maxEndPage == chunk.getEnd()) {
+                                            int heapBlksTotal = chunk.getHeapBlksTotal();
+                                            if (heapBlksTotal > maxEndPage) {
+                                                long pagesInChunk = chunk.getEnd() - chunk.getStart();
+                                                long endPage = Math.max((maxEndPage + pagesInChunk), heapBlksTotal);
+                                                insertCtidChunksV2(
+                                                        fromConnection,
+                                                        chunk.getConfig(),
+                                                        chunk.getSourceTable(),
+                                                        maxEndPage,
+                                                        endPage,
+                                                        pagesInChunk,
+                                                        ChunkStatus.PROCESSED,
+                                                        0,
+                                                        chunk.getId(),
+                                                        chunk.getXidMin());
+                                            }
 
 /*
                                         log.info("PostgreSQL ChunkId = {}  taskName = {} Schema = {} Table = {} heap_blks_total = {}",
                                                 chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
                                                 chunk.getTargetTable().getTableName(), heapBlksTotal);
 */
+                                        }
                                     }
                                     fromConnection.commit();
                                     chunk.closeChunkSourceConnection(false);
@@ -1076,6 +1098,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             log.error("{}", getStackTrace(exc));
                                         }
                                     }
+                                    emptyIterations.set(100);
                                     service.shutdownNow();
                                     service.close();
                                     throw new RuntimeException(e);

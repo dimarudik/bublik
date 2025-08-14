@@ -34,6 +34,7 @@ public class App {
                         try (Connection connection = DriverManager.getConnection(arr[0])) {
                             int c = Math.toIntExact(Thread.currentThread().threadId() % 3);
                             switch (c) {
+/*
                                 case 0: {
                                     if (tmp == 0) {
                                         int d = insert(connection, true);
@@ -45,6 +46,7 @@ public class App {
                                     }
                                     break;
                                 }
+*/
                                 case 1: {
                                     {
                                         int count = updateByRange(connection, threadCount, "public", "likes");

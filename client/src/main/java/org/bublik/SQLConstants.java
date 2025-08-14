@@ -22,19 +22,24 @@ public class SQLConstants {
             "        now() as time " +
             "    from generate_series( (select max(id) + 1 from s50k) , (select max(id) + 1 from s50k) + ? ) as n";
     public static final String UPDATE_BY_ID =
-            "update $schemaName.$tableName set touch_count = touch_count + 1, item_id = (floor(random() * 100000 + 1)::int) " +
+            "update $schemaName.$tableName set touch_count = touch_count + 1, " +
+            "item_id = (floor(random() * 100000 + 1)::int), " +
+            "last_update = current_timestamp " +
             "where id = ? ";
     public static final String UPDATE_TAIL_BY_ID =
-            "update $schemaName.$tableName set touch_count = touch_count + 1, item_id = (floor(random() * 100000 + 1)::int) " +
+            "update $schemaName.$tableName set touch_count = touch_count + 1, " +
+            "item_id = (floor(random() * 100000 + 1)::int), " +
+            "last_update = current_timestamp " +
             "where id = (select max(id) - 1000 + ? from likes) ";
     public static final String UPDATE_BETWEEN_ID =
             "update $schemaName.$tableName set touch_count = 0 where id between ? and ?";
     public static final String BATCH_INSERT_LIKES =
-            "insert into likes (id, user_id, item_id, r) " +
+            "insert into likes (id, user_id, item_id, r, last_update) " +
             "    select num as id, " +
             "       floor(random() * 100000 + 1)::int as user_id, " +
             "       floor(random() * 100000 + 1)::int as item_id,  " +
-            "       ('Bublik is the best tool for migration ',100,'*') as r" +
+            "       rpad('Bublik is the best tool for migration ',100,'*') as r, " +
+            "       current_timestamp as last_update " +
             "    from generate_series((select max(id) + 1 from likes) , (select max(id) + 1 from likes) + ? ) as num " +
             "on conflict (user_id, item_id) do nothing";
 }

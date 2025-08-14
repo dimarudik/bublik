@@ -111,6 +111,14 @@ public abstract class SQLConstants {
             "schema_name, table_name, status, config, required, last_id, xidmin ) " +
             "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
             "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id, ? as xidmin from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+    public static final String DML_UPDATE_XIDMAX_CTID_CHUNKS =
+            "update public.ctid_chunks set xidmax = ? where chunk_id = ?";
+    public static final String SQL_SELECT_HAS_UNCOMMITED_TRANSACTIONS =
+            "select min(xmax::text::int8) uncommitted from $schemaName.$tableName " +
+            "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid " +
+            "and age(xmin) > 0 " +
+            "and xmax::text::int8 > 0 " +
+            "and coalesce(pg_xact_status(xmax::text::xid8),'committed') = 'in progress'";
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks where status = 'UNASSIGNED'";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
