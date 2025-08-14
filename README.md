@@ -118,6 +118,7 @@ docker run --name postgres \
         -c log_filename=%u_%a.log \
         -c log_min_duration_statement=3 \
         -c log_statement=all \
+        -c wal_level=logical \
         -c auto_explain.log_min_duration=0 \
         -c auto_explain.log_analyze=true
 ```
@@ -386,6 +387,7 @@ docker run --name postgres \
         -c log_filename=%u_%a.log \
         -c log_min_duration_statement=3 \
         -c log_statement=all \
+        -c wal_level=logical \
         -c auto_explain.log_min_duration=0 \
         -c auto_explain.log_analyze=true
 ```

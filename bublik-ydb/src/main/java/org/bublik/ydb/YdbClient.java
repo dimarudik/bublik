@@ -17,8 +17,6 @@ import tech.ydb.table.query.Params;
 import tech.ydb.table.settings.DescribeTableSettings;
 import tech.ydb.table.transaction.TableTransaction;
 import tech.ydb.table.values.PrimitiveValue;
-import tech.ydb.table.values.Type;
-import tech.ydb.table.values.Value;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,8 +25,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static org.bublik.exception.Utils.getStackTrace;
 

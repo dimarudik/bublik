@@ -90,7 +90,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.bublik.ydb.YdbClient</mainClass>
+                            <mainClass>org.bublik.ydb.Sync</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
