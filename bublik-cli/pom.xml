@@ -6,7 +6,7 @@
 
     <groupId>org.bublik</groupId>
     <artifactId>bublik-cli</artifactId>
-    <version>1.2.4</version>
+    <version>25.1.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -16,7 +16,7 @@
 
         <log4j.version>2.23.1</log4j.version>
         <jackson.version>2.15.2</jackson.version>
-        <bublik.version>1.2.4</bublik.version>
+        <bublik.version>25.1.0</bublik.version>
     </properties>
 
     <dependencies>

@@ -60,11 +60,6 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void sync() throws SQLException {
-
-    }
-
-    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         return Map.of();
     }

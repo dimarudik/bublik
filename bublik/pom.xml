@@ -6,7 +6,7 @@
 
     <groupId>org.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>1.2.4</version>
+    <version>25.1.0</version>
     <packaging>jar</packaging>
 
     <properties>

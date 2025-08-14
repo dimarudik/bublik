@@ -12,7 +12,6 @@ public interface ChunkService {
 
     Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) throws SQLException;
     Chunk<?> saveChunkRows(int rows, boolean sync) throws SQLException;
-    Chunk<?> saveChunkUpserted() throws SQLException;
     Chunk<?> saveConfig(boolean sync) throws SQLException;
     Chunk<?> assignSourceResultSet() throws SQLException;
     ResultSet getData(Connection connection, String query) throws SQLException;

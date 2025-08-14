@@ -17,7 +17,6 @@ public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
     void start(List<Config> configs, boolean sync) throws SQLException;
-    void sync() throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;

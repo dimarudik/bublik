@@ -1,6 +1,5 @@
 package org.bublik.storage;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
@@ -10,15 +9,12 @@ import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
-import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
 import org.bublik.exception.SourceSQLException;
 import org.bublik.exception.TableNotExistsException;
 import org.bublik.exception.TargetSQLException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
-import org.bublik.service.StorageService;
-import org.bublik.service.Syncable;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
 import org.postgresql.util.PGInterval;
@@ -26,21 +22,16 @@ import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.sql.*;
 import java.sql.Date;
 import java.time.*;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
-import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
-public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService, Syncable {
+public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
     private static JDBCPostgreSQLStorage toInstance;
     private static JDBCPostgreSQLStorage fromInstance;
@@ -694,18 +685,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 case "timestamp": {
                     try {
                         Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-//                        System.out.println(timestamp);
                         if (timestamp == null) {
                             row.setTimeStamp(targetColumn, null);
                             break;
                         }
-/*
-                        long l = timestamp.getTime();
-                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
-                                TimeZone.getDefault().toZoneId());
-*/
                         LocalDateTime localDateTime = timestamp.toLocalDateTime();
-//                        System.out.println(localDateTime);
                         row.setTimeStamp(targetColumn, localDateTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
@@ -959,7 +943,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
-                ", pg_xact_status("+ (config.fromTableAlias() == null ? "" : config.fromTableAlias()) +
                 "xmax::text::xid8) as xmax_status " +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
@@ -973,306 +956,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 "ctid >= concat('(', ? ,',1)')::tid and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
                 "ctid < concat('(', ? ,',1)')::tid";
-    }
-
-    public String buildFetchStatementGreaterXidMin(Config config) {
-        return buildFetchStatement(config) + " and " +
-                (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "xmin::text::int8 > ? and age(xmin) < age(?::text::xid) and age(xmin) > 0 " +
-                "and xmin::text::int8 <= ?";
-    }
-
-    @Override
-    public void sync() throws SQLException {
-        syncV1();
-    }
-
-    public void syncV1() throws SQLException {
-
-        while (emptyIterations.get() < 100) {
-            Connection sourceConnection = getConnection();
-            int totalChunksBefore = getTotalChunks(sourceConnection);
-            Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty(), false);
-            assert targetStorage != null;
-            Connection targetConnection = targetStorage.getConnection();
-            List<ChunkStatus> chunkStatuses = new ArrayList<>();
-            chunkStatuses.add(ChunkStatus.PROCESSED);
-            chunkStatuses.add(ChunkStatus.UNCHANGED);
-//            List<Table> targetTables = createSyncChunksGraterMaxCtidEndPage(sourceConnection, chunkStatuses);
-            targetConnection.close();
-
-            Map<Integer, PGChunk<?>> copyChunks = getChunkSyncMap(sourceConnection, chunkStatuses);
-//            createSyncChunks(copyChunks);
-            sourceConnection.close();
-
-//            int thCount = 2;
-            ExecutorService service = Executors.newFixedThreadPool(threadCount);
-            copyChunks.values()
-                    .forEach(chunk ->
-                            service.submit(() -> {
-                                try {
-                                    chunk.setTargetStorage(targetStorage);
-                                    Connection fromConnection = this.getConnection();
-//                                    PGConnection pgFromConnection = fromConnection.unwrap(PGConnection.class);
-//                                    log.info("pid: {} ChunkId: {}",pgFromConnection.getBackendPID(), chunk.getId());
-                                    fromConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-                                    Connection toConnection = targetStorage.getConnection();
-                                    chunk.setSourceConnection(fromConnection);
-                                    chunk.setTargetConnection(toConnection);
-                                    long xmaxUncommmit = chunk.getUncommitted();
-                                    if (xmaxUncommmit > 0) {
-                                        chunk.updateXidmax(xmaxUncommmit);
-                                        log.warn("PostgreSQL ChunkId = {}  taskName = {} Schema = {} Table = {} has uncommitted rows with xmax {}",
-                                                chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
-                                                chunk.getTargetTable().getTableName(), xmaxUncommmit);
-                                    } else {
-                                        Map.Entry<Long, Long> xidMinMax = chunk.getXidMinMax();
-                                        long xidMin = xidMinMax.getKey();
-/*
-                                        log.info("ChunkId = {}  from = {} to {} taskName = {} Schema = {} Table = {} rows = {} xmin > {} and xmin <= {} and xmax = {}",
-                                                chunk.getId(), chunk.getStart(), chunk.getEnd(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
-                                                chunk.getTargetTable().getTableName(), chunk.getUpserted(), chunk.getXidMin(), xidMinMax.getKey(), xidMin);
-*/
-                                        chunk
-                                                .insertOnConflict(xidMin)
-                                                .saveChunkUpserted();
-                                        if (chunk.getUpserted() > 0) {
-                                            chunk.saveChunkStatus(ChunkStatus.SYNCED, true);
-                                            log.info("PostgreSQL UPSERT ChunkId = {}  taskName = {} Schema = {} Table = {} rows = {} xmin > {} and xmin <= {} and xmax = {}",
-                                                    chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
-                                                    chunk.getTargetTable().getTableName(), chunk.getUpserted(), chunk.getXidMin(), xidMinMax.getKey(), xidMin);
-                                            long newXidMin = chunk.getXidMin();
-                                            if (newXidMin > 0) {
-
-                                            }
-                                            chunk.insertParentChunk(xidMin);
-                                        }
-
-                                        long maxEndPage = copyChunks
-                                                .values()
-                                                .stream()
-                                                .map(c -> (PGChunk<?>) c)
-                                                .filter(c -> c.getSourceTable().equals(chunk.getSourceTable()))
-                                                .map(Chunk::getEnd)
-                                                .max(Long::compareTo)
-                                                .orElseThrow();
-
-                                        if (maxEndPage == chunk.getEnd()) {
-                                            int heapBlksTotal = chunk.getHeapBlksTotal();
-                                            if (heapBlksTotal > maxEndPage) {
-                                                long pagesInChunk = chunk.getEnd() - chunk.getStart();
-                                                long endPage = Math.max((maxEndPage + pagesInChunk), heapBlksTotal);
-                                                insertCtidChunksV2(
-                                                        fromConnection,
-                                                        chunk.getConfig(),
-                                                        chunk.getSourceTable(),
-                                                        maxEndPage,
-                                                        endPage,
-                                                        pagesInChunk,
-                                                        ChunkStatus.PROCESSED,
-                                                        0,
-                                                        chunk.getId(),
-                                                        chunk.getXidMin());
-                                            }
-
-/*
-                                        log.info("PostgreSQL ChunkId = {}  taskName = {} Schema = {} Table = {} heap_blks_total = {}",
-                                                chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getConfig().fromSchemaName(),
-                                                chunk.getTargetTable().getTableName(), heapBlksTotal);
-*/
-                                        }
-                                    }
-                                    fromConnection.commit();
-                                    chunk.closeChunkSourceConnection(false);
-                                    chunk.closeChunkTargetConnection();
-                                } catch (Exception e) {
-                                    log.error(getStackTrace(e));
-                                    try {
-                                        chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
-                                        chunk.closeChunkSourceConnection(true);
-                                    } catch (SQLException ex) {
-                                        log.error("{}", getStackTrace(ex));
-                                        try {
-                                            chunk.closeChunkSourceConnection(true);
-                                        } catch (SQLException exc) {
-                                            log.error("{}", getStackTrace(exc));
-                                        }
-                                    }
-                                    emptyIterations.set(100);
-                                    service.shutdownNow();
-                                    service.close();
-                                    throw new RuntimeException(e);
-                                }
-                            })
-                    );
-            service.shutdown();
-            service.close();
-
-            sourceConnection = getConnection();
-            int totalChunksAfter = getTotalChunks(sourceConnection);
-            sourceConnection.close();
-
-            if ((totalChunksBefore - totalChunksAfter) == 0) {
-                emptyIterations.addAndGet(1);
-            } else {
-                emptyIterations.set(0);
-            }
-            int sleepCount= emptyIterations.get();
-            if (sleepCount > 0) {
-                try {
-                    Thread.sleep(sleepCount * 10L);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            log.info("Total empty iterations: {}", emptyIterations.get());
-        }
-
-    }
-
-    private int getTotalChunks(Connection connection) throws SQLException {
-        Statement st = connection.createStatement();
-        ResultSet rs = st.executeQuery(SQL_TOTAL_CHUNKS);
-        rs.next();
-        int totalChunks = rs.getInt("total_chunks");
-        rs.close();
-        st.close();
-        return totalChunks;
-    }
-
-    private List<Table> createSyncChunksGraterMaxCtidEndPage(Connection connection, List<ChunkStatus> statuses) throws SQLException {
-        connection.setAutoCommit(false);
-        PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_AVG_SYNC);
-        List<Table> tables = new ArrayList<>();
-        String[] arr = statuses
-                .stream()
-                .map(Enum::name)
-                .toArray(String[]::new);
-        Array array = connection.createArrayOf("VARCHAR", arr);
-        ps.setArray(1, array);
-        ResultSet rs = ps.executeQuery();
-        if (rs.isBeforeFirst()) {
-            while (rs.next()) {
-                long maxCtidEndPage = rs.getLong("max_ctid_end_page");
-                long heapBlksTotal = rs.getLong("heap_blks_total");
-                long pagesInChunk = rs.getLong("pages_in_chunk");
-                long last_id = rs.getLong("last_id");
-                String taskName = rs.getString("task_name");
-                String schemaName = rs.getString("schema_name");
-                String tableName = rs.getString("table_name");
-                String stringConfig = rs.getString("config");
-                ObjectMapper objectMapper = new ObjectMapper();
-                try {
-                    Config config = objectMapper.readValue(stringConfig, Config.class);
-                    if (heapBlksTotal > maxCtidEndPage) {
-                        Table table = new PGTable(schemaName, tableName);
-                        insertCtidChunksV2(
-                                connection,
-                                config,
-                                table,
-                                maxCtidEndPage,
-                                Math.max((maxCtidEndPage + pagesInChunk), heapBlksTotal),
-//                                heapBlksTotal,
-                                pagesInChunk,
-                                ChunkStatus.UNCHANGED,
-                                0,
-                                last_id,
-                                0);
-                        connection.commit();
-                        log.info("NEW Chunk pagesInChunk: {} maxCtidEndPage: {} maxCtidEndPage + pagesInChunk: {} with last_id {}",
-                                pagesInChunk, maxCtidEndPage, maxCtidEndPage + pagesInChunk, last_id);
-
-                    }
-                    tables.add(new PGTable(config.toSchemaName(), config.toTableName()));
-                } catch (SQLException | IOException e) {
-                    log.error("{}", getStackTrace(e));
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-        rs.close();
-        ps.close();
-        ps = connection.prepareStatement(SQL_CHUNKS_SYNC_WITHOUT_XIDMIN);
-        ps.setArray(1, array);
-        rs = ps.executeQuery();
-        if (rs.isBeforeFirst()) {
-            while (rs.next()) {
-                int chunkId = rs.getInt("chunk_id");
-//                int lastId = rs.getInt("last_id");
-                PreparedStatement statement = connection.prepareStatement(DML_UPDATE_XID_OF_CTID_CHUNKS_BY_LAST_ID);
-                statement.setInt(1, chunkId);
-                statement.execute();
-                statement.close();
-            }
-        }
-        rs.close();
-        ps.close();
-        connection.commit();
-        return tables;
-    }
-
-    private void createSyncChunks(Map<Integer, PGChunk<?>> chunks) {
-        try {
-            for (PGChunk<?> chunk : chunks.values()) {
-                Map.Entry<Long, Long> xidMinMax = chunk.getXidMinMax();
-                if (xidMinMax.getKey() > chunk.getXidMin()) {
-                    chunk.insertParentChunk(xidMinMax.getKey());
-                    log.info("New PARENT ChunkId: {} start: {} end: {} with xidmin {}",
-                            chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
-                } else {
-//                    if (chunk.getChunkStatus().equals(ChunkStatus.SYNCED)) {
-//                    log.info("{}", chunk.getChunkStatus());
-                        chunk.saveChunkStatus(ChunkStatus.UNCHANGED, false, null, null);
-//                        log.info("ChunkId: {} start: {} end: {} with xidmin {} is UNCHANGED",
-//                                chunk.getId(), chunk.getStart(), chunk.getEnd(), xidMinMax.getKey());
-//                    }
-                }
-            }
-        } catch (SQLException | IOException e) {
-            log.error("{}", getStackTrace(e));
-//            log.error("Error during sync: {}", e.getMessage());
-        }
-    }
-
-    @Override
-    public Map<Integer, PGChunk<?>> getChunkSyncMap(Connection connection, List<ChunkStatus> chunkStatuses) throws SQLException {
-        Map<Integer, PGChunk<?>> chunkMap = new HashMap<>();
-        PreparedStatement ps = connection.prepareStatement(SQL_CHUNKS_SYNC);
-        String[] arr = chunkStatuses
-                .stream()
-                .map(Enum::name)
-                .toArray(String[]::new);
-        Array array = connection.createArrayOf("VARCHAR", arr);
-        ps.setArray(1, array);
-        ResultSet rs = ps.executeQuery();
-        if (rs.isBeforeFirst()) {
-            while (rs.next()) {
-                try {
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    Config config = objectMapper.readValue(rs.getString("config"), Config.class);
-                    chunkMap.put(rs.getInt("chunk_id"), new PGChunk<>(
-                            rs.getInt("chunk_id"),
-                            rs.getLong("start_page"),
-                            rs.getLong("end_page"),
-                            config,
-                            new PGTable(config.fromSchemaName(), config.fromTableName()),
-                            new PGTable(config.toSchemaName(), config.toTableName()),
-                            this,
-                            rs.getInt("parent_id"),
-                            rs.getLong("xidmin"),
-                            rs.getLong("xidmax"),
-                            connection,
-                            buildFetchStatementGreaterXidMin(config),
-                            ChunkStatus.valueOf(rs.getString("status"))
-                    ));
-                } catch (IOException e) {
-                    throw new RuntimeException();
-                }
-            }
-        }
-        rs.close();
-        ps.close();
-        return chunkMap;
     }
 
     @Override

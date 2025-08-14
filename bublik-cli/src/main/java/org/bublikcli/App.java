@@ -82,9 +82,9 @@ public class App {
 
         if (cmd.hasOption("?")) {
             formatter.printHelp( HELP_MESSAGE, options );
-        } else if (cmd.hasOption(SyncOption) && cmd.hasOption("c") && !cmd.hasOption(createChunkOption) && !cmd.hasOption("m")) {
+        }/* else if (cmd.hasOption(SyncOption) && cmd.hasOption("c") && !cmd.hasOption(createChunkOption) && !cmd.hasOption("m")) {
             sync(cmd.getOptionValue(connectionConfigOption));
-        } else if(cmd.hasOption("m") && cmd.hasOption("g") && cmd.hasOption("n")) {
+        }*/ else if(cmd.hasOption("m") && cmd.hasOption("g") && cmd.hasOption("n")) {
             createOGGFile(cmd.getOptionValue(mappingDefOption), cmd.getOptionValue(OGGfileOption), cmd.getOptionValue(OGGCSNOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("i") && cmd.hasOption("o")) {
             createDefJson(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(listOfTablesOption), cmd.getOptionValue(JSONfileOption));
@@ -147,6 +147,7 @@ public class App {
         }
     }
 
+/*
     private static void sync(String configFileName) throws IOException {
         log.info("Synchronizing data from source to target...");
         ConnectionProperty properties = connectionProperty(configFileName);
@@ -156,12 +157,12 @@ public class App {
             sourceStorage.sync();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
-//            throw new RuntimeException(e);
         } finally {
             sourceStorage.closeStorage();
             log.info("Synchronization completed.");
         }
     }
+*/
 
     private static void runProcess(ConnectionProperty connectionProperty,
                                    String mappingDefFileName,
