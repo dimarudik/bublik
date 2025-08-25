@@ -3,12 +3,8 @@ package org.bublik.storage;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bublik.constants.ChunkStatus;
-import org.bublik.model.Chunk;
-import org.bublik.model.Config;
-import org.bublik.model.ConnectionProperty;
-import org.bublik.model.Table;
+import org.bublik.model.*;
 import org.bublik.service.StorageService;
-import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,10 +12,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -77,7 +70,7 @@ public abstract class JDBCStorage extends Storage {
         Storage sourceStorage = this;
         Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
         assert targetStorage != null;
-        Map<Table, Table> sourceTables = configsToTables(configs);
+        Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
         sourceStorage.enrichSourceTables();
         targetStorage.enrichTargetTables(sourceTables);
@@ -96,6 +89,33 @@ public abstract class JDBCStorage extends Storage {
         }
         targetStorage.closeStorage();
         this.closeStorage();
+    }
+
+    private void startNOSync(Storage targetStorage, List<Config> configs) throws SQLException {
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
+        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        chunks.forEach(chunk -> service
+                .submit(() -> {
+                    chunk.setTargetStorage(targetStorage);
+                    try {
+                        return chunk.copyChunk(false);
+                    } catch (Exception e) {
+                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                        try {
+                            if (chunk.getSourceConnection().isValid(0)) {
+                                chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
+                                chunk.getSourceConnection().close();
+                            }
+                        } catch (SQLException exception) {
+                            log.error("{}", getStackTrace(exception));
+                        }
+                        throw e;
+                    }
+                })
+        );
+        service.shutdown();
+        service.close();
     }
 
     private void startSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
@@ -124,33 +144,6 @@ public abstract class JDBCStorage extends Storage {
         targetStorage.createForeignKeys();
         sourceConnection.close();
         targetConnection.close();
-    }
-
-    private void startNOSync(Storage targetStorage, List<Config> configs) throws SQLException {
-        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
-        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
-        ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        chunks.forEach(chunk -> service
-                .submit(() -> {
-                    chunk.setTargetStorage(targetStorage);
-                    try {
-                        return chunk.copyChunk(false);
-                    } catch (Exception e) {
-                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
-                        try {
-                            if (chunk.getSourceConnection().isValid(0)) {
-                                chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
-                                chunk.getSourceConnection().close();
-                            }
-                        } catch (SQLException exception) {
-                            log.error("{}", getStackTrace(exception));
-                        }
-                        throw e;
-                    }
-                })
-        );
-        service.shutdown();
-        service.close();
     }
 
     @Override
@@ -210,5 +203,14 @@ public abstract class JDBCStorage extends Storage {
             }
         }
         return null;
+    }
+
+    @Override
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
+        Map<Table, Table> tables = new HashMap<>();
+        for (Config c : configs) {
+            tables.put(configToTable(c.fromSchemaName(), c.fromTableName()), targetStorage.configToTable(c.toSchemaName(), c.toTableName()));
+        }
+        return tables;
     }
 }

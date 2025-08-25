@@ -332,6 +332,11 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
+    public Table configToTable(String schemaName, String tableName) {
+        return new YDBTable(schemaName, tableName);
+    }
+
+    @Override
     public void createPrimaryKeys() {
     }
 
@@ -350,6 +355,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     }
 
+/*
     @Override
     public Map<Table, Table> configsToTables(List<Config> configs) {
         Map<Table, Table> tables = new HashMap<>();
@@ -358,6 +364,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         }
         return tables;
     }
+*/
 
     @Override
     public void enrichSourceTables() {
@@ -369,10 +376,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     }
 
+/*
     @Override
     public Table configToTable(Config config) {
         return new YDBTable(config.toSchemaName(), config.toTableName());
     }
+*/
 
     public String batchInsertStatement(Config config) {
         List<String> strings = new ArrayList<>();

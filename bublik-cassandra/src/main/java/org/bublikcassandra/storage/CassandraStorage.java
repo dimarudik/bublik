@@ -74,17 +74,22 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync) throws SQLException {
-
+    public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        return null;
     }
 
     @Override
-    public void sync() throws SQLException {
+    public void start(List<Config> configs, boolean sync, int rows) throws SQLException {
 
     }
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        return Map.of();
+    }
+
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
         return Map.of();
     }
 
@@ -354,9 +359,21 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
+        return Map.of();
+    }
+
+    @Override
+    public Table configToTable(String schemaName, String tableName) {
+        return null;
+    }
+
+/*
+    @Override
     public Map<Table, Table> configsToTables(List<Config> configs) {
         return Map.of();
     }
+*/
 
     @Override
     public void enrichSourceTables() {
@@ -373,13 +390,20 @@ public class CassandraStorage extends Storage {
 
     }
 
+/*
     @Override
     public Table configToTable(Config config) {
         return null;
     }
+*/
 
     @Override
     public Table getTagetTableBySourceTable(Table table) {
+        return null;
+    }
+
+    @Override
+    public Table getSourceTableByTargetTable(Table table) {
         return null;
     }
 
@@ -410,11 +434,6 @@ public class CassandraStorage extends Storage {
 
     @Override
     public void createForeignKeys() {
-
-    }
-
-    @Override
-    public void createTable(Table table) throws SQLException {
 
     }
 

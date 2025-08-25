@@ -2,7 +2,6 @@ package org.bublik.service;
 
 import org.bublik.model.*;
 import org.bublik.storage.*;
-import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +25,8 @@ public interface StorageService {
     void closeStorage();
     String buildFetchStatement(Config config);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
-    Map<Table, Table> configsToTables(List<Config> configs);
-    Table configToTable(Config config);
+    Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
+    Table configToTable(String schemaName, String tableName);
     Table getTagetTableBySourceTable(Table table);
     Table getSourceTableByTargetTable(Table table);
     boolean tableInSourceList(Table table);

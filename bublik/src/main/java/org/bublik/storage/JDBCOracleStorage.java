@@ -15,7 +15,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
+import static org.bublik.exception.Utils.getStackTrace;
+
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
+    private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);
+
     private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
     private static JDBCOracleStorage fromInstance;
 
@@ -171,17 +175,19 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public Map<Table, Table> configsToTables(List<Config> configs) {
-        Map<Table, Table> tables = new HashMap<>();
-        for (Config c : configs) {
-            tables.put(new OraTable(c.fromSchemaName(), c.fromTableName()), configToTable(c));
-        }
-        return tables;
-    }
-
-    @Override
     public void enrichSourceTables() {
-
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection sourceConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table sourceTable = entry.getKey();
+                List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
+                sourceTable.setColumns(allSourceColumns);
+            }
+            sourceConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
     }
 
     @Override
@@ -190,7 +196,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public Table configToTable(Config config) {
-        return new OraTable(config.toSchemaName(), config.toTableName());
+    public Table configToTable(String schemaName, String tableName) {
+        return new OraTable(schemaName, tableName);
     }
 }

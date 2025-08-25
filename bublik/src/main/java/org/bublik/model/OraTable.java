@@ -1,15 +1,20 @@
 package org.bublik.model;
 
 import org.bublik.storage.Storage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class OraTable extends Table {
+    private static final Logger log = LoggerFactory.getLogger(OraTable.class);
+
     public OraTable(){}
     public OraTable(String schemaName, String tableName) {
         super(schemaName, tableName);
@@ -52,7 +57,41 @@ public class OraTable extends Table {
 
     @Override
     public List<Column> getAllColumns(Connection connection) throws SQLException {
-        return List.of();
+        List<Column> columns = new ArrayList<>();
+        ResultSet rs = connection.getMetaData().getColumns(
+                null,
+                getFinalSchemaName(),
+                getFinalTableName(false),
+                null);
+        while (rs.next()) {
+            int ordinalPosition = rs.getInt("ORDINAL_POSITION");
+            String columnName = rs.getString("COLUMN_NAME");
+            String columnType = rs.getString("TYPE_NAME");
+            Integer dataType = rs.getInt("DATA_TYPE");
+            int nullable = rs.getInt("NULLABLE");
+            String columnDefault = rs.getString("COLUMN_DEF");
+            String isAutoIncrement = rs.getString("IS_AUTOINCREMENT");
+            String isGenerated = rs.getString("IS_GENERATEDCOLUMN");
+            int decimalDigits = rs.getInt("DECIMAL_DIGITS");
+            String remark = rs.getString("REMARKS");
+            int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
+            columns.add(new Column(
+                    ordinalPosition,
+                    columnName,
+                    columnType,
+                    dataType,
+                    nullable,
+                    columnDefault,
+                    isAutoIncrement,
+                    isGenerated,
+                    decimalDigits,
+                    remark,
+                    charOctetLength,
+                    null
+            ));
+        }
+        columns.sort(Column::compareTo);
+        return columns;
     }
 
     @Override
@@ -123,6 +162,6 @@ public class OraTable extends Table {
 
     @Override
     public void create(Connection connection) throws SQLException {
-
+        log.info("Table {}.{} not exists in target database. Please create it manually.", getFinalSchemaName(), getFinalTableName(false));
     }
 }
