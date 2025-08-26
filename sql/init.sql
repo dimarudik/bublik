@@ -1,8 +1,9 @@
 create role test with login superuser password 'test';
+create schema if not exists test;
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
 
-create table table1 (
+create table test.table1 (
     id bigint,
     create_at timestamp(6) with time zone,
     level character varying(255),
@@ -252,13 +253,14 @@ create table p_src (
 ) partition by range (created);
 alter table p_src add primary key (id, created);
 create table p_src_def partition of p_src default;
+create table p_src_202509 partition of p_src for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59');
 create table p_src_202510 partition of p_src for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59');
 create table p_src_202511 partition of p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
 create table p_src_202512 partition of p_src for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59');
 
 insert into p_src (id, created, name, amount, shard_key)
     select num as id,
-            timestamp '2025-09-15 00:00:00' + random() * (timestamp '2025-12-31 23:59:59' - timestamp '2025-10-01 00:00:00') as created,
+            timestamp '2025-08-15 00:00:00' + random() * (timestamp '2025-12-31 23:59:59' - timestamp '2025-09-01 00:00:00') as created,
             'Name ' || substr(md5(random()::text), 1, 10) as name,
             floor(random() * 1000000)::bigint as amount,
             random() * 1 as shard_key
@@ -274,10 +276,13 @@ create table p_trg (
 ) partition by range (created);
 alter table p_trg add primary key (id, created, shard_key);
 create table p_trg_def partition of p_trg default partition by list (shard_key);
+create table p_trg_202509 partition of p_trg for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59') partition by list (shard_key);
 create table p_trg_202510 partition of p_trg for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59') partition by list (shard_key);
 create table p_trg_202511 partition of p_trg for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59') partition by list (shard_key);
 create table p_trg_202512 partition of p_trg for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59') partition by list (shard_key);
 
+create table p_trg_202509_0 partition of p_trg_202509 for values in (0);
+create table p_trg_202509_1 partition of p_trg_202509 for values in (1);
 create table p_trg_202510_0 partition of p_trg_202510 for values in (0);
 create table p_trg_202510_1 partition of p_trg_202510 for values in (1);
 create table p_trg_202511_0 partition of p_trg_202511 for values in (0);

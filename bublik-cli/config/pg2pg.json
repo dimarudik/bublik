@@ -4,8 +4,6 @@
     "fromTableName" : "\"Source\"",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "SOURCE_TASK",
     "tryCharIfAny" : ["current_mood", "gender"],
     "columnToColumn" : {
       "id"            : "id",
@@ -30,6 +28,11 @@
     "expressionToColumn" : {
       "(select 'male') as gender" : "gender"
     }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202509",
+    "toSchemaName": "test"
   },
   {
     "fromSchemaName": "public",

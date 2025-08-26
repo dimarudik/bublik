@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.bublik.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
+import static org.bublik.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
 import static org.bublik.exception.Utils.getStackTrace;
 
 public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
@@ -66,6 +68,33 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
+    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
+
+    }
+
+    @Override
+    public void createOutbox() throws SQLException {
+        Connection connection = getConnection();
+        try {
+//            Table table = TableService.getTable(connection, "", "bublik_outbox");
+            Table table = configToTable("", "bublik_outbox");
+            if (table.exists(connection)) {
+                Statement createTable = connection.createStatement();
+                createTable.executeUpdate(DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX);
+                createTable.close();
+            }
+            Statement truncateTable = connection.createStatement();
+            truncateTable.executeUpdate(DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX);
+            truncateTable.close();
+            connection.commit();
+            log.info("Outbox table created successfully");
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+        connection.close();
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         return Map.of();
     }
@@ -87,7 +116,8 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                 throw new TargetSQLException(getStackTrace(t));
             }
             chunk.setTargetConnection(connectionTo);
-            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+//            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connectionTo)) {
                 chunk.setTargetTable(table);
                 try {
@@ -355,17 +385,6 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     }
 
-/*
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs) {
-        Map<Table, Table> tables = new HashMap<>();
-        for (Config c : configs) {
-            tables.put(new YDBTable(c.fromSchemaName(), c.fromTableName()), configToTable(c));
-        }
-        return tables;
-    }
-*/
-
     @Override
     public void enrichSourceTables() {
 
@@ -375,13 +394,6 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     public void createTables() {
 
     }
-
-/*
-    @Override
-    public Table configToTable(Config config) {
-        return new YDBTable(config.toSchemaName(), config.toTableName());
-    }
-*/
 
     public String batchInsertStatement(Config config) {
         List<String> strings = new ArrayList<>();

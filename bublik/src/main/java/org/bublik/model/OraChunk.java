@@ -10,7 +10,7 @@ import java.sql.*;
 import static org.bublik.constants.SQLConstants.*;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(OraChunk.class);
+    private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
 
     public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);

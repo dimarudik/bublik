@@ -18,6 +18,8 @@ public interface StorageService {
 
     Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
     void start(List<Config> configs, boolean sync, int rows) throws SQLException;
+    void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException;
+    void createOutbox() throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;

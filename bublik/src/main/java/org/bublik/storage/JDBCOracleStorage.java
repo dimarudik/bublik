@@ -5,22 +5,21 @@ import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.TableService;
-import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.*;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import static org.bublik.constants.SQLConstants.*;
 import static org.bublik.exception.Utils.getStackTrace;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCOracleStorage.class);
     private static JDBCOracleStorage fromInstance;
 
     private JDBCOracleStorage(StorageClass storageClass,
@@ -49,25 +48,80 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
+    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
+        Connection connection = getConnection();
+        for (Config config : configs) {
+            try {
+                CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
+                dropTask.setString(1, config.fromTaskName());
+                dropTask.execute();
+                dropTask.close();
+            } catch (SQLException e) {
+//                log.error("{}", getStackTrace(e));
+                log.warn("Task {} does not exist", config.fromTaskName());
+            }
+        }
+        for (Config config : configs) {
+            try {
+                CallableStatement createTask = connection.prepareCall(PLSQL_CREATE_TASK);
+                createTask.setString(1, config.fromTaskName());
+                log.info("Creating tasks... {} {}", PLSQL_CREATE_TASK, config.fromTaskName());
+                createTask.execute();
+                createTask.close();
+            } catch (SQLException e) {
+                log.error("{}", getStackTrace(e));
+                connection.close();
+                throw e;
+            }
+        }
+
+        for (Config config : configs) {
+            try {
+//                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
+                Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+                CallableStatement createChunk = connection.prepareCall(PLSQL_CREATE_CHUNK);
+                createChunk.setString(1, config.fromTaskName());
+                createChunk.setString(2, table.getSchemaName().toUpperCase());
+                createChunk.setString(3, table.getFinalTableName(false));
+                createChunk.setInt(4, rows);
+                createChunk.execute();
+                createChunk.close();
+            } catch (SQLException e) {
+                log.error("{}", getStackTrace(e));
+                connection.close();
+                throw e;
+            }
+        }
+        log.info("Ctid chunks created successfully");
+        connection.close();
+    }
+
+    @Override
+    public void createOutbox() throws SQLException {
+
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
 //        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         String sql = buildStartEndOfChunk(configs);
-        LOGGER.debug("SQL to fetch metadata of chunks: \n{}", sql);
+        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
         for (Config c : configs)
             sb.append("\n").append(buildFetchStatement(c));
-        LOGGER.debug("SQL to fetch chunks: {}", sb);
+        log.debug("SQL to fetch chunks: {}", sb);
         Connection initialConnection = getConnection();
         PreparedStatement statement = initialConnection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
+//                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
+                Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
                 if (!sourceTable.exists(initialConnection)) {
                     initialConnection.close();
-                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
+                    log.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
                             sourceTable.getTableName());
                     throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
                 }

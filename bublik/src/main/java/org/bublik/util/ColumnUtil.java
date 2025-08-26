@@ -97,6 +97,7 @@ public class ColumnUtil {
         return 0;
     }
 
+/*
     public static void fillOraChunks(List<Config> configs, Connection connection, int rowsParameter) {
         log.debug("Creating chunks...");
         try {
@@ -108,7 +109,6 @@ public class ColumnUtil {
                 dropTask.close();
             }
         } catch (SQLException e) {
-//            LOGGER.error("{}", getStackTrace(e));
         }
         try {
             for (Config config : configs) {
@@ -139,7 +139,9 @@ public class ColumnUtil {
             log.error("{}", getStackTrace(e));
         }
     }
+*/
 
+/*
     public static void fillCtidChunks(List<Config> configs, Connection connection, int required) {
         log.debug("Creating chunks...");
         createTableCtidChunks(connection, false);
@@ -189,7 +191,9 @@ public class ColumnUtil {
             throw new RuntimeException(e);
         }
     }
+*/
 
+/*
     public static void fillCtidChunksV2 (List<Config> configs, Connection connection, int required, boolean sync) {
         log.info("Creating chunks...");
         createTableCtidChunks(connection, sync);
@@ -242,6 +246,7 @@ public class ColumnUtil {
             throw new RuntimeException(e);
         }
     }
+*/
 
     public static Long getTotalPagesOfTable(Connection connection, Table table) throws SQLException {
         long heap_blks_total = 0;
@@ -423,6 +428,7 @@ public class ColumnUtil {
         }
     }
 
+/*
     public static void createYDBTableBublikChunk(Connection connection) {
         try {
             Table table = TableService.getTable(connection, "", "bublik_outbox");
@@ -439,6 +445,7 @@ public class ColumnUtil {
             log.error("{}", getStackTrace(e));
         }
     }
+*/
 
     public static LogSequenceNumber getCurrentLSN(Connection sqlConnection) throws SQLException {
         try (Statement st = sqlConnection.createStatement();

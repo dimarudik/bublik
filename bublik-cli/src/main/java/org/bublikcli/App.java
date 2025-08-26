@@ -12,14 +12,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
 
 import static org.bublik.exception.Utils.getStackTrace;
-import static org.bublik.util.ColumnUtil.*;
 import static org.bublikcli.addons.Utils.*;
 import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
 
@@ -52,7 +48,7 @@ public class App {
         Option OGGfileOption = createOptionValue("g", "ogg", "ogg file", "create Oracle Golden Gate file");
         Option OGGCSNOption = createOptionValue("n", "csn", "csn", "Oracle Golden Gate CSN");
         Option SyncOption = createOptionNoArg("s", "sync", "synchronize data from source to target");
-        Option helpOption = createOptionNoArg("?", "help", "Help message");
+        Option helpOption = createOptionNoArg("h", "help", "Help message");
 
         options
                 .addOption(createChunkOption)
@@ -75,12 +71,12 @@ public class App {
             Arrays.stream(cmd.getOptions()).forEach(option -> log.info("-{} {}",
                     option.getOpt(), option.getValue() == null ? "" : option.getValue()));
         } catch (ParseException e) {
-            log.error(e.getMessage(), e);
-            formatter.printHelp( HELP_MESSAGE, options );
+//            log.error(e.getMessage(), e);
+//            formatter.printHelp( HELP_MESSAGE, options );
             return;
         }
 
-        if (cmd.hasOption("?")) {
+        if (cmd.hasOption(helpOption)) {
             formatter.printHelp( HELP_MESSAGE, options );
         }/* else if (cmd.hasOption(SyncOption) && cmd.hasOption("c") && !cmd.hasOption(createChunkOption) && !cmd.hasOption("m")) {
             sync(cmd.getOptionValue(connectionConfigOption));
@@ -147,23 +143,6 @@ public class App {
         }
     }
 
-/*
-    private static void sync(String configFileName) throws IOException {
-        log.info("Synchronizing data from source to target...");
-        ConnectionProperty properties = connectionProperty(configFileName);
-        Storage sourceStorage = StorageService.getStorage(properties.getFromProperty(), properties, true);
-        assert sourceStorage != null;
-        try {
-            sourceStorage.sync();
-        } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
-        } finally {
-            sourceStorage.closeStorage();
-            log.info("Synchronization completed.");
-        }
-    }
-*/
-
     private static void runProcess(ConnectionProperty connectionProperty,
                                    String mappingDefFileName,
                                    int rowsParameter,
@@ -176,7 +155,7 @@ public class App {
             List<Config> configs =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
-            createChunks(connectionProperty, rowsParameter, configs, sync);
+//            createChunks(connectionProperty, rowsParameter, configs, sync);
             try {
                 log.info("Bublik starting...");
                 Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
@@ -192,6 +171,7 @@ public class App {
         }
     }
 
+/*
     private static void createChunks(ConnectionProperty connectionProperty, int rowsParameter, List<Config> config, boolean sync) {
         if (rowsParameter == 0) {
             log.info("No rows parameter provided, skipping chunk creation.");
@@ -206,11 +186,8 @@ public class App {
                 case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
                 case "org.postgresql.Driver" ->  {
                     if (sync) {
-//                        fillCtidChunksV2(config, fromConnection, rowsParameter);
-//                        updateXidOfCtidChunks(fromConnection);
                     } else {
                         fillCtidChunksV2(config, fromConnection, rowsParameter, false);
-
                     }
                 }
                 default -> throw new RuntimeException();
@@ -236,6 +213,7 @@ public class App {
             log.error("{}", getStackTrace(e));
         }
     }
+*/
 
     private static ConnectionProperty envConnectionProperty() {
         ENVProperties[] e = ENVProperties.values();

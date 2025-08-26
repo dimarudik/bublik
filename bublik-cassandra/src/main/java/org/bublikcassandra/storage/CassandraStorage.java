@@ -84,6 +84,16 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
+    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
+
+    }
+
+    @Override
+    public void createOutbox() throws SQLException {
+
+    }
+
+    @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
         return Map.of();
     }

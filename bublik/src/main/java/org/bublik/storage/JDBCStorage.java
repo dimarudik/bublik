@@ -17,7 +17,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.bublik.exception.Utils.getStackTrace;
-import static org.bublik.util.ColumnUtil.fillCtidChunksV2;
 
 public abstract class JDBCStorage extends Storage {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
@@ -65,17 +64,25 @@ public abstract class JDBCStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows) throws SQLException {
+    public void start(List<Config> cfgs, boolean sync, int rows) throws SQLException {
+        List<Config> configs = new ArrayList<>();
+        for (Config c : cfgs) {
+            configs.add(c.copy());
+        }
         Properties properties = getConnectionProperty().getToProperty();
         Storage sourceStorage = this;
         Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+        createChunks(configs, sync, rows);
         assert targetStorage != null;
+        targetStorage.createOutbox();
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
         sourceStorage.enrichSourceTables();
         targetStorage.enrichTargetTables(sourceTables);
         targetStorage.setTables(sourceTables);
-        targetStorage.createTables();
+        if (sourceStorage.getClass().equals(targetStorage.getClass())) {
+            targetStorage.createTables();
+        }
         if (!sync) {
             startNOSync(targetStorage, configs);
         } else {
@@ -123,7 +130,7 @@ public abstract class JDBCStorage extends Storage {
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         Map.Entry<String,Long> lsnXid = getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
-        fillCtidChunksV2(configs, sourceConnection, rows, true);
+//        fillCtidChunksV2(configs, sourceConnection, rows, true);
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
         List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         chunks.forEach(chunk -> {

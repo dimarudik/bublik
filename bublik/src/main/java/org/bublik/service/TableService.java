@@ -38,6 +38,7 @@ public interface TableService {
         throw new SQLException("Unknown DataSource");
     }
 
+/*
     static Table getTable(Connection connection, String schemaName, String tableName) throws SQLException {
         if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
             return new OraTable(schemaName, tableName);
@@ -48,4 +49,5 @@ public interface TableService {
         }
         throw new SQLException("Unknown DataSource");
     }
+*/
 }

@@ -1,5 +1,6 @@
 package org.bublik.storage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
@@ -9,6 +10,7 @@ import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
+import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
 import org.bublik.exception.SourceSQLException;
 import org.bublik.exception.TableNotExistsException;
@@ -29,7 +31,9 @@ import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
 
-import static org.bublik.constants.SQLConstants.SQL_PG_CURRENT_LSN_AND_XID;
+import static org.bublik.constants.SQLConstants.*;
+import static org.bublik.constants.SQLConstants.DDL_CREATE_PG_TABLE_CTID_CHUNKS;
+import static org.bublik.constants.SQLConstants.DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
@@ -145,14 +149,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 throw new TargetSQLException(getStackTrace(t));
             }
             chunk.setTargetConnection(connectionTo);
-            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+//            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             chunk.setTargetTable(table);
             try {
                 LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk);
                 connectionTo.close();
                 return logMessage;
             } catch (SQLException e) {
-                log.error("{}", getStackTrace(e));
+//                log.error("{}", getStackTrace(e));
                 connectionTo.rollback();
                 connectionTo.close();
                 throw e;
@@ -1094,6 +1099,107 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
         }
     }
+
+    @Override
+    public void createChunks(List<Config> configs, boolean sync, int required) throws SQLException {
+        Connection connection = getConnection();
+        createTableCtidChunks(connection, sync);
+        try {
+            for (Config config : configs) {
+                long reltuples = 0;
+                long relpages = 0;
+                long max_end_page;
+//                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
+                Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+
+                PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
+                preparedStatement.setString(1, table.getSchemaName().toLowerCase());
+                preparedStatement.setString(2, table.getFinalTableName(false));
+                ResultSet resultSet = preparedStatement.executeQuery();
+                while (resultSet.next()) {
+                    reltuples = resultSet.getLong("reltuples");
+                    relpages = resultSet.getLong("relpages");
+                }
+                resultSet.close();
+                preparedStatement.close();
+
+                long heap_blks_total = getTotalPagesOfTable(connection, table);
+                long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
+                        (int) Math.round(relpages / (reltuples / (double) required));
+                long pagesInChunk = Math.min(v, relpages + 1);
+                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                        config.fromSchemaName(),
+                        config.fromTableName(),
+                        relpages,
+                        heap_blks_total,
+                        reltuples,
+                        (double) required,
+                        pagesInChunk);
+                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
+
+                max_end_page = getMaxEndPageOfChunks(connection, config);
+
+                // всавка последних чанков
+                if (heap_blks_total > max_end_page) {
+                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
+                }
+            }
+            if (!sync) {
+                connection.commit();
+            }
+            log.info("Ctid chunks created successfully");
+        } catch (SQLException e) {
+            log.warn("{}", getStackTrace(e));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        connection.close();
+    }
+
+    @Override
+    public void createOutbox() throws SQLException {
+        Connection connection = getConnection();
+        try {
+            Statement createTable = connection.createStatement();
+            createTable.executeUpdate(DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX);
+            createTable.close();
+            Statement truncateTable = connection.createStatement();
+            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
+            truncateTable.close();
+            connection.commit();
+            log.info("Outbox table created successfully");
+        } catch (SQLException e) {
+            log.warn("{}", getStackTrace(e));
+        }
+        connection.close();
+    }
+
+    private void createTableCtidChunks(Connection connection, boolean sync) {
+        try {
+            try {
+                Statement dropTable = connection.createStatement();
+                dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
+                dropTable.close();
+                connection.commit();
+            } catch (SQLException ex) {
+                connection.rollback();
+                log.error("Error dropping table ctid_chunks, it may not exist yet.");
+//                log.error("{}", getStackTrace(ex));
+            }
+            Statement createTable = connection.createStatement();
+            createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
+            createTable.close();
+            Statement truncateTable = connection.createStatement();
+            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS);
+            truncateTable.close();
+            if (!sync) {
+                connection.commit();
+            }
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
 
     @Override
     public Table configToTable(String schemaName, String tableName) {
