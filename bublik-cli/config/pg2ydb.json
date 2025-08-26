@@ -1,0 +1,20 @@
+[
+  {
+    "fromSchemaName" : "PUBLIC",
+    "fromTableName" : "\"Source\"",
+    "toSchemaName" : "",
+    "toTableName" : "public/target",
+    "fetchWhereClause" : "id < 1000000",
+    "fromTaskName" : "SOURCE_TASK",
+    "columnToColumn" : {
+      "id"                    : "id",
+      "uuid"                  : "uuid",
+      "description"           : "name",
+      "boolean"               : "boolean",
+      "date"                  : "date",
+      "float8"                : "double",
+      "timestamp"             : "timestamp",
+      "image"                 : "image"
+    }
+  }
+]

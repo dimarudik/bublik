@@ -1,10 +1,9 @@
 package org.bublik.service;
 
-import org.bublik.model.Chunk;
-import org.bublik.model.Config;
-import org.bublik.model.ConnectionProperty;
-import org.bublik.model.LogMessage;
+import org.bublik.model.*;
 import org.bublik.storage.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.Driver;
@@ -15,12 +14,32 @@ import java.util.Map;
 import java.util.Properties;
 
 public interface StorageService {
+    Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    void start(List<Config> configs) throws SQLException;
+    Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
+    void start(List<Config> configs, boolean sync, int rows) throws SQLException;
+    void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException;
+    void createOutbox() throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
+    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
+    String buildFetchStatement(Config config);
+    Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
+    Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
+    Table configToTable(String schemaName, String tableName);
+    Table getTagetTableBySourceTable(Table table);
+    Table getSourceTableByTargetTable(Table table);
+    boolean tableInSourceList(Table table);
+    boolean tableInTargetList(Table table);
+    void enrichSourceTables();
+    void enrichTargetTables(Map<Table, Table> tables);
+    void createTables();
+    void createPrimaryKeys();
+    void createUniqueConstraints();
+    void createIndexes();
+    void createForeignKeys();
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
         try {
@@ -38,6 +57,8 @@ public interface StorageService {
                                 JDBCOracleStorage.getInstance(storageClass, connectionProperty, isSource);
                         case "org.postgresql.Driver" ->
                                 JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty, isSource);
+                        case "tech.ydb.jdbc.YdbDriver" ->
+                                JDBCYDBStorage.getInstance(storageClass, connectionProperty, isSource);
                         default -> throw new RuntimeException();
                     };
                 }
@@ -51,8 +72,8 @@ public interface StorageService {
     }
 
     static StorageClass getStorageClass(Properties properties) throws SQLException {
-        String storageType = properties.getProperty("type");
-        if (storageType != null) {
+        String className = properties.getProperty("className");
+        if (className != null ) {
             return null;
 /*
             return switch (storageType) {
@@ -65,33 +86,5 @@ public interface StorageService {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return new JDBCStorageClass(Connection.class, properties);
         }
-
-/*
-        try {
-            Driver driver = DriverManager.getDriver(properties.getProperty("url"));
-            return Connection.class;
-        } catch (SQLException | NullPointerException e) {
-            try (GrpcTransport grpcTransport = GrpcTransport
-                    .forHost(properties.getProperty("host"),
-                            Integer.parseInt(properties.getProperty("port")),
-                            properties.getProperty("database"))
-                    .build()) {
-                return grpcTransport.getClass();
-            } catch (RuntimeException ex) {
-                try (Cluster cluster = Cluster
-                        .builder()
-                        .addContactPoint(properties.getProperty("host"))
-                        .withPort(Integer.parseInt(properties.getProperty("port")))
-                        .withoutJMXReporting()
-                        .build();
-                     Session session = cluster.connect()) {
-                    return cluster.getClass();
-                } catch (NoHostAvailableException exNoHost) {
-                    System.out.println("Here...");
-                }
-            }
-        }
-        throw new RuntimeException();
-*/
     }
 }

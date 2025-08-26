@@ -74,12 +74,32 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs) throws SQLException {
+    public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        return null;
+    }
+
+    @Override
+    public void start(List<Config> configs, boolean sync, int rows) throws SQLException {
+
+    }
+
+    @Override
+    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
+
+    }
+
+    @Override
+    public void createOutbox() throws SQLException {
 
     }
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        return Map.of();
+    }
+
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
         return Map.of();
     }
 
@@ -336,6 +356,95 @@ public class CassandraStorage extends Storage {
     @Override
     public void closeStorage() {
         cqlSession.close();
+    }
+
+    @Override
+    public String buildFetchStatement(Config config) {
+        return "";
+    }
+
+    @Override
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+        return Map.of();
+    }
+
+    @Override
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
+        return Map.of();
+    }
+
+    @Override
+    public Table configToTable(String schemaName, String tableName) {
+        return null;
+    }
+
+/*
+    @Override
+    public Map<Table, Table> configsToTables(List<Config> configs) {
+        return Map.of();
+    }
+*/
+
+    @Override
+    public void enrichSourceTables() {
+
+    }
+
+    @Override
+    public void enrichTargetTables(Map<Table, Table> tables) {
+
+    }
+
+    @Override
+    public void createTables() {
+
+    }
+
+/*
+    @Override
+    public Table configToTable(Config config) {
+        return null;
+    }
+*/
+
+    @Override
+    public Table getTagetTableBySourceTable(Table table) {
+        return null;
+    }
+
+    @Override
+    public Table getSourceTableByTargetTable(Table table) {
+        return null;
+    }
+
+    @Override
+    public boolean tableInSourceList(Table table) {
+        return false;
+    }
+
+    @Override
+    public boolean tableInTargetList(Table table) {
+        return false;
+    }
+
+    @Override
+    public void createPrimaryKeys() {
+
+    }
+
+    @Override
+    public void createUniqueConstraints() {
+
+    }
+
+    @Override
+    public void createIndexes() {
+
+    }
+
+    @Override
+    public void createForeignKeys() {
+
     }
 
     private int getBatchSize(ConnectionProperty connectionProperty) {

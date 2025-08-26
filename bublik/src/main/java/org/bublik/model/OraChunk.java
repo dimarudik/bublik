@@ -1,30 +1,34 @@
 package org.bublik.model;
 
 import org.bublik.constants.ChunkStatus;
-import org.bublik.constants.PGKeywords;
-import org.bublik.storage.JDBCStorage;
 import org.bublik.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 import static org.bublik.constants.SQLConstants.*;
-import static org.bublik.exception.Utils.getStackTrace;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(OraChunk.class);
+    private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
 
     public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
     }
 
+    @Override
+    public Integer getParentId() {
+        return 0;
+    }
 
     @Override
-    public OraChunk<T> setChunkStatus(ChunkStatus status, Integer errNum, String errMsg) {
+    public Long getXidMin() {
+        return 0L;
+    }
+
+
+    @Override
+    public OraChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) {
         try {
             Connection connection = this.getSourceConnection();
             if (errMsg == null) {
@@ -52,6 +56,16 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
+    public Chunk<?> saveChunkRows(int rows, boolean sync) throws SQLException {
+        return this;
+    }
+
+    @Override
+    public Chunk<?> saveConfig(boolean sync) throws SQLException {
+        return this;
+    }
+
+    @Override
     public ResultSet getData(Connection connection, String query) throws SQLException {
         PreparedStatement statement = connection.prepareStatement(query);
         statement.setRowId(1, this.getStart());
@@ -72,5 +86,10 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         chunkInsert.setString(7, getTargetTable().getFinalTableName(false));
         long r = chunkInsert.executeUpdate();
         chunkInsert.close();
+    }
+
+    @Override
+    public Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync) throws SQLException {
+        return super.saveChunkStatus(status, sync);
     }
 }

@@ -1,15 +1,10 @@
 [
   {
-    "fromSchemaName" : "TEST",
-    "fromTableName" : "TABLE1",
+    "fromSchemaName" : "test",
+    "fromTableName" : "table1",
     "fromTableAlias" : "t",
     "fromTableAdds" : "left join test.currencies c on t.currency_id = c.id",
-    "toSchemaName" : "PUBLIC",
-    "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(T) */",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE1_TASK",
-    "fromTaskWhereClause" : " 1 = 1 ",
     "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
       "\"LEVEL\""         : "level",
@@ -37,7 +32,6 @@
     "toSchemaName" : "PUBLIC",
     "toTableName" : "\"TABLE2\"",
     "fetchHintClause" : "/*+ no_index(TABLE2) */",
-    "fetchWhereClause" : "1 = 1",
     "fromTaskName" : "TABLE2_TASK",
     "columnToColumn" : {
       "id"          : "id",

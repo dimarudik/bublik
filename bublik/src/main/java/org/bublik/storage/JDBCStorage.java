@@ -2,12 +2,8 @@ package org.bublik.storage;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import com.zaxxer.hikari.pool.HikariPool;
 import org.bublik.constants.ChunkStatus;
-import org.bublik.model.Chunk;
-import org.bublik.model.Config;
-import org.bublik.model.ConnectionProperty;
-import org.bublik.model.LogMessage;
+import org.bublik.model.*;
 import org.bublik.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,17 +12,14 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.bublik.exception.Utils.getStackTrace;
 
 public abstract class JDBCStorage extends Storage {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCStorage.class);
+    private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     protected final int threadCount;
 
@@ -40,19 +33,11 @@ public abstract class JDBCStorage extends Storage {
         this.threadCount = connectionProperty.getThreadCount();
     }
 
-/*
-    public DataSource getSource() {
-        return dataSource;
-    }
-*/
-
     @Override
     public Connection getConnection() throws SQLException {
-//        HikariDataSource hikariDataSource = dataSource.unwrap(HikariDataSource.class);
         try {
             return dataSource.getConnection();
         } catch (SQLTransientConnectionException e) {
-//            LOGGER.error("{}", getStackTrace(e));
             throw e;
         }
     }
@@ -64,9 +49,6 @@ public abstract class JDBCStorage extends Storage {
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
         hikariConfig.setConnectionTimeout(10000);
-//        hikariConfig.setKeepaliveTime(30000);
-//        hikariConfig.setValidationTimeout(250);
-//        hikariConfig.setLeakDetectionThreshold(2000);
         hikariConfig.setAutoCommit(false);
         hikariConfig.setPoolName(getIsSource() ? "HikariPool-Source" : "HikariPool-Target");
         return hikariConfig;
@@ -82,51 +64,160 @@ public abstract class JDBCStorage extends Storage {
     }
 
     @Override
-    public void start(List<Config> configs) throws SQLException {
-        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
-        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+    public void start(List<Config> cfgs, boolean sync, int rows) throws SQLException {
+        List<Config> configs = new ArrayList<>();
+        for (Config c : cfgs) {
+            configs.add(c.copy());
+        }
         Properties properties = getConnectionProperty().getToProperty();
-        List<Chunk<?>> chunkList = new ArrayList<>(chunkMap.values());
-        chunkList.forEach(chunk -> service
+        Storage sourceStorage = this;
+        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+        createChunks(configs, sync, rows);
+        assert targetStorage != null;
+        targetStorage.createOutbox();
+        Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
+        sourceStorage.setTables(sourceTables);
+        sourceStorage.enrichSourceTables();
+        targetStorage.enrichTargetTables(sourceTables);
+        targetStorage.setTables(sourceTables);
+        if (sourceStorage.getClass().equals(targetStorage.getClass())) {
+            targetStorage.createTables();
+        }
+        if (!sync) {
+            startNOSync(targetStorage, configs);
+        } else {
+            try {
+                startSync(targetStorage, configs, rows);
+            } catch (Exception e) {
+                log.info("{}", getStackTrace(e));
+                targetStorage.closeStorage();
+                this.closeStorage();
+            }
+        }
+        targetStorage.closeStorage();
+        this.closeStorage();
+    }
+
+    private void startNOSync(Storage targetStorage, List<Config> configs) throws SQLException {
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs);
+        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        chunks.forEach(chunk -> service
                 .submit(() -> {
-                    Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
                     chunk.setTargetStorage(targetStorage);
                     try {
-                        Chunk<?> c = chunk
-                                .assignSourceConnection()
-                                .setChunkStatus(ChunkStatus.ASSIGNED, null, null)
-                                .assignSourceResultSet()
-                                .assignResultLogMessage()
-                                .setChunkStatus(ChunkStatus.PROCESSED, null, null)
-                                .closeChunkSourceConnection();
-                        LogMessage logMessage = c.getLogMessage();
-                        logMessage.loggerChunkInfo();
-                        if (chunk.getSourceConnection().isValid(0)) {
-                            chunk.getSourceConnection().close();
-                        }
-                        assert targetStorage != null;
-                        return c;
+                        return chunk.copyChunk(false);
                     } catch (Exception e) {
-                        LOGGER.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                         try {
                             if (chunk.getSourceConnection().isValid(0)) {
-                                chunk.setChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, null, getStackTrace(e));
+                                chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
                                 chunk.getSourceConnection().close();
                             }
                         } catch (SQLException exception) {
-                            LOGGER.error("{}", getStackTrace(exception));
+                            log.error("{}", getStackTrace(exception));
                         }
-                        assert targetStorage != null;
-                        targetStorage.closeStorage();
                         throw e;
                     }
-                }));
+                })
+        );
         service.shutdown();
         service.close();
     }
 
-    @Override
-    public void closeStorage(){
+    private void startSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+        Connection sourceConnection = this.getConnection();
+        sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        Map.Entry<String,Long> lsnXid = getSystemChangeNumberWithTrxId();
+        log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
+//        fillCtidChunksV2(configs, sourceConnection, rows, true);
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
+        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
+        chunks.forEach(chunk -> {
+            chunk.setTargetStorage(targetStorage);
+            try {
+                chunk.copyChunkSync(sourceConnection, true);
+            } catch (Exception e) {
+                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                throw new RuntimeException(e);
+            }
+        });
+        sourceConnection.commit();
+        Connection targetConnection = targetStorage.getConnection();
+        targetStorage.setTables(getTables());
+        targetStorage.createPrimaryKeys();
+        targetStorage.createUniqueConstraints();
+        targetStorage.createIndexes();
+        targetStorage.createForeignKeys();
+        sourceConnection.close();
+        targetConnection.close();
+    }
 
+    @Override
+    public void closeStorage() {
+        if (dataSource instanceof HikariDataSource hikariDataSource) {
+            hikariDataSource.close();
+            log.info("HikariDataSource closed successfully.");
+        } else {
+            log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
+        }
+    }
+
+    @Override
+    public void enrichTargetTables(Map<Table, Table> tables) {
+        for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+            Table sourceTable = entry.getKey();
+            Table targetTable = entry.getValue();
+
+            targetTable.setColumns(sourceTable.getColumns());
+            targetTable.setPkColumns(sourceTable.getPkColumns());
+            targetTable.setIndexes(sourceTable.getIndexes());
+            targetTable.setOptions(sourceTable.getOptions());
+            targetTable.setUniqueConstraints(sourceTable.getUniqueConstraints());
+            targetTable.setForeignKeys(sourceTable.getForeignKeys());
+        }
+    }
+
+    @Override
+    public boolean tableInSourceList(Table table) {
+        return inList(getTables().keySet().stream().toList() , table);
+    }
+
+    @Override
+    public boolean tableInTargetList(Table table) {
+        return inList(getTables().values().stream().toList() , table);
+    }
+
+    private boolean inList(List<Table> tables, Table table) {
+        return tables.contains(table);
+    }
+
+    @Override
+    public Table getTagetTableBySourceTable(Table sourceTable) {
+        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
+            if (entry.getKey().equals(sourceTable)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Table getSourceTableByTargetTable(Table targetTable) {
+        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
+            if (entry.getValue().equals(targetTable)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
+        Map<Table, Table> tables = new HashMap<>();
+        for (Config c : configs) {
+            tables.put(configToTable(c.fromSchemaName(), c.fromTableName()), targetStorage.configToTable(c.toSchemaName(), c.toTableName()));
+        }
+        return tables;
     }
 }

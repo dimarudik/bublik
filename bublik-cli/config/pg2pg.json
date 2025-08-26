@@ -4,8 +4,6 @@
     "fromTableName" : "\"Source\"",
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "SOURCE_TASK",
     "tryCharIfAny" : ["current_mood", "gender"],
     "columnToColumn" : {
       "id"            : "id",
@@ -29,6 +27,51 @@
     },
     "expressionToColumn" : {
       "(select 'male') as gender" : "gender"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202509",
+    "toSchemaName": "test"
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202510",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202510",
+    "fetchWhereClause": "0 = 0",
+    "fromTaskName": "p_src_202510_task"
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202511",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202511",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "p_src_202511_task",
+    "columnToColumn": {
+      "id" : "id",
+      "created" : "created",
+      "name" : "name",
+      "amount" : "amount"
+    },
+    "expressionToColumn" : {
+      "0 as shard_key" : "shard_key"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202512",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202512",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "p_src_202512_task",
+    "expressionToColumn" : {
+      "id" : "id",
+      "created" : "created",
+      "name" : "name",
+      "amount" : "amount",
+      "0 as shard_key" : "shard_key"
     }
   }
 ]

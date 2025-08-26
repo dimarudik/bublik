@@ -1,5 +1,6 @@
 package org.bublik.storage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
@@ -9,6 +10,7 @@ import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
+import org.bublik.constants.ChunkStatus;
 import org.bublik.constants.PGKeywords;
 import org.bublik.exception.SourceSQLException;
 import org.bublik.exception.TableNotExistsException;
@@ -17,22 +19,26 @@ import org.bublik.model.*;
 import org.bublik.service.JDBCStorageService;
 import org.bublik.service.TableService;
 import org.postgresql.PGConnection;
+import org.postgresql.replication.LogSequenceNumber;
 import org.postgresql.util.PGInterval;
 import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Date;
 import java.sql.*;
+import java.sql.Date;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static org.bublik.constants.SQLConstants.*;
+import static org.bublik.constants.SQLConstants.DDL_CREATE_PG_TABLE_CTID_CHUNKS;
+import static org.bublik.constants.SQLConstants.DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS;
 import static org.bublik.exception.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
+    private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
     private static JDBCPostgreSQLStorage toInstance;
     private static JDBCPostgreSQLStorage fromInstance;
 
@@ -57,34 +63,51 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             return fromInstance;
         } catch (Exception e) {
-            LOGGER.error("Connection error: {}", getStackTrace(e));
+            log.error("Connection error: {}", getStackTrace(e));
             throw e;
         }
     }
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
+        Connection connection = getConnection();
+        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, connection);
+        connection.close();
+        return chunkMap;
+    }
+
+    @Override
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
-        LOGGER.debug("SQL to fetch metadata of chunks: \n{}", sql);
+        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
-        for (Config c : configs)
+        for (Config c : configs) {
+            if (c.columnToColumn() == null || c.expressionToColumn() == null) continue;
             sb.append("\n").append(buildFetchStatement(c));
-        LOGGER.debug("SQL to fetch chunks: {}", sb);
-        Connection initialConnection = getConnection();
-        PreparedStatement statement = initialConnection.prepareStatement(sql);
+        }
+        log.debug("SQL to fetch data: {}", sb);
+        PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
-                if (!sourceTable.exists(initialConnection)) {
-                    initialConnection.close();
-                    LOGGER.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
-                            sourceTable.getTableName());
-                    throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
+                Table sourceTable = getTables()
+                        .entrySet()
+                        .stream()
+                        .filter(s -> s.getKey().getSchemaName().equalsIgnoreCase(config.fromSchemaName())
+                                && s.getKey().getTableName().equalsIgnoreCase(config.fromTableName()))
+                        .findFirst()
+                        .orElseThrow(() -> new TableNotExistsException("Table " +
+                                config.fromSchemaName() + "." +
+                                config.fromTableName() + " not exists in cache"))
+                        .getKey();
+                String query;
+                if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+                    query = buildFetchStatement(config, sourceTable);
+                } else {
+                    query = buildFetchStatement(config);
                 }
-                String query = buildFetchStatement(config);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new PGChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -100,7 +123,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
         resultSet.close();
         statement.close();
-        initialConnection.close();
         return chunkHashMap;
     }
 
@@ -110,7 +132,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
         return "select row_number() over (order by chunk_id) as rownum, chunk_id, start_page, end_page, task_name from public.ctid_chunks where task_name in ('" +
                 String.join("', '", taskNames) + "') " +
-                "and status <> 'PROCESSED' ";
+                // тут надо разбираться при запуске из нескольких подов
+                "and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') ";
     }
 
     @Override
@@ -126,37 +149,29 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 throw new TargetSQLException(getStackTrace(t));
             }
             chunk.setTargetConnection(connectionTo);
-            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-//            System.out.println(table.exists(connectionTo));
-            if (table.exists(connectionTo)) {
-                chunk.setTargetTable(table);
-                try {
-                    LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk);
+//            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+            chunk.setTargetTable(table);
+            try {
+                LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk);
+                connectionTo.close();
+                return logMessage;
+            } catch (SQLException e) {
+//                log.error("{}", getStackTrace(e));
+                connectionTo.rollback();
+                connectionTo.close();
+                throw e;
+            } catch (SourceSQLException s) {
+                connectionFrom.close();
+                log.error("{}", getStackTrace(s));
+                throw s;
+            } catch (BinaryWriteFailedException b) {
+                if (b.getCause() instanceof PSQLException && b.getCause().getCause() == null) {
                     connectionTo.close();
-                    return logMessage;
-                } catch (SQLException e) {
-                    LOGGER.error("{}", getStackTrace(e));
-                    connectionTo.rollback();
-                    connectionTo.close();
-                    throw e;
-                } catch (SourceSQLException s) {
-                    connectionFrom.close();
-                    LOGGER.error("{}", getStackTrace(s));
-                    throw s;
-                } catch (BinaryWriteFailedException b) {
-                    if (b.getCause() instanceof PSQLException && b.getCause().getCause() == null) {
-                        connectionTo.close();
-                    }
-                    throw b;
-                } finally {
-                    ;
                 }
-            } else {
-                LOGGER.error("\u001B[31mThe Target Table: {}.{} does not exist.\u001B[0m", chunk.getConfig().toSchemaName(),
-                        chunk.getConfig().toTableName());
-                throw new TableNotExistsException("The Target Table "
-                        + chunk.getConfig().toSchemaName() + "."
-                        + chunk.getConfig().toTableName() + " does not exist.");
+                throw b;
+            } finally {
+                ;
             }
         } else {
             return new LogMessage(
@@ -186,21 +201,21 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     chunk);
         }
 
-        Map<String, PGColumn> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
+        Map<String, Column> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
 //        neededColumnsToDB.forEach((s, pgColumn) -> System.out.println(s + " " + pgColumn.getColumnName() + ":" + pgColumn.getColumnType()));
-        Map<List<String>, PGColumn> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
+        Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
+
         Map<String, PGEncryptedColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
-/*
         neededEncryptedColumns.forEach((s1, pgEncryptedColumn) -> System.out.println(s1 + " " +
-                pgEncryptedColumn.pgColumn().getColumnName() + " " +
+                pgEncryptedColumn.column().getColumnName() + " " +
                 pgEncryptedColumn.encryptedColumn().targetEncColumnName() + " " +
                 pgEncryptedColumn.encryptedColumn().targetEncMetaColumnName()));
-*/
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
+
         String[] columnNames = neededColumnsToDB
                 .values()
                 .stream()
-                .map(PGColumn::getColumnName)
+                .map(Column::getColumnName)
                 .toList()
                 .toArray(String[]::new);
         String[] metaColumnNames = neededEncryptedColumns
@@ -213,7 +228,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .toArray(String[]::new);
         String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
         System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
-//        System.out.println(Arrays.toString(cNames));
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), cNames);
@@ -222,10 +236,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         Consumer<SimpleRow> simpleRowConsumer =
             s -> {
                 try {
-                    simpleRowConsume(s, neededColumnsToDB, neededEncryptedColumns, neededColumnsFromMany,
+                    simpleRowConsume(s, neededColumnsToDB, neededColumnsFromMany,
                             fetchResultSet, chunk, connectionTo, writer);
                 } catch (BinaryWriteFailedException | SQLException e) {
-                    LOGGER.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                    log.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                 }
             };
 
@@ -238,15 +252,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             recordCount++;
         } while (hasNext(fetchResultSet));
-//        } while (fetchResultSet.next());
 
         try {
             writer.close();
         } catch (BinaryWriteFailedException b) {
-//            LOGGER.error("Can't close stream. {}", getStackTrace(b));
             throw b;
         }
 
+        chunk.setRows(recordCount);
         chunk.insertProcessedChunkInfo(connectionTo, recordCount);
         connectionTo.commit();
 
@@ -267,8 +280,9 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
     }
 
-    protected Map<String, PGColumn> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
-        Map<String, PGColumn> columnMap = new HashMap<>();
+    @Override
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+        Map<String, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
                     null,
@@ -283,6 +297,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
+                Integer dataType = resultSet.getInt(5);
                 String columnType = resultSet.getString(6);
                 Integer columnPosition = resultSet.getInt(17);
 
@@ -291,7 +306,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null, 0, null, 0, null)));
+                } else {
+                    Table sourceTable = chunk.getSourceTable();
+                    sourceTable.getColumns().forEach(column -> columnMap.put(column.getColumnName(), column));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -299,7 +322,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(columnName,
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (encryptedEntityMap != null) {
@@ -312,7 +340,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 }
                                 return false;
                             })
-                            .forEach(i -> columnMap.put(columnName, new PGColumn(columnPosition, i.getValue().targetEncColumnName(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(columnName,
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue().targetEncColumnName(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (cryptoToColumnMap != null) {
@@ -320,7 +353,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getValue(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getValue(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -328,18 +366,23 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getKey(), new PGColumn(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(i.getKey(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getKey(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
             }
             resultSet.close();
         } catch (SQLException e) {
-            LOGGER.error("{}", e.getMessage());
+            log.error("{}", e.getMessage());
         }
         return columnMap;
     }
 
-    protected Map<List<String>, PGColumn> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?> chunk) {
-        Map<List<String>, PGColumn> columnMap = new HashMap<>();
+    protected Map<List<String>, Column> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?> chunk) {
+        Map<List<String>, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
                     null,
@@ -350,6 +393,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
+                Integer dataType = resultSet.getInt(5);
                 String columnType = resultSet.getString(6);
                 Integer columnPosition = resultSet.getInt(17);
 
@@ -358,12 +402,17 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .entrySet()
                             .stream()
                             .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getValue(), new PGColumn(columnPosition, i.getKey(), columnType.equals("bigserial") ? "bigint" : columnType)));
+                            .forEach(i -> columnMap.put(i.getValue(),
+                                    new Column(
+                                            columnPosition,
+                                            i.getKey(),
+                                            columnType.equals("bigserial") ? "bigint" : columnType,
+                                            dataType, null, null, null, null, 0 , null, 0, null)));
                 }
             }
             resultSet.close();
         } catch (SQLException e) {
-            LOGGER.error("{}", getStackTrace(e));
+            log.error("{}", getStackTrace(e));
         }
         return columnMap;
     }
@@ -395,9 +444,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             .forEach(entry -> columnMap.put(
                                 columnName,
                                     new PGEncryptedColumn(
-                                        new PGColumn(columnPosition,
+                                        new Column(
+                                                columnPosition,
                                                 entry.getValue().targetEncColumnName() == null ? entry.getValue().targetEncMetaColumnName() : entry.getValue().targetEncColumnName(),
-                                                columnType.equals("bigserial") ? "bigint" : columnType),
+                                                columnType.equals("bigserial") ? "bigint" : columnType,
+                                                null, null, null, null, null, 0 , null, 0, null),
                                         entry.getValue()
                             )));
                 }
@@ -405,21 +456,21 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             resultSet.close();
         } catch (SQLException e) {
-            LOGGER.error("{}", e.getMessage());
+            log.error("{}", e.getMessage());
         }
         return columnMap;
     }
 
     private void simpleRowConsume(SimpleRow row,
-                                  Map<String, PGColumn> neededColumnsToDB,
-                                  Map<String, PGEncryptedColumn> neededEncryptedColumns,
-                                  Map<List<String>, PGColumn> neededColumnsFromMany,
+                                  Map<String, Column> neededColumnsToDB,
+//                                  Map<String, PGEncryptedColumn> neededEncryptedColumns,
+                                  Map<List<String>, Column> neededColumnsFromMany,
                                   ResultSet fetchResultSet,
                                   Chunk<?> chunk,
                                   Connection connectionTo,
                                   SimpleRowWriter writer) throws SQLException, BinaryWriteFailedException {
 //        System.out.println("simpleRowConsume...");
-        for (Map.Entry<String, PGColumn> entry : neededColumnsToDB.entrySet()) {
+        for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetColumn = entry.getValue().getColumnName();
             String targetType = entry.getValue().getColumnType();
@@ -464,7 +515,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setText(targetColumn, s.replaceAll("\u0000", ""));
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
 /*
@@ -480,7 +531,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setText(targetColumn, string);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "text": {
@@ -500,7 +551,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setText(targetColumn, text.replaceAll("\u0000", ""));
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -535,7 +586,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setJsonb(targetColumn, s);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -550,7 +601,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setShort(targetColumn, aShort);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -565,7 +616,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setInteger(targetColumn, i);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -580,7 +631,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setLong(targetColumn, l);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -594,7 +645,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setNumeric(targetColumn, (Number) o);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -609,7 +660,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setFloat(targetColumn, aFloat);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -624,7 +675,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setDouble(targetColumn, aDouble);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("\u001B[31m{}.{} {} -> {}\u001B[0m: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -641,29 +692,22 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setValue(targetColumn, DataType.Time, localTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
                 case "timestamp": {
                     try {
                         Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-//                        System.out.println(timestamp);
                         if (timestamp == null) {
                             row.setTimeStamp(targetColumn, null);
                             break;
                         }
-/*
-                        long l = timestamp.getTime();
-                        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(l),
-                                TimeZone.getDefault().toZoneId());
-*/
                         LocalDateTime localDateTime = timestamp.toLocalDateTime();
-//                        System.out.println(localDateTime);
                         row.setTimeStamp(targetColumn, localDateTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -684,7 +728,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setTimeStampTz(targetColumn, zonedDateTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -698,7 +742,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setDate(targetColumn, date.toLocalDate());
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "tstzrange":
@@ -729,7 +773,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setTsTzRange(targetColumn, localDateTimeRange);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("\u001B[31mtstzrange\u001B[0m : {}.{} - {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("\u001B[31mtstzrange\u001B[0m : {}.{} - {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "interval":
@@ -770,7 +814,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setInterval(targetColumn, interval);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "bytea": {
@@ -806,7 +850,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setByteArray(targetColumn, bytes);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -821,7 +865,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         row.setBoolean(targetColumn, b);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -839,14 +883,28 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             try {
                                 uuid = UUID.fromString((String) o);
                             } catch (Exception e1) {
-                                LOGGER.error("{}.{} : {} {} {}", chunk.getTargetTable().getSchemaName(),
+                                log.error("{}.{} : {} {} {}", chunk.getTargetTable().getSchemaName(),
                                         chunk.getTargetTable().getTableName(), targetColumn, o, getStackTrace(e1));
                             }
                         }
                         row.setUUID(targetColumn, uuid);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        throw e;
+                    }
+                case "_uuid":
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setUUIDArray(targetColumn, null);
+                            break;
+                        }
+                        List<UUID> arr = List.of(((UUID[]) fetchResultSet.getArray(sourceColumn).getArray()));
+                        row.setUUIDArray(targetColumn, arr);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 default:
@@ -861,16 +919,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 row.setText(targetColumn, s.replaceAll("\u0000", ""));
                                 break;
                             } else {
-                                LOGGER.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
+                                log.error("\u001B[31mThere is no handler for type : {}\u001B[0m", targetType);
                                 writer.close();
                                 connectionTo.close();
                             }
                         } else {
-                            LOGGER.error("\u001B[31mtryCharIfAny is NULL\u001B[0m");
+                            log.error("\u001B[31mtryCharIfAny is NULL for type: {}\u001B[0m", targetType);
                             throw new RuntimeException();
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        LOGGER.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
             }
@@ -879,14 +937,25 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public String buildFetchStatement(Config config) {
+        return buildFetchStatement(config, null);
+    }
+
+    public String buildFetchStatement(Config config, Table sourceTable) {
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
+        if (sourceTable != null && columnToColumnMap == null) {
+            strings.addAll(
+                    sourceTable.getColumns()
+                            .stream()
+                            .map(Column::getColumnName)
+                            .toList()
+            );
+        } else if (columnToColumnMap != null) {
+            strings.addAll(columnToColumnMap.keySet());
+        }
         Map<String, String> expressionToColumnMap = config.expressionToColumn();
         Map<String, EncryptedColumn> encryptedEntityMap = config.expressionToCrypto();
         Map<String, String> cryptoToColumnMap = config.cryptoToColumn();
-        if (columnToColumnMap != null) {
-            strings.addAll(columnToColumnMap.keySet());
-        }
         if (expressionToColumnMap != null) {
             strings.addAll(expressionToColumnMap.keySet());
         }
@@ -899,6 +968,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
+//                "xmax::text::xid8) as xmax_status " +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +
@@ -908,9 +978,231 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "ctid >= " + "concat('(', ? ,',1)')::tid" +
-                " and " +
+                "ctid >= concat('(', ? ,',1)')::tid and " +
                 (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".") +
-                "ctid < " + "concat('(', ? ,',1)')::tid";
+                "ctid < concat('(', ? ,',1)')::tid";
+    }
+
+    @Override
+    public void createPrimaryKeys() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table targetTable = entry.getValue();
+                targetTable.createPrimaryKey(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createIndexes() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.createIndexes(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createTables() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.create(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createForeignKeys() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.createForeignKeys(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void createUniqueConstraints() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection targetConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
+                taregtTable.createUniqueConstraints(targetConnection);
+            }
+            targetConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void enrichSourceTables() {
+        Map<Table, Table> tables = getTables();
+        try {
+            Connection sourceConnection = getConnection();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table sourceTable = entry.getKey();
+                List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
+                List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
+                List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(sourceConnection);
+                List<Index> sourceIndexes = sourceTable.getTableIndexes(sourceConnection);
+                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(sourceConnection, this, entry.getValue());
+                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(sourceConnection);
+
+                sourceTable.setId(options.getKey());
+                sourceTable.setOptions(options.getValue());
+                sourceTable.setColumns(allSourceColumns);
+                sourceTable.setPkColumns(sourcePKColumns);
+                sourceTable.setIndexes(sourceIndexes);
+                sourceTable.setUniqueConstraints(uniqueConstraints);
+                sourceTable.setForeignKeys(foreignKeys);
+            }
+            sourceConnection.close();
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        try (Statement st = getConnection().createStatement();
+             ResultSet rs = st.executeQuery(SQL_PG_CURRENT_LSN_AND_XID)) {
+            if (rs.next()) {
+                String lsn = rs.getString(1);
+                Long xid = rs.getLong(2);
+                return Map.entry(LogSequenceNumber.valueOf(lsn).asString(), xid);
+            } else {
+                return Map.entry(LogSequenceNumber.INVALID_LSN.asString(), 0L);
+            }
+        }
+    }
+
+    @Override
+    public void createChunks(List<Config> configs, boolean sync, int required) throws SQLException {
+        Connection connection = getConnection();
+        createTableCtidChunks(connection, sync);
+        try {
+            for (Config config : configs) {
+                long reltuples = 0;
+                long relpages = 0;
+                long max_end_page;
+//                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
+                Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+
+                PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
+                preparedStatement.setString(1, table.getSchemaName().toLowerCase());
+                preparedStatement.setString(2, table.getFinalTableName(false));
+                ResultSet resultSet = preparedStatement.executeQuery();
+                while (resultSet.next()) {
+                    reltuples = resultSet.getLong("reltuples");
+                    relpages = resultSet.getLong("relpages");
+                }
+                resultSet.close();
+                preparedStatement.close();
+
+                long heap_blks_total = getTotalPagesOfTable(connection, table);
+                long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
+                        (int) Math.round(relpages / (reltuples / (double) required));
+                long pagesInChunk = Math.min(v, relpages + 1);
+                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                        config.fromSchemaName(),
+                        config.fromTableName(),
+                        relpages,
+                        heap_blks_total,
+                        reltuples,
+                        (double) required,
+                        pagesInChunk);
+                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
+
+                max_end_page = getMaxEndPageOfChunks(connection, config);
+
+                // всавка последних чанков
+                if (heap_blks_total > max_end_page) {
+                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
+                }
+            }
+            if (!sync) {
+                connection.commit();
+            }
+            log.info("Ctid chunks created successfully");
+        } catch (SQLException e) {
+            log.warn("{}", getStackTrace(e));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        connection.close();
+    }
+
+    @Override
+    public void createOutbox() throws SQLException {
+        Connection connection = getConnection();
+        try {
+            Statement createTable = connection.createStatement();
+            createTable.executeUpdate(DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX);
+            createTable.close();
+            Statement truncateTable = connection.createStatement();
+            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
+            truncateTable.close();
+            connection.commit();
+            log.info("Outbox table created successfully");
+        } catch (SQLException e) {
+            log.warn("{}", getStackTrace(e));
+        }
+        connection.close();
+    }
+
+    private void createTableCtidChunks(Connection connection, boolean sync) {
+        try {
+            try {
+                Statement dropTable = connection.createStatement();
+                dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
+                dropTable.close();
+                connection.commit();
+            } catch (SQLException ex) {
+                connection.rollback();
+                log.error("Error dropping table ctid_chunks, it may not exist yet.");
+//                log.error("{}", getStackTrace(ex));
+            }
+            Statement createTable = connection.createStatement();
+            createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
+            createTable.close();
+            Statement truncateTable = connection.createStatement();
+            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS);
+            truncateTable.close();
+            if (!sync) {
+                connection.commit();
+            }
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+
+    @Override
+    public Table configToTable(String schemaName, String tableName) {
+        return new PGTable(schemaName, tableName);
     }
 }

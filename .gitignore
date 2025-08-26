@@ -9,5 +9,5 @@ HELP.md
 /logs
 /service/.gradle
 chekist/target
-ydb*
 .m2
+ca.crt

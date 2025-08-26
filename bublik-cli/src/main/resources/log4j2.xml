@@ -18,13 +18,16 @@
             <AppenderRef ref="Console"/>
 <!--            <AppenderRef ref="Console" level="error"/>-->
         </Root>
-<!--        <Logger name="com.zaxxer.hikari"/>-->
         <Logger name="com.zaxxer.hikari" level="error"/>
         <Logger name="com.datastax.driver.core" level="error"/>
         <Logger name="io.netty.channel.nio" level="error"/>
         <Logger name="io.netty.util" level="error"/>
         <Logger name="io.netty.buffer" level="error"/>
         <Logger name="io.netty.channel" level="error"/>
+        <Logger name="io.grpc.netty" level="error"/>
+        <Logger name="tech.ydb.core" level="error"/>
+        <Logger name="tech.ydb.table" level="error"/>
+        <Logger name="tech.ydb.query" level="error"/>
         <Logger name="com.datastax.oss.driver.internal.core" level="error"/>
         <Logger name="com.datastax.dse.driver.internal.core.type.codec" level="error"/>
         <Logger name="org.bublik" level="all"/>

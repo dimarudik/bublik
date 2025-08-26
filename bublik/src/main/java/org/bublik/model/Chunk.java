@@ -1,5 +1,6 @@
 package org.bublik.model;
 
+import org.bublik.constants.ChunkStatus;
 import org.bublik.service.ChunkService;
 import org.bublik.storage.Storage;
 import org.slf4j.Logger;
@@ -26,6 +27,10 @@ public abstract class Chunk<T> implements ChunkService {
     private Connection targetConnection;
     private LogMessage logMessage;
     private ResultSet resultSet;
+    private int rows;
+    private String batchInsertQuery;
+    private int upserted;
+    private ChunkStatus chunkStatus;
 
     public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
                  String fetchQuery, Storage sourceStorage) {
@@ -122,6 +127,43 @@ public abstract class Chunk<T> implements ChunkService {
         return fetchQuery;
     }
 
+    public int getRows() {
+        return rows;
+    }
+
+    public void setRows(int rows) {
+        this.rows = rows;
+    }
+
+    public String getBatchInsertQuery() {
+        return batchInsertQuery;
+    }
+
+    public void setBatchInsertQuery(String batchInsertQuery) {
+        this.batchInsertQuery = batchInsertQuery;
+    }
+
+    public int getUpserted() {
+        return upserted;
+    }
+
+    public void setUpserted(int upserted) {
+        this.upserted = upserted;
+    }
+
+    public ChunkStatus getChunkStatus() {
+        return chunkStatus;
+    }
+
+    public void setChunkStatus(ChunkStatus chunkStatus) {
+        this.chunkStatus = chunkStatus;
+    }
+
+    public abstract Integer getParentId();
+
+    public abstract Long getXidMin();
+
+
     public Chunk<?> assignSourceConnection() throws SQLException {
         while (true) {
             try {
@@ -134,12 +176,49 @@ public abstract class Chunk<T> implements ChunkService {
         }
     }
 
+    public Chunk<?> assignSourceConnection(Connection connection) throws SQLException {
+        setSourceConnection(connection);
+        return this;
+    }
+
     @Override
     public Chunk<?> assignSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
         ResultSet resultSet = getData(getSourceConnection(), getFetchQuery());
         setResultSet(resultSet);
         return this;
+    }
+
+    public Chunk<?> copyChunk(boolean sync) throws SQLException {
+        this
+                .assignSourceConnection()
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
+                .assignSourceResultSet()
+                .assignResultLogMessage()
+                .saveConfig(sync)
+                .saveChunkRows(getRows(), sync)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
+                .closeChunkSourceConnection(sync);
+        LogMessage logMessage = getLogMessage();
+        logMessage.loggerChunkInfo();
+        if (getSourceConnection().isValid(0)) {
+            getSourceConnection().close();
+        }
+        return this;
+    }
+
+    public void copyChunkSync(Connection connection, boolean sync) throws SQLException {
+        this
+                .assignSourceConnection(connection)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
+                .assignSourceResultSet()
+                .assignResultLogMessage()
+                .saveConfig(sync)
+                .saveChunkRows(getRows(), sync)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
+                .closeChunkSourceConnection(sync);
+        LogMessage logMessage = getLogMessage();
+        logMessage.loggerChunkInfo();
     }
 
     public Chunk<?> assignResultLogMessage() throws SQLException {
@@ -155,8 +234,18 @@ public abstract class Chunk<T> implements ChunkService {
         }
     }
 
-    public Chunk<?> closeChunkSourceConnection() throws SQLException {
+    public Chunk<?> closeChunkSourceConnection(boolean sync) throws SQLException {
         Connection connection = getSourceConnection();
+        if (connection.isValid(0) && !sync) {
+            connection.close();
+        } /*else {
+            throw new RuntimeException();
+        }*/
+        return this;
+    }
+
+    public Chunk<?> closeChunkTargetConnection() throws SQLException {
+        Connection connection = getTargetConnection();
         if (connection.isValid(0)) {
             connection.close();
         } else {

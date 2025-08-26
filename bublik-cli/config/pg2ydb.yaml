@@ -1,0 +1,11 @@
+threadCount: 1
+
+fromProperties:
+  url: jdbc:postgresql://172.28.0.7:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  url: jdbc:ydb:grpcs://ydb01-pg-dba-1.ix.pg-test.tcsbank.ru:2135/Root/tecm
+  user: root
+  password: passw0rd
+  secureConnectionCertificate: file:./bublik-cli/config/ca.crt
