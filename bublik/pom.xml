@@ -19,37 +19,6 @@
     </properties>
 
     <dependencies>
-<!--        aws sdk-->
-<!--
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>apache-client</artifactId>
-            <version>2.26.16</version>
-        </dependency>
--->
-<!--        bytefish-->
-        <dependency>
-            <groupId>de.bytefish</groupId>
-            <artifactId>pgbulkinsert</artifactId>
-            <version>8.1.5</version>
-        </dependency>
-<!--        oracle-->
-        <dependency>
-            <groupId>com.oracle.database.jdbc</groupId>
-            <artifactId>ojdbc11</artifactId>
-            <version>21.3.0.0</version>
-        </dependency>
-<!--        ydb-->
-        <dependency>
-            <groupId>tech.ydb.jdbc</groupId>
-            <artifactId>ydb-jdbc-driver</artifactId>
-            <version>2.3.11</version>
-        </dependency>
-        <dependency>
-            <groupId>com.oracle.database.nls</groupId>
-            <artifactId>orai18n</artifactId>
-            <version>21.3.0.0</version>
-        </dependency>
 <!--        logging-->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -62,7 +31,6 @@
             <artifactId>HikariCP</artifactId>
             <version>5.1.0</version>
         </dependency>
-
     </dependencies>
 
     <build>

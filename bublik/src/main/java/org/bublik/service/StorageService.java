@@ -1,10 +1,14 @@
 package org.bublik.service;
 
 import org.bublik.model.*;
-import org.bublik.storage.*;
+import org.bublik.storage.JDBCStorageClass;
+import org.bublik.storage.Storage;
+import org.bublik.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
+import java.lang.reflect.Constructor;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -12,6 +16,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import static org.bublik.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
@@ -40,25 +46,22 @@ public interface StorageService {
     void createUniqueConstraints();
     void createIndexes();
     void createForeignKeys();
+    <T extends Serializable> byte[] intervalYM2Interval(T intervalym);
+    <T extends Serializable> byte[] intervalDS2Interval(T intervalds);
 
-    static Storage getStorage(Properties properties, ConnectionProperty connectionProperty, Boolean isSource) {
+    static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) {
         try {
             StorageClass storageClass = StorageService.getStorageClass(properties);
-/*
-            if (storageClass instanceof CassandraStorageClass) {
-                return new CassandraStorage(storageClass, connectionProperty, isSource);
-            }
-*/
             try {
                 if (storageClass instanceof JDBCStorageClass) {
                     Driver driver = DriverManager.getDriver(properties.getProperty("url"));
                     return switch (driver.getClass().getName()) {
                         case "oracle.jdbc.OracleDriver" ->
-                                JDBCOracleStorage.getInstance(storageClass, connectionProperty, isSource);
+                            StorageService.reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty);
                         case "org.postgresql.Driver" ->
-                                JDBCPostgreSQLStorage.getInstance(storageClass, connectionProperty, isSource);
+                            StorageService.reflectStorage("org.bublik.postgres.storage.JDBCPostgreSQLStorage", properties, connectionProperty);
                         case "tech.ydb.jdbc.YdbDriver" ->
-                                JDBCYDBStorage.getInstance(storageClass, connectionProperty, isSource);
+                            StorageService.reflectStorage("org.bublik.ydb.storage.JDBCYDBStorage", properties, connectionProperty);
                         default -> throw new RuntimeException();
                     };
                 }
@@ -85,6 +88,16 @@ public interface StorageService {
         } else {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return new JDBCStorageClass(Connection.class, properties);
+        }
+    }
+
+    static Storage reflectStorage(String className, Properties properties, ConnectionProperty connectionProperty) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            Constructor<?> constructor = clazz.getConstructor(StorageClass.class, ConnectionProperty.class);
+            return (Storage) constructor.newInstance(getStorageClass(properties), connectionProperty);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

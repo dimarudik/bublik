@@ -158,7 +158,7 @@ public class App {
 //            createChunks(connectionProperty, rowsParameter, configs, sync);
             try {
                 log.info("Bublik starting...");
-                Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty, true);
+                Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
                 assert sourceStorage != null;
                 sourceStorage.start(configs, sync, rowsParameter);
 //                log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");

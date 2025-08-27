@@ -3,13 +3,17 @@ package org.bublik.storage;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bublik.constants.ChunkStatus;
-import org.bublik.model.*;
+import org.bublik.model.Chunk;
+import org.bublik.model.Config;
+import org.bublik.model.ConnectionProperty;
+import org.bublik.model.Table;
 import org.bublik.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.util.*;
@@ -23,13 +27,11 @@ public abstract class JDBCStorage extends Storage {
     private final DataSource dataSource;
     protected final int threadCount;
 
-    protected JDBCStorage(StorageClass storageClass,
-                          ConnectionProperty connectionProperty,
-                          Boolean isSource) throws SQLException {
-        super(storageClass, connectionProperty, isSource);
-        this.dataSource = new HikariDataSource(
-                buildConfiguration(getStorageClass().getProperties(), connectionProperty)
-        );
+    protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+        super(storageClass, connectionProperty);
+        HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);
+//        log.info("{}", hikariConfig.getDriverClassName());
+        this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
     }
 
@@ -42,15 +44,16 @@ public abstract class JDBCStorage extends Storage {
         }
     }
 
-    private HikariConfig buildConfiguration(Properties property, ConnectionProperty connectionProperty) {
+    private HikariConfig buildConfiguration(Properties property, ConnectionProperty connectionProperty) throws SQLException {
         HikariConfig hikariConfig = new HikariConfig();
+//        hikariConfig.setDriverClassName(DriverManager.getDriver(property.getProperty("url")).getClass().getName());
         hikariConfig.setJdbcUrl(property.getProperty("url"));
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
         hikariConfig.setConnectionTimeout(10000);
         hikariConfig.setAutoCommit(false);
-        hikariConfig.setPoolName(getIsSource() ? "HikariPool-Source" : "HikariPool-Target");
+//        hikariConfig.setPoolName(getIsSource() ? "HikariPool-Source" : "HikariPool-Target");
         return hikariConfig;
     }
 
@@ -69,9 +72,8 @@ public abstract class JDBCStorage extends Storage {
         for (Config c : cfgs) {
             configs.add(c.copy());
         }
-        Properties properties = getConnectionProperty().getToProperty();
         Storage sourceStorage = this;
-        Storage targetStorage = StorageService.getStorage(properties, getConnectionProperty(), false);
+        Storage targetStorage = StorageService.getStorage(getConnectionProperty().getToProperty(), getConnectionProperty());
         createChunks(configs, sync, rows);
         assert targetStorage != null;
         targetStorage.createOutbox();
@@ -130,6 +132,8 @@ public abstract class JDBCStorage extends Storage {
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         Map.Entry<String,Long> lsnXid = getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
+        createChunks(configs, true, rows);
+
 //        fillCtidChunksV2(configs, sourceConnection, rows, true);
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
         List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());

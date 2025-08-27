@@ -74,6 +74,7 @@ public class Utils {
     }
 
     public static void createDefJson(String configFileName, String listOfTablesFileName, String outputFileName) throws IOException, SQLException {
+/*
         ConnectionProperty properties = connectionProperty(configFileName);
         ObjectMapper mapperJSON = new ObjectMapper();
         Connection connection = DriverManager.getConnection(properties.getFromProperty().getProperty("url"),
@@ -115,6 +116,7 @@ public class Utils {
         mapper.writeValue(Paths.get(outputFileName).toFile(), configs);
         System.out.println(MAPPING_FILE_CREATED + outputFileName);
         connection.close();
+*/
     }
 
     public static ConnectionProperty connectionProperty(String configFileName) throws IOException {

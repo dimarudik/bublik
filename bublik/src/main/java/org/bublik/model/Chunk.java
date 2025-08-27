@@ -195,7 +195,7 @@ public abstract class Chunk<T> implements ChunkService {
                 .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-                .saveConfig(sync)
+//                .saveConfig(sync)
                 .saveChunkRows(getRows(), sync)
                 .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
                 .closeChunkSourceConnection(sync);
@@ -213,7 +213,7 @@ public abstract class Chunk<T> implements ChunkService {
                 .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-                .saveConfig(sync)
+//                .saveConfig(sync)
                 .saveChunkRows(getRows(), sync)
                 .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
                 .closeChunkSourceConnection(sync);

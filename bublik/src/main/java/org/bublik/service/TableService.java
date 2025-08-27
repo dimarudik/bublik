@@ -2,7 +2,6 @@ package org.bublik.service;
 
 import org.bublik.model.*;
 import org.bublik.storage.Storage;
-import org.postgresql.PGConnection;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -29,6 +28,7 @@ public interface TableService {
     Map<String, String> getColumnToColumn(Connection connection) throws SQLException;
     void create(Connection connection) throws SQLException;
 
+/*
     static Class<? extends Table[]> getTableArrayClass(Connection connection) throws SQLException {
         if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
             return OraTable[].class;
@@ -37,6 +37,7 @@ public interface TableService {
         }
         throw new SQLException("Unknown DataSource");
     }
+*/
 
 /*
     static Table getTable(Connection connection, String schemaName, String tableName) throws SQLException {

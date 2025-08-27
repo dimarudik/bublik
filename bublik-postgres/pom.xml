@@ -4,47 +4,37 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.bublik.ydb</groupId>
-    <artifactId>bublik-ydb</artifactId>
+    <groupId>org.bublik.postgres</groupId>
+    <artifactId>bublik-postgres</artifactId>
     <version>25.1.0</version>
-    <packaging>jar</packaging>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <log4j.version>2.23.1</log4j.version>
-        <jackson.version>2.15.2</jackson.version>
         <bublik.version>25.1.0</bublik.version>
-        <ydb.version>2.3.15</ydb.version>
+        <log4j.version>2.23.1</log4j.version>
     </properties>
 
     <dependencies>
-        <!--        ydb-->
+        <!--        bytefish -->
         <dependency>
-            <groupId>tech.ydb.jdbc</groupId>
-            <artifactId>ydb-jdbc-driver</artifactId>
-            <version>2.3.11</version>
+            <groupId>de.bytefish</groupId>
+            <artifactId>pgbulkinsert</artifactId>
+            <version>8.1.5</version>
         </dependency>
-
-        <!-- logging -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <version>${log4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.30</version>
-            <scope>provided</scope>
-        </dependency>
+        <!--        bublik -->
         <dependency>
             <groupId>org.bublik</groupId>
             <artifactId>bublik</artifactId>
             <version>${bublik.version}</version>
+        </dependency>
+        <!--        logging -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
         </dependency>
     </dependencies>
 
