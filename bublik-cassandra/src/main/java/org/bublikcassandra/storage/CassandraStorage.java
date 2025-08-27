@@ -10,7 +10,7 @@ import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import org.bublik.exception.Utils;
+import org.bublik.util.Utils;
 import org.bublik.model.*;
 import org.bublik.storage.Storage;
 import org.bublik.storage.StorageClass;
@@ -35,7 +35,7 @@ import java.util.*;
 
 import static org.bublikcassandra.storage.cassandraaddons.MM3.*;
 
-//import static org.bublik.exception.Utils.getStackTrace;
+//import static org.bublik.util.Utils.getStackTrace;
 //import static org.bublik.storage.cassandraaddons.MM3.*;
 
 public class CassandraStorage extends Storage {

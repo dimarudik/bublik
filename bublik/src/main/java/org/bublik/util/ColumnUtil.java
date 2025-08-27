@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 
 import static org.bublik.constants.SQLConstants.*;
-import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.Utils.getStackTrace;
 
 public class ColumnUtil {
     private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);

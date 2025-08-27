@@ -1,4 +1,4 @@
-package org.bublik.exception;
+package org.bublik.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

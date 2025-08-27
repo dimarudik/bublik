@@ -15,7 +15,7 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 
-import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.Utils.getStackTrace;
 import static org.bublikcli.addons.Utils.*;
 import static org.bublikcli.constants.StringConstant.HELP_MESSAGE;
 

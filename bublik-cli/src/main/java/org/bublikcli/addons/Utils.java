@@ -1,13 +1,9 @@
 package org.bublikcli.addons;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.bublik.exception.TableNotExistsException;
 import org.bublik.model.Config;
 import org.bublik.model.ConnectionProperty;
-import org.bublik.model.Table;
-import org.bublik.service.TableService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,15 +11,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.bublik.exception.Utils.getStackTrace;
-import static org.bublikcli.constants.StringConstant.MAPPING_FILE_CREATED;
+import static org.bublik.util.Utils.getStackTrace;
 
 public class Utils {
     private static final Logger log = LoggerFactory.getLogger(Utils.class);

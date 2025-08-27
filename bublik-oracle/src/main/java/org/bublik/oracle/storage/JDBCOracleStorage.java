@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.bublik.constants.SQLConstants.*;
-import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.Utils.getStackTrace;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);

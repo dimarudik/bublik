@@ -13,14 +13,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.Utils.getStackTrace;
 
 public abstract class JDBCStorage extends Storage {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);

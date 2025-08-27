@@ -35,7 +35,7 @@ import java.util.function.Consumer;
 
 import static org.bublik.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 import static org.bublik.constants.SQLConstants.*;
-import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.Utils.getStackTrace;
 import static org.bublik.util.ColumnUtil.*;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {

@@ -22,7 +22,7 @@ import java.util.Map;
 
 import static org.bublik.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
 import static org.bublik.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
-import static org.bublik.exception.Utils.getStackTrace;
+import static org.bublik.util.Utils.getStackTrace;
 
 public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);

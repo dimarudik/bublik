@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.bublik.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
+import static org.bublik.constants.CLassConstants.*;
 
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
@@ -59,9 +59,9 @@ public interface StorageService {
                         case "oracle.jdbc.OracleDriver" ->
                             StorageService.reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty);
                         case "org.postgresql.Driver" ->
-                            StorageService.reflectStorage("org.bublik.postgres.storage.JDBCPostgreSQLStorage", properties, connectionProperty);
+                            StorageService.reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty);
                         case "tech.ydb.jdbc.YdbDriver" ->
-                            StorageService.reflectStorage("org.bublik.ydb.storage.JDBCYDBStorage", properties, connectionProperty);
+                            StorageService.reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty);
                         default -> throw new RuntimeException();
                     };
                 }
