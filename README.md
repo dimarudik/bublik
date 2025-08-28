@@ -25,6 +25,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
   * [PostgreSQL Run](#PostgreSQL-Run)
+* [PostgreSQL To YDB](#PostgreSQL-To-YDB)
+  * [Prepare PostgreSQL To YDB environment](#Prepare-PostgreSQL-To-YDB-environment)
+  * [Prepare PostgreSQL To YDB Connection Settings](#Prepare-PostgreSQL-To-YDB-Connection-Settings)
+  * [Prepare PostgreSQL To YDB Mapping File](#Prepare-PostgreSQL-To-YDB-Mapping-File)
+  * [PostgreSQL To YDB Run](#PostgreSQL-To-YDB-Run)
 * [Usage](#Usage)
   * [Usage as a service](#Usage-as-a-service)
 
@@ -372,7 +377,6 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-
 ### Prepare PostgreSQL To PostgreSQL Connection Settings
 
 You can run the tool by using yaml with connection settings:
@@ -467,6 +471,180 @@ Chunks will be created automatically with parameter -k at startup
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
+
+
+## PostgreSQL To YDB
+![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
+
+The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database
+
+
+### Prepare PostgreSQL To YDB environment
+
+> [!NOTE]
+> Bublik uses Tid Range Scan to retrieve data, however this access method has been implemented in PostgreSQL 14.0 and later.
+> Therefore please use PostgreSQL >= 14.0 at source side
+
+[E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
+
+
+All activities are reproducible in docker containers
+
+Build jar file for PostgreSQL To YDB migration
+
+```
+mvn -f pom-postgresToYdb.xml clean package -DskipTests
+```
+
+[Use Java >= 21](https://jdk.java.net/archive/)
+
+
+```
+docker run --name postgres \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c wal_level=logical \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
+```
+
+<ul><li>How to connect</li></ul>
+
+```
+psql postgresql://test:test@localhost/postgres
+```
+
+Do the next steps to prepare YDB environment:
+
+```shell
+mkdir ~/ydbd && cd ~/ydbd
+mkdir ydb_data
+mkdir ydb_certs
+```
+
+```shell
+docker run -d --rm --name ydb-local -h localhost \
+  --platform linux/amd64 \
+  -p 2135:2135 -p 2136:2136 -p 8765:8765 -p 9092:9092 \
+  -v $(pwd)/ydb_certs:/ydb_certs -v $(pwd)/ydb_data:/ydb_data \
+  -e GRPC_TLS_PORT=2135 -e GRPC_PORT=2136 -e MON_PORT=8765 \
+  -e YDB_KAFKA_PROXY_PORT=9092 \
+  ydbplatform/local-ydb:latest
+```
+
+```shell
+curl -sSL https://install.ydb.tech/cli | bash
+exec -l $SHELL
+```
+
+```shell
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, primary key (id));'
+```
+
+<ul><li>How to connect to YDB</li></ul>
+
+```
+ydb -e grpc://localhost:2136 -d /local
+```
+
+### Prepare PostgreSQL To YDB Connection Settings
+
+You can run the tool by using yaml with connection settings:
+
+```yaml
+threadCount: 4
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  url: jdbc:ydb:grpc://localhost:2136/local
+  user: ""
+  password: ""
+```
+
+Or you can use environment variables (do not specify -c parameter):
+
+```
+export THREAD_COUNT=4
+export FROM_URL=jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+export FROM_USER=test
+export FROM_PASSWORD=test
+export TO_URL=jdbc:ydb:grpc://localhost:2136/local
+export TO_USER=""
+export TO_PASSWORD="
+```
+
+### Prepare PostgreSQL To YDB Mapping File
+
+In this example we will enrich data from other tables
+
+```json
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "",
+    "toTableName" : "likes_all",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "likes_all",
+    "expressionToColumn" : {
+      "l.id as id"                    : "id",
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description"
+    }
+  }
+]
+```
+
+> [!IMPORTANT]
+> The case-sensitive or reserved words must be quoted with double quotation and backslashes
+
+> [!NOTE]
+> **expressionToColumn** might be used for declaration of subquery for enrichment of data
+
+> [!NOTE]
+> If the target column type doesn't support by tool you can try to use Character  
+> by using declaration of column's name in **tryCharIfAny** array
+
+### PostgreSQL To YDB Run
+
+Halt any changes to the movable tables in the source database and run:
+
+```
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2ydb.yaml -m ./bublik-cli/config/pg2ydb.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
+
+> [!IMPORTANT]
+> Due to chunk creation based on statistics of the table
+> please check that ANALYZE is performed on regular basis
+
 
 
 ## PostgreSQL To Cassandra (development)
