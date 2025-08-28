@@ -11,12 +11,12 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Run](#Oracle-Run)
+  * [Oracle Run](#Oracle-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [Run](#PostgreSQL-Run)
+  * [PostgreSQL Run](#PostgreSQL-Run)
 * [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
   * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
@@ -299,7 +299,7 @@ java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.j
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Run
+### Oracle Run
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
 
@@ -453,7 +453,7 @@ java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### Run
+### PostgreSQL Run
 
 Chunks will be created automatically with parameter -k at startup<br>
 -k defines the number of rows per chunk
