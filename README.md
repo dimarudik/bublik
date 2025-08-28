@@ -149,9 +149,6 @@ psql postgresql://test:test@localhost/postgres
 ### Prepare Oracle To PostgreSQL Connection Settings
 
 You can run the tool by using yaml with connection settings:
-```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
-```
 
 ##### ./bublik-cli/config/ora2pg.yaml
 
@@ -301,7 +298,11 @@ java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.j
  
 ### Oracle Run
 
-Halt any changes to the movable tables in the source database (Oracle)<br>
+Halt any changes to the movable tables in the source database (Oracle) and run:
+
+```
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
+```
 
 Chunks will be created automatically with parameter -k at startup
 
@@ -371,10 +372,6 @@ psql postgresql://test:test@localhost/postgres
 
 You can run the tool by using yaml with connection settings:
 
-```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
-```
-
 ```yaml
 threadCount: 10
 
@@ -399,11 +396,6 @@ export TO_URL=jdbc:postgresql://localhost:5432/postgres
 export TO_USER=test
 export TO_PASSWORD=test
 ```
-
-```
-java -jar bublik-cli-1.2.4.jar -m ora2pg.json
-```
-
 
 ### Prepare PostgreSQL To PostgreSQL Mapping File
 
@@ -455,8 +447,11 @@ java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 
 ### PostgreSQL Run
 
-Chunks will be created automatically with parameter -k at startup<br>
--k defines the number of rows per chunk
+Chunks will be created automatically with parameter -k at startup and run:
+
+```
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
+```
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
