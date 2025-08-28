@@ -11,7 +11,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Create Oracle ROWID chunks and Run](#Create-Oracle-ROWID-chunks-and-Run)
+  * [Run](#Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
@@ -42,7 +42,7 @@ mvn -f ./bublik-cassandra/pom.xml clean install -DskipTests ;
 mvn -f ./bublik-postgres/pom.xml clean install -DskipTests ; 
 mvn -f ./bublik-ydb/pom.xml clean install -DskipTests ; 
 mvn -f ./bublik-oracle/pom.xml clean install -DskipTests; 
-mvn -f bublik-cli/pom.xml clean install -DskipTests
+mvn -f ./bublik-cli/pom.xml clean install -DskipTests
 ```
 
 
@@ -299,60 +299,16 @@ java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.j
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Create Oracle ROWID chunks and Run
+### Run
 
 Halt any changes to the movable tables in the source database (Oracle)<br>
 
-Chunks can be created automatically with parameter -k at startup<br>
--k defines the number of rows per chunk
-
-```
-java \
-  -jar ./cli/target/bublik-cli-1.2.4.jar \
-  -k 200000 \
-  -c ./cli/config/ora2pg.yaml \
-  -m ./cli/config/ora2pg.json
-```
+Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transfer 
 
-
-You can prepare data chunks in Oracle manually by using the same user credentials specified in key `fromProperties` in `./cli/config/ora2pg.yaml`:
-
-```
-exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
-exec dbms_parallel_execute.create_task (task_name => 'TABLE1_TASK');
-begin
-    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
-                                                    table_owner => 'TEST',
-                                                    table_name  => 'TABLE1',
-                                                    by_row => TRUE,
-                                                    chunk_size  => 100000 );
-end;
-/
-exec dbms_parallel_execute.drop_task(task_name => 'TABLE2_TASK');
-exec dbms_parallel_execute.create_task (task_name => 'TABLE2_TASK');
-begin
-    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE2_TASK',
-                                                    table_owner => 'TEST',
-                                                    table_name  => 'Table2',
-                                                    by_row => TRUE,
-                                                    chunk_size  => 100000 );
-end;
-/
-exec dbms_parallel_execute.drop_task(task_name => 'PARTED_TASK');
-exec dbms_parallel_execute.create_task(task_name => 'PARTED_TASK');
-begin
-    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'PARTED_TASK',
-                                                    table_owner => 'TEST',
-                                                    table_name  => 'PARTED',
-                                                    by_row => TRUE,
-                                                    chunk_size  => 20000 );
-end;
-/
-```
 
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
