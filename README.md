@@ -6,6 +6,7 @@ The quickest method for extracting data from Oracle is by using `ROWID` (employi
 In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL version >= 14).<br>
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
+* [Build](#Build)
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
@@ -21,6 +22,29 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
+
+## Build
+
+Download the source code
+
+```
+git clone https://github.com/dimarudik/bublik.git
+cd bublik/
+```
+
+[Install mvn](https://maven.apache.org/install.html)
+
+Build and install all dependencies to local maven repository
+
+```
+mvn -f ./bublik-core/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-cassandra/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-postgres/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-ydb/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-oracle/pom.xml clean install -DskipTests; 
+mvn -f bublik-cli/pom.xml clean install -DskipTests
+```
+
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
@@ -47,20 +71,11 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 
 ### Prepare Oracle To PostgreSQL environment
 
-All activities are reproducible in docker containers
+Build jar file for Oracle To PostgreSQL migration
 
 ```
-git clone https://github.com/dimarudik/bublik.git
-cd bublik/
+mvn -f pom-oracleToPostgres.xml clean package -DskipTests
 ```
-
-
-```
-mvn -f bublik/pom.xml clean install -DskipTests
-mvn -f bublik-cli/pom.xml clean package -DskipTests
-```
-
-[How to install mvn](https://maven.apache.org/install.html)
 
 [Use Java >= 21](https://jdk.java.net/archive/)
 
@@ -135,10 +150,10 @@ psql postgresql://test:test@localhost/postgres
 
 You can run the tool by using yaml with connection settings:
 ```
-java -jar bublik-cli-1.2.4.jar -c ora2pg.yaml -m ora2pg.json
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
 ```
 
-##### ./cli/config/ora2pg.yaml
+##### ./bublik-cli/config/ora2pg.yaml
 
 ```yaml
 threadCount: 10
@@ -166,12 +181,12 @@ export TO_PASSWORD=test
 ```
 
 ```
-java -jar bublik-cli-1.2.4.jar -m ora2pg.json
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.json
 ```
 
 ### Prepare Oracle To PostgreSQL Mapping File
 
-##### ./cli/config/ora2pg.json
+##### ./bublik-cli/config/ora2pg.json
 
 ```json
 [
