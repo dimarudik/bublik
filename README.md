@@ -11,12 +11,12 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Run](#Run)
+  * [Run](#Oracle-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [Create PostgreSQL CTID chunks and Run](#Create-PostgreSQL-CTID-chunks-and-Run)
+  * [Run](#PostgreSQL-Run)
 * [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
   * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
@@ -319,24 +319,19 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 ### Prepare PostgreSQL To PostgreSQL environment
 
 > [!NOTE]
-> Tid Range Scan has been implemented in PostgreSQL 14.0 and later.
+> Bublik uses Tid Range Scan to retrieve data, however this access method has been implemented in PostgreSQL 14.0 and later.
+> Therefore please use PostgreSQL >= 14.0 at source side
 
 [E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
 
 
 All activities are reproducible in docker containers
 
-```
-git clone https://github.com/dimarudik/bublik.git
-cd bublik/
-```
+Build jar file for PostgreSQL To PostgreSQL migration
 
 ```
-mvn -f bublik/pom.xml clean install -DskipTests
-mvn -f bublik-cli/pom.xml clean package -DskipTests
+mvn -f pom-postgresToPostgres.xml clean package -DskipTests
 ```
-
-[How to install mvn](https://maven.apache.org/install.html)
 
 [Use Java >= 21](https://jdk.java.net/archive/)
 
@@ -375,8 +370,9 @@ psql postgresql://test:test@localhost/postgres
 ### Prepare PostgreSQL To PostgreSQL Connection Settings
 
 You can run the tool by using yaml with connection settings:
+
 ```
-java -jar bublik-cli-1.2.4.jar -c pg2pg.yaml -m ora2pg.json
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
 ```
 
 ```yaml
@@ -457,7 +453,7 @@ java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### Create PostgreSQL CTID chunks and Run
+### Run
 
 Chunks will be created automatically with parameter -k at startup<br>
 -k defines the number of rows per chunk
@@ -466,14 +462,6 @@ Chunks will be created automatically with parameter -k at startup<br>
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transfer
 
-
-```
-java \
-  -jar ./cli/target/bublik-cli-1.2.4.jar \
-  -k 200000 \
-  -c ./cli/config/pg2pg.yaml \
-  -m ./cli/config/pg2pg.json
-```
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
