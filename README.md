@@ -17,10 +17,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
   * [PostgreSQL Run](#PostgreSQL-Run)
-* [PostgreSQL To Cassandra (development)](#PostgreSQL-To-Cassandra-\(development\))
-  * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
-  * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
 
 ## Build
@@ -576,53 +573,11 @@ docker run -h cli --network bublik-network --name cli cli:latest
 
 ![Bublik](/sql/bublik.png)
 
-Bublik library might be used as a part of cli utility or as a part of service
-
-Before usage build the jar and put it in a local maven repository
-
-```shell
-cd ./bublik
-mvn clean install -DskipTests
-```
-
-### Usage as a cli
-
-Build the cli
-
-```shell
-cd ./cli
-mvn clean package -DskipTests
-```
-
-Halt any changes to the movable tables in the source database.
-
-Run the cli:
-
-- Oracle:
-  > ```
-  > java -jar ./target/bublik-cli-1.2.4.jar -k 100000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
-  > ```
-- PostgreSQL
-  > ```
-  > java -jar ./target/bublik-cli-1.2.4.jar -k 100000 -c ./config/pg2pg.yaml -m ./config/pg2pg.json
-  > ```
-
-- To prevent heap pressure, use `-Xmx16g`
-- Monitor the logs at `logs/ydbClient.log`
-- Track progress in Oracle:
-  > ```
-  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-  >     from user_parallel_execute_chunks group by status;
-  > ```
-- Track progress in PostgreSQL:
-  > ```
-  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-  >     from ctid_chunks group by status;
-  > ```
+Bublik library might be used as standalone utility or as a part of service
 
 ### Usage as a service
 
-Build the service
+Build the service (example)
 
 ```shell
 cd ./service
