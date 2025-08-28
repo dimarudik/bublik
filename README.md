@@ -24,7 +24,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
     * [Prepare Oracle To YDB environment](#Prepare-Oracle-To-YDB-environment)
     * [Prepare Oracle To YDB Connection Settings](#Prepare-Oracle-To-YDB-Connection-Settings)
     * [Prepare Oracle To YDB Mapping File](#Prepare-Oracle-To-YDB-Mapping-File)
-    * [Oracle To YDB Run](#Oracle-To-PostgreSQL-Run)
+    * [Oracle To YDB Run](#Oracle-To-YDB-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
