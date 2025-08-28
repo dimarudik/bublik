@@ -1,26 +1,60 @@
 ![Bublik](/sql/bublik.png)
-# Tool for Data Transfer from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL
+# Tool for Data Transfer between databases
 
-This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>
+
+| SOURCE     | TARGET     |
+|:-----------|:-----------|
+| Oracle     | PostgreSQL |
+| Oracle     | YDB        |
+| PostgreSQL | PostgreSQL |
+| PostgreSQL | YDB        |
+
+This tool facilitates the efficient transfer of data between databases.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
-In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL version >= 14).<br>
+In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). 
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
+* [Build](#Build)
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Create Oracle ROWID chunks and Run](#Create-Oracle-ROWID-chunks-and-Run)
+  * [Oracle Run](#Oracle-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [Create PostgreSQL CTID chunks and Run](#Create-PostgreSQL-CTID-chunks-and-Run)
-* [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
-  * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
+  * [PostgreSQL Run](#PostgreSQL-Run)
+* [PostgreSQL To YDB](#PostgreSQL-To-YDB)
+  * [Prepare PostgreSQL To YDB environment](#Prepare-PostgreSQL-To-YDB-environment)
+  * [Prepare PostgreSQL To YDB Connection Settings](#Prepare-PostgreSQL-To-YDB-Connection-Settings)
+  * [Prepare PostgreSQL To YDB Mapping File](#Prepare-PostgreSQL-To-YDB-Mapping-File)
+  * [PostgreSQL To YDB Run](#PostgreSQL-To-YDB-Run)
 * [Usage](#Usage)
-  * [Usage as a cli](#Usage-as-a-cli)
   * [Usage as a service](#Usage-as-a-service)
+
+## Build
+
+Download the source code
+
+```
+git clone https://github.com/dimarudik/bublik.git
+cd bublik/
+```
+
+[Install mvn](https://maven.apache.org/install.html)
+
+Build and install all dependencies to local maven repository
+
+```
+mvn -f ./bublik-core/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-cassandra/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-postgres/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-ydb/pom.xml clean install -DskipTests ; 
+mvn -f ./bublik-oracle/pom.xml clean install -DskipTests; 
+mvn -f ./bublik-cli/pom.xml clean install -DskipTests
+```
+
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
@@ -47,20 +81,11 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 
 ### Prepare Oracle To PostgreSQL environment
 
-All activities are reproducible in docker containers
+Build jar file for Oracle To PostgreSQL migration
 
 ```
-git clone https://github.com/dimarudik/bublik.git
-cd bublik/
+mvn -f pom-oracleToPostgres.xml clean package -DskipTests
 ```
-
-
-```
-mvn -f bublik/pom.xml clean install -DskipTests
-mvn -f bublik-cli/pom.xml clean package -DskipTests
-```
-
-[How to install mvn](https://maven.apache.org/install.html)
 
 [Use Java >= 21](https://jdk.java.net/archive/)
 
@@ -134,11 +159,8 @@ psql postgresql://test:test@localhost/postgres
 ### Prepare Oracle To PostgreSQL Connection Settings
 
 You can run the tool by using yaml with connection settings:
-```
-java -jar bublik-cli-1.2.4.jar -c ora2pg.yaml -m ora2pg.json
-```
 
-##### ./cli/config/ora2pg.yaml
+##### ./bublik-cli/config/ora2pg.yaml
 
 ```yaml
 threadCount: 10
@@ -166,12 +188,12 @@ export TO_PASSWORD=test
 ```
 
 ```
-java -jar bublik-cli-1.2.4.jar -m ora2pg.json
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.json
 ```
 
 ### Prepare Oracle To PostgreSQL Mapping File
 
-##### ./cli/config/ora2pg.json
+##### ./bublik-cli/config/ora2pg.json
 
 ```json
 [
@@ -284,60 +306,20 @@ java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Create Oracle ROWID chunks and Run
+### Oracle Run
 
-Halt any changes to the movable tables in the source database (Oracle)<br>
-
-Chunks can be created automatically with parameter -k at startup<br>
--k defines the number of rows per chunk
+Halt any changes to the movable tables in the source database (Oracle) and run:
 
 ```
-java \
-  -jar ./cli/target/bublik-cli-1.2.4.jar \
-  -k 200000 \
-  -c ./cli/config/ora2pg.yaml \
-  -m ./cli/config/ora2pg.json
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
 ```
+
+Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transfer 
 
-
-You can prepare data chunks in Oracle manually by using the same user credentials specified in key `fromProperties` in `./cli/config/ora2pg.yaml`:
-
-```
-exec dbms_parallel_execute.drop_task(task_name => 'TABLE1_TASK');
-exec dbms_parallel_execute.create_task (task_name => 'TABLE1_TASK');
-begin
-    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE1_TASK',
-                                                    table_owner => 'TEST',
-                                                    table_name  => 'TABLE1',
-                                                    by_row => TRUE,
-                                                    chunk_size  => 100000 );
-end;
-/
-exec dbms_parallel_execute.drop_task(task_name => 'TABLE2_TASK');
-exec dbms_parallel_execute.create_task (task_name => 'TABLE2_TASK');
-begin
-    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'TABLE2_TASK',
-                                                    table_owner => 'TEST',
-                                                    table_name  => 'Table2',
-                                                    by_row => TRUE,
-                                                    chunk_size  => 100000 );
-end;
-/
-exec dbms_parallel_execute.drop_task(task_name => 'PARTED_TASK');
-exec dbms_parallel_execute.create_task(task_name => 'PARTED_TASK');
-begin
-    dbms_parallel_execute.create_chunks_by_rowid (  task_name   => 'PARTED_TASK',
-                                                    table_owner => 'TEST',
-                                                    table_name  => 'PARTED',
-                                                    by_row => TRUE,
-                                                    chunk_size  => 20000 );
-end;
-/
-```
 
 ## PostgreSQL To PostgreSQL
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
@@ -348,24 +330,19 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 ### Prepare PostgreSQL To PostgreSQL environment
 
 > [!NOTE]
-> Tid Range Scan has been implemented in PostgreSQL 14.0 and later.
+> Bublik uses Tid Range Scan to retrieve data, however this access method has been implemented in PostgreSQL 14.0 and later.
+> Therefore please use PostgreSQL >= 14.0 at source side
 
 [E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
 
 
 All activities are reproducible in docker containers
 
-```
-git clone https://github.com/dimarudik/bublik.git
-cd bublik/
-```
+Build jar file for PostgreSQL To PostgreSQL migration
 
 ```
-mvn -f bublik/pom.xml clean install -DskipTests
-mvn -f bublik-cli/pom.xml clean package -DskipTests
+mvn -f pom-postgresToPostgres.xml clean package -DskipTests
 ```
-
-[How to install mvn](https://maven.apache.org/install.html)
 
 [Use Java >= 21](https://jdk.java.net/archive/)
 
@@ -400,13 +377,9 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-
 ### Prepare PostgreSQL To PostgreSQL Connection Settings
 
 You can run the tool by using yaml with connection settings:
-```
-java -jar bublik-cli-1.2.4.jar -c pg2pg.yaml -m ora2pg.json
-```
 
 ```yaml
 threadCount: 10
@@ -432,11 +405,6 @@ export TO_URL=jdbc:postgresql://localhost:5432/postgres
 export TO_USER=test
 export TO_PASSWORD=test
 ```
-
-```
-java -jar bublik-cli-1.2.4.jar -m ora2pg.json
-```
-
 
 ### Prepare PostgreSQL To PostgreSQL Mapping File
 
@@ -486,26 +454,199 @@ java -jar bublik-cli-1.2.4.jar -m ora2pg.json
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### Create PostgreSQL CTID chunks and Run
+### PostgreSQL Run
 
-Chunks will be created automatically with parameter -k at startup<br>
--k defines the number of rows per chunk
+Halt any changes to the movable tables in the source database and run:
+
+```
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
+```
+
+Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transfer
 
-
-```
-java \
-  -jar ./cli/target/bublik-cli-1.2.4.jar \
-  -k 200000 \
-  -c ./cli/config/pg2pg.yaml \
-  -m ./cli/config/pg2pg.json
-```
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
+
+
+## PostgreSQL To YDB
+![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
+
+The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database
+
+
+### Prepare PostgreSQL To YDB environment
+
+> [!NOTE]
+> Bublik uses Tid Range Scan to retrieve data, however this access method has been implemented in PostgreSQL 14.0 and later.
+> Therefore please use PostgreSQL >= 14.0 at source side
+
+[E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
+
+
+All activities are reproducible in docker containers
+
+Build jar file for PostgreSQL To YDB migration
+
+```
+mvn -f pom-postgresToYdb.xml clean package -DskipTests
+```
+
+[Use Java >= 21](https://jdk.java.net/archive/)
+
+
+```
+docker run --name postgres \
+        -e POSTGRES_USER=postgres \
+        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
+        -c max_connections=200 \
+        -c logging_collector=on \
+        -c log_directory=pg_log \
+        -c log_filename=%u_%a.log \
+        -c log_min_duration_statement=3 \
+        -c log_statement=all \
+        -c wal_level=logical \
+        -c auto_explain.log_min_duration=0 \
+        -c auto_explain.log_analyze=true
+```
+
+<ul><li>How to connect</li></ul>
+
+```
+psql postgresql://test:test@localhost/postgres
+```
+
+[YDB Quick Start](https://ydb.tech/docs/en/quickstart?tabs=defaultTabsGroup-3dol9c63_docker%2520x86_64)
+
+Do the next steps to prepare YDB environment:
+
+```shell
+mkdir ~/ydbd && cd ~/ydbd
+mkdir ydb_data
+mkdir ydb_certs
+```
+
+```shell
+docker run -d --rm --name ydb-local -h localhost \
+  --platform linux/amd64 \
+  -p 2135:2135 -p 2136:2136 -p 8765:8765 -p 9092:9092 \
+  -v $(pwd)/ydb_certs:/ydb_certs -v $(pwd)/ydb_data:/ydb_data \
+  -e GRPC_TLS_PORT=2135 -e GRPC_PORT=2136 -e MON_PORT=8765 \
+  -e YDB_KAFKA_PROXY_PORT=9092 \
+  ydbplatform/local-ydb:latest
+```
+
+```shell
+curl -sSL https://install.ydb.tech/cli | bash
+exec -l $SHELL
+```
+
+```shell
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, primary key (id));'
+```
+
+<ul><li>How to connect to YDB</li></ul>
+
+```
+ydb -e grpc://localhost:2136 -d /local
+```
+
+### Prepare PostgreSQL To YDB Connection Settings
+
+You can run the tool by using yaml with connection settings:
+
+```yaml
+threadCount: 4
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  url: jdbc:ydb:grpc://localhost:2136/local
+  user: ""
+  password: ""
+```
+
+Or you can use environment variables (do not specify -c parameter):
+
+```
+export THREAD_COUNT=4
+export FROM_URL=jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+export FROM_USER=test
+export FROM_PASSWORD=test
+export TO_URL=jdbc:ydb:grpc://localhost:2136/local
+export TO_USER=""
+export TO_PASSWORD="
+```
+
+### Prepare PostgreSQL To YDB Mapping File
+
+In this example we will enrich data from other tables
+
+```json
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "",
+    "toTableName" : "likes_all",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "likes_all",
+    "expressionToColumn" : {
+      "l.id as id"                    : "id",
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description"
+    }
+  }
+]
+```
+
+> [!IMPORTANT]
+> The case-sensitive or reserved words must be quoted with double quotation and backslashes
+
+> [!NOTE]
+> **expressionToColumn** might be used for declaration of subquery for enrichment of data
+
+> [!NOTE]
+> If the target column type doesn't support by tool you can try to use Character  
+> by using declaration of column's name in **tryCharIfAny** array
+
+### PostgreSQL To YDB Run
+
+Halt any changes to the movable tables in the source database and run:
+
+```
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2ydb.yaml -m ./bublik-cli/config/pg2ydb.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
+
+> [!IMPORTANT]
+> Due to chunk creation based on statistics of the table
+> please check that ANALYZE is performed on regular basis
+
 
 
 ## PostgreSQL To Cassandra (development)
@@ -622,53 +763,11 @@ docker run -h cli --network bublik-network --name cli cli:latest
 
 ![Bublik](/sql/bublik.png)
 
-Bublik library might be used as a part of cli utility or as a part of service
-
-Before usage build the jar and put it in a local maven repository
-
-```shell
-cd ./bublik
-mvn clean install -DskipTests
-```
-
-### Usage as a cli
-
-Build the cli
-
-```shell
-cd ./cli
-mvn clean package -DskipTests
-```
-
-Halt any changes to the movable tables in the source database.
-
-Run the cli:
-
-- Oracle:
-  > ```
-  > java -jar ./target/bublik-cli-1.2.4.jar -k 100000 -c ./config/ora2pg.yaml -m ./config/ora2pg.json
-  > ```
-- PostgreSQL
-  > ```
-  > java -jar ./target/bublik-cli-1.2.4.jar -k 100000 -c ./config/pg2pg.yaml -m ./config/pg2pg.json
-  > ```
-
-- To prevent heap pressure, use `-Xmx16g`
-- Monitor the logs at `logs/ydbClient.log`
-- Track progress in Oracle:
-  > ```
-  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-  >     from user_parallel_execute_chunks group by status;
-  > ```
-- Track progress in PostgreSQL:
-  > ```
-  > select status, count(*), round(100 / sum(count(*)) over() * count(*),2) pct 
-  >     from ctid_chunks group by status;
-  > ```
+Bublik library might be used as standalone utility or as a part of service
 
 ### Usage as a service
 
-Build the service
+Build the service (example)
 
 ```shell
 cd ./service
@@ -680,7 +779,7 @@ Halt any changes to the movable tables in the source database
 Run the service:
 
 ```
-java -jar ./build/libs/service-1.2.4.jar
+java -jar ./build/libs/service-25.1.0.jar
 ```
 
 Consume the service:

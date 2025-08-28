@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'org.bublik'
-version = '1.2.0'
+version = '25.1.0'
 
 java {
 	sourceCompatibility = '21'
@@ -18,7 +18,9 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation group: 'org.bublik', name: 'bublik', version: '1.2.0'
+	implementation group: 'org.bublik.core', name: 'bublik-core', version: '25.1.0'
+    implementation group: 'org.bublik.postgres', name: 'bublik-postgres', version: '25.1.0'
+    implementation group: 'org.bublik.oracle', name: 'bublik-oracle', version: '25.1.0'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

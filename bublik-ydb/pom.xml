@@ -21,17 +21,11 @@
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/tech.ydb/ydb-sdk-core -->
+        <!--        ydb-->
         <dependency>
-            <groupId>tech.ydb</groupId>
-            <artifactId>ydb-sdk-core</artifactId>
-            <version>${ydb.version}</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/tech.ydb/ydb-sdk-table -->
-        <dependency>
-            <groupId>tech.ydb</groupId>
-            <artifactId>ydb-sdk-table</artifactId>
-            <version>${ydb.version}</version>
+            <groupId>tech.ydb.jdbc</groupId>
+            <artifactId>ydb-jdbc-driver</artifactId>
+            <version>2.3.11</version>
         </dependency>
 
         <!-- logging -->
@@ -48,8 +42,8 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.bublik</groupId>
-            <artifactId>bublik</artifactId>
+            <groupId>org.bublik.core</groupId>
+            <artifactId>bublik-core</artifactId>
             <version>${bublik.version}</version>
         </dependency>
     </dependencies>
@@ -90,7 +84,6 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.bublik.ydb.Sync</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>bublik-cassandra</artifactId>
+    <groupId>org.bublik.core</groupId>
+    <artifactId>bublik-core</artifactId>
     <version>25.1.0</version>
     <packaging>jar</packaging>
 
@@ -16,42 +16,20 @@
 
         <log4j.version>2.23.1</log4j.version>
         <jackson.version>2.15.2</jackson.version>
-        <datastax.driver.version>4.17.0</datastax.driver.version>
-        <bublik.version>25.1.0</bublik.version>
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>org.bublik.core</groupId>
-            <artifactId>bublik-core</artifactId>
-            <version>${bublik.version}</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-core</artifactId>
-            <version>${datastax.driver.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-query-builder</artifactId>
-            <version>${datastax.driver.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-mapper-runtime</artifactId>
-            <version>${datastax.driver.version}</version>
-        </dependency>
+<!--        logging-->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
             <version>${log4j.version}</version>
+        </dependency>
+<!--        hikaricp-->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.1.0</version>
         </dependency>
     </dependencies>
 
@@ -91,4 +69,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>

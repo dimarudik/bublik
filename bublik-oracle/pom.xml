@@ -4,50 +4,38 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>bublik-cassandra</artifactId>
+    <groupId>org.bublik.oracle</groupId>
+    <artifactId>bublik-oracle</artifactId>
     <version>25.1.0</version>
-    <packaging>jar</packaging>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <log4j.version>2.23.1</log4j.version>
-        <jackson.version>2.15.2</jackson.version>
-        <datastax.driver.version>4.17.0</datastax.driver.version>
         <bublik.version>25.1.0</bublik.version>
+        <log4j.version>2.23.1</log4j.version>
     </properties>
 
     <dependencies>
+        <!--        bublik -->
         <dependency>
             <groupId>org.bublik.core</groupId>
             <artifactId>bublik-core</artifactId>
             <version>${bublik.version}</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
+        <!--        oracle -->
         <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-core</artifactId>
-            <version>${datastax.driver.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-databind</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <version>21.3.0.0</version>
         </dependency>
         <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-query-builder</artifactId>
-            <version>${datastax.driver.version}</version>
+            <groupId>com.oracle.database.nls</groupId>
+            <artifactId>orai18n</artifactId>
+            <version>21.3.0.0</version>
         </dependency>
-        <dependency>
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>java-driver-mapper-runtime</artifactId>
-            <version>${datastax.driver.version}</version>
-        </dependency>
+        <!--        logging -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
@@ -56,6 +44,12 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -91,4 +85,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>
