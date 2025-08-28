@@ -476,7 +476,7 @@ Chunks will be created automatically with parameter -k at startup
 ## PostgreSQL To YDB
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
-The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database
+The objective is to migrate table <strong>likes</strong> to table <strong>likes_all</strong> from PostgreSQL to YDB with enrichment of data from other tables.
 
 
 ### Prepare PostgreSQL To YDB environment
