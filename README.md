@@ -430,7 +430,7 @@ toProperties:
 Or you can use environment variables (do not specify -c parameter):
 
 ```
-export THREAD_COUNT=10
+export THREAD_COUNT=4
 export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
 export FROM_USER=test
 export FROM_PASSWORD=test
