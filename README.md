@@ -589,7 +589,7 @@ Halt any changes to the movable tables in the source database
 Run the service:
 
 ```
-java -jar ./build/libs/service-1.2.4.jar
+java -jar ./build/libs/service-25.1.0.jar
 ```
 
 Consume the service:
