@@ -488,15 +488,6 @@ export TO_PASSWORD=""
  > where ( 1 = 1 ) and l.rowid between ? and ?
  > ```
 
-
-> [!NOTE]
-> To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
-> It allows to exclude excessive workload
-
-> [!NOTE]
-> If the target column type doesn't support by tool you can try to use Character  
-> by using declaration of column's name in **tryCharIfAny** array
-
 ### Oracle To YDB Run
 
 Halt any changes to the movable tables in the source database (Oracle) and run:
