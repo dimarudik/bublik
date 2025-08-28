@@ -1,5 +1,13 @@
 ![Bublik](/sql/bublik.png)
-# Tool for Data Transfer</br>Oracle -> PostgreSQL</br>PostgreSQL -> PostgreSQL</br>PostgreSQL -> YDB
+# Tool for Data Transfer between databases
+
+
+| SOURCE     | TARGET     |
+|:-----------|:-----------|
+| Oracle     | PostgreSQL |
+| Oracle     | YDB        |
+| PostgreSQL | PostgreSQL |
+| PostgreSQL | YDB        |
 
 This tool facilitates the efficient transfer of data from Oracle to PostgreSQL or from PostgreSQL to PostgreSQL.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
