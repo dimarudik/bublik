@@ -78,13 +78,6 @@ public interface StorageService {
         String className = properties.getProperty("className");
         if (className != null ) {
             return null;
-/*
-            return switch (storageType) {
-                case "cassandra" -> new CassandraStorageClass(CqlSession.class, properties);
-//                case "ydb" -> new YdbTransportImpl.class;
-                default -> throw new RuntimeException("Unknown storage type");
-            };
-*/
         } else {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return new JDBCStorageClass(Connection.class, properties);
@@ -99,5 +92,12 @@ public interface StorageService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows) throws SQLException {
+        log.info("Bublik starting...");
+        Storage sourceStorage = StorageService.getStorage(property.getFromProperty(), property);
+        assert sourceStorage != null;
+        sourceStorage.start(configs, sync, rows);
     }
 }

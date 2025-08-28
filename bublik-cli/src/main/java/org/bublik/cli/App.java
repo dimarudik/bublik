@@ -6,7 +6,6 @@ import org.bublik.core.constants.ENVProperties;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.bublik.core.service.StorageService;
-import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,13 +14,9 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 
-import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.cli.addons.Utils.*;
 import static org.bublik.cli.constants.StringConstant.HELP_MESSAGE;
-
-/*
-java -cp ./chekist/target/chekist-1.0-SNAPSHOT.jar:./cli/target/bublik-cli-1.2.0.jar org.bublikcli.App -k 1000 -c ./cli/config/pg2pg-sec.yaml -m ./cli/config/pg2pg-sec.json
-*/
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
@@ -30,8 +25,6 @@ public class App {
         final Properties properties = new Properties();
         properties.load(getClass().getClassLoader().getResourceAsStream("project.properties"));
         log.info("version : {}", properties.getProperty("version"));
-//        System.out.println(properties.getProperty("version"));
-//        System.out.println(properties.getProperty("artifactId"));
     }
 
 
@@ -143,25 +136,20 @@ public class App {
         }
     }
 
-    private static void runProcess(ConnectionProperty connectionProperty,
+    private static void runProcess(ConnectionProperty property,
                                    String mappingDefFileName,
                                    int rowsParameter,
                                    boolean sync) {
         try {
-            log.info("THREADS: {}", connectionProperty.getThreadCount());
-            log.info("SOURCE: {}", connectionProperty.getFromProperty().getProperty("url"));
-            log.info("SOURCE USERNAME: {}", connectionProperty.getFromProperty().getProperty("user"));
+            log.info("THREADS: {}", property.getThreadCount());
+            log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
+            log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
             List<Config> configs =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                             Config[].class));
-//            createChunks(connectionProperty, rowsParameter, configs, sync);
             try {
-                log.info("Bublik starting...");
-                Storage sourceStorage = StorageService.getStorage(connectionProperty.getFromProperty(), connectionProperty);
-                assert sourceStorage != null;
-                sourceStorage.start(configs, sync, rowsParameter);
-//                log.info("All Bublik's tasks have been done. \u001B[31mYou can create all needed indexes on target tables now.\u001B[0m");
+                StorageService.init(property, configs, sync, rowsParameter);
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
                 throw new RuntimeException(e);
@@ -170,50 +158,6 @@ public class App {
             log.error("{}", getStackTrace(e));
         }
     }
-
-/*
-    private static void createChunks(ConnectionProperty connectionProperty, int rowsParameter, List<Config> config, boolean sync) {
-        if (rowsParameter == 0) {
-            log.info("No rows parameter provided, skipping chunk creation.");
-            return;
-        }
-        try {
-            Connection fromConnection = DriverManager.getConnection(connectionProperty.getFromProperty().getProperty("url"),
-                    connectionProperty.getFromProperty());
-            fromConnection.setAutoCommit(false);
-            Driver fromDriver = DriverManager.getDriver(connectionProperty.getFromProperty().getProperty("url"));
-            switch (fromDriver.getClass().getName()) {
-                case "oracle.jdbc.OracleDriver" -> fillOraChunks(config, fromConnection, rowsParameter);
-                case "org.postgresql.Driver" ->  {
-                    if (sync) {
-                    } else {
-                        fillCtidChunksV2(config, fromConnection, rowsParameter, false);
-                    }
-                }
-                default -> throw new RuntimeException();
-            }
-            fromConnection.close();
-
-            Driver toDriver = DriverManager.getDriver(connectionProperty.getToProperty().getProperty("url"));
-            log.info("TARGET: {}", connectionProperty.getToProperty().getProperty("url"));
-            log.info("TARGET USERNAME: {}", connectionProperty.getToProperty().getProperty("user"));
-            Connection toConnection = DriverManager.getConnection(connectionProperty.getToProperty().getProperty("url"),
-                    connectionProperty.getToProperty());
-            toConnection.setAutoCommit(false);
-            switch (toDriver.getClass().getName()) {
-                case "org.postgresql.Driver" :
-                    createPostgreSQLTableBublikChunk(toConnection);
-                    break;
-                case "tech.ydb.jdbc.YdbDriver" :
-                    createYDBTableBublikChunk(toConnection);
-                    break;
-            }
-            toConnection.close();
-        } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
-        }
-    }
-*/
 
     private static ConnectionProperty envConnectionProperty() {
         ENVProperties[] e = ENVProperties.values();

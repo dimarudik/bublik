@@ -1,6 +1,6 @@
 package org.bublik.core.service.config;
 
-import org.bublik.model.ConnectionProperty;
+import org.bublik.core.model.ConnectionProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
