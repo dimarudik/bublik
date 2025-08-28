@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.bublik</groupId>
+    <groupId>org.bublik.cli</groupId>
     <artifactId>bublik-cli</artifactId>
     <version>25.1.0</version>
     <packaging>jar</packaging>
@@ -54,9 +54,9 @@
         </dependency>
         <!--        bublik -->
         <dependency>
-            <groupId>org.bublik</groupId>
-            <artifactId>bublik</artifactId>
-            <version>${bublik.version}</version>
+            <groupId>org.bublik.core</groupId>
+            <artifactId>bublik-core</artifactId>
+            <version>25.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.bublik.postgres</groupId>
@@ -111,7 +111,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.bublikcli.App</mainClass>
+                            <mainClass>org.bublik.cli.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

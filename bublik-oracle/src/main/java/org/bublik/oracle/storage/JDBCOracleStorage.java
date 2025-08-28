@@ -2,14 +2,14 @@ package org.bublik.oracle.storage;
 
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
-import org.bublik.constants.PGKeywords;
-import org.bublik.exception.TableNotExistsException;
-import org.bublik.model.*;
+import org.bublik.core.constants.PGKeywords;
+import org.bublik.core.exception.TableNotExistsException;
+import org.bublik.core.model.*;
 import org.bublik.oracle.model.OraChunk;
 import org.bublik.oracle.model.OraTable;
-import org.bublik.service.JDBCStorageService;
-import org.bublik.storage.JDBCStorage;
-import org.bublik.storage.StorageClass;
+import org.bublik.core.service.JDBCStorageService;
+import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +20,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.bublik.constants.SQLConstants.*;
-import static org.bublik.util.Utils.getStackTrace;
+import static org.bublik.core.constants.SQLConstants.*;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);

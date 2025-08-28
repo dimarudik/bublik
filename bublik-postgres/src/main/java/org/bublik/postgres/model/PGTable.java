@@ -1,14 +1,14 @@
 package org.bublik.postgres.model;
 
-import org.bublik.model.*;
-import org.bublik.storage.Storage;
+import org.bublik.core.model.*;
+import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
 
-import static org.bublik.constants.SQLConstants.*;
+import static org.bublik.core.constants.SQLConstants.*;
 
 public class PGTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(PGTable.class);

@@ -42,8 +42,8 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.bublik</groupId>
-            <artifactId>bublik</artifactId>
+            <groupId>org.bublik.core</groupId>
+            <artifactId>bublik-core</artifactId>
             <version>${bublik.version}</version>
         </dependency>
     </dependencies>

@@ -26,9 +26,9 @@
         </dependency>
         <!--        bublik -->
         <dependency>
-            <groupId>org.bublik</groupId>
-            <artifactId>bublik</artifactId>
-            <version>${bublik.version}</version>
+            <groupId>org.bublik.core</groupId>
+            <artifactId>bublik-core</artifactId>
+            <version>25.1.0</version>
         </dependency>
         <!--        logging -->
         <dependency>

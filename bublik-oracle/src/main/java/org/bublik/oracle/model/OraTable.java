@@ -1,7 +1,7 @@
 package org.bublik.oracle.model;
 
-import org.bublik.model.*;
-import org.bublik.storage.Storage;
+import org.bublik.core.model.*;
+import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

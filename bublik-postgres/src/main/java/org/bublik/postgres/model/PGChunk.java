@@ -1,10 +1,10 @@
 package org.bublik.postgres.model;
 
-import org.bublik.constants.ChunkStatus;
-import org.bublik.model.Chunk;
-import org.bublik.model.Config;
-import org.bublik.model.Table;
-import org.bublik.storage.Storage;
+import org.bublik.core.constants.ChunkStatus;
+import org.bublik.core.model.Chunk;
+import org.bublik.core.model.Config;
+import org.bublik.core.model.Table;
+import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static org.bublik.constants.SQLConstants.*;
+import static org.bublik.core.constants.SQLConstants.*;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);

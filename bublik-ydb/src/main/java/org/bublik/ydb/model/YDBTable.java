@@ -1,7 +1,7 @@
 package org.bublik.ydb.model;
 
-import org.bublik.model.*;
-import org.bublik.storage.Storage;
+import org.bublik.core.model.*;
+import org.bublik.core.storage.Storage;
 
 import java.sql.Connection;
 import java.sql.ResultSet;

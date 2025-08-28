@@ -1,14 +1,14 @@
 package org.bublik.ydb.storage;
 
-import org.bublik.constants.PGKeywords;
-import org.bublik.constants.YDBKeywords;
-import org.bublik.exception.SourceSQLException;
-import org.bublik.exception.TableNotExistsException;
-import org.bublik.exception.TargetSQLException;
-import org.bublik.model.*;
-import org.bublik.service.JDBCStorageService;
-import org.bublik.storage.JDBCStorage;
-import org.bublik.storage.StorageClass;
+import org.bublik.core.constants.PGKeywords;
+import org.bublik.core.constants.YDBKeywords;
+import org.bublik.core.exception.SourceSQLException;
+import org.bublik.core.exception.TableNotExistsException;
+import org.bublik.core.exception.TargetSQLException;
+import org.bublik.core.model.*;
+import org.bublik.core.service.JDBCStorageService;
+import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.StorageClass;
 import org.bublik.ydb.model.YDBTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +20,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.bublik.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
-import static org.bublik.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
-import static org.bublik.util.Utils.getStackTrace;
+import static org.bublik.core.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
+import static org.bublik.core.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);

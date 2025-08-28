@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import static java.lang.Byte.toUnsignedInt;
-import static org.bublik.constants.SQLConstants.SQL_PG_CURRENT_LSN_AND_XID;
+import static org.bublik.core.constants.SQLConstants.SQL_PG_CURRENT_LSN_AND_XID;
 
 public class ColumnUtil {
     private static final int HIGH_BIT_FLAG = 0x80000000;
