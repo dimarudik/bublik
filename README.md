@@ -527,7 +527,7 @@ docker run --name postgres \
 psql postgresql://test:test@localhost/postgres
 ```
 
-[Quick Start](https://ydb.tech/docs/en/quickstart?tabs=defaultTabsGroup-3dol9c63_docker%2520x86_64)
+[YDB Quick Start](https://ydb.tech/docs/en/quickstart?tabs=defaultTabsGroup-3dol9c63_docker%2520x86_64)
 
 Do the next steps to prepare YDB environment:
 
