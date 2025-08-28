@@ -17,7 +17,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
   * [PostgreSQL Run](#PostgreSQL-Run)
-* [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
+* [PostgreSQL To Cassandra (development)](#PostgreSQL-To-Cassandra-(development))
   * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
 * [Usage](#Usage)
   * [Usage as a cli](#Usage-as-a-cli)
