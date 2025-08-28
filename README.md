@@ -19,12 +19,17 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
   * [Prepare Oracle To PostgreSQL Mapping File](#Prepare-Oracle-To-PostgreSQL-Mapping-File)
-  * [Oracle Run](#Oracle-Run)
+  * [Oracle To PostgreSQL Run](#Oracle-To-PostgreSQL-Run)
+* [Oracle To YDB](#Oracle-To-YDB)
+    * [Prepare Oracle To YDB environment](#Prepare-Oracle-To-YDB-environment)
+    * [Prepare Oracle To YDB Connection Settings](#Prepare-Oracle-To-YDB-Connection-Settings)
+    * [Prepare Oracle To YDB Mapping File](#Prepare-Oracle-To-YDB-Mapping-File)
+    * [Oracle To YDB Run](#Oracle-To-YDB-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
   * [Prepare PostgreSQL To PostgreSQL Mapping File](#Prepare-PostgreSQL-To-PostgreSQL-Mapping-File)
-  * [PostgreSQL Run](#PostgreSQL-Run)
+  * [PostgreSQL To PostgreSQL Run](#PostgreSQL-To-PostgreSQL-Run)
 * [PostgreSQL To YDB](#PostgreSQL-To-YDB)
   * [Prepare PostgreSQL To YDB environment](#Prepare-PostgreSQL-To-YDB-environment)
   * [Prepare PostgreSQL To YDB Connection Settings](#Prepare-PostgreSQL-To-YDB-Connection-Settings)
@@ -306,7 +311,7 @@ java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.j
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
  
-### Oracle Run
+### Oracle To PostgreSQL Run
 
 Halt any changes to the movable tables in the source database (Oracle) and run:
 
@@ -319,6 +324,192 @@ Chunks will be created automatically with parameter -k at startup
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transfer 
+
+
+## Oracle To YDB
+
+The objective is to migrate table <strong>likes</strong> to table <strong>likes_all</strong> from PostgreSQL to YDB with enrichment of data from other tables.
+
+### Prepare Oracle To YDB environment
+
+Build jar file for Oracle To PostgreSQL migration
+
+```
+mvn -f pom-oracleToYdb.xml clean package -DskipTests
+```
+
+[Use Java >= 21](https://jdk.java.net/archive/)
+
+#### Prepare Oracle environment
+
+- arm64:
+
+  > ```
+  > docker run --name oracle \
+  > -p 1521:1521 -p 5500:5500 \
+  >     -e ORACLE_PWD=oracle_4U \
+  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
+  >     -d dimarudik/oracle_arm64:19.3.0-ee
+  > ```
+
+- x86_64:
+
+  > ```
+  > docker run --name oracle \
+  >     -p 1521:1521 -p 5500:5500 \
+  >     -e ORACLE_PWD=oracle_4U \
+  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
+  >     -d dimarudik/oracle_x86_64:19.3.0-ee
+  > ```
+
+>  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
+
+How to connect to Oracle:
+
+```
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
+```
+
+> [!NOTE]
+> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
+
+#### Prepare YDB environment
+
+Do the next steps:
+
+```shell
+mkdir ~/ydbd && cd ~/ydbd
+mkdir ydb_data
+mkdir ydb_certs
+```
+
+```shell
+docker run -d --rm --name ydb-local -h localhost \
+  --platform linux/amd64 \
+  -p 2135:2135 -p 2136:2136 -p 8765:8765 -p 9092:9092 \
+  -v $(pwd)/ydb_certs:/ydb_certs -v $(pwd)/ydb_data:/ydb_data \
+  -e GRPC_TLS_PORT=2135 -e GRPC_PORT=2136 -e MON_PORT=8765 \
+  -e YDB_KAFKA_PROXY_PORT=9092 \
+  ydbplatform/local-ydb:latest
+```
+
+```shell
+curl -sSL https://install.ydb.tech/cli | bash
+exec -l $SHELL
+```
+
+```shell
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, primary key (id));'
+```
+
+<ul><li>How to connect to YDB</li></ul>
+
+```
+ydb -e grpc://localhost:2136 -d /local
+```
+
+### Prepare Oracle To YDB Connection Settings
+
+You can run the tool by using yaml with connection settings:
+
+##### ./bublik-cli/config/ora2ydb.yaml
+
+```yaml
+threadCount: 4
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+  user: test
+  password: test
+toProperties:
+  url: jdbc:ydb:grpc://localhost:2136/local
+  user: ""
+  password: ""
+```
+
+Or you can use environment variables (do not specify -c parameter):
+
+```
+export THREAD_COUNT=10
+export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+export FROM_USER=test
+export FROM_PASSWORD=test
+export TO_URL=jdbc:ydb:grpc://localhost:2136/local
+export TO_USER=""
+export TO_PASSWORD=""
+```
+
+### Prepare Oracle To YDB Mapping File
+
+##### ./bublik-cli/config/ora2ydb.json
+
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "",
+    "toTableName" : "likes_all",
+    "expressionToColumn" : {
+      "l.id as id"                    : "id",
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description"
+    }
+  }
+]
+```
+
+> [!IMPORTANT]
+> The case-sensitive or reserved words must be quoted with double quotation and backslashes
+
+> [!NOTE]
+> To enrich data from other tables you can use combination of <br>
+> **fromTableAlias**, **fromTableAdds** and **expressionToColumn** definitions <br>
+> In example with TABLE1 the data will be retrieved by query:
+
+> ```
+ > select /* bublik */ /*+ no_index(l) */ 
+ > 	l.user_id as user_id,
+ > 	u.email as email,
+ > 	l.id as id,
+ > 	u.user_name as user_name,
+ > 	l.item_id as item_id,
+ > 	i.description as description,
+ > 	i.item_name as item_name 
+ > from test.likes l 
+ > left join users u on u.id = l.user_id 
+ > left join items i on i.id = l.item_id 
+ > where ( 1 = 1 ) and l.rowid between ? and ?
+ > ```
+
+
+> [!NOTE]
+> To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
+> It allows to exclude excessive workload
+
+> [!NOTE]
+> If the target column type doesn't support by tool you can try to use Character  
+> by using declaration of column's name in **tryCharIfAny** array
+
+### Oracle To YDB Run
+
+Halt any changes to the movable tables in the source database (Oracle) and run:
+
+```
+java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2ydb.yaml -m ./bublik-cli/config/ora2ydb.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
 
 
 ## PostgreSQL To PostgreSQL
@@ -454,7 +645,7 @@ export TO_PASSWORD=test
 > If the target column type doesn't support by tool you can try to use Character  
 > by using declaration of column's name in **tryCharIfAny** array
 
-### PostgreSQL Run
+### PostgreSQL To PostgreSQL Run
 
 Halt any changes to the movable tables in the source database and run:
 
@@ -476,7 +667,7 @@ Chunks will be created automatically with parameter -k at startup
 ## PostgreSQL To YDB
 ![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
 
-The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database
+The objective is to migrate table <strong>likes</strong> to table <strong>likes_all</strong> from PostgreSQL to YDB with enrichment of data from other tables.
 
 
 ### Prepare PostgreSQL To YDB environment
@@ -490,7 +681,7 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 
 All activities are reproducible in docker containers
 
-Build jar file for PostgreSQL To YDB migration
+Build jar file for PostgreSQL to YDB migration
 
 ```
 mvn -f pom-postgresToYdb.xml clean package -DskipTests
