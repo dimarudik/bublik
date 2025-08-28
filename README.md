@@ -452,11 +452,13 @@ export TO_PASSWORD=test
 
 ### PostgreSQL Run
 
-Chunks will be created automatically with parameter -k at startup and run:
+Halt any changes to the movable tables in the source database and run:
 
 ```
 java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
 ```
+
+Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
