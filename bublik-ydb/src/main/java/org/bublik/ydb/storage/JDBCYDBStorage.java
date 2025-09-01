@@ -229,11 +229,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                 }
                 case "Text": {
                     String text = rs.getString(sourceColName);
-                    if (text != null) {
-                        ps.setString(index, text);
-                    } else {
-                        ps.setObject(index, null);
-                    }
+                    ps.setString(index, text);
                     break;
                 }
                 case "Date": {

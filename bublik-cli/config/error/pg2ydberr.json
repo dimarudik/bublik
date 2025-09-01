@@ -1,0 +1,23 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "toSchemaName" : "",
+    "toTableName" : "likes_all",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "likes_all",
+    "columnToColumn" : {
+      "id"           : "id",
+      "user_id"     : "user_id",
+      "item_id"     : "item_id"
+    },
+    "expressionToColumn" : {
+      "null as int_value"       : "int_value",
+      "null as boolean_value"   : "boolean_value",
+      "null as date_value"      : "date_value",
+      "null as string_value"    : "string_value",
+      "null as float_value"     : "float_value"
+    }
+  }
+]
