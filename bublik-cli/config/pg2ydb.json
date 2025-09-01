@@ -15,7 +15,8 @@
       "u.user_name as user_name"      : "user_name",
       "u.email as email"              : "email",
       "i.item_name as item_name"      : "item_name",
-      "i.description as description"  : "description"
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
     }
   }
 ]

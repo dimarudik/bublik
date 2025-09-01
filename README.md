@@ -735,7 +735,7 @@ exec -l $SHELL
 ```
 
 ```shell
-ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, primary key (id));'
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, last_update timestamp, primary key (id));'
 ```
 
 <ul><li>How to connect to YDB</li></ul>

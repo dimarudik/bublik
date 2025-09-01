@@ -238,11 +238,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                 }
                 case "Date": {
                     Date date = rs.getDate(sourceColName);
-                    if (date != null) {
-                        ps.setDate(index, date);
-                    } else {
-                        ps.setDate(index, null);
-                    }
+                    ps.setDate(index, date);
                     break;
                 }
                 case "Float": {
@@ -255,11 +251,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                 }
                 case "Timestamp": {
                     Timestamp timestamp = rs.getTimestamp(sourceColName);
-                    if (timestamp != null) {
-                        ps.setTimestamp(index, timestamp);
-                    } else {
-                        ps.setTimestamp(index, null);
-                    }
+                    ps.setTimestamp(index, timestamp);
                     break;
                 }
             }
