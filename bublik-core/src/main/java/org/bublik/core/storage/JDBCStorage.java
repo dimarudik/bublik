@@ -29,7 +29,6 @@ public abstract class JDBCStorage extends Storage {
     protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
         HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);
-//        log.info("{}", hikariConfig.getDriverClassName());
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
     }
@@ -45,14 +44,12 @@ public abstract class JDBCStorage extends Storage {
 
     private HikariConfig buildConfiguration(Properties property, ConnectionProperty connectionProperty) throws SQLException {
         HikariConfig hikariConfig = new HikariConfig();
-//        hikariConfig.setDriverClassName(DriverManager.getDriver(property.getProperty("url")).getClass().getName());
         hikariConfig.setJdbcUrl(property.getProperty("url"));
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
         hikariConfig.setConnectionTimeout(10000);
         hikariConfig.setAutoCommit(false);
-//        hikariConfig.setPoolName(getIsSource() ? "HikariPool-Source" : "HikariPool-Target");
         return hikariConfig;
     }
 

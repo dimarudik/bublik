@@ -241,7 +241,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                     if (date != null) {
                         ps.setDate(index, date);
                     } else {
-                        ps.setObject(index, null);
+                        ps.setDate(index, null);
                     }
                     break;
                 }
@@ -258,7 +258,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                     if (timestamp != null) {
                         ps.setTimestamp(index, timestamp);
                     } else {
-                        ps.setObject(index, null);
+                        ps.setTimestamp(index, null);
                     }
                     break;
                 }
