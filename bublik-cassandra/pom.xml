@@ -3,28 +3,24 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
-    <groupId>org.example</groupId>
+    <parent>
+        <groupId>org.bublik</groupId>
+        <artifactId>bublik-parent</artifactId>
+        <version>25.1.0</version>
+    </parent>
     <artifactId>bublik-cassandra</artifactId>
-    <version>25.1.0</version>
+    <version>${project.parent.version}</version>
     <packaging>jar</packaging>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <log4j.version>2.23.1</log4j.version>
-        <jackson.version>2.15.2</jackson.version>
         <datastax.driver.version>4.17.0</datastax.driver.version>
-        <bublik.version>25.1.0</bublik.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.bublik.core</groupId>
             <artifactId>bublik-core</artifactId>
-            <version>${bublik.version}</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.cassandra/java-driver-core -->
         <dependency>
@@ -51,7 +47,6 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
-            <version>${log4j.version}</version>
         </dependency>
     </dependencies>
 

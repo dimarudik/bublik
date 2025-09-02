@@ -52,12 +52,7 @@ cd bublik/
 Build and install all dependencies to local maven repository
 
 ```
-mvn -f ./bublik-core/pom.xml clean install -DskipTests ; 
-mvn -f ./bublik-cassandra/pom.xml clean install -DskipTests ; 
-mvn -f ./bublik-postgres/pom.xml clean install -DskipTests ; 
-mvn -f ./bublik-ydb/pom.xml clean install -DskipTests ; 
-mvn -f ./bublik-oracle/pom.xml clean install -DskipTests; 
-mvn -f ./bublik-cli/pom.xml clean install -DskipTests
+mvn clean install
 ```
 
 
@@ -89,8 +84,10 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 Build jar file for Oracle To PostgreSQL migration
 
 ```
-mvn -f pom-oracleToPostgres.xml clean package -DskipTests
+mvn clean package -DskipTests -Poracle,postgres
 ```
+
+Possible values for -P: postgres,cassandra,oracle,ydb
 
 [Use Java >= 21](https://jdk.java.net/archive/)
 
@@ -193,7 +190,7 @@ export TO_PASSWORD=test
 ```
 
 ```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.json
+java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.json
 ```
 
 ### Prepare Oracle To PostgreSQL Mapping File
@@ -316,7 +313,7 @@ java -jar ./target/bublik-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.j
 Halt any changes to the movable tables in the source database (Oracle) and run:
 
 ```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
+java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -335,7 +332,7 @@ The objective is to migrate table <strong>likes</strong> to table <strong>likes_
 Build jar file for Oracle To PostgreSQL migration
 
 ```
-mvn -f pom-oracleToYdb.xml clean package -DskipTests
+mvn clean package -DskipTests -Poracle,ydb
 ```
 
 [Use Java >= 21](https://jdk.java.net/archive/)
@@ -502,7 +499,7 @@ export TO_PASSWORD=""
 Halt any changes to the movable tables in the source database (Oracle) and run:
 
 ```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2ydb.yaml -m ./bublik-cli/config/ora2ydb.json
+java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2ydb.yaml -m ./bublik-cli/config/ora2ydb.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -532,7 +529,7 @@ All activities are reproducible in docker containers
 Build jar file for PostgreSQL To PostgreSQL migration
 
 ```
-mvn -f pom-postgresToPostgres.xml clean package -DskipTests
+mvn clean package -DskipTests -Ppostgres
 ```
 
 [Use Java >= 21](https://jdk.java.net/archive/)
@@ -684,7 +681,7 @@ All activities are reproducible in docker containers
 Build jar file for PostgreSQL to YDB migration
 
 ```
-mvn -f pom-postgresToYdb.xml clean package -DskipTests
+mvn clean package -DskipTests -Ppostgres,ydb
 ```
 
 [Use Java >= 21](https://jdk.java.net/archive/)
@@ -939,8 +936,7 @@ docker exec -it cs6 nodetool repair
 ```
 
 ```shell
-mvn -f bublik/pom.xml clean install -DskipTests ; \ 
-mvn -f cli/pom.xml clean package -DskipTests ; \
+mvn clean install -DskipTests ; \ 
 psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
 docker rm cli -f ; \
 docker image rm cli ; \

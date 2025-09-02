@@ -3,19 +3,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
-    <groupId>org.bublik.postgres</groupId>
+    <parent>
+      <groupId>org.bublik</groupId>
+      <artifactId>bublik-parent</artifactId>
+      <version>25.1.0</version>
+    </parent>
     <artifactId>bublik-postgres</artifactId>
-    <version>25.1.0</version>
-
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <bublik.version>25.1.0</bublik.version>
-        <log4j.version>2.23.1</log4j.version>
-    </properties>
+    <version>${project.parent.version}</version>
 
     <dependencies>
         <!--        bytefish -->
@@ -28,13 +22,12 @@
         <dependency>
             <groupId>org.bublik.core</groupId>
             <artifactId>bublik-core</artifactId>
-            <version>25.1.0</version>
+            <version>${project.parent.version}</version>
         </dependency>
         <!--        logging -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
-            <version>${log4j.version}</version>
         </dependency>
     </dependencies>
 
