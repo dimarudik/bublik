@@ -47,7 +47,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows) throws SQLException {
 
     }
 
@@ -71,11 +71,6 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             log.error("{}", getStackTrace(e));
         }
         connection.close();
-    }
-
-    @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
-        return Map.of();
     }
 
     @Override
@@ -191,11 +186,8 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         int index = 0;
         for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
             String sourceColName = entry.getKey().replaceAll("\"", "");
-//            String targetColName = entry.getValue().getColumnName();
             String targetColType = entry.getValue().getColumnType();
-//            Integer targetColPosition = entry.getValue().getColumnPosition();
             index++;
-//            System.out.println(targetColName + " " + index);
             switch (targetColType) {
                 case "Uint8", "Int8" : {
                     ps.setShort(index, rs.getShort(sourceColName));

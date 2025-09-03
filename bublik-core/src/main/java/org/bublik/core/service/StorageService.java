@@ -7,7 +7,6 @@ import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.sql.Connection;
 import java.sql.Driver;
@@ -22,11 +21,9 @@ import static org.bublik.core.constants.CLassConstants.*;
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
-    void start(List<Config> configs, boolean sync, int rows) throws SQLException;
-    void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException;
+    void start(List<Config> configs, boolean sync, int rows, Storage targetStorage) throws SQLException;
+    void createChunks(Connection connection, List<Config> configs, boolean sync, int rows) throws SQLException;
     void createOutbox() throws SQLException;
-    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException;
     Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
@@ -37,17 +34,8 @@ public interface StorageService {
     Table configToTable(String schemaName, String tableName);
     Table getTagetTableBySourceTable(Table table);
     Table getSourceTableByTargetTable(Table table);
-    boolean tableInSourceList(Table table);
-    boolean tableInTargetList(Table table);
     void enrichSourceTables();
     void enrichTargetTables(Map<Table, Table> tables);
-    void createTables();
-    void createPrimaryKeys();
-    void createUniqueConstraints();
-    void createIndexes();
-    void createForeignKeys();
-    <T extends Serializable> byte[] intervalYM2Interval(T intervalym);
-    <T extends Serializable> byte[] intervalDS2Interval(T intervalds);
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) {
         try {
@@ -97,7 +85,8 @@ public interface StorageService {
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows) throws SQLException {
         log.info("Bublik starting...");
         Storage sourceStorage = StorageService.getStorage(property.getFromProperty(), property);
+        Storage targetStorage = StorageService.getStorage(property.getToProperty(), property);
         assert sourceStorage != null;
-        sourceStorage.start(configs, sync, rows);
+        sourceStorage.start(configs, sync, rows, targetStorage);
     }
 }
