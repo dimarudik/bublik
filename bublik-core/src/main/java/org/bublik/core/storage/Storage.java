@@ -4,9 +4,10 @@ import org.bublik.core.model.ConnectionProperty;
 import org.bublik.core.model.Table;
 import org.bublik.core.service.StorageService;
 
+import java.sql.Wrapper;
 import java.util.Map;
 
-public abstract class Storage implements StorageService {
+public abstract class Storage implements StorageService, Wrapper {
     private final StorageClass storageClass;
     private final ConnectionProperty connectionProperty;
     private Map<Table, Table> tables;

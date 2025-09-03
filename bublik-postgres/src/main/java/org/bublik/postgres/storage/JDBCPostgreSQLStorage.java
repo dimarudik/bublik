@@ -13,12 +13,12 @@ import org.bublik.core.exception.SourceSQLException;
 import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
-import org.bublik.postgres.model.PGChunk;
-import org.bublik.postgres.model.PGTable;
-import org.bublik.postgres.util.ColumnUtil;
 import org.bublik.core.service.JDBCStorageService;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
+import org.bublik.postgres.model.PGChunk;
+import org.bublik.postgres.model.PGTable;
+import org.bublik.postgres.util.ColumnUtil;
 import org.postgresql.PGConnection;
 import org.postgresql.replication.LogSequenceNumber;
 import org.postgresql.util.PGInterval;
@@ -35,22 +35,14 @@ import java.util.function.Consumer;
 
 import static org.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 import static org.bublik.core.constants.SQLConstants.*;
-import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.core.util.ColumnUtil.*;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
 
     public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
-    }
-
-    @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
-        Connection connection = getConnection();
-        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, connection);
-        connection.close();
-        return chunkMap;
     }
 
     @Override
@@ -122,6 +114,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             Connection connectionTo;
             try {
                 connectionTo = getConnection();
+//                PGConnection connection = connectionTo.unwrap(PGConnection.class);
             } catch (SQLTransientConnectionException t) {
                 throw new TargetSQLException(getStackTrace(t));
             }
@@ -766,16 +759,17 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
                             int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
                             int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
+                            JDBCStorage jdbcSourceStorage = chunk.getSourceStorage().unwrap(JDBCStorage.class);
                             switch (columnType) {
                                 // INTERVALYM
                                 case -103:
                                     Serializable intervalym = (Serializable) fetchResultSet.getObject(sourceColumn);
-                                    interval = ColumnUtil.byteArrayYMToInterval(chunk.getSourceStorage().intervalYM2Interval(intervalym));
+                                    interval = ColumnUtil.byteArrayYMToInterval(jdbcSourceStorage.intervalYM2Interval(intervalym));
                                     break;
                                 // INTERVALDS
                                 case -104:
                                     Serializable intervalds = (Serializable) fetchResultSet.getObject(sourceColumn);
-                                    interval = ColumnUtil.byteArrayDSToInterval(chunk.getSourceStorage().intervalDS2Interval(intervalds));
+                                    interval = ColumnUtil.byteArrayDSToInterval(jdbcSourceStorage.intervalDS2Interval(intervalds));
                                     break;
                                 default:
                                     break;
@@ -1104,8 +1098,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createChunks(List<Config> configs, boolean sync, int required) throws SQLException {
-        Connection connection = getConnection();
+    public void createChunks(Connection connection, List<Config> configs, boolean sync, int required) throws SQLException {
+//        Connection connection = getConnection();
         createTableCtidChunks(connection, sync);
         try {
             for (Config config : configs) {
@@ -1154,7 +1148,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         } catch (SQLException e) {
             log.warn("{}", getStackTrace(e));
         }
-        connection.close();
+//        connection.close();
     }
 
     @Override

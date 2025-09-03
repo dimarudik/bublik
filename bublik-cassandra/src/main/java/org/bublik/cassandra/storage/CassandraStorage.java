@@ -10,17 +10,19 @@ import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import org.bublik.core.model.*;
-import org.bublik.core.storage.Storage;
-import org.bublik.core.storage.StorageClass;
-import org.bublik.core.util.Utils;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
+import org.bublik.core.model.Chunk;
+import org.bublik.core.model.Column;
+import org.bublik.core.model.ConnectionProperty;
+import org.bublik.core.model.LogMessage;
+import org.bublik.core.service.StorageService;
+import org.bublik.core.storage.StorageClass;
+import org.bublik.core.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
@@ -38,14 +40,13 @@ import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
 //import static org.bublik.util.Utils.getStackTrace;
 //import static org.bublik.storage.cassandraaddons.MM3.*;
 
-public class CassandraStorage extends Storage {
+public class CassandraStorage extends CSPoolStorage implements StorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
     private final int batchSize;
     private final CqlSession cqlSession;
 
     public CassandraStorage(StorageClass storageClass,
-                            ConnectionProperty connectionProperty,
-                            Boolean isSource) {
+                            ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
         Properties properties = getStorageClass().getProperties();
         DriverConfigLoader configLoader = DriverConfigLoader
@@ -74,36 +75,6 @@ public class CassandraStorage extends Storage {
     }
 
     @Override
-    public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
-        return null;
-    }
-
-    @Override
-    public void start(List<Config> configs, boolean sync, int rows) throws SQLException {
-
-    }
-
-    @Override
-    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
-
-    }
-
-    @Override
-    public void createOutbox() throws SQLException {
-
-    }
-
-    @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
-        return Map.of();
-    }
-
-    @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        return Map.of();
-    }
-
-    @Override
     public Connection getConnection() throws SQLException {
         return null;
     }
@@ -114,7 +85,7 @@ public class CassandraStorage extends Storage {
 //        return simpleBatch(chunk);
         LogMessage logMessage = rangedBatch(chunk);
 //        LogMessage logMessage = new LogMessage(0, 0, 0, "", chunk);
-        closeStorage();
+//        closeStorage();
         return logMessage;
     }
 
@@ -353,111 +324,14 @@ public class CassandraStorage extends Storage {
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
 
+/*
     @Override
     public void closeStorage() {
         cqlSession.close();
     }
-
-    @Override
-    public String buildFetchStatement(Config config) {
-        return "";
-    }
-
-    @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
-        return Map.of();
-    }
-
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
-        return Map.of();
-    }
-
-    @Override
-    public Table configToTable(String schemaName, String tableName) {
-        return null;
-    }
-
-/*
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs) {
-        return Map.of();
-    }
 */
 
-    @Override
-    public void enrichSourceTables() {
-
-    }
-
-    @Override
-    public void enrichTargetTables(Map<Table, Table> tables) {
-
-    }
-
-    @Override
-    public void createTables() {
-
-    }
-
-/*
-    @Override
-    public Table configToTable(Config config) {
-        return null;
-    }
-*/
-
-    @Override
-    public Table getTagetTableBySourceTable(Table table) {
-        return null;
-    }
-
-    @Override
-    public Table getSourceTableByTargetTable(Table table) {
-        return null;
-    }
-
-    @Override
-    public boolean tableInSourceList(Table table) {
-        return false;
-    }
-
-    @Override
-    public boolean tableInTargetList(Table table) {
-        return false;
-    }
-
-    @Override
-    public void createPrimaryKeys() {
-
-    }
-
-    @Override
-    public void createUniqueConstraints() {
-
-    }
-
-    @Override
-    public void createIndexes() {
-
-    }
-
-    @Override
-    public void createForeignKeys() {
-
-    }
-
-    @Override
-    public <T extends Serializable> byte[] intervalYM2Interval(T intervalym) {
-        return new byte[0];
-    }
-
-    @Override
-    public <T extends Serializable> byte[] intervalDS2Interval(T intervalds) {
-        return new byte[0];
-    }
-
-    private int getBatchSize(ConnectionProperty connectionProperty) {
+    public int getBatchSize(ConnectionProperty connectionProperty) {
         String batchSize = connectionProperty.getToProperty().getProperty("batchSize");
         return  batchSize == null ? 100 : Integer.parseInt(batchSize);
     }

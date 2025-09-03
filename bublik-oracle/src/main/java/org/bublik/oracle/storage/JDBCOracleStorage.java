@@ -1,5 +1,6 @@
 package org.bublik.oracle.storage;
 
+import oracle.jdbc.driver.DatabaseError;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
 import org.bublik.core.constants.PGKeywords;
@@ -56,8 +57,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void createChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
-        Connection connection = getConnection();
+    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows) throws SQLException {
         for (Config config : configs) {
             try {
                 CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
@@ -65,7 +65,6 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 dropTask.execute();
                 dropTask.close();
             } catch (SQLException e) {
-//                log.error("{}", getStackTrace(e));
                 log.warn("Task {} does not exist", config.fromTaskName());
             }
         }
@@ -78,14 +77,12 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 createTask.close();
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
-                connection.close();
                 throw e;
             }
         }
 
         for (Config config : configs) {
             try {
-//                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
                 Table table = configToTable(config.fromSchemaName(), config.fromTableName());
                 CallableStatement createChunk = connection.prepareCall(PLSQL_CREATE_CHUNK);
                 createChunk.setString(1, config.fromTaskName());
@@ -96,12 +93,10 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 createChunk.close();
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
-                connection.close();
                 throw e;
             }
         }
         log.info("Ctid chunks created successfully");
-        connection.close();
     }
 
     @Override
@@ -110,8 +105,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs) throws SQLException {
-//        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
+    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
         Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
@@ -119,20 +113,12 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         for (Config c : configs)
             sb.append("\n").append(buildFetchStatement(c));
         log.debug("SQL to fetch chunks: {}", sb);
-        Connection initialConnection = getConnection();
-        PreparedStatement statement = initialConnection.prepareStatement(sql);
+        PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-//                Table sourceTable = TableService.getTable(initialConnection, config.fromSchemaName(), config.fromTableName());
                 Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
-                if (!sourceTable.exists(initialConnection)) {
-                    initialConnection.close();
-                    log.error("\u001B[31mThe Source Table: {}.{} does not exist.\u001B[0m", sourceTable.getSchemaName(),
-                            sourceTable.getTableName());
-                    throw new TableNotExistsException(sourceTable.getSchemaName(), sourceTable.getTableName());
-                }
                 String query = buildFetchStatement(config);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new OraChunk<>(
@@ -149,13 +135,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         }
         resultSet.close();
         statement.close();
-        initialConnection.close();
         return chunkHashMap;
-    }
-
-    @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        return Map.of();
     }
 
     @Override
