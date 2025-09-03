@@ -906,12 +906,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 row.setText(targetColumn, s.replaceAll("\u0000", ""));
                                 break;
                             } else {
-                                log.error("There is no handler for type: {} for column: {}", targetType, targetColumn);
+                                log.error("There is no handler for type: {}  for column: {}", targetType, targetColumn);
                                 writer.close();
                                 connectionTo.close();
                             }
                         } else {
-                            log.error("tryCharIfAny is NULL for type: {} for column: {}", targetType, targetColumn);
+                            log.error("tryCharIfAny is NULL for type: {}  for column: {}", targetType, targetColumn);
                             throw new RuntimeException();
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
