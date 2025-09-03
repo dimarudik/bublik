@@ -244,51 +244,54 @@ on conflict (user_id, item_id) do nothing;
 
 select setval('likes_id_seq', 1000001, false);
 
-create table p_src (
+create table public.p_src (
     id int,
     created timestamp not null,
     name text,
     amount bigint,
-    shard_key int
+    shard_key int,
+    names varchar(30)[]
 ) partition by range (created);
-alter table p_src add primary key (id, created);
-create table p_src_def partition of p_src default;
-create table p_src_202509 partition of p_src for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59');
-create table p_src_202510 partition of p_src for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59');
-create table p_src_202511 partition of p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
-create table p_src_202512 partition of p_src for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59');
+alter table public.p_src add primary key (id, created);
+create table public.p_src_def partition of public.p_src default;
+create table public.p_src_202509 partition of public.p_src for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59');
+create table public.p_src_202510 partition of public.p_src for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59');
+create table public.p_src_202511 partition of public.p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
+create table public.p_src_202512 partition of public.p_src for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59');
 
-insert into p_src (id, created, name, amount, shard_key)
+insert into public.p_src (id, created, name, amount, shard_key, names)
     select num as id,
             timestamp '2025-08-15 00:00:00' + random() * (timestamp '2025-12-31 23:59:59' - timestamp '2025-09-01 00:00:00') as created,
             'Name ' || substr(md5(random()::text), 1, 10) as name,
             floor(random() * 1000000)::bigint as amount,
-            random() * 1 as shard_key
+            random() * 1 as shard_key,
+            array['A:' || substr(md5(random()::text), 1, 10),'B:' || substr(md5(random()::text), 1, 10),'C:' || substr(md5(random()::text), 1, 10)] as names
     from generate_series(1, 100000) as num;
 
 
-create table p_trg (
+create table public.p_trg (
     id int,
     created timestamp not null,
     name text,
     amount bigint,
-    shard_key int
+    shard_key int,
+    names varchar(30)[]
 ) partition by range (created);
-alter table p_trg add primary key (id, created, shard_key);
-create table p_trg_def partition of p_trg default partition by list (shard_key);
-create table p_trg_202509 partition of p_trg for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59') partition by list (shard_key);
-create table p_trg_202510 partition of p_trg for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59') partition by list (shard_key);
-create table p_trg_202511 partition of p_trg for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59') partition by list (shard_key);
-create table p_trg_202512 partition of p_trg for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59') partition by list (shard_key);
+alter table public.p_trg add primary key (id, created, shard_key);
+create table public.p_trg_def partition of public.p_trg default partition by list (shard_key);
+create table public.p_trg_202509 partition of public.p_trg for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59') partition by list (shard_key);
+create table public.p_trg_202510 partition of public.p_trg for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59') partition by list (shard_key);
+create table public.p_trg_202511 partition of public.p_trg for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59') partition by list (shard_key);
+create table public.p_trg_202512 partition of public.p_trg for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59') partition by list (shard_key);
 
-create table p_trg_202509_0 partition of p_trg_202509 for values in (0);
-create table p_trg_202509_1 partition of p_trg_202509 for values in (1);
-create table p_trg_202510_0 partition of p_trg_202510 for values in (0);
-create table p_trg_202510_1 partition of p_trg_202510 for values in (1);
-create table p_trg_202511_0 partition of p_trg_202511 for values in (0);
-create table p_trg_202511_1 partition of p_trg_202511 for values in (1);
-create table p_trg_202512_0 partition of p_trg_202512 for values in (0);
-create table p_trg_202512_1 partition of p_trg_202512 for values in (1);
+create table public.p_trg_202509_0 partition of public.p_trg_202509 for values in (0);
+create table public.p_trg_202509_1 partition of public.p_trg_202509 for values in (1);
+create table public.p_trg_202510_0 partition of public.p_trg_202510 for values in (0);
+create table public.p_trg_202510_1 partition of public.p_trg_202510 for values in (1);
+create table public.p_trg_202511_0 partition of public.p_trg_202511 for values in (0);
+create table public.p_trg_202511_1 partition of public.p_trg_202511 for values in (1);
+create table public.p_trg_202512_0 partition of public.p_trg_202512 for values in (0);
+create table public.p_trg_202512_1 partition of public.p_trg_202512 for values in (1);
 
 -- select * from users where user_id = 800 \gx
 -- select i.item_id, i.item_name, i.description from items i, likes l where i.item_id = l.item_id and l.user_id = 800 \gx

@@ -50,12 +50,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
-        StringBuffer sb = new StringBuffer();
-        for (Config c : configs) {
-            if (c.columnToColumn() == null || c.expressionToColumn() == null) continue;
-            sb.append("\n").append(buildFetchStatement(c));
-        }
-        log.debug("SQL to fetch data: {}", sb);
+//        StringBuffer sb = new StringBuffer();
+        Map<String, Table> tableMap = new HashMap<>();
         PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
@@ -77,6 +73,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 } else {
                     query = buildFetchStatement(config);
                 }
+                tableMap.put(query, sourceTable);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new PGChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -90,6 +87,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 );
             }
         }
+        tableMap.keySet().forEach(s -> log.info("{}", s));
         resultSet.close();
         statement.close();
         return chunkHashMap;
@@ -175,11 +173,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 //        neededColumnsToDB.forEach((s, pgColumn) -> System.out.println(s + " " + pgColumn.getColumnName() + ":" + pgColumn.getColumnType()));
         Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
 
-        Map<String, PGEncryptedColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
+//        Map<String, PGEncryptedColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
+/*
         neededEncryptedColumns.forEach((s1, pgEncryptedColumn) -> System.out.println(s1 + " " +
                 pgEncryptedColumn.column().getColumnName() + " " +
                 pgEncryptedColumn.encryptedColumn().targetEncColumnName() + " " +
                 pgEncryptedColumn.encryptedColumn().targetEncMetaColumnName()));
+*/
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
 
         String[] columnNames = neededColumnsToDB
@@ -188,6 +188,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .map(Column::getColumnName)
                 .toList()
                 .toArray(String[]::new);
+/*
         String[] metaColumnNames = neededEncryptedColumns
                 .values()
                 .stream()
@@ -196,8 +197,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .stream().map(EncryptedColumn::targetEncMetaColumnName)
                 .filter(Objects::nonNull)
                 .toArray(String[]::new);
-        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
-        System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
+*/
+        String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
+//        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
+//        System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), cNames);
@@ -282,7 +285,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
                                             dataType, null, null, null, null, 0, null, 0, null)));
-                } else {
+                } else if (expressionToColumnMap == null) {
                     Table sourceTable = chunk.getSourceTable();
                     sourceTable.getColumns().forEach(column -> columnMap.put(column.getColumnName(), column));
                 }
@@ -439,7 +442,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                   Chunk<?> chunk,
                                   Connection connectionTo,
                                   SimpleRowWriter writer) throws SQLException, BinaryWriteFailedException {
-//        System.out.println("simpleRowConsume...");
         for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetColumn = entry.getValue().getColumnName();
@@ -466,34 +468,27 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             row.setText(targetColumn, null);
                             break;
                         }
-/*
-                        if (neededEncryptedColumns.get(targetColumn) != null) {
-                            String aad = fetchResultSet.getObject(neededEncryptedColumns.get(targetColumn).encryptedColumn().sourceAadColumnName()).toString();
-                            System.out.println(aad);
-                            EncryptedEntity encryptedEntity = SecureUtil.getEncryptedEntity(getConnectionProperty(), s, aad);
-                            String e = encryptedEntity.obtainEncryptedData();
-                            if (neededEncryptedColumns.get(targetColumn).encryptedColumn().targetEncColumnName() != null) {
-                                row.setText(neededEncryptedColumns.get(targetColumn).encryptedColumn().targetEncColumnName(), e);
-                            }
-                            if (neededEncryptedColumns.get(targetColumn).encryptedColumn().targetEncMetaColumnName() != null) {
-                                String m = encryptedEntity.obtainEncryptedMetaData();
-                                row.setJsonb(neededEncryptedColumns.get(targetColumn).encryptedColumn().targetEncMetaColumnName(), m);
-                            }
-                            break;
-                        }
-*/
                         row.setText(targetColumn, s.replaceAll("\u0000", ""));
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
                         log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
-/*
-                    } catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException |
-                             InstantiationException | IllegalAccessException e) {
-                        LOGGER.error("{}", getStackTrace(e));
+                }
+                case "_varchar": {
+                    try {
+                        Object s = fetchResultSet.getObject(sourceColumn);
+                        if (s == null) {
+                            row.setVarCharArray(targetColumn, null);
+                            break;
+                        }
+                        List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
+                        row.setVarCharArray(targetColumn, arr);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        throw e;
                     }
-*/
                 }
                 case "bpchar":
                     try {
