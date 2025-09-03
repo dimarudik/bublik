@@ -647,7 +647,7 @@ export TO_PASSWORD=test
 Halt any changes to the movable tables in the source database and run:
 
 ```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
+java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -822,7 +822,7 @@ In this example we will enrich data from other tables
 Halt any changes to the movable tables in the source database and run:
 
 ```
-java -jar ./target/bublik-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2ydb.yaml -m ./bublik-cli/config/pg2ydb.json
+java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c ./bublik-cli/config/pg2ydb.yaml -m ./bublik-cli/config/pg2ydb.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
