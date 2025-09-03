@@ -430,7 +430,7 @@ toProperties:
 Or you can use environment variables (do not specify -c parameter):
 
 ```
-export THREAD_COUNT=10
+export THREAD_COUNT=4
 export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
 export FROM_USER=test
 export FROM_PASSWORD=test
@@ -487,15 +487,6 @@ export TO_PASSWORD=""
  > left join items i on i.id = l.item_id 
  > where ( 1 = 1 ) and l.rowid between ? and ?
  > ```
-
-
-> [!NOTE]
-> To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
-> It allows to exclude excessive workload
-
-> [!NOTE]
-> If the target column type doesn't support by tool you can try to use Character  
-> by using declaration of column's name in **tryCharIfAny** array
 
 ### Oracle To YDB Run
 
@@ -744,7 +735,7 @@ exec -l $SHELL
 ```
 
 ```shell
-ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, primary key (id));'
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, last_update timestamp, primary key (id));'
 ```
 
 <ul><li>How to connect to YDB</li></ul>
