@@ -190,7 +190,7 @@ export TO_PASSWORD=test
 ```
 
 ```
-java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c -m ./bublik-cli/config/ora2pg.json
+java -jar ./bublik-cli/target/bublik-cli-25.1.0.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
 ```
 
 ### Prepare Oracle To PostgreSQL Mapping File
