@@ -173,11 +173,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 //        neededColumnsToDB.forEach((s, pgColumn) -> System.out.println(s + " " + pgColumn.getColumnName() + ":" + pgColumn.getColumnType()));
         Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
 
-        Map<String, PGEncryptedColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
+//        Map<String, PGEncryptedColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
+/*
         neededEncryptedColumns.forEach((s1, pgEncryptedColumn) -> System.out.println(s1 + " " +
                 pgEncryptedColumn.column().getColumnName() + " " +
                 pgEncryptedColumn.encryptedColumn().targetEncColumnName() + " " +
                 pgEncryptedColumn.encryptedColumn().targetEncMetaColumnName()));
+*/
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
 
         String[] columnNames = neededColumnsToDB
@@ -186,6 +188,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .map(Column::getColumnName)
                 .toList()
                 .toArray(String[]::new);
+/*
         String[] metaColumnNames = neededEncryptedColumns
                 .values()
                 .stream()
@@ -194,9 +197,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .stream().map(EncryptedColumn::targetEncMetaColumnName)
                 .filter(Objects::nonNull)
                 .toArray(String[]::new);
-        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
+*/
+        String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
+//        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
 //        System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
-//        String[] cNames = {};
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), cNames);
