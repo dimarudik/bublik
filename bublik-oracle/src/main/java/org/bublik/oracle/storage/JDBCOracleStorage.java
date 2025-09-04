@@ -217,8 +217,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void enrichSourceTables() {
-        Map<Table, Table> tables = getTables();
+    public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
+//        Map<Table, Table> tables = getTables();
         try {
             Connection sourceConnection = getConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {

@@ -193,6 +193,7 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
         return null;
     }
 
+/*
     @Override
     public void enrichSourceTables() {
 
@@ -202,6 +203,7 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
     public void enrichTargetTables(Map<Table, Table> tables) {
 
     }
+*/
 
     @Override
     public <T> T unwrap(Class<T> iface) {

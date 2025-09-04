@@ -18,19 +18,19 @@ public abstract class Storage implements StorageService, Wrapper {
         this.connectionProperty = connectionProperty;
     }
 
-    public StorageClass getStorageClass() {
-        return storageClass;
-    }
-
-    public ConnectionProperty getConnectionProperty() {
-        return connectionProperty;
-    }
-
     public Map<Table, Table> getTables() {
         return tables;
     }
 
     public void setTables(Map<Table, Table> tables) {
         this.tables = tables;
+    }
+
+    public StorageClass getStorageClass() {
+        return storageClass;
+    }
+
+    public ConnectionProperty getConnectionProperty() {
+        return connectionProperty;
     }
 }
