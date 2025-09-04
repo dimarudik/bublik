@@ -465,10 +465,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     try {
                         String s = fetchResultSet.getString(sourceColumn);
                         if (s == null) {
-                            row.setText(targetColumn, null);
+                            row.setVarChar(targetColumn, null);
                             break;
                         }
-                        row.setText(targetColumn, s.replaceAll("\u0000", ""));
+                        row.setVarChar(targetColumn, s.replaceAll("\u0000", ""));
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
                         log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
@@ -528,7 +528,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         break;
                     }
                     String s = null;
-//                    if (chunk instanceof OraChunk<?>) {
                     if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
                             int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
                             int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
@@ -540,7 +539,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 // NCLOB
                                 case 2011:
                                     s = convertClobToString(fetchResultSet, sourceColumn).replaceAll("\u0000", "");
-//                                    System.out.println(s);
                                     break;
                                 default:
                                     s = fetchResultSet.getString(sourceColumn).replaceAll("\u0000", "");
@@ -750,7 +748,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                             break;
                         }
                         Interval interval = null;
-//                        if (chunk instanceof OraChunk<?>) {
                         if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
                             int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
                             int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
@@ -768,20 +765,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                     break;
                                 default:
                                     break;
-/*
-                                // INTERVALYM
-                                case -103:
-                                    INTERVALYM intervalym = (INTERVALYM) fetchResultSet.getObject(sourceColumn);
-                                    interval = intervalYM2Interval(intervalym);
-                                    break;
-                                // INTERVALDS
-                                case -104:
-                                    INTERVALDS intervalds = (INTERVALDS) fetchResultSet.getObject(sourceColumn);
-                                    interval = intervalDS2Interval(intervalds);
-                                    break;
-                                default:
-                                    break;
-*/
                             }
                         } else if (chunk instanceof PGChunk<?>) {
                             PGInterval pgInterval = (PGInterval) fetchResultSet.getObject(sourceColumn);
