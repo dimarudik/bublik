@@ -34,8 +34,6 @@ public interface StorageService {
     Table configToTable(String schemaName, String tableName);
     Table getTagetTableBySourceTable(Table table);
     Table getSourceTableByTargetTable(Table table);
-    void enrichSourceTables();
-    void enrichTargetTables(Map<Table, Table> tables);
 
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) {
         try {

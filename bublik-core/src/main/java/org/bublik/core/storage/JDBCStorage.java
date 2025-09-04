@@ -25,11 +25,22 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     private final DataSource dataSource;
     protected final int threadCount;
 
+
     protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
         HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
+    }
+
+    @Override
+    public String getStorageVersion(Connection connection) throws SQLException {
+        return connection.getMetaData().getDatabaseProductVersion();
+    }
+
+    @Override
+    public int getMajorStorageVersion(Connection connection) throws SQLException {
+        return connection.getMetaData().getDatabaseMajorVersion();
     }
 
     @Override
@@ -91,12 +102,16 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         targetStorage.createOutbox();
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
-        sourceStorage.enrichSourceTables();
-        targetStorage.enrichTargetTables(sourceTables);
-        targetStorage.setTables(sourceTables);
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
+            JDBCStorage sourceJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
-            targetJDBCStorage.createTables();
+            log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
+            if (sourceJDBCStorage.getMajorStorageVersion(sourceConnection) >= 14) {
+                sourceJDBCStorage.enrichSourceTables(sourceConnection, sourceTables);
+                sourceJDBCStorage.enrichTargetTables(sourceTables);
+                targetStorage.setTables(sourceTables);
+                targetJDBCStorage.createTables();
+            }
         }
 
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
@@ -136,12 +151,16 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         targetStorage.createOutbox();
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
-        sourceStorage.enrichSourceTables();
-        targetStorage.enrichTargetTables(sourceTables);
-        targetStorage.setTables(sourceTables);
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
+            JDBCStorage sourceJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
-            targetJDBCStorage.createTables();
+            log.info("Version source: {}", sourceJDBCStorage.getStorageVersion(sourceConnection));
+            if (sourceJDBCStorage.getMajorStorageVersion(sourceConnection) >= 14) {
+                sourceJDBCStorage.enrichSourceTables(sourceConnection, sourceTables);
+                sourceJDBCStorage.enrichTargetTables(sourceTables);
+                targetStorage.setTables(sourceTables);
+                targetJDBCStorage.createTables();
+            }
         }
 
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();

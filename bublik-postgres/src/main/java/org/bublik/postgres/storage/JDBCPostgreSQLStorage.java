@@ -57,6 +57,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
+//                log.info("{}", getTables().size());
                 Table sourceTable = getTables()
                         .entrySet()
                         .stream()
@@ -1034,28 +1035,28 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void enrichSourceTables() {
-        Map<Table, Table> tables = getTables();
+    public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
+//        Map<Table, Table> tables = getTables();
         try {
-            Connection sourceConnection = getConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table sourceTable = entry.getKey();
-                List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
-                List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(sourceConnection);
-                List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(sourceConnection);
-                List<Index> sourceIndexes = sourceTable.getTableIndexes(sourceConnection);
-                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(sourceConnection, this, entry.getValue());
-                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(sourceConnection);
+                List<Column> allSourceColumns = sourceTable.getAllColumns(connection);
+                List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(connection);
+                if (getMajorStorageVersion(connection) >= 14) {
+                    List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(connection);
+                    sourceTable.setUniqueConstraints(uniqueConstraints);
+                }
+                List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
+                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
+                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(connection);
 
                 sourceTable.setId(options.getKey());
                 sourceTable.setOptions(options.getValue());
                 sourceTable.setColumns(allSourceColumns);
                 sourceTable.setPkColumns(sourcePKColumns);
                 sourceTable.setIndexes(sourceIndexes);
-                sourceTable.setUniqueConstraints(uniqueConstraints);
                 sourceTable.setForeignKeys(foreignKeys);
             }
-            sourceConnection.close();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
         }
