@@ -11,12 +11,28 @@
     <artifactId>bublik-postgres</artifactId>
     <version>${project.parent.version}</version>
 
+    <properties>
+        <postgresql.version>42.7.7</postgresql.version>
+    </properties>
+
     <dependencies>
         <!--        bytefish -->
         <dependency>
             <groupId>de.bytefish</groupId>
             <artifactId>pgbulkinsert</artifactId>
             <version>8.1.5</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.postgresql</groupId>
+                    <artifactId>postgresql</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!--        postgresql -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
         </dependency>
         <!--        bublik -->
         <dependency>

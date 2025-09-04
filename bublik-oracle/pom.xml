@@ -11,6 +11,9 @@
     <artifactId>bublik-oracle</artifactId>
     <version>${project.parent.version}</version>
 
+    <properties>
+        <oracle.version>23.9.0.25.07</oracle.version>
+    </properties>
 
     <dependencies>
         <!--        bublik -->
@@ -23,12 +26,12 @@
         <dependency>
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc11</artifactId>
-            <version>21.3.0.0</version>
+            <version>${oracle.version}</version>
         </dependency>
         <dependency>
             <groupId>com.oracle.database.nls</groupId>
             <artifactId>orai18n</artifactId>
-            <version>21.3.0.0</version>
+            <version>${oracle.version}</version>
         </dependency>
         <!--        logging -->
         <dependency>
