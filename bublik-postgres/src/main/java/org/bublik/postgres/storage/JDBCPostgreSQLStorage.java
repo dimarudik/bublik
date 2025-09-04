@@ -1077,14 +1077,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public void createChunks(Connection connection, List<Config> configs, boolean sync, int required) throws SQLException {
-//        Connection connection = getConnection();
         createTableCtidChunks(connection, sync);
         try {
             for (Config config : configs) {
                 long reltuples = 0;
                 long relpages = 0;
                 long max_end_page;
-//                Table table = TableService.getTable(connection, config.fromSchemaName(), config.fromTableName());
                 Table table = configToTable(config.fromSchemaName(), config.fromTableName());
 
                 PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
@@ -1126,7 +1124,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         } catch (SQLException e) {
             log.warn("{}", getStackTrace(e));
         }
-//        connection.close();
     }
 
     @Override
@@ -1157,7 +1154,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             } catch (SQLException ex) {
                 connection.rollback();
                 log.error("Error dropping table ctid_chunks, it may not exist yet.");
-//                log.error("{}", getStackTrace(ex));
             }
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
