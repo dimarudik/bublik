@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.bublik</groupId>
+    <groupId>bublik</groupId>
     <artifactId>bublik-parent</artifactId>
     <version>25.1.0</version>
     <packaging>pom</packaging>
@@ -18,7 +18,13 @@
         <jackson.version>2.20.0</jackson.version>
         <lombok.version>1.18.38</lombok.version>
     </properties>
-
+  <distributionManagement>
+    <repository>
+      <id>${env.MVN_HOSTED_NAME}</id>
+      <name>Tinkoff Hosted</name>
+      <url>${env.MVN_HOSTED_URL}</url>
+    </repository>
+  </distributionManagement>
   <dependencyManagement>
     <dependencies>
       <!-- jackson -->
