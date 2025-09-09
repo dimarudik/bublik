@@ -1,13 +1,4 @@
 ---
-.include-ref: &include-ref "master"
-
-include:
-  - project: "bigops-sre/crmsre-pipelines"
-    ref: *include-ref
-    file: ".images.yml"
-  - project: "bigops-sre/crmsre-pipelines"
-    ref: *include-ref
-    file: ".templates.yml"
 
 variables:
   REGISTRY: docker-hosted.artifactory.tcsbank.ru
@@ -23,33 +14,8 @@ cache: &global_cache
   policy: pull-push
 
 stages:
-  - lint
   - test
-  - compute-version
-  - release
   - deploy
-
-
-test:
-  services:
-    - name: $REGISTRY/testops/kuber-api:latest
-    - name: $REGISTRY/testops/kuber-api-vector:latest
-  image: $MAVEN21_BUILDER_IMAGE
-  stage: test
-  script:
-    - mvn test
-  rules:
-    - if: "$CI_COMMIT_MESSAGE =~ /skip_tests/"
-      when: never
-    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
-    - if: "$CI_COMMIT_TAG"
-  variables:
-    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: docker-proxy.artifactory.tcsbank.ru/
-    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
-  cache:
-    <<: *global_cache
-
-
 
 workflow:
   rules:
@@ -62,35 +28,24 @@ workflow:
     - if: "$CI_COMMIT_BRANCH == 'stable'"
     - if: "$CI_COMMIT_TAG"
 
-
-
-
-get-version:
+test:
+  services:
+    - name: $REGISTRY/testops/kuber-api:latest
+    - name: $REGISTRY/testops/kuber-api-vector:latest
   image: $BUILDER_IMAGE
-  stage: compute-version
+  stage: test
   script:
-    - mvn help:evaluate -Dexpression=project.version -q -DforceStdout
-    - echo "LIB_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" > envs
-    - cat envs
-  artifacts:
-    reports:
-      dotenv:
-        - envs
+    - mvn test
   rules:
+    - if: "$CI_COMMIT_MESSAGE =~ /skip_tests/"
+      when: never
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
     - if: "$CI_COMMIT_BRANCH == 'stable'"
+  variables:
+    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: docker-proxy.artifactory.tcsbank.ru/
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   cache:
     <<: *global_cache
-
-create-tag:
-  extends: .pepe
-  stage: release
-  script:
-    - echo "LIB_VERSION=$LIB_VERSION"
-    - pepe please create-tag --project $CI_PROJECT_ID --new-tag=$LIB_VERSION $DP_ARTIFACTORY  out.json
-  needs:
-    - get-version
-  rules:
-    - if: "$CI_COMMIT_BRANCH == 'stable'"
 
 deploy:
   image: $BUILDER_IMAGE
@@ -101,7 +56,7 @@ deploy:
   script:
     - mvn deploy -Dmaven.test.skip=true --activate-profiles $ACTIVATE_PROFILES
   rules:
-    - if: "$CI_COMMIT_TAG"
+    - if: "$CI_COMMIT_BRANCH == 'stable'"
   cache:
     <<: *global_cache
 
