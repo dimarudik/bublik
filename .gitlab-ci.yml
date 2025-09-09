@@ -3,8 +3,8 @@
 variables:
   REGISTRY: docker-hosted.artifactory.tcsbank.ru
   BUILDER_IMAGE: docker-hosted.artifactory.tcsbank.ru/bigops-sre/infra/maven21-gitlab-builder:latest
-  MVN_HOSTED_URL: https://artifactory.tcsbank.ru/artifactory/maven-snapshots-hosted/
-  MVN_HOSTED_NAME: tinkoff-maven-snapshots-hosted
+  MVN_HOSTED_URL: https://artifactory.tcsbank.ru/artifactory/maven-releases-hosted
+  MVN_HOSTED_NAME: tinkoff-maven-releases-hosted
   ACTIVATE_PROFILES: "all"
 
 cache: &global_cache
