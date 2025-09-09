@@ -106,6 +106,8 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
     public DriverConfigLoader getConfigLoader(Properties properties) {
         return DriverConfigLoader
                 .programmaticBuilder()
+//                .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, 8)
+//                .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, 8)
                 .withDuration(DefaultDriverOption.REQUEST_TIMEOUT,
                         Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
                 .build();

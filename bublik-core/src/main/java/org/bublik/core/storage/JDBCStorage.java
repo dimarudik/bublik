@@ -102,16 +102,14 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         targetStorage.createOutbox();
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
+        targetStorage.setTables(sourceTables);
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
             JDBCStorage sourceJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
-            if (sourceJDBCStorage.getMajorStorageVersion(sourceConnection) >= 14) {
-                sourceJDBCStorage.enrichSourceTables(sourceConnection, sourceTables);
-                sourceJDBCStorage.enrichTargetTables(sourceTables);
-                targetStorage.setTables(sourceTables);
-                targetJDBCStorage.createTables();
-            }
+            sourceJDBCStorage.enrichSourceTables(sourceConnection, sourceTables);
+            sourceJDBCStorage.enrichTargetTables(sourceTables);
+            targetJDBCStorage.createTables();
         }
 
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);

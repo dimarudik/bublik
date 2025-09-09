@@ -170,7 +170,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     chunk);
         }
 
-        Map<String, Column> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
+        Map<String, Column> columnToColumnMap = readTargetColumnsAndTypes(connectionTo, chunk);
+//        columnToColumnMap.forEach((k, v) -> log.info("Column to copy: {} -> {}:{}", k, v.getColumnName(), v.getColumnType()));
 //        neededColumnsToDB.forEach((s, pgColumn) -> System.out.println(s + " " + pgColumn.getColumnName() + ":" + pgColumn.getColumnType()));
         Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
 
@@ -183,7 +184,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 */
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
 
-        String[] columnNames = neededColumnsToDB
+        String[] columnNames = columnToColumnMap
                 .values()
                 .stream()
                 .map(Column::getColumnName)
@@ -200,6 +201,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .toArray(String[]::new);
 */
         String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
+//        log.info("Here... {}", columnNames.length);
+//        Arrays.stream(cNames).forEach(c -> log.info("Column for COPY: {}", c));
 //        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
 //        System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
         SimpleRowWriter.Table table =
@@ -210,7 +213,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         Consumer<SimpleRow> simpleRowConsumer =
             s -> {
                 try {
-                    simpleRowConsume(s, neededColumnsToDB, neededColumnsFromMany,
+                    simpleRowConsume(s, columnToColumnMap, neededColumnsFromMany,
                             fetchResultSet, chunk, connectionTo, writer);
                 } catch (BinaryWriteFailedException | SQLException e) {
                     log.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
@@ -480,7 +483,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     try {
                         Object s = fetchResultSet.getObject(sourceColumn);
                         if (s == null) {
-                            row.setVarCharArray(targetColumn, null);
+                            row.setVarCharArray(targetColumn, new ArrayList<>());
                             break;
                         }
                         List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
@@ -1036,7 +1039,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
-//        Map<Table, Table> tables = getTables();
         try {
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table sourceTable = entry.getKey();
