@@ -15,6 +15,7 @@ cache: &global_cache
 
 stages:
   - test
+  - release
   - deploy
 
 workflow:
@@ -42,8 +43,18 @@ test:
     - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
     - if: "$CI_COMMIT_BRANCH == 'stable'"
   variables:
-    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: docker-proxy.artifactory.tcsbank.ru/
+    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: $REGISTRY/
     MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  cache:
+    <<: *global_cache
+
+release:
+  image: $BUILDER_IMAGE
+  stage: release
+  script:
+    - MVN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+    - git tag -a "v$MVN_VERSION" -m "Release v$MVN_VERSION"
+    - git push origin "v$MVN_VERSION"
   cache:
     <<: *global_cache
 
