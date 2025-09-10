@@ -495,6 +495,21 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         throw e;
                     }
                 }
+                case "_text": {
+                    try {
+                        Object s = fetchResultSet.getObject(sourceColumn);
+                        if (s == null) {
+                            row.setTextArray(targetColumn, new ArrayList<>());
+                            break;
+                        }
+                        List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
+                        row.setTextArray(targetColumn, arr);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        throw e;
+                    }
+                }
                 case "bpchar":
                     try {
                         String string = fetchResultSet.getString(sourceColumn);
