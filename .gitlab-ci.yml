@@ -54,7 +54,6 @@ get_version:
   stage: get_version
   script:
     - MVN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-    - echo "Maven Version: $MVN_VERSION"
     - echo "MVN_VERSION=$MVN_VERSION" >> version.env
   artifacts:
     reports:
