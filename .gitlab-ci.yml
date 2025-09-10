@@ -67,6 +67,8 @@ release:
     - GITLAB_AUTH="oauth2:$(dp auth print-token)"
     - GITLAB_REPO_URL=$(echo $CI_REPOSITORY_URL | sed 's#https://[^@]*@#https://'"$GITLAB_AUTH"'@#')
     - git remote set-url origin $GITLAB_REPO_URL
+    - git config --global user.email "cicd@tbank.ru"
+    - git config --global user.name "CICD"
   script:
     - git tag -a "v$MVN_VERSION" -m "Release v$MVN_VERSION"
     - git push origin "v$MVN_VERSION"
