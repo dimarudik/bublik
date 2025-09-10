@@ -97,21 +97,21 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         Connection sourceConnection = this.getConnection();
 
         Storage sourceStorage = this;
-        createChunks(sourceConnection, configs, false, rows);
-        assert targetStorage != null;
-        targetStorage.createOutbox();
+        if (rows > 0) {
+            createChunks(sourceConnection, configs, false, rows);
+            targetStorage.createOutbox();
+        }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
+        targetStorage.setTables(sourceTables);
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
-            JDBCStorage sourceJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
+            JDBCStorage sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
-            if (sourceJDBCStorage.getMajorStorageVersion(sourceConnection) >= 14) {
-                sourceJDBCStorage.enrichSourceTables(sourceConnection, sourceTables);
-                sourceJDBCStorage.enrichTargetTables(sourceTables);
-                targetStorage.setTables(sourceTables);
-                targetJDBCStorage.createTables();
-            }
+            sourceJDBCStorage.enrichSourceTables(sourceConnection);
+            log.info("{} {}", sourceStorage.getTables().hashCode(), sourceJDBCStorage.getTables().hashCode());
+            sourceJDBCStorage.enrichTargetTables();
+            targetJDBCStorage.createTables();
         }
 
         Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
@@ -146,18 +146,19 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
         Storage sourceStorage = this;
-        createChunks(sourceConnection, configs, true, rows);
-        assert targetStorage != null;
-        targetStorage.createOutbox();
+        if (rows > 0) {
+            createChunks(sourceConnection, configs, true, rows);
+            targetStorage.createOutbox();
+        }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
-            JDBCStorage sourceJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
+            JDBCStorage sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             log.info("Version source: {}", sourceJDBCStorage.getStorageVersion(sourceConnection));
             if (sourceJDBCStorage.getMajorStorageVersion(sourceConnection) >= 14) {
-                sourceJDBCStorage.enrichSourceTables(sourceConnection, sourceTables);
-                sourceJDBCStorage.enrichTargetTables(sourceTables);
+                sourceJDBCStorage.enrichSourceTables(sourceConnection);
+                sourceJDBCStorage.enrichTargetTables();
                 targetStorage.setTables(sourceTables);
                 targetJDBCStorage.createTables();
             }
@@ -200,7 +201,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     }
 
     @Override
-    public void enrichTargetTables(Map<Table, Table> tables) {
+    public void enrichTargetTables() {
+        Map<Table, Table> tables = getTables();
         for (Map.Entry<Table, Table> entry : tables.entrySet()) {
             Table sourceTable = entry.getKey();
             Table targetTable = entry.getValue();

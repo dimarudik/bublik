@@ -64,6 +64,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 dropTask.setString(1, config.fromTaskName());
                 dropTask.execute();
                 dropTask.close();
+                log.info("Dropped task {}", config.fromTaskName());
             } catch (SQLException e) {
                 log.warn("Task {} does not exist", config.fromTaskName());
             }
@@ -72,7 +73,6 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
             try {
                 CallableStatement createTask = connection.prepareCall(PLSQL_CREATE_TASK);
                 createTask.setString(1, config.fromTaskName());
-                log.info("Creating tasks... {} {}", PLSQL_CREATE_TASK, config.fromTaskName());
                 createTask.execute();
                 createTask.close();
             } catch (SQLException e) {
@@ -91,6 +91,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 createChunk.setInt(4, rows);
                 createChunk.execute();
                 createChunk.close();
+                log.info("Created chunks for task {}", config.fromTaskName());
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
                 throw e;
@@ -119,7 +120,6 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
-                String query = buildFetchStatement(config);
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new OraChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -127,7 +127,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                                 resultSet.getRowId("end_rowid"),
                                 config,
                                 sourceTable,
-                                query,
+                                null,
                                 this
                         )
                 );
@@ -217,8 +217,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
-//        Map<Table, Table> tables = getTables();
+    public void enrichSourceTables(Connection connection) {
+        Map<Table, Table> tables = getTables();
         try {
             Connection sourceConnection = getConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {

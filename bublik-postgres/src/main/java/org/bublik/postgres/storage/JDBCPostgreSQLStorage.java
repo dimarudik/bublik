@@ -47,7 +47,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
+//        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
+        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
 //        StringBuffer sb = new StringBuffer();
@@ -170,7 +171,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     chunk);
         }
 
-        Map<String, Column> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
+        Map<String, Column> columnToColumnMap = readTargetColumnsAndTypes(connectionTo, chunk);
+//        columnToColumnMap.forEach((k, v) -> log.info("Column to copy: {} -> {}:{}", k, v.getColumnName(), v.getColumnType()));
 //        neededColumnsToDB.forEach((s, pgColumn) -> System.out.println(s + " " + pgColumn.getColumnName() + ":" + pgColumn.getColumnType()));
         Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
 
@@ -183,7 +185,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 */
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
 
-        String[] columnNames = neededColumnsToDB
+        String[] columnNames = columnToColumnMap
                 .values()
                 .stream()
                 .map(Column::getColumnName)
@@ -200,6 +202,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 .toArray(String[]::new);
 */
         String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
+//        log.info("Here... {}", columnNames.length);
+//        Arrays.stream(cNames).forEach(c -> log.info("Column for COPY: {}", c));
 //        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
 //        System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
         SimpleRowWriter.Table table =
@@ -210,7 +214,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         Consumer<SimpleRow> simpleRowConsumer =
             s -> {
                 try {
-                    simpleRowConsume(s, neededColumnsToDB, neededColumnsFromMany,
+                    simpleRowConsume(s, columnToColumnMap, neededColumnsFromMany,
                             fetchResultSet, chunk, connectionTo, writer);
                 } catch (BinaryWriteFailedException | SQLException e) {
                     log.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
@@ -480,7 +484,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     try {
                         Object s = fetchResultSet.getObject(sourceColumn);
                         if (s == null) {
-                            row.setVarCharArray(targetColumn, null);
+                            row.setVarCharArray(targetColumn, new ArrayList<>());
                             break;
                         }
                         List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
@@ -890,11 +894,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 connectionTo.close();
                             }
                         } else {
-                            log.error("tryCharIfAny is NULL for type: {}  for column: {}", targetType, targetColumn);
-                            throw new RuntimeException();
+                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(),
+                                    targetType, targetColumn);
+                            throw new RuntimeException("Unsupported type: " + targetType);
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(),
+                                targetType, targetColumn, getStackTrace(e));
                         throw e;
                     }
             }
@@ -1035,27 +1041,31 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
-//        Map<Table, Table> tables = getTables();
+    public void enrichSourceTables(Connection connection) {
+        Map<Table, Table> tables = getTables();
         try {
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table sourceTable = entry.getKey();
                 List<Column> allSourceColumns = sourceTable.getAllColumns(connection);
+                sourceTable.setColumns(allSourceColumns);
+
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(connection);
+                sourceTable.setPkColumns(sourcePKColumns);
+
                 if (getMajorStorageVersion(connection) >= 14) {
                     List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(connection);
                     sourceTable.setUniqueConstraints(uniqueConstraints);
                 }
-                List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
-                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
-                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(connection);
 
+                List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
+                sourceTable.setIndexes(sourceIndexes);
+
+                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
+                sourceTable.setForeignKeys(foreignKeys);
+
+                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(connection);
                 sourceTable.setId(options.getKey());
                 sourceTable.setOptions(options.getValue());
-                sourceTable.setColumns(allSourceColumns);
-                sourceTable.setPkColumns(sourcePKColumns);
-                sourceTable.setIndexes(sourceIndexes);
-                sourceTable.setForeignKeys(foreignKeys);
             }
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
