@@ -1,62 +1,7 @@
 ---
+.include-ref: &include-ref "master"
 
-variables:
-  REGISTRY: docker-hosted.artifactory.tcsbank.ru
-  BUILDER_IMAGE: docker-hosted.artifactory.tcsbank.ru/bigops-sre/infra/maven21-gitlab-builder:latest
-  MVN_HOSTED_URL: https://artifactory.tcsbank.ru/artifactory/maven-releases-hosted
-  MVN_HOSTED_NAME: tinkoff-maven-releases-hosted
-  ACTIVATE_PROFILES: "all"
-
-cache: &global_cache
-  key: "$CI_PROJECT_NAME-$CI_JOB_NAME"
-  paths:
-    - .m2/repository
-  policy: pull-push
-
-stages:
-  - test
-  - deploy
-
-workflow:
-  rules:
-    - if: "$CI_PIPELINE_SOURCE == 'web' && $CI_COMMIT_TAG"
-    - if: "$CI_PIPELINE_SOURCE == 'web'"
-      when: never
-    - if: "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
-      when: never
-    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
-    - if: "$CI_COMMIT_BRANCH == 'stable'"
-    - if: "$CI_COMMIT_TAG"
-
-test:
-  services:
-    - name: $REGISTRY/testops/kuber-api:latest
-    - name: $REGISTRY/testops/kuber-api-vector:latest
-  image: $BUILDER_IMAGE
-  stage: test
-  script:
-    - mvn test
-  rules:
-    - if: "$CI_COMMIT_MESSAGE =~ /skip_tests/"
-      when: never
-    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
-    - if: "$CI_COMMIT_BRANCH == 'stable'"
-  variables:
-    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: docker-proxy.artifactory.tcsbank.ru/
-    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
-  cache:
-    <<: *global_cache
-
-deploy:
-  image: $BUILDER_IMAGE
-  stage: deploy
-  before_script:
-    - dp auth service-acc --key-file $DP_ARTIFACTORY
-    - dp auth configure-maven --ci
-  script:
-    - mvn deploy -Dmaven.test.skip=true --activate-profiles $ACTIVATE_PROFILES
-  rules:
-    - if: "$CI_COMMIT_BRANCH == 'stable'"
-  cache:
-    <<: *global_cache
-
+include:
+  - project: "bublik/pipelines"
+    ref: *include-ref
+    file: "bpipeline.yml"
