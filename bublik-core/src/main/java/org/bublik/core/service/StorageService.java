@@ -38,6 +38,9 @@ public interface StorageService {
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) {
         try {
             StorageClass storageClass = StorageService.getStorageClass(properties);
+            if (storageClass == null) {
+                return StorageService.reflectStorage(CASSANDRA_STORAGE_CLASS_NAME, properties, connectionProperty);
+            }
             try {
                 if (storageClass instanceof JDBCStorageClass) {
                     Driver driver = DriverManager.getDriver(properties.getProperty("url"));
@@ -61,11 +64,11 @@ public interface StorageService {
     }
 
     static StorageClass getStorageClass(Properties properties) throws SQLException {
-        String className = properties.getProperty("className");
+        String className = properties.getProperty("type");
         if (className != null ) {
             return null;
         } else {
-            Driver driver = DriverManager.getDriver(properties.getProperty("url"));
+//            Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return new JDBCStorageClass(Connection.class, properties);
         }
     }

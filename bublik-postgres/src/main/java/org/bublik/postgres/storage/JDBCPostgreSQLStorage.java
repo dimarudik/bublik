@@ -47,7 +47,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
+//        Map<Integer, Chunk<?>> chunkHashMap = new TreeMap<>();
+        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
 //        StringBuffer sb = new StringBuffer();
@@ -893,11 +894,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 connectionTo.close();
                             }
                         } else {
-                            log.error("tryCharIfAny is NULL for type: {}  for column: {}", targetType, targetColumn);
-                            throw new RuntimeException();
+                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(),
+                                    targetType, targetColumn);
+                            throw new RuntimeException("Unsupported type: " + targetType);
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(),
+                                targetType, targetColumn, getStackTrace(e));
                         throw e;
                     }
             }
@@ -1038,26 +1041,31 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
+    public void enrichSourceTables(Connection connection) {
+        Map<Table, Table> tables = getTables();
         try {
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table sourceTable = entry.getKey();
                 List<Column> allSourceColumns = sourceTable.getAllColumns(connection);
+                sourceTable.setColumns(allSourceColumns);
+
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(connection);
+                sourceTable.setPkColumns(sourcePKColumns);
+
                 if (getMajorStorageVersion(connection) >= 14) {
                     List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(connection);
                     sourceTable.setUniqueConstraints(uniqueConstraints);
                 }
-                List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
-                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
-                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(connection);
 
+                List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
+                sourceTable.setIndexes(sourceIndexes);
+
+                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
+                sourceTable.setForeignKeys(foreignKeys);
+
+                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(connection);
                 sourceTable.setId(options.getKey());
                 sourceTable.setOptions(options.getValue());
-                sourceTable.setColumns(allSourceColumns);
-                sourceTable.setPkColumns(sourcePKColumns);
-                sourceTable.setIndexes(sourceIndexes);
-                sourceTable.setForeignKeys(foreignKeys);
             }
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));

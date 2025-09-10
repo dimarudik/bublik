@@ -19,8 +19,8 @@ public interface JDBCStorageService extends StorageService {
     void createForeignKeys();
     String getStorageVersion(Connection connection) throws SQLException;
     int getMajorStorageVersion(Connection connection) throws SQLException;
-    void enrichSourceTables(Connection connection, Map<Table, Table> tables);
-    void enrichTargetTables(Map<Table, Table> tables);
+    void enrichSourceTables(Connection connection);
+    void enrichTargetTables();
     <T extends Serializable> byte[] intervalYM2Interval(T intervalym);
     <T extends Serializable> byte[] intervalDS2Interval(T intervalds);
 }

@@ -354,7 +354,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void enrichSourceTables(Connection connection, Map<Table, Table> tables) {
+    public void enrichSourceTables(Connection connection) {
 
     }
 
