@@ -15,6 +15,7 @@ cache: &global_cache
 
 stages:
   - test
+  - get_version
   - release
   - deploy
 
@@ -48,15 +49,28 @@ test:
   cache:
     <<: *global_cache
 
-release:
+get_version:
   image: $BUILDER_IMAGE
-  stage: release
+  stage: get_version
   script:
     - MVN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+    - echo "Maven Version: $MVN_VERSION"
+    - echo "MVN_VERSION=$MVN_VERSION" >> version.env
+  artifacts:
+    reports:
+      dotenv: version.env
+
+release:
+  image: docker-hosted.artifactory.tcsbank.ru/cicd-images/base-jammy:latest
+  stage: release
+  before_script:
+    - dp auth service-acc --key-file $DP_ARTIFACTORY
+    - GITLAB_AUTH="oauth2:$(dp auth print-token)"
+    - GITLAB_REPO_URL=$(echo $CI_REPOSITORY_URL | sed 's#https://[^@]*@#https://'"$GITLAB_AUTH"'@#')
+    - git remote set-url origin $GITLAB_REPO_URL
+  script:
     - git tag -a "v$MVN_VERSION" -m "Release v$MVN_VERSION"
     - git push origin "v$MVN_VERSION"
-  cache:
-    <<: *global_cache
 
 deploy:
   image: $BUILDER_IMAGE
