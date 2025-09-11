@@ -250,7 +250,8 @@ create table public.p_src (
     name text,
     amount bigint,
     shard_key int,
-    names varchar(30)[]
+    names varchar(30)[],
+    texts text[]
 ) partition by range (created);
 alter table public.p_src add primary key (id, created);
 create table public.p_src_def partition of public.p_src default;
@@ -259,13 +260,14 @@ create table public.p_src_202510 partition of public.p_src for values from ('202
 create table public.p_src_202511 partition of public.p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
 create table public.p_src_202512 partition of public.p_src for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59');
 
-insert into public.p_src (id, created, name, amount, shard_key, names)
+insert into public.p_src (id, created, name, amount, shard_key, names, texts)
     select num as id,
             timestamp '2025-08-15 00:00:00' + random() * (timestamp '2025-12-31 23:59:59' - timestamp '2025-09-01 00:00:00') as created,
             'Name ' || substr(md5(random()::text), 1, 10) as name,
             floor(random() * 1000000)::bigint as amount,
             random() * 1 as shard_key,
-            array['A:' || substr(md5(random()::text), 1, 10),'B:' || substr(md5(random()::text), 1, 10),'C:' || substr(md5(random()::text), 1, 10)] as names
+            case when num % 10 = 0 then array['A:' || substr(md5(random()::text), 1, 10),'B:' || substr(md5(random()::text), 1, 10),'C:' || substr(md5(random()::text), 1, 10)] else null end as names,
+            case when num % 10 = 0 then array['D:' || substr(md5(random()::text), 1, 10),'E:' || substr(md5(random()::text), 1, 10),'F:' || substr(md5(random()::text), 1, 10)] else null end as texts
     from generate_series(1, 100000) as num;
 
 
@@ -275,7 +277,8 @@ create table public.p_trg (
     name text,
     amount bigint,
     shard_key int,
-    names varchar(30)[]
+    names varchar(30)[],
+    texts text[]
 ) partition by range (created);
 alter table public.p_trg add primary key (id, created, shard_key);
 create table public.p_trg_def partition of public.p_trg default partition by list (shard_key);

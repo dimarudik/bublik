@@ -37,6 +37,11 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
+    public String buildFetchStatement(Config config, Table sourceTable) {
+        return buildFetchStatement(config);
+    }
+
+    @Override
     public String buildFetchStatement(Config config) {
         return "";
     }
@@ -74,8 +79,8 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        return Map.of();
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+        return List.of();
     }
 
     @Override

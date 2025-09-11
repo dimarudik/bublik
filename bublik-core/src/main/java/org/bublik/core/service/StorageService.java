@@ -24,11 +24,13 @@ public interface StorageService {
     void start(List<Config> configs, boolean sync, int rows, Storage targetStorage) throws SQLException;
     void createChunks(Connection connection, List<Config> configs, boolean sync, int rows) throws SQLException;
     void createOutbox() throws SQLException;
-    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
+    List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException;
+//    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config);
+    String buildFetchStatement(Config config, Table sourceTable);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk);
     Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
     Table configToTable(String schemaName, String tableName);

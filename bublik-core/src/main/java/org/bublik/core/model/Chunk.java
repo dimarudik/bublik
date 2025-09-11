@@ -184,7 +184,13 @@ public abstract class Chunk<T> implements ChunkService {
     @Override
     public Chunk<?> assignSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-        String q = getSourceStorage().buildFetchStatement(getConfig());
+        String q; // = getSourceStorage().buildFetchStatement(getConfig());
+        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+            q = getSourceStorage().buildFetchStatement(config, getSourceTable());
+        } else {
+            q = getSourceStorage().buildFetchStatement(config);
+        }
+
         ResultSet resultSet = getData(getSourceConnection(), q);
 //        ResultSet resultSet = getData(getSourceConnection(), getFetchQuery());
         setResultSet(resultSet);

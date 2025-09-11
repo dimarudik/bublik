@@ -149,8 +149,8 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
     }
 
     @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        return Map.of();
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+        return List.of();
     }
 
     @Override
@@ -163,6 +163,11 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
         for (CqlSession cqlSession : sessionMap.keySet()) {
             closeCqlSession(cqlSession);
         }
+    }
+
+    @Override
+    public String buildFetchStatement(Config config, Table sourceTable) {
+        return buildFetchStatement(config);
     }
 
     @Override

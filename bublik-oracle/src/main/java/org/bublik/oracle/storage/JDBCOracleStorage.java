@@ -106,8 +106,9 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException {
-        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+//        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
+        List<Chunk<?>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
@@ -120,6 +121,18 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
+                chunkHashMap.add(
+                        new OraChunk<>(
+                                resultSet.getInt("chunk_id"),
+                                resultSet.getRowId("start_rowid"),
+                                resultSet.getRowId("end_rowid"),
+                                config,
+                                sourceTable,
+                                null,
+                                this
+                        )
+                );
+/*
                 chunkHashMap.put(resultSet.getInt("rownum"),
                         new OraChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -131,6 +144,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                                 this
                         )
                 );
+*/
             }
         }
         resultSet.close();
@@ -154,6 +168,11 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
         String part2 = tmpPart2 + String.join(" union all \n" + tmpPart2, taskAndWhere);
         String part3 = "\n\t) order by ora_hash(concat(task_name,start_rowid)) \n) order by 1";
         return  part1 + part2 + part3;
+    }
+
+    @Override
+    public String buildFetchStatement(Config config, Table sourceTable) {
+        return buildFetchStatement(config);
     }
 
     @Override
