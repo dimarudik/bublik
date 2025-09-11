@@ -74,6 +74,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         statement.setRowId(1, this.getStart());
         statement.setRowId(2, this.getEnd());
         statement.setFetchSize(10000);
+        setPreparedStatement(statement);
         return statement.executeQuery();
     }
 

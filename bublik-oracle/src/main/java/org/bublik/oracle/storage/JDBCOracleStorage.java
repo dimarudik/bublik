@@ -1,23 +1,20 @@
 package org.bublik.oracle.storage;
 
-import oracle.jdbc.driver.DatabaseError;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
 import org.bublik.core.constants.PGKeywords;
-import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.model.*;
-import org.bublik.oracle.model.OraChunk;
-import org.bublik.oracle.model.OraTable;
 import org.bublik.core.service.JDBCStorageService;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
+import org.bublik.oracle.model.OraChunk;
+import org.bublik.oracle.model.OraTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

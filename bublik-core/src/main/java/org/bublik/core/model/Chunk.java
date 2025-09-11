@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -27,6 +28,7 @@ public abstract class Chunk<T> implements ChunkService {
     private Connection targetConnection;
     private LogMessage logMessage;
     private ResultSet resultSet;
+    private PreparedStatement preparedStatement;
     private int rows;
     private String batchInsertQuery;
     private int upserted;
@@ -119,6 +121,14 @@ public abstract class Chunk<T> implements ChunkService {
         this.resultSet = resultSet;
     }
 
+    public PreparedStatement getPreparedStatement() {
+        return preparedStatement;
+    }
+
+    public void setPreparedStatement(PreparedStatement preparedStatement) {
+        this.preparedStatement = preparedStatement;
+    }
+
     public void setTargetStorage(Storage targetStorage) {
         this.targetStorage = targetStorage;
     }
@@ -184,26 +194,23 @@ public abstract class Chunk<T> implements ChunkService {
     @Override
     public Chunk<?> assignSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-        String q; // = getSourceStorage().buildFetchStatement(getConfig());
+        String q;
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
             q = getSourceStorage().buildFetchStatement(config, getSourceTable());
         } else {
             q = getSourceStorage().buildFetchStatement(config);
         }
-
         ResultSet resultSet = getData(getSourceConnection(), q);
-//        ResultSet resultSet = getData(getSourceConnection(), getFetchQuery());
         setResultSet(resultSet);
         return this;
     }
 
-    public Chunk<?> copyChunk(boolean sync) throws SQLException {
+    public Chunk<?> copyChunk(boolean sync) throws Exception {
         this
                 .assignSourceConnection()
                 .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-//                .saveConfig(sync)
                 .saveChunkRows(getRows(), sync)
                 .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
                 .closeChunkSourceConnection(sync);
@@ -221,7 +228,6 @@ public abstract class Chunk<T> implements ChunkService {
                 .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-//                .saveConfig(sync)
                 .saveChunkRows(getRows(), sync)
                 .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
                 .closeChunkSourceConnection(sync);
@@ -233,8 +239,8 @@ public abstract class Chunk<T> implements ChunkService {
         try {
             LogMessage logMessage = this.getTargetStorage().transferToTarget(this);
             this.setLogMessage(logMessage);
-            ResultSet resultSet = this.getResultSet();
-            resultSet.close();
+            getResultSet().close();
+            getPreparedStatement().close();
             return this;
         } catch (SQLException | RuntimeException e) {
             this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));

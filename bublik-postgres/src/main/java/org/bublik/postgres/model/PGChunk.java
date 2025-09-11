@@ -119,6 +119,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         statement.setLong(1, this.getStart());
         statement.setLong(2, this.getEnd());
         statement.setFetchSize(10000);
+        setPreparedStatement(statement);
         return statement.executeQuery();
     }
 

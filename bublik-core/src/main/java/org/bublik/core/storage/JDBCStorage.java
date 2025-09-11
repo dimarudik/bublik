@@ -114,10 +114,10 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             targetJDBCStorage.createTables();
         }
 
-//        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
-//        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         List<Chunk<?>> chunks = getChunkList(configs, sourceConnection);
         sourceConnection.close();
+
+
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         chunks.forEach(chunk -> service
                 .submit(() -> {
@@ -168,8 +168,6 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
 
-//        Map<Integer, Chunk<?>> chunkMap = getChunkMap(configs, sourceConnection);
-//        List<Chunk<?>> chunks = new ArrayList<>(chunkMap.values());
         List<Chunk<?>> chunks = getChunkList(configs, sourceConnection);
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
