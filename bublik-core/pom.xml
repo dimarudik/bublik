@@ -6,10 +6,10 @@
     <parent>
       <groupId>bublik</groupId>
       <artifactId>bublik-parent</artifactId>
-      <version>25.1.7</version>
+      <version>25.1.8</version>
     </parent>
     <artifactId>bublik-core</artifactId>
-    <version>25.1.7</version>
+    <version>25.1.8</version>
     <packaging>jar</packaging>
 
 

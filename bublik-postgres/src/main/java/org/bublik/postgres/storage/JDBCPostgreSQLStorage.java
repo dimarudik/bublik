@@ -1086,8 +1086,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     sourceTable.setUniqueConstraints(uniqueConstraints);
                 }
 
+/*
                 List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
                 sourceTable.setIndexes(sourceIndexes);
+*/
 
                 List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
                 sourceTable.setForeignKeys(foreignKeys);
