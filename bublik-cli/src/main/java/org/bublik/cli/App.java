@@ -144,6 +144,8 @@ public class App {
             log.info("THREADS: {}", property.getThreadCount());
             log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
             log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
+            log.info("TARGET: {}", property.getToProperty().getProperty("url"));
+            log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
             List<Config> configs =
                     List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),

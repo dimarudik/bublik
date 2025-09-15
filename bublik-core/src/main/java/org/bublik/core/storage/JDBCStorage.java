@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.bublik.core.util.Utils.getStackTrace;
 
@@ -119,25 +120,45 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        chunks.forEach(chunk -> service
-                .submit(() -> {
-                    chunk.setTargetStorage(targetStorage);
-                    try {
-                        return chunk.copyChunk(false);
-                    } catch (Exception e) {
-                        log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
-                        try {
-                            if (chunk.getSourceConnection().isValid(0)) {
-                                chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
-                                chunk.getSourceConnection().close();
+        List<Future<Chunk<?>>> futures = new ArrayList<>();
+
+
+        chunks.forEach(chunk -> futures.add(
+                service
+                        .submit(() -> {
+                            chunk.setTargetStorage(targetStorage);
+                            try {
+                                return chunk.copyChunk(false);
+                            } catch (Exception e) {
+                                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                                try {
+                                    if (chunk.getSourceConnection().isValid(0)) {
+                                        chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
+                                        chunk.getSourceConnection().close();
+                                    }
+                                } catch (SQLException exception) {
+                                    log.error("{}", getStackTrace(exception));
+                                }
+                                throw e;
                             }
-                        } catch (SQLException exception) {
-                            log.error("{}", getStackTrace(exception));
-                        }
-                        throw e;
-                    }
-                })
+                        })
+                )
         );
+
+        for (Future<?> future : futures) {
+            try {
+                Chunk<?> c = (Chunk<?>) future.get();
+                Thread.sleep(100);
+//                log.info("Chunk {} finished", c.getId());
+            } catch (Exception e) {
+                log.error("{}", getStackTrace(e));
+//                targetStorage.closeStorage();
+//                this.closeStorage();
+                service.shutdownNow();
+                throw new RuntimeException(e);
+            }
+        }
+
         service.shutdown();
         service.close();
     }

@@ -512,8 +512,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     try {
                         Object s = fetchResultSet.getObject(sourceColumn);
                         if (s == null) {
-                            row.setTextArray(targetColumn, new ArrayList<>());
-//                            row.setTextArray(targetColumn, null);
+                            row.setTextArray(targetColumn, null);
                             break;
                         }
                         List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
