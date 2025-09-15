@@ -11,6 +11,10 @@
     <artifactId>bublik-cli</artifactId>
     <version>${project.parent.version}</version>
     <packaging>jar</packaging>
+    <properties>
+        <testcontainers.version>1.21.3</testcontainers.version>
+    </properties>
+
 
     <dependencies>
         <!-- apache commons -->
@@ -41,11 +45,26 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+
         <!--        bublik -->
         <dependency>
             <groupId>bublik</groupId>
             <artifactId>bublik-core</artifactId>
             <version>${project.parent.version}</version>
+        </dependency>
+        <!-- JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.13.4</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- PostgreSQL Testcontainer -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <modules>

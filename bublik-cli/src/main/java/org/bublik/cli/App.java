@@ -136,7 +136,7 @@ public class App {
         }
     }
 
-    private static void runProcess(ConnectionProperty property,
+    public static void runProcess(ConnectionProperty property,
                                    String mappingDefFileName,
                                    int rowsParameter,
                                    boolean sync) {

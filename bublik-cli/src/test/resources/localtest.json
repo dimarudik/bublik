@@ -1,0 +1,15 @@
+[
+  {
+    "fromSchemaName" : "PUBLIC",
+    "fromTableName" : "test_table",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "test_table",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "SOURCE_TASK",
+        "columnToColumn" : {
+      "id"            : "id",
+      "name"          : "name",
+      "created_at"   : "created_at"
+    }
+  }
+]
