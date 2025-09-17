@@ -48,26 +48,28 @@ public class TestUtils {
                                 JdbcDatabaseContainer<?> target) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
-        Config c = configs.getFirst();
+        Config config = configs.getFirst();
 
         App.runProcess(cp, configs, rows, sync);
 
-        Long sourceCount = TestUtils.countRows(source, c.fromSchemaName() + "." + c.fromTableName());
-        Long targetCount = TestUtils.countRows(target,
-                (c.toSchemaName() == null ? c.fromSchemaName() : c.toSchemaName())
+        String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
+                config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
+        String toQuery = getQuery(
+                (config.toSchemaName() == null ? config.fromSchemaName() : config.toSchemaName())
                         + "."
-                        + (c.toTableName() == null ? c.fromTableName() : c.toTableName()) );
+                        + (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
+                " 1 = 1 ");
+        Long sourceCount = TestUtils.countRows(source, fromQuery);
+        Long targetCount = TestUtils.countRows(target, toQuery);
         return new TestResult(sourceCount, targetCount);
     }
 
-    public static Long countRows(JdbcDatabaseContainer db, String tableName){
+    public static Long countRows(JdbcDatabaseContainer db, String query){
         String jdbcUrl = db.getJdbcUrl();
         String username = db.getUsername();
         String password = db.getPassword();
         try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
             Statement statement = connection.createStatement();
-            String query = "SELECT count(1) from " + tableName;
-//            log.info("Executing query: {}", query);
             ResultSet resultSet = statement.executeQuery(query);
             resultSet.next();
             return resultSet.getLong(1);
@@ -75,5 +77,9 @@ public class TestUtils {
         catch (SQLException e){
             throw new RuntimeException(e);
         }
+    }
+
+    private static String getQuery(String tableName, String whereClause) {
+        return "SELECT count(1) from " + tableName + " where " + whereClause;
     }
 }
