@@ -6,7 +6,7 @@
 
     <groupId>bublik</groupId>
     <artifactId>bublik-parent</artifactId>
-    <version>25.1.8</version>
+    <version>25.1.9</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -61,5 +61,4 @@
       <module>bublik-cassandra</module>
       <module>bublik-cli</module>
     </modules>
-    
 </project>

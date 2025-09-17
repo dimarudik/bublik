@@ -1,4 +1,4 @@
-create role test with login superuser password 'test';
+--create role test with login superuser password 'test';
 create schema if not exists test;
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
@@ -20,7 +20,7 @@ create table test.table1 (
     current_mood mood,
     currency_name varchar(256)
 );
-create table "TABLE2" (
+create table public."TABLE2" (
     id bigint,
     create_at timestamp(6) with time zone,
     level character varying(255),
@@ -31,7 +31,7 @@ create table "TABLE2" (
     "CaseSensitive" varchar(20),
     tstzrange tstzrange
 );
-create table table3 (
+create table public.table3 (
     id bigint,
     create_at timestamp(6) with time zone,
     level character varying(255),
@@ -48,7 +48,7 @@ create table table3 (
     current_mood mood,
     currency_name varchar(256)
 );
-create table "Source" (
+create table public."Source" (
     id int primary key generated always as identity,
     uuid uuid,
     "Primary" varchar(256),
@@ -68,13 +68,13 @@ create table "Source" (
     current_mood mood,
     time time
 );
-create table token (
+create table public.token (
     id int,
     tr_begin bigint,
     tr_end bigint,
     token bigint
 );
-create table target as
+create table public.target as
 select
     id,
     uuid,
@@ -94,120 +94,122 @@ select
     image,
     current_mood,
     time as time
- from "Source" where 0 = 1;
-alter table target add column gender gender;
-create table parted (
+ from public."Source" where 0 = 1;
+alter table public.target add column gender gender;
+create table public.parted (
     id bigint,
     create_at timestamp(6) not null,
     name varchar(1000));
-create table noc2c1 (
+create table public.noc2c1 (
     id bigint primary key generated always as identity,
     name varchar);
-create table noc2c2 (
+create table public.noc2c2 (
     id bigint,
     name varchar);
-create table intervals (
+create table public.intervals (
   id             int,
   time_period_1  INTERVAL,
   time_period_2  INTERVAL,
   time_period_3  INTERVAL,
   time_period_4  INTERVAL DAY TO SECOND(6)
 );
-create table sec_plain_text (
-    id bigint primary key generated always as identity,
-    pan varchar(25),
-    first_name varchar(256),
-    last_name varchar(256),
-    expired date,
-    pan_decrypted varchar(1024),
-    all_decrypted varchar(1024)
-);
-create table sec_encrypted (
-    id bigint,
-    first_name varchar(256),
-    last_name varchar(256),
-    expired date,
-    pan_encrypted_data varchar(512),
-    pan_encryption_metadata jsonb,
-    all_encrypted_data varchar(512),
-    all_encryption_metadata jsonb,
-    last_name_encrypted_data jsonb
-);
+--create table public.sec_plain_text (
+--    id bigint primary key generated always as identity,
+--    pan varchar(25),
+--    first_name varchar(256),
+--    last_name varchar(256),
+--    expired date,
+--    pan_decrypted varchar(1024),
+--    all_decrypted varchar(1024)
+--);
+--create table public.sec_encrypted (
+--    id bigint,
+--    first_name varchar(256),
+--    last_name varchar(256),
+--    expired date,
+--    pan_encrypted_data varchar(512),
+--    pan_encryption_metadata jsonb,
+--    all_encrypted_data varchar(512),
+--    all_encryption_metadata jsonb,
+--    last_name_encrypted_data jsonb
+--);
 
-insert into "Source" (uuid, "Primary", boolean,
+insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
-        date, timestamp, timestamptz, description, image, current_mood, time)
+        date, timestamp, timestamptz, description
+--        , image
+        , current_mood, time)
     select gen_random_uuid() as uuid, 'PostgreSQL ' || n as name,
         case when mod(n, 2) = 0 then false else true end as boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
-        rpad('PostgreSQL', 1000, '*') as description,
-        case when mod(n, 1000) = 0 then pg_read_binary_file('/var/lib/postgresql/bublik.png')::bytea end image,
-        case
+        rpad('PostgreSQL', 1000, '*') as description
+--        ,case when mod(n, 1000) = 0 then pg_read_binary_file('/var/lib/postgresql/bublik.png')::bytea end image
+        ,case
             when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
             else null end as current_mood,
         now() as time
-    from generate_series(1, 100000) as n;
-insert into "Source" (uuid, "Primary", boolean,
+    from generate_series(1, 50000) as n;
+insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, current_mood, time)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
-        rpad('PostgreSQL', 1000, '*') description,
+        rpad('PostgreSQL', 100, '*') description,
         case
             when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
             when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
             else null end as current_mood,
         now() time
-    from generate_series(1,900000) as n;
+    from generate_series(1,500000) as n;
 
-analyze "Source" ;
+analyze public."Source" ;
 
-insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400010107395', 'NELSON', 'MANDELA', current_date);
-insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400021325252', 'CHE', 'GUEVARA', current_date);
+--insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400010107395', 'NELSON', 'MANDELA', current_date);
+--insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400021325252', 'CHE', 'GUEVARA', current_date);
 --vacuum "Source";
-insert into noc2c1 (name)
-    select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;
+--insert into noc2c1 (name)
+--    select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;
 
-create table vacuum_me (
-    id int primary key generated always as identity,
-    uuid uuid,
-    boolean boolean,
-    int2 int2,
-    int4 int4,
-    int8 int8,
-    smallint smallint,
-    bigint bigint,
-    float8 float8,
-    date date,
-    timestamp timestamp,
-    timestamptz timestamptz
-);
+--create table vacuum_me (
+--    id int primary key generated always as identity,
+--    uuid uuid,
+--    boolean boolean,
+--    int2 int2,
+--    int4 int4,
+--    int8 int8,
+--    smallint smallint,
+--    bigint bigint,
+--    float8 float8,
+--    date date,
+--    timestamp timestamp,
+--    timestamptz timestamptz
+--);
 
-create table users (
+create table public.users (
     id int,
     user_name varchar,
     email varchar,
     touch_count int default 0,
     last_update timestamp,
     primary key (id));
-create unique index on users (user_name);
-create unique index on users (user_name, email);
+create unique index on public.users (user_name);
+create unique index on public.users (user_name, email);
 
-create table items (
+create table public.items (
     id int,
     item_name varchar,
     description text,
     touch_count int default 0,
     last_update timestamp,
     primary key (id));
-create unique index on items (item_name);
+create unique index on public.items (item_name);
 
-create table likes (
+create table public.likes (
     id int generated by default as identity,
     user_id int references users,
     item_id int references items,
@@ -215,9 +217,9 @@ create table likes (
     r char(200),
     last_update timestamp,
     primary key (id));
-create unique index on likes (user_id, item_id);
+create unique index on public.likes (user_id, item_id);
 
-insert into users (id, user_name, email)
+insert into public.users (id, user_name, email)
     select id, user_name,
         user_name || '@' ||
                (case (random() * 3)::integer
@@ -231,21 +233,21 @@ insert into users (id, user_name, email)
         from generate_series(1, 100000) as num
         );
 
-insert into items (id, item_name, description)
+insert into public.items (id, item_name, description)
     select num as id,
            'Item ' || substr(md5(random()::text), 1, 10) as item_name,
            'Description ' || substr(md5(random()::text), 1, 30) as description
     from generate_series(1, 100000) as num;
 
-insert into likes (id, user_id, item_id, r)
+insert into public.likes (id, user_id, item_id, r)
     select num as id,
        floor(random() * 100000 + 1)::int as user_id,
        floor(random() * 100000 + 1)::int as item_id,
-       rpad('Bublik is the best tool for migration ',100,'*') as r
-    from generate_series(1, 1000000) as num
+       rpad('Bublik is the best tool for migration ',50,'*') as r
+    from generate_series(1, 500000) as num
 on conflict (user_id, item_id) do nothing;
 
-select setval('likes_id_seq', 1000001, false);
+--select setval('public.likes_id_seq', 1000001, false);
 
 create table public.p_src (
     id int,
@@ -273,7 +275,7 @@ insert into public.p_src (id, created, name, amount, shard_key, names, texts)
             case when num % 10 = 0 then array['D:' || substr(md5(random()::text), 1, 10),'E:' || substr(md5(random()::text), 1, 10),'F:' || substr(md5(random()::text), 1, 10)] else null end as texts
     from generate_series(1, 100000) as num;
 
-analyze "p_src" ;
+analyze public.p_src ;
 
 create table public.p_trg (
     id int,

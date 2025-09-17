@@ -1,42 +1,52 @@
 package org.bublik.cli;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-import java.sql.SQLException;
-import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import java.io.IOException;
+import java.sql.SQLException;
+
+import static org.bublik.cli.TestUtils.getResult;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 class PostgresToPostgresTest {
-    public static PostgreSQLContainer<?> source = new PostgreSQLContainer<>("postgres:latest")
-        .withInitScript("pg-init-source.sql");
-
-    public static PostgreSQLContainer<?> destination = new PostgreSQLContainer<>("postgres:latest")
-        .withInitScript("pg-init-destination.sql");
-
+    private static int rows = 50000;
+    private static boolean sync = false;
+    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:latest")
+            .withDatabaseName("postgres")
+//            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
+            .withInitScript("pg2pg/sql/pg-init.sql");
+    private static JdbcDatabaseContainer<?> destination = source;
 
     @BeforeAll
      static void setUp() throws SQLException {
+        source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
         source.start();
-        destination.start();
     }
 
     @Test
-    void happyPassTest() {
-
-        
-        ConnectionProperty cp = BublikTestUtils.buildConnectionProperty(source, destination);
-        Long countBeforeSynchronization = BublikTestUtils.countRows(destination, "public.test_table");
-        assertEquals(0L, countBeforeSynchronization);
-
-        App.runProcess(cp, BublikTestUtils.getFilePath("localtest.json"), 500, false);
-        Long countAfterSynchronization = BublikTestUtils.countRows(destination, "public.test_table");
-        assertEquals(10000L, countAfterSynchronization);
+    void allTypes() throws IOException {
+        TestResult result = getResult(
+                "pg2pg/pg2pg.yaml",
+                "pg2pg/cases/allTypes.json",
+                rows,
+                sync,
+                source,
+                destination);
+        assertEquals(result.targetCount(), result.sourceCount());
     }
 
-
-
-
-
+    @Test
+    void targetTableNotExists() throws IOException {
+        TestResult result = getResult(
+                "pg2pg/pg2pg.yaml",
+                "pg2pg/cases/targetTableNotExists.json",
+                rows,
+                sync,
+                source,
+                destination);
+        assertEquals(result.targetCount(), result.sourceCount());
+    }
 }

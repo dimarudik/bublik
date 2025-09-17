@@ -6,7 +6,7 @@
     <parent>
         <groupId>bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.8</version>
+        <version>25.1.9</version>
     </parent>
     <artifactId>bublik-cli</artifactId>
     <version>${project.parent.version}</version>
@@ -59,13 +59,20 @@
             <version>5.13.4</version>
             <scope>test</scope>
         </dependency>
-        <!-- PostgreSQL Testcontainer -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+<!--
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>oracle-free</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+-->
     </dependencies>
     <modules>
 

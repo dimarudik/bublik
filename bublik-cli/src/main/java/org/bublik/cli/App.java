@@ -79,17 +79,21 @@ public class App {
             createDefJson(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(listOfTablesOption), cmd.getOptionValue(JSONfileOption));
         } else if(!cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && !cmd.hasOption(createChunkOption)) {
             // how to run without chunk creation
-            run(cmd.getOptionValue(mappingDefOption));
+            List<Config> configs = getConfigs(cmd.getOptionValue(mappingDefOption));
+            run(configs);
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && !cmd.hasOption(createChunkOption)) {
             // how to run without chunk creation
-            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption));
+            List<Config> configs = getConfigs(cmd.getOptionValue(mappingDefOption));
+            run(cmd.getOptionValue(connectionConfigOption), configs);
         } else if(!cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
             // how to run with chunk creation from ENV
-            run(cmd.getOptionValue(mappingDefOption), Integer.parseInt(cmd.getOptionValue(createChunkOption)),
+            List<Config> configs = getConfigs(cmd.getOptionValue(mappingDefOption));
+            run(configs, Integer.parseInt(cmd.getOptionValue(createChunkOption)),
                     cmd.hasOption(SyncOption));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
             // how to run with chunk creation from yaml config file
-            run(cmd.getOptionValue(connectionConfigOption), cmd.getOptionValue(mappingDefOption),
+            List<Config> configs = getConfigs(cmd.getOptionValue(mappingDefOption));
+            run(cmd.getOptionValue(connectionConfigOption), configs,
                     Integer.parseInt(cmd.getOptionValue(createChunkOption)), cmd.hasOption(SyncOption));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
@@ -114,30 +118,30 @@ public class App {
                 .build();
     }
 
-    private static void run(String mappingDefFileName) {
-        run(mappingDefFileName,0, false);
+    private static void run(List<Config> configs) {
+        run(configs,0, false);
     }
 
-    private static void run(String mappingDefFileName, int rowsParameter, boolean sync) {
+    private static void run(List<Config> configs, int rowsParameter, boolean sync) {
         ConnectionProperty connectionProperty = envConnectionProperty();
-        runProcess(connectionProperty, mappingDefFileName, rowsParameter, sync);
+        runProcess(connectionProperty, configs, rowsParameter, sync);
     }
 
-    private static void run(String configFileName, String mappingDefFileName) {
-        run(configFileName, mappingDefFileName, 0, false);
+    private static void run(String configFileName, List<Config> configs) {
+        run(configFileName, configs, 0, false);
     }
 
-    private static void run(String configFileName, String mappingDefFileName, int rowsParameter, boolean sync) {
+    private static void run(String configFileName, List<Config> configs, int rowsParameter, boolean sync) {
         try {
             ConnectionProperty properties = connectionProperty(configFileName);
-            runProcess(properties, mappingDefFileName, rowsParameter, sync);
+            runProcess(properties, configs, rowsParameter, sync);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
     }
 
     public static void runProcess(ConnectionProperty property,
-                                   String mappingDefFileName,
+                                   List<Config> configs,
                                    int rowsParameter,
                                    boolean sync) {
         try {
@@ -147,9 +151,6 @@ public class App {
             log.info("TARGET: {}", property.getToProperty().getProperty("url"));
             log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
             ObjectMapper mapperJSON = new ObjectMapper();
-            List<Config> configs =
-                    List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
-                            Config[].class));
             try {
                 StorageService.init(property, configs, sync, rowsParameter);
             } catch (SQLException e) {
@@ -159,6 +160,12 @@ public class App {
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
+    }
+
+    public static List<Config> getConfigs(String mappingDefFileName) throws IOException {
+        ObjectMapper mapperJSON = new ObjectMapper();
+        return List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
+                Config[].class));
     }
 
     private static ConnectionProperty envConnectionProperty() {

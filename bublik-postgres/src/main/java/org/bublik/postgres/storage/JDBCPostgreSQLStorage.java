@@ -47,18 +47,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
-//        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         List<Chunk<?>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
-//        StringBuffer sb = new StringBuffer();
         Map<String, Table> tableMap = new HashMap<>();
         PreparedStatement statement = connection.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-//                log.info("{}", getTables().size());
                 Table sourceTable = getTables()
                         .entrySet()
                         .stream()
@@ -87,19 +84,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                                 this
                         )
                 );
-/*
-                chunkHashMap.put(resultSet.getInt("rownum"),
-                        new PGChunk<>(
-                                resultSet.getInt("chunk_id"),
-                                resultSet.getLong("start_page"),
-                                resultSet.getLong("end_page"),
-                                config,
-                                sourceTable,
-                                query,
-                                this
-                        )
-                );
-*/
             }
         }
         tableMap.keySet().forEach(s -> log.info("{}", s));
@@ -115,7 +99,9 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return "select row_number() over (order by chunk_id) as rownum, chunk_id, start_page, end_page, task_name from public.ctid_chunks where task_name in ('" +
                 String.join("', '", taskNames) + "') " +
                 // тут надо разбираться при запуске из нескольких подов
-                "and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') ";
+                "and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
+                + " limit 1000 "
+                ;
     }
 
     @Override
@@ -1188,15 +1174,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     private void createTableCtidChunks(Connection connection, boolean sync) {
         try {
-            try {
-                Statement dropTable = connection.createStatement();
-                dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
-                dropTable.close();
-                connection.commit();
-            } catch (SQLException ex) {
-                connection.rollback();
-                log.error("Error dropping table ctid_chunks, it may not exist yet.");
-            }
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
+            dropTable.close();
+            connection.commit();
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
             createTable.close();

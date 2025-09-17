@@ -103,7 +103,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                     connectionTo.close();
                     return logMessage;
                 } catch (SQLException e) {
-                    log.error("{}", getStackTrace(e));
+                    log.error("ChunkId: {} {}", chunk.getId(), getStackTrace(e));
                     connectionTo.rollback();
                     connectionTo.close();
                     throw e;
@@ -115,7 +115,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                     ;
                 }
             } else {
-                log.error("\u001B[31mThe Target Table: {}.{} does not exist.\u001B[0m", chunk.getConfig().toSchemaName(),
+                log.error("The Target Table: {}.{} does not exist.", chunk.getConfig().toSchemaName(),
                         chunk.getConfig().toTableName());
                 throw new TableNotExistsException("The Target Table "
                         + chunk.getConfig().toSchemaName() + "/"
@@ -136,37 +136,51 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                                     Chunk<?> chunk) throws SQLException, SourceSQLException {
         int recordCount = 0;
 
-//        chunk.insertProcessedChunkInfo(connectionTo, recordCount);
-//        connectionTo.rollback();
         try {
             chunk.insertProcessedChunkInfo(connectionTo, recordCount);
             connectionTo.rollback();
         } catch (SQLException e) {
-            log.error("chunkId = {} {}", chunk.getId(), getStackTrace(e));
-            throw new SQLException(e);
-/*
-            connectionTo.rollback();
-            return new LogMessage(
-                    0,
-                    chunk.getStartTime(),
-                    System.currentTimeMillis(),
-                    "The chunk has already been copied",
-                    chunk);
-*/
+//            log.error("Error insert into BUBLIK_OUTBOX for chunk {}, start {}, end {}, rows {}, task {}: {}",
+//                    chunk.getId(), chunk.getStart(), chunk.getEnd(), chunk.getRows(), chunk.getConfig().fromTaskName(), e.getMessage());
+            if (e.getMessage().contains("#2012 Conflict with existing key")) {
+                return new LogMessage(
+                        0,
+                        chunk.getStartTime(),
+                        System.currentTimeMillis(),
+                        "The chunk has already been copied",
+                        chunk);
+            } else {
+                throw new SQLException(e);
+            }
         }
 
         Map<String, Column> neededColumnsToDB = readTargetColumnsAndTypes(connectionTo, chunk);
+
+        try {
+            PreparedStatement ps = connectionTo.prepareStatement(batchInsertStatement(chunk.getConfig(), neededColumnsToDB));
+            do {
+                prepareBatchInsert(fetchResultSet, ps, neededColumnsToDB);
+                recordCount++;
+            } while (hasNext(fetchResultSet));
+            ps.executeBatch();
+            ps.close();
+        } catch (SQLException e) {
+            log.error("ON BATCH EXECUTE chunkId = {} {}", chunk.getId(), getStackTrace(e));
+            throw e;
+        }
+
+        try {
+            chunk.insertProcessedChunkInfo(connectionTo, recordCount);
+            connectionTo.commit();
+        } catch (SQLException e) {
+            log.error("ON COMMIT chunkId = {} {}", chunk.getId(), getStackTrace(e));
+            throw e;
+        }
+
 /*
-        neededColumnsToDB.forEach((key, value) ->
-                log.info("{} = {}:{}:{}", key, value.getColumnName(),
-                        value.getColumnType(), value.getColumnPosition()));
-*/
-
-//        log.info("{}", batchInsertStatement(chunk.getConfig(), neededColumnsToDB));
-
         try (PreparedStatement ps = connectionTo.prepareStatement(
-                batchInsertStatement(chunk.getConfig(), neededColumnsToDB)
-        )) {
+                batchInsertStatement(chunk.getConfig(), neededColumnsToDB))
+        ) {
             do {
                 prepareBatchInsert(fetchResultSet, ps, neededColumnsToDB);
                 recordCount++;
@@ -175,6 +189,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             chunk.insertProcessedChunkInfo(connectionTo, recordCount);
             connectionTo.commit();
         }
+*/
 
 
         return new LogMessage(
@@ -395,7 +410,8 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         String columnToColumn = String.join(", ", strings);
         String columnToColumnQ = " ?,".repeat(Math.max(0, strings.size() - 1)) +
                 " ?"; // last column without comma
-        return YDBKeywords.BULK + " " + YDBKeywords.UPSERT + " INTO `" +
+        return //YDBKeywords.BULK + " " + YDBKeywords.UPSERT +
+                "BULK UPSERT INTO `" +
                 config.toTableName() + "` ( " +
                 columnToColumn + " ) VALUES ( " +
                 columnToColumnQ + " ) ";

@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
-import java.util.List;
 
 import static org.bublik.core.constants.SQLConstants.*;
 
@@ -57,6 +56,7 @@ public class ColumnUtil {
         PreparedStatement preparedStatement = connection.prepareStatement(SQL_HEAP_BLKS_TOTAL);
         preparedStatement.setString(1, table.getSchemaName().toLowerCase() + "." +
                 table.getTableName());
+        log.info("Executing query: {}", preparedStatement);
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
             heap_blks_total = resultSet.getLong("heap_blks_total");

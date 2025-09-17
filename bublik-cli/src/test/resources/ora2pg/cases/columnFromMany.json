@@ -1,0 +1,22 @@
+[
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "\"Table2\"",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "\"TABLE2\"",
+    "fetchHintClause" : "/*+ no_index(TABLE2) */",
+    "fromTaskName" : "TABLE2_TASK",
+    "columnToColumn" : {
+      "id"          : "id",
+      "\"LEVEL\""   : "level",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    },
+    "columnFromMany" : {
+      "tstzrange" : ["create_at", "update_at"]
+    }
+  }
+]

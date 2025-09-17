@@ -1,0 +1,7 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202509",
+    "toSchemaName": "test"
+  }
+]

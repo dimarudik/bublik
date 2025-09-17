@@ -17,7 +17,7 @@ public abstract class SQLConstants {
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from public.ctid_chunks where task_name = ?";
     public static final String DDL_DROP_PG_TABLE_CTID_CHUNKS =
-            "drop table public.ctid_chunks;";
+            "drop table if exists public.ctid_chunks;";
     public static final String DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS =
             "truncate table public.ctid_chunks;";
     public static final String DDL_CREATE_PG_TABLE_CTID_CHUNKS =

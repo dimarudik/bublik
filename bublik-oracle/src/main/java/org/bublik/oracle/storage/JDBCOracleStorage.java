@@ -104,7 +104,6 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
 
     @Override
     public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
-//        Map<Integer, Chunk<?>> chunkHashMap = new HashMap<>();
         List<Chunk<?>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
@@ -129,19 +128,6 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                                 this
                         )
                 );
-/*
-                chunkHashMap.put(resultSet.getInt("rownum"),
-                        new OraChunk<>(
-                                resultSet.getInt("chunk_id"),
-                                resultSet.getRowId("start_rowid"),
-                                resultSet.getRowId("end_rowid"),
-                                config,
-                                sourceTable,
-                                null,
-                                this
-                        )
-                );
-*/
             }
         }
         resultSet.close();
@@ -161,8 +147,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
                 \tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from (
                 """;
         String tmpPart2 = "\t\tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from user_parallel_execute_chunks where " +
-                "status <> 'PROCESSED' " + "and task_name = '";
-        String part2 = tmpPart2 + String.join(" union all \n" + tmpPart2, taskAndWhere);
+                "status <> 'PROCESSED' " + " and task_name = '";
+        String part2 = tmpPart2 + String.join(" and rownum <= 1000 union all \n" + tmpPart2, taskAndWhere);
         String part3 = "\n\t) order by ora_hash(concat(task_name,start_rowid)) \n) order by 1";
         return  part1 + part2 + part3;
     }
