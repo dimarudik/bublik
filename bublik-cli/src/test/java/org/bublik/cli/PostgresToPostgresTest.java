@@ -24,6 +24,8 @@ class PostgresToPostgresTest {
 
     @Test
     void happyPassTest() {
+
+        
         ConnectionProperty cp = BublikTestUtils.buildConnectionProperty(source, destination);
         Long countBeforeSynchronization = BublikTestUtils.countRows(destination, "public.test_table");
         assertEquals(0L, countBeforeSynchronization);
