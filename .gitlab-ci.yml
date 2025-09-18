@@ -1,39 +1,7 @@
 ---
+.include-ref: &include-ref "master"
 
-variables:
-  REGISTRY: docker-hosted.artifactory.tcsbank.ru
-  BUILDER_IMAGE: docker-hosted.artifactory.tcsbank.ru/bigops-sre/infra/maven21-gitlab-builder:latest
-  MVN_HOSTED_URL: https://artifactory.tcsbank.ru/artifactory/maven-releases-hosted
-  MVN_HOSTED_NAME: tinkoff-maven-releases-hosted
-  ACTIVATE_PROFILES: "all"
-
-
-stages:
-  - push2github
-
-workflow:
-  rules:
-    - if: "$CI_PIPELINE_SOURCE == 'web' && $CI_COMMIT_TAG"
-    - if: "$CI_PIPELINE_SOURCE == 'web'"
-      when: never
-    - if: "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
-      when: never
-    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
-    - if: "$CI_COMMIT_BRANCH == 'stable'"
-    - if: "$CI_COMMIT_TAG"
-
-push2github:
-  image: docker-hosted.artifactory.tcsbank.ru/cicd-images/base-jammy:latest
-  stage: push2github
-  before_script:
-    - git config --global http.proxy http://proxy.tcsbank.ru:8080
-    - git remote add upstream $GITHUB_KEY
-    - git config --global user.email "cicd@tsecretbank.ru"
-    - git config --global user.name "CICD"
-  script:
-    - git checkout stable
-    - git branch
-    - git push -u upstream stable --force
-    - git push upstream --tags
-  rules:
-    - if: "$CI_COMMIT_BRANCH == 'stable'"
+include:
+  - project: "bublik/pipelines"
+    ref: *include-ref
+    file: "bpipeline.yml"
