@@ -33,7 +33,7 @@ push2github:
   script:
     - git checkout stable
     - git branch
-    - git push -u upstream stable
+    - git push -u upstream stable --force
     - git push upstream --tags
   rules:
     - if: "$CI_COMMIT_BRANCH == 'stable'"
