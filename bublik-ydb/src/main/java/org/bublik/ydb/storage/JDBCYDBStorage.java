@@ -161,7 +161,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             do {
                 prepareBatchInsert(fetchResultSet, ps, neededColumnsToDB);
                 recordCount++;
-            } while (hasNext(fetchResultSet));
+            } while (hasNext(fetchResultSet, chunk));
             ps.executeBatch();
             ps.close();
         } catch (SQLException e) {
@@ -267,11 +267,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         ps.addBatch();
     }
 
-    private boolean hasNext(ResultSet resultSet) throws SourceSQLException {
+    private boolean hasNext(ResultSet resultSet, Chunk<?> chunk) throws SQLException {
         try {
             return resultSet.next();
         } catch (SQLException e) {
-            throw new SourceSQLException(getStackTrace(e));
+            log.info("ChunkId: {} {}", chunk.getId(), getStackTrace(e));
+            throw e;
         }
     }
 

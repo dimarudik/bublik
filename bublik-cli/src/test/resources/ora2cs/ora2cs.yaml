@@ -1,4 +1,4 @@
-threadCount: 4
+threadCount: 10
 
 fromProperties:
   type: oracle
@@ -13,3 +13,4 @@ toProperties:
   keyspace: store
   user: test
   password: test
+

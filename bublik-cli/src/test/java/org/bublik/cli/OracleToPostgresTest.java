@@ -1,8 +1,6 @@
 package org.bublik.cli;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -16,7 +14,7 @@ import java.time.Duration;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-
+//@Disabled
 public class OracleToPostgresTest {
     private static int rows = 50000;
     private static boolean sync = false;

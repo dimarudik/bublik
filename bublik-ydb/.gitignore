@@ -1,2 +1,4 @@
 .idea
 /target
+ydb_certs/
+ydb_data/

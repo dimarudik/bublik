@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+
 import static org.bublik.core.constants.CLassConstants.*;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
@@ -81,6 +83,7 @@ public interface StorageService {
             Constructor<?> constructor = clazz.getConstructor(StorageClass.class, ConnectionProperty.class);
             return (Storage) constructor.newInstance(getStorageClass(properties), connectionProperty);
         } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }

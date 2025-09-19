@@ -1,0 +1,56 @@
+package org.bublik.cassandra.storage;
+
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+
+import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
+
+public class CSPool {
+    private final CqlSession cqlSession;
+
+    public CSPool(Properties properties) {
+        this.cqlSession = createCqlSession(properties);
+    }
+
+    public CqlSession createCqlSession(Properties properties) {
+        return CqlSession
+                .builder()
+                .addContactPoints(getAddresses(properties))
+                .withConfigLoader(getConfigLoader(properties))
+                .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
+                .withLocalDatacenter(properties.getProperty("datacenter"))
+                .build();
+    }
+
+    public CqlSession getCqlSession() {
+        return cqlSession;
+    }
+
+    public List<InetSocketAddress> getAddresses(Properties properties) {
+        List<String> hosts = Arrays.asList(properties.getProperty("hosts").split(",", -1));
+        return hosts
+                .stream()
+                .map(h -> new InetSocketAddress(h, Integer.parseInt(properties.getProperty("port"))))
+                .toList();
+    }
+
+    public DriverConfigLoader getConfigLoader(Properties properties) {
+        return DriverConfigLoader
+                .programmaticBuilder()
+                .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, 8)
+                .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, 8)
+//                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT,
+//                        Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
+                .build();
+    }
+
+    public void closeCqlSession() {
+        if (cqlSession != null && !cqlSession.isClosed()) {
+            cqlSession.close();
+        }
+    }
+}

@@ -9,11 +9,11 @@ import java.util.Map;
 import java.util.Properties;
 
 public interface CSPoolStorageService {
-    CqlSession createCqlSession();
-    CqlSession getCqlSession();
-    void freeCqlSession(CqlSession cqlSession);
-    void closeCqlSession(CqlSession cqlSession);
-    List<InetSocketAddress> getAddresses(Properties properties);
-    DriverConfigLoader getConfigLoader(Properties properties);
-    Map<CqlSession, Short> initSessionMap(int threadCount);
+//    CqlSession createCqlSession();
+//    CqlSession getCqlSession();
+//    void freeCqlSession(CqlSession cqlSession);
+//    void closeCqlSession(CqlSession cqlSession);
+//    List<InetSocketAddress> getAddresses(Properties properties);
+//    DriverConfigLoader getConfigLoader(Properties properties);
+//    Map<CqlSession, Short> initSessionMap(int threadCount);
 }

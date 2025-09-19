@@ -1,8 +1,5 @@
 package org.bublik.cassandra.storage;
 
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
-import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import org.bublik.cassandra.service.CSPoolStorageService;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.Storage;
@@ -10,12 +7,10 @@ import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 public abstract class CSPoolStorage extends Storage implements CSPoolStorageService {
@@ -23,19 +18,21 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
     private static final ReentrantLock lock = new ReentrantLock();
 
     private final int batchSize;
-    private final Map<CqlSession, Short> sessionMap;
+    private final CSPool csPool;
+//    private final Map<CqlSession, Short> sessionMap;
 
     protected CSPoolStorage(StorageClass storageClass,
                             ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
         this.batchSize = getBatchSize(connectionProperty);
-        sessionMap = initSessionMap(connectionProperty.getThreadCount());
+        this.csPool = new CSPool(getStorageClass().getProperties());
+//        sessionMap = initSessionMap(connectionProperty.getThreadCount());
         try {
             Thread.sleep(10000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        closeStorage();
+//        closeStorage();
     }
 
     public int getBatchSize(ConnectionProperty connectionProperty) {
@@ -43,10 +40,13 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
         return  batchSize == null ? 100 : Integer.parseInt(batchSize);
     }
 
+/*
     public Map<CqlSession, Short> getSessionMap() {
         return sessionMap;
     }
+*/
 
+/*
     @Override
     public Map<CqlSession, Short> initSessionMap(int threadCount) {
         Map<CqlSession, Short> sessionMap = new ConcurrentHashMap<>();
@@ -55,19 +55,10 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
         }
         return sessionMap;
     }
+*/
 
-    @Override
-    public CqlSession createCqlSession() {
-        Properties properties = getStorageClass().getProperties();
-        return CqlSession
-                .builder()
-                .addContactPoints(getAddresses(properties))
-                .withConfigLoader(getConfigLoader(properties))
-                .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
-                .withLocalDatacenter(properties.getProperty("datacenter"))
-                .build();
-    }
 
+/*
     @Override
     public CqlSession getCqlSession() {
         CqlSession cqlSession;
@@ -87,51 +78,23 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
         }
         return cqlSession;
     }
+*/
 
+/*
     private Map.Entry<CqlSession, Short> lockSession(Map.Entry<CqlSession, Short> entry) {
         entry.setValue((short) 1);
         return entry;
     }
+*/
 
-    @Override
-    public List<InetSocketAddress> getAddresses(Properties properties) {
-        List<String> hosts = Arrays.asList(properties.getProperty("hosts").split(",", -1));
-        return hosts
-                .stream()
-                .map(h -> new InetSocketAddress(h, Integer.parseInt(properties.getProperty("port"))))
-                .toList();
-    }
 
-    @Override
-    public DriverConfigLoader getConfigLoader(Properties properties) {
-        return DriverConfigLoader
-                .programmaticBuilder()
-//                .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, 8)
-//                .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, 8)
-                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT,
-                        Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
-                .build();
-    }
-
+/*
     @Override
     public void freeCqlSession(CqlSession cqlSession) {
         getSessionMap().put(cqlSession, (short) 0);
-/*
-        getSessionMap()
-                .entrySet()
-                .stream()
-                .filter(e -> e.getKey().equals(cqlSession))
-                .findFirst()
-                .ifPresent(this::unLockSession);
+    }
 */
-    }
 
-    @Override
-    public void closeCqlSession(CqlSession cqlSession) {
-        if (cqlSession != null && !cqlSession.isClosed()) {
-            cqlSession.close();
-        }
-    }
 
     @Override
     public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage) throws SQLException {
@@ -160,9 +123,7 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
 
     @Override
     public void closeStorage() {
-        for (CqlSession cqlSession : sessionMap.keySet()) {
-            closeCqlSession(cqlSession);
-        }
+        csPool.closeCqlSession();
     }
 
     @Override

@@ -6,7 +6,7 @@
     <parent>
         <groupId>bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.13</version>
+        <version>25.1.14</version>
     </parent>
     <artifactId>bublik-cassandra</artifactId>
     <version>${project.parent.version}</version>
@@ -32,6 +32,12 @@
                     <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-databind</artifactId>
                 </exclusion>
+<!--
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+-->
             </exclusions>
         </dependency>
         <dependency>
