@@ -6,7 +6,7 @@
     <parent>
         <groupId>bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.14</version>
+        <version>25.1.15</version>
     </parent>
     <artifactId>bublik-cli</artifactId>
     <version>${project.parent.version}</version>
@@ -77,6 +77,12 @@
             <artifactId>cassandra</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
     </dependencies>
     <modules>
