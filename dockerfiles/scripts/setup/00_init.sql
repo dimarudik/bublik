@@ -1,6 +1,4 @@
-alter session set container = ORCLPDB1;
-create user t identified by t;
-grant create session to t;
+alter session set container = freepdb1;
 grant select on test.table1 to t;
 create user test identified by test;
 alter user test quota unlimited on users;

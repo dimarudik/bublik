@@ -6,7 +6,7 @@
 
     <groupId>bublik</groupId>
     <artifactId>bublik-parent</artifactId>
-    <version>25.1.15</version>
+    <version>25.1.16</version>
     <packaging>pom</packaging>
 
     <properties>

@@ -11,3 +11,5 @@ HELP.md
 chekist/target
 .m2
 ca.crt
+ydb_certs/
+ydb_data/

@@ -93,32 +93,20 @@ Possible values for -P: postgres,cassandra,oracle,ydb
 
 #### Prepare Oracle environment
 
-- arm64:
-
   > ```
   > docker run --name oracle \
-  > -p 1521:1521 -p 5500:5500 \
-  >     -e ORACLE_PWD=oracle_4U \
+  >     -p 1521:1521 \
+  >     -e ORACLE_PASSWORD=oracle_4U \
   >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-  >     -d dimarudik/oracle_arm64:19.3.0-ee
+  >     -d gvenzl/oracle-free:slim-faststart
   > ```
 
-- x86_64:
-
-  > ```
-  > docker run --name oracle \
-  >     -p 1521:1521 -p 5500:5500 \
-  >     -e ORACLE_PWD=oracle_4U \
-  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-  >     -d dimarudik/oracle_x86_64:19.3.0-ee
-  > ```
-  
 >  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
 
 How to connect to Oracle:
 
 ```
-sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
 ```
 
 > [!NOTE]
@@ -132,7 +120,7 @@ docker run --name postgres \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
         -e POSTGRES_DB=postgres \
-        -p 5433:5432 \
+        -p 5432:5432 \
         -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
         -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
         -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
@@ -168,7 +156,7 @@ You can run the tool by using yaml with connection settings:
 threadCount: 10
 
 fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
   user: test
   password: test
 toProperties:
@@ -335,24 +323,12 @@ mvn clean package -DskipTests -Poracle,ydb
 
 #### Prepare Oracle environment
 
-- arm64:
-
-  > ```
+> ```
   > docker run --name oracle \
-  > -p 1521:1521 -p 5500:5500 \
-  >     -e ORACLE_PWD=oracle_4U \
+  >     -p 1521:1521 \
+  >     -e ORACLE_PASSWORD=oracle_4U \
   >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-  >     -d dimarudik/oracle_arm64:19.3.0-ee
-  > ```
-
-- x86_64:
-
-  > ```
-  > docker run --name oracle \
-  >     -p 1521:1521 -p 5500:5500 \
-  >     -e ORACLE_PWD=oracle_4U \
-  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-  >     -d dimarudik/oracle_x86_64:19.3.0-ee
+  >     -d gvenzl/oracle-free:slim-faststart
   > ```
 
 >  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
@@ -360,7 +336,7 @@ mvn clean package -DskipTests -Poracle,ydb
 How to connect to Oracle:
 
 ```
-sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))'
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
 ```
 
 > [!NOTE]
@@ -411,7 +387,7 @@ You can run the tool by using yaml with connection settings:
 threadCount: 4
 
 fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
   user: test
   password: test
 toProperties:
@@ -424,7 +400,7 @@ Or you can use environment variables (do not specify -c parameter):
 
 ```
 export THREAD_COUNT=4
-export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
 export FROM_USER=test
 export FROM_PASSWORD=test
 export TO_URL=jdbc:ydb:grpc://localhost:2136/local
@@ -527,7 +503,7 @@ docker run --name postgres \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
         -e POSTGRES_DB=postgres \
-        -p 5433:5432 \
+        -p 5432:5432 \
         -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
         -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
         -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
@@ -679,7 +655,7 @@ docker run --name postgres \
         -e POSTGRES_USER=postgres \
         -e POSTGRES_PASSWORD=postgres \
         -e POSTGRES_DB=postgres \
-        -p 5433:5432 \
+        -p 5432:5432 \
         -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
         -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
         -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
@@ -705,12 +681,6 @@ psql postgresql://test:test@localhost/postgres
 [YDB Quick Start](https://ydb.tech/docs/en/quickstart?tabs=defaultTabsGroup-3dol9c63_docker%2520x86_64)
 
 Do the next steps to prepare YDB environment:
-
-```shell
-mkdir ~/ydbd && cd ~/ydbd
-mkdir ydb_data
-mkdir ydb_certs
-```
 
 ```shell
 docker run -d --rm --name ydb-local -h localhost \
