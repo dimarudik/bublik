@@ -19,12 +19,12 @@ class PostgresToPostgresTest {
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:latest")
             .withDatabaseName("postgres")
 //            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
-            .withInitScript("pg2pg/sql/pg-init.sql");
+            .withInitScript("./pg2pg/sql/pg-init.sql");
     private static JdbcDatabaseContainer<?> target = source;
 
     @BeforeAll
      static void setUp() throws SQLException {
-        MountableFile mf = MountableFile.forClasspathResource("images/bublik.png");
+        MountableFile mf = MountableFile.forClasspathResource("./images/bublik.png");
         source.addFileSystemBind(mf.getResolvedPath(), "/var/lib/postgresql/bublik.png", BindMode.READ_ONLY);
         source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
         source.start();
@@ -39,8 +39,8 @@ class PostgresToPostgresTest {
     void allTypes() throws IOException {
         // добавить интервальные типы
         TestResult result = getResult(
-                "pg2pg/pg2pg.yaml",
-                "pg2pg/cases/allTypes.json",
+                "./pg2pg/pg2pg.yaml",
+                "./pg2pg/cases/allTypes.json",
                 rows,
                 sync,
                 source,
@@ -51,8 +51,8 @@ class PostgresToPostgresTest {
     @Test
     void targetTableNotExists() throws IOException {
         TestResult result = getResult(
-                "pg2pg/pg2pg.yaml",
-                "pg2pg/cases/targetTableNotExists.json",
+                "./pg2pg/pg2pg.yaml",
+                "./pg2pg/cases/targetTableNotExists.json",
                 rows,
                 sync,
                 source,

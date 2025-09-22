@@ -169,9 +169,9 @@ public abstract class Chunk<T> implements ChunkService {
         this.chunkStatus = chunkStatus;
     }
 
-    public abstract Integer getParentId();
+//    public abstract Integer getParentId();
 
-    public abstract Long getXidMin();
+//    public abstract Long getXidMin();
 
 
     public Chunk<?> assignSourceConnection() throws SQLException {

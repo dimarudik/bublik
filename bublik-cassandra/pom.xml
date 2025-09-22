@@ -6,7 +6,7 @@
     <parent>
         <groupId>bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.16</version>
+        <version>25.1.17</version>
     </parent>
     <artifactId>bublik-cassandra</artifactId>
     <version>${project.parent.version}</version>

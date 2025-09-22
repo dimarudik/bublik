@@ -12,43 +12,21 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.UUID;
 
 import static org.bublik.core.constants.SQLConstants.*;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
-    private final Integer parentId;
-    private final Long xidMin;
-    private final Long xidMax;
+    private final UUID uuid;
 
-    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
+    public PGChunk(Integer id, UUID uuid, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
-        this.parentId = null;
-        this.xidMin = null;
-        this.xidMax = null;
+        this.uuid = uuid;
     }
 
-    public PGChunk(Integer id, T start, T end, Config config, Table sourceTable, Table targetTable, Storage sourceStorage,
-                   Integer parentId, Long xidMin, Long xidMax, Connection sourceConnection, String fetchQuery, ChunkStatus chunkStatus) {
-        super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
-        this.parentId = parentId;
-        this.xidMin = xidMin;
-        this.xidMax = xidMax;
-        this.setTargetTable(targetTable);
-        this.setSourceConnection(sourceConnection);
-        this.setChunkStatus(chunkStatus);
-    }
-
-    public Integer getParentId() {
-        return parentId;
-    }
-
-    public Long getXidMin() {
-        return xidMin;
-    }
-
-    public Long getXidMax() {
-        return xidMax;
+    public UUID getUuid() {
+        return uuid;
     }
 
     @Override
@@ -81,9 +59,10 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     public Chunk<?> saveChunkRows(int copied, boolean sync) throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
-        updateStatus = connection.prepareStatement(DML_UPDATE_COPIED_CTID_CHUNKS);
-        updateStatus.setInt(1, copied);
-        updateStatus.setInt(2, this.getId());
+        updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CTID_CHUNKS);
+        updateStatus.setString(1, getUuid().toString());
+        updateStatus.setInt(2, copied);
+        updateStatus.setInt(3, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
         if (!sync)
@@ -91,9 +70,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         return this;
     }
 
-    @Override
-    public Chunk<?> saveConfig(boolean sync) throws SQLException {
 /*
+    public Chunk<?> saveConfig(boolean sync) throws SQLException {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             String jacksonData = objectMapper.writeValueAsString(getConfig());
@@ -109,9 +87,9 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-*/
         return this;
     }
+*/
 
     @Override
     public ResultSet getData(Connection connection, String query) throws SQLException {
@@ -133,6 +111,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         chunkInsert.setString(5, getConfig().fromTaskName());
         chunkInsert.setString(6, getTargetTable().getSchemaName().toLowerCase());
         chunkInsert.setString(7, getTargetTable().getFinalTableName(false));
+        chunkInsert.setString(8, getUuid().toString());
         long r = chunkInsert.executeUpdate();
         chunkInsert.close();
     }

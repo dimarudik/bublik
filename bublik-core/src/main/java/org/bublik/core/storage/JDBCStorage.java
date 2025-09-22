@@ -151,8 +151,9 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             );
 
             for (Future<?> future : futures) {
+                Chunk<?> c;
                 try {
-                    Chunk<?> c = (Chunk<?>) future.get();
+                    c = (Chunk<?>) future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
                     log.error("{}", getStackTrace(e));

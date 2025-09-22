@@ -114,26 +114,6 @@ create table public.intervals (
   time_period_3  INTERVAL,
   time_period_4  INTERVAL DAY TO SECOND(6)
 );
---create table public.sec_plain_text (
---    id bigint primary key generated always as identity,
---    pan varchar(25),
---    first_name varchar(256),
---    last_name varchar(256),
---    expired date,
---    pan_decrypted varchar(1024),
---    all_decrypted varchar(1024)
---);
---create table public.sec_encrypted (
---    id bigint,
---    first_name varchar(256),
---    last_name varchar(256),
---    expired date,
---    pan_encrypted_data varchar(512),
---    pan_encryption_metadata jsonb,
---    all_encrypted_data varchar(512),
---    all_encryption_metadata jsonb,
---    last_name_encrypted_data jsonb
---);
 
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
@@ -169,27 +149,6 @@ insert into public."Source" (uuid, "Primary", boolean,
     from generate_series(1,500000) as n;
 
 analyze public."Source" ;
-
---insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400010107395', 'NELSON', 'MANDELA', current_date);
---insert into sec_plain_text (pan, first_name, last_name, expired) values ('52132400021325252', 'CHE', 'GUEVARA', current_date);
---vacuum "Source";
---insert into noc2c1 (name)
---    select rpad('PostgreSQL' || n, 100, '*') name from generate_series(1,100000) as n;
-
---create table vacuum_me (
---    id int primary key generated always as identity,
---    uuid uuid,
---    boolean boolean,
---    int2 int2,
---    int4 int4,
---    int8 int8,
---    smallint smallint,
---    bigint bigint,
---    float8 float8,
---    date date,
---    timestamp timestamp,
---    timestamptz timestamptz
---);
 
 create table public.users (
     id int,

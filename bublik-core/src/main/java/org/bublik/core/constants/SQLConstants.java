@@ -23,29 +23,26 @@ public abstract class SQLConstants {
     public static final String DDL_CREATE_PG_TABLE_CTID_CHUNKS =
             "create table if not exists public.ctid_chunks (" +
             "chunk_id int generated always as identity primary key, " +
-            "parent_id int, " +
-            "last_id int, " +
+            "uuid varchar(36), " +
             "start_page bigint, " +
             "end_page bigint, " +
-            "xidmin int8, " +
-            "xidmax int8, " +
             "schema_name varchar(128), " +
             "table_name varchar(256), " +
             "config jsonb, " +
             "required bigint, " +
             "copied bigint, " +
-            "upserted bigint, " +
             "task_name varchar(128), " +
             "status varchar(20)  default 'UNASSIGNED', " +
             "start_ts timestamp, " +
             "end_ts timestamp, " +
             "err_msg varchar(2048), " +
-            "unique (parent_id, xidmin, start_page, end_page, task_name, status) )";
+            "unique (uuid, start_page, end_page, task_name, status) )";
     public static final String DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX =
             "truncate table public.bublik_outbox;";
     public static final String DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX =
             "create table if not exists public.bublik_outbox (" +
-            "chunk_id int primary key, " +
+            "chunk_id int, " +
+            "uuid varchar(36), " +
             "start_rowid varchar(32), " +
             "end_rowid varchar(32), " +
             "start_page bigint, " +
@@ -53,44 +50,43 @@ public abstract class SQLConstants {
             "schema_name varchar(128), " +
             "table_name varchar(128), " +
             "rows bigint, " +
-            "task_name varchar(128) )";
+            "task_name varchar(128), " +
+            "unique (chunk_id, uuid, task_name) )";
     public static final String DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX =
             "drop table bublik_outbox;";
     public static final String DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX =
             "create table if not exists bublik_outbox (" +
-                    "chunk_id Uint32, " +
-                    "start_rowid String, " +
-                    "end_rowid String, " +
-                    "start_page Uint64, " +
-                    "end_page Uint64, " +
-                    "schema_name String, " +
-                    "table_name String, " +
-                    "rows Uint64, " +
-                    "task_name String," +
-                    "primary key(chunk_id))";
+            "chunk_id Uint32, " +
+            "uuid String, " +
+            "start_rowid String, " +
+            "end_rowid String, " +
+            "start_page Uint64, " +
+            "end_page Uint64, " +
+            "schema_name String, " +
+            "table_name String, " +
+            "rows Uint64, " +
+            "task_name String," +
+            "primary key(chunk_id))";
     public static final String DML_INSERT_BUBLIK_OUTBOX_ROWID =
             "insert into bublik_outbox (chunk_id, start_rowid, end_rowid, rows, task_name, schema_name, table_name) " +
                     "values (?, ?, ?, ?, ?, ?, ?)";
     public static final String DML_INSERT_BUBLIK_OUTBOX_CTID =
-            "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name) " +
-                    "values (?, ?, ?, ?, ?, ?, ?)";
+            "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name, uuid) " +
+                    "values (?, ?, ?, ?, ?, ?, ?, ?)";
+/*
     public static final String DML_INSERT_CTID_CHUNKS =
             "insert into public.ctid_chunks (parent_id, start_page, end_page, xidmin, xidmax, task_name, schema_name, table_name, config, status, copied) " +
             "values (?, ?, ?, ?, ?, ?, ?, ?, to_json(?::json), ?, ?)";
     public static final String SQL_HEAP_BLKS_TOTAL_SYNC =
-            // тут можно переделать на max(end_page - start_page) as pages_in_chunk
             "select pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total " +
             "from public.ctid_chunks o where chunk_id = ?";
     public static final String SQL_CHUNKS_AVG_SYNC =
-            // тут можно переделать на max(end_page - start_page) as pages_in_chunk
             "select schema_name, table_name, task_name, config, MIN(end_page) - MIN(start_page) as pages_in_chunk, " +
             "MAX(end_page) max_ctid_end_page, " +
             "MAX(chunk_id) last_id, " +
             "pg_relation_size( schema_name ||'.'|| table_name ) / 8192 as heap_blks_total" +
             " from public.ctid_chunks o where status = ANY (?) and xidmin is not null group by schema_name, table_name, task_name, config";
     public static final String SQL_CHUNKS_SYNC =
-//            "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
-//            " from public.ctid_chunks where status = ANY (?) and xidmin is not null order by xidmin";
             "select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status from " +
             "((select chunk_id, parent_id, start_page, end_page, xidmin, xidmax, schema_name, table_name, config, status " +
             "from public.ctid_chunks where status = ANY (?) and xidmin is not null) " +
@@ -106,11 +102,20 @@ public abstract class SQLConstants {
             "schema_name, table_name, status, config, required, last_id ) " +
             "(select * from (select n start_page, case when (n + ? < ?) then (n + ?) else ? end as end_page, ? as copied, ? task_name, " +
             "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+*/
+/*
     public static final String DML_BATCH_INSERT_CTID_CHUNKS_V2 =
             "insert into public.ctid_chunks (start_page, end_page, copied, task_name, " +
             "schema_name, table_name, status, config, required, last_id, xidmin ) " +
             "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
             "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required, ? + row_number() over() - 1 as last_id, ? as xidmin from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+*/
+    public static final String DML_BATCH_INSERT_CTID_CHUNKS_V2 =
+            "insert into public.ctid_chunks (start_page, end_page, copied, task_name, " +
+                    "schema_name, table_name, status, config, required ) " +
+                    "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
+                    "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+/*
     public static final String DML_UPDATE_XIDMAX_CTID_CHUNKS =
             "update public.ctid_chunks set xidmax = ? where chunk_id = ?";
     public static final String SQL_SELECT_HAS_UNCOMMITED_TRANSACTIONS =
@@ -122,8 +127,6 @@ public abstract class SQLConstants {
     public static final String SQL_SELECT_CTID_CHUNKS =
             "select chunk_id, start_page, end_page, schema_name, table_name from public.ctid_chunks where status = 'UNASSIGNED'";
     public static final String SQL_SELECT_MAX_XMIN_XMAX_OF_CHUNK =
-//            "select max(xmin::text::int8) xidmin, max(xmax::text::int8) xidmax from $schemaName.$tableName " +
-//                    "where ctid >= concat('(', ? ,',1)')::tid and ctid < concat('(', ?,',1)')::tid";
             "select max(xmin::text::int8) as xidmin, 0 as xidmax from $schemaName.$tableName where ctid >= concat('(', ? ,',1)')::tid and " +
             "ctid < concat('(', ?,',1)')::tid and " +
             "age(xmin) = " +
@@ -132,11 +135,11 @@ public abstract class SQLConstants {
     public static final String DML_UPDATE_XID_OF_CTID_CHUNKS =
             "update public.ctid_chunks set xidmin = ?, xidmax = ? where chunk_id = ?";
     public static final String DML_UPDATE_XID_OF_CTID_CHUNKS_BY_LAST_ID =
-//            "update public.ctid_chunks o set xidmin = (select xidmin from public.ctid_chunks i where i.chunk_id = o.last_id) where chunk_id = ?";
             "update public.ctid_chunks o set " +
             "xidmin = (select min(xidmin) from public.ctid_chunks i " +
             "where i.chunk_id < o.last_id and i.task_name = o.task_name) " +
             "where chunk_id = ?";
+*/
     public static final String PLSQL_DROP_TASK = "CALL DBMS_PARALLEL_EXECUTE.DROP_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_TASK = "CALL DBMS_PARALLEL_EXECUTE.CREATE_TASK(task_name => ?)";
     public static final String PLSQL_CREATE_CHUNK =
@@ -146,17 +149,21 @@ public abstract class SQLConstants {
             "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(task_name => ?,chunk_id => ?,status => ?,err_msg => ?)";
     public static final String DML_UPDATE_CONFIG_CTID_CHUNKS =
             "update public.ctid_chunks set config = to_json(?::json) where chunk_id = ?";
-    public static final String DML_UPDATE_COPIED_CTID_CHUNKS =
-            "update public.ctid_chunks set copied = ? where chunk_id = ?";
+    public static final String DML_UPDATE_UUID_COPIED_CTID_CHUNKS =
+            "update public.ctid_chunks set uuid = ?, copied = ? where chunk_id = ?";
+/*
     public static final String DML_UPDATE_UPSERTED_CTID_CHUNKS =
             "update public.ctid_chunks set upserted = ?, end_ts = (case when ? = 0 then null else now() end) where chunk_id = ?";
+*/
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS =
             "update public.ctid_chunks set status = ?, err_msg = null where chunk_id = ? and task_name = ?";
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS =
             "update public.ctid_chunks set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
 
+/*
     public static final String SQL_PG_INDEX_DEFINITION =
             "select indexdef from pg_indexes where schemaname = ? and tablename = ? and indexname = ?";
+*/
     public static final String SQL_PG_CURRENT_LSN_AND_XID =
             "select pg_current_wal_lsn(), pg_current_xact_id()";
     public static final String SQL_PG_INDEX_BASIC_COLUMNS =
@@ -197,8 +204,10 @@ public abstract class SQLConstants {
 
     public static final String DDL_PG_CREATE_TABLE =
             "create table if not exists $schemaName.$tableName ($columnDefinition) ";
+/*
     public static final String DDL_PG_CREATE_TABLE_OPTION_CLAUSE =
             "with ($tableOption) ";
+*/
 
     public static String getTableName(String schemaName, String tableName) {
         return schemaName + "." + tableName;

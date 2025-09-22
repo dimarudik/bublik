@@ -1,5 +1,6 @@
 package org.bublik.postgres.storage;
 
+import com.fasterxml.uuid.Generators;
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
@@ -76,6 +77,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 chunkHashMap.add(
                         new PGChunk<>(
                                 resultSet.getInt("chunk_id"),
+                                Generators.timeBasedEpochRandomGenerator().generate(),
                                 resultSet.getLong("start_page"),
                                 resultSet.getLong("end_page"),
                                 config,
@@ -1136,13 +1138,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         reltuples,
                         (double) required,
                         pagesInChunk);
-                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
+                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required);
 
                 max_end_page = getMaxEndPageOfChunks(connection, config);
 
                 // всавка последних чанков
                 if (heap_blks_total > max_end_page) {
-                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, 0, 0);
+                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required);
                 }
             }
             if (!sync) {

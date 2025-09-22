@@ -86,9 +86,7 @@ public class ColumnUtil {
                                             long totalPages,
                                             long pagesInChunk,
                                             ChunkStatus status,
-                                            int required,
-                                            long last_id,
-                                           long xidmin) throws SQLException {
+                                            int required) throws SQLException {
         String sql = DML_BATCH_INSERT_CTID_CHUNKS_V2
                 .replace("$schemaName", table.getSchemaName().toLowerCase())
                 .replace("$tableName", table.getTableName());
@@ -103,11 +101,11 @@ public class ColumnUtil {
         chunkInsert.setString(6, status.toString());
         chunkInsert.setString(7, null);
         chunkInsert.setLong(8, required);
-        chunkInsert.setLong(9, last_id);
-        chunkInsert.setLong(10, xidmin);
-        chunkInsert.setLong(11, startPage);
-        chunkInsert.setLong(12, totalPages);
-        chunkInsert.setLong(13, pagesInChunk);
+//        chunkInsert.setLong(9, last_id);
+//        chunkInsert.setLong(10, xidmin);
+        chunkInsert.setLong(9, startPage);
+        chunkInsert.setLong(10, totalPages);
+        chunkInsert.setLong(11, pagesInChunk);
         int rows = chunkInsert.executeUpdate();
         chunkInsert.close();
     }

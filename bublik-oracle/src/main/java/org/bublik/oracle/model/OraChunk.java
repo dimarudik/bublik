@@ -20,17 +20,6 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public Integer getParentId() {
-        return 0;
-    }
-
-    @Override
-    public Long getXidMin() {
-        return 0L;
-    }
-
-
-    @Override
     public OraChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) {
         try {
             Connection connection = this.getSourceConnection();
@@ -60,11 +49,6 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
 
     @Override
     public Chunk<?> saveChunkRows(int rows, boolean sync) throws SQLException {
-        return this;
-    }
-
-    @Override
-    public Chunk<?> saveConfig(boolean sync) throws SQLException {
         return this;
     }
 
