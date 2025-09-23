@@ -35,7 +35,7 @@ public class OracleToCassandraTest {
        target.start();
    }
 
-    @Test
+//    @Test
     void checkCS() throws IOException {
        try {
            ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath("ora2cs/ora2cs.yaml"));

@@ -15,7 +15,7 @@ import static org.bublik.cli.App.getConfigs;
 @Slf4j
 public class TestUtils {
     public static String getFilePath(String resourceFileName){
-        java.net.URL cfg = PostgresToPostgresTest.class.getClassLoader().getResource(resourceFileName);
+        java.net.URL cfg = PgToPgOneToOneTest.class.getClassLoader().getResource(resourceFileName);
         if(cfg == null){
             throw new RuntimeException("file not found:"+resourceFileName);
         }

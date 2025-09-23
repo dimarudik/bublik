@@ -5,6 +5,7 @@
     "toSchemaName" : "PUBLIC",
     "toTableName" : "TARGET",
     "tryCharIfAny" : ["current_mood", "gender"],
+    "fetchWhereClause": "1 = 1",
     "columnToColumn" : {
       "id"            : "id",
       "uuid"          : "uuid",

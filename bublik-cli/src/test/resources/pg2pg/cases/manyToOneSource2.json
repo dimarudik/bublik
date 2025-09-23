@@ -1,0 +1,8 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202510",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202510_1"
+  }
+]

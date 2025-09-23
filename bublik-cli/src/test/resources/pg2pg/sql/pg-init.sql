@@ -150,6 +150,21 @@ insert into public."Source" (uuid, "Primary", boolean,
 
 analyze public."Source" ;
 
+create table public.not_null_failure (
+    id int,
+    name varchar(256));
+
+insert into public.not_null_failure (id, name)
+   select num as id,
+      'Item ' || substr(md5(random()::text), 1, 10) as name
+      from generate_series(1, 100000) as num;
+update public.not_null_failure set name = null where id = 1000;
+analyze public.not_null_failure;
+
+create table test.not_null_failure (
+    id int,
+    name varchar(256) not null);
+
 create table public.users (
     id int,
     user_name varchar,
@@ -207,6 +222,9 @@ insert into public.likes (id, user_id, item_id, r)
     from generate_series(1, 500000) as num
 on conflict (user_id, item_id) do nothing;
 
+analyze public.users;
+analyze public.items;
+analyze public.likes;
 --select setval('public.likes_id_seq', 1000001, false);
 
 create table public.p_src (

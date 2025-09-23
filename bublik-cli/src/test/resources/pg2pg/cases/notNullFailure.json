@@ -1,0 +1,8 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "not_null_failure",
+    "toSchemaName": "test",
+    "toTableName": "not_null_failure"
+  }
+]

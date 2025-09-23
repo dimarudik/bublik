@@ -7,13 +7,12 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
-import java.sql.SQLException;
+import java.sql.*;
 
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
-class PostgresToPostgresTest {
+class PgToPgOneToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:latest")
@@ -37,7 +36,6 @@ class PostgresToPostgresTest {
 
     @Test
     void allTypes() throws IOException {
-        // добавить интервальные типы
         TestResult result = getResult(
                 "./pg2pg/pg2pg.yaml",
                 "./pg2pg/cases/allTypes.json",
@@ -54,6 +52,35 @@ class PostgresToPostgresTest {
                 "./pg2pg/pg2pg.yaml",
                 "./pg2pg/cases/targetTableNotExists.json",
                 rows,
+                sync,
+                source,
+                target);
+        assertEquals(result.targetCount(), result.sourceCount());
+    }
+
+    @Test
+    void notNullFailure() throws IOException {
+        getResult(
+                "./pg2pg/pg2pg.yaml",
+                "./pg2pg/cases/notNullFailure.json",
+                rows,
+                sync,
+                source,
+                target);
+        String jdbcUrl = source.getJdbcUrl();
+        String username = source.getUsername();
+        String password = source.getPassword();
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+            PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
+            ps.executeUpdate();
+        }
+        catch (SQLException e){
+            throw new RuntimeException(e);
+        }
+        TestResult result = getResult(
+                "./pg2pg/pg2pg.yaml",
+                "./pg2pg/cases/notNullFailure.json",
+                0,
                 sync,
                 source,
                 target);

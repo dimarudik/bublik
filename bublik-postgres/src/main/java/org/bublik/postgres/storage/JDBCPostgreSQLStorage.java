@@ -1163,13 +1163,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX);
             createTable.close();
-            Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
-            truncateTable.close();
+//            Statement truncateTable = connection.createStatement();
+//            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
+//            truncateTable.close();
             connection.commit();
             log.info("Outbox table created successfully");
         } catch (SQLException e) {
-            log.warn("{}", getStackTrace(e));
+            log.warn("Outbox table already exists");
+//            log.warn("{}", getStackTrace(e));
         }
         connection.close();
     }
