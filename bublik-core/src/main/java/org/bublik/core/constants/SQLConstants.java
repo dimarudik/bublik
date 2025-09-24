@@ -150,13 +150,13 @@ public abstract class SQLConstants {
     public static final String DML_UPDATE_CONFIG_CTID_CHUNKS =
             "update public.ctid_chunks set config = to_json(?::json) where chunk_id = ?";
     public static final String DML_UPDATE_UUID_COPIED_CTID_CHUNKS =
-            "update public.ctid_chunks set uuid = ?, copied = ? where chunk_id = ?";
+            "update public.ctid_chunks set copied = ? where chunk_id = ?";
 /*
     public static final String DML_UPDATE_UPSERTED_CTID_CHUNKS =
             "update public.ctid_chunks set upserted = ?, end_ts = (case when ? = 0 then null else now() end) where chunk_id = ?";
 */
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS =
-            "update public.ctid_chunks set status = ?, err_msg = null where chunk_id = ? and task_name = ?";
+            "update public.ctid_chunks set uuid = ?, status = ?, err_msg = null where chunk_id = ? and task_name = ?";
     public static final String DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS =
             "update public.ctid_chunks set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
 

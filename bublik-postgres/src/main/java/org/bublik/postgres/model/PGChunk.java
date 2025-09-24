@@ -36,9 +36,10 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             PreparedStatement updateStatus;
             if (errMsg == null) {
                 updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
-                updateStatus.setString(1, status.toString());
-                updateStatus.setLong(2, this.getId());
-                updateStatus.setString(3, this.getConfig().fromTaskName());
+                updateStatus.setString(1, getUuid().toString());
+                updateStatus.setString(2, status.toString());
+                updateStatus.setLong(3, this.getId());
+                updateStatus.setString(4, this.getConfig().fromTaskName());
             } else {
                 updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS);
                 updateStatus.setString(1, status.toString());
@@ -60,9 +61,9 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CTID_CHUNKS);
-        updateStatus.setString(1, getUuid().toString());
-        updateStatus.setInt(2, copied);
-        updateStatus.setInt(3, this.getId());
+//        updateStatus.setString(1, getUuid().toString());
+        updateStatus.setInt(1, copied);
+        updateStatus.setInt(2, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
         if (!sync)

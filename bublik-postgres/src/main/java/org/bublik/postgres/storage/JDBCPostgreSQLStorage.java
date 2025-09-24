@@ -48,15 +48,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
-        List<Chunk<?>> chunkHashMap = new ArrayList<>();
+        List<Chunk<?>> chunks = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         Map<String, Table> tableMap = new HashMap<>();
         PreparedStatement statement = connection.prepareStatement(sql);
-        ResultSet resultSet = statement.executeQuery();
-        if (resultSet.isBeforeFirst()) {
-            while (resultSet.next()) {
-                Config config = findByTaskName(configs, resultSet.getString("task_name"));
+        ResultSet rs = statement.executeQuery();
+        if (rs.isBeforeFirst()) {
+            while (rs.next()) {
+                Config config = findByTaskName(configs, rs.getString("task_name"));
                 Table sourceTable = getTables()
                         .entrySet()
                         .stream()
@@ -74,12 +74,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                     query = buildFetchStatement(config);
                 }
                 tableMap.put(query, sourceTable);
-                chunkHashMap.add(
+                String uuid = rs.getString("uuid");
+                chunks.add(
                         new PGChunk<>(
-                                resultSet.getInt("chunk_id"),
-                                Generators.timeBasedEpochRandomGenerator().generate(),
-                                resultSet.getLong("start_page"),
-                                resultSet.getLong("end_page"),
+                                rs.getInt("chunk_id"),
+                                uuid == null ? Generators.timeBasedEpochRandomGenerator().generate() : UUID.fromString(uuid),
+                                rs.getLong("start_page"),
+                                rs.getLong("end_page"),
                                 config,
                                 sourceTable,
                                 null,
@@ -89,16 +90,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
         }
         tableMap.keySet().forEach(s -> log.info("{}", s));
-        resultSet.close();
+        rs.close();
         statement.close();
-        return chunkHashMap;
+        return chunks;
     }
 
     @Override
     public String buildStartEndOfChunk(List<Config> configs) {
         List<String> taskNames = new ArrayList<>();
         configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
-        return "select row_number() over (order by chunk_id) as rownum, chunk_id, start_page, end_page, task_name from public.ctid_chunks where task_name in ('" +
+        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name from public.ctid_chunks where task_name in ('" +
                 String.join("', '", taskNames) + "') " +
                 // тут надо разбираться при запуске из нескольких подов
                 "and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "

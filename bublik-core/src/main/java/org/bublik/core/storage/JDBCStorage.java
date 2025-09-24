@@ -114,14 +114,10 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             sourceJDBCStorage.enrichTargetTables();
             targetJDBCStorage.createTables();
         }
-
-//        List<Chunk<?>> chunks = getChunkList(configs, sourceConnection);
         sourceConnection.close();
 
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
-
-
         do {
             Connection sConnection = this.getConnection();
             List<Chunk<?>> chunks = getChunkList(configs, sConnection);
@@ -129,24 +125,24 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             List<Future<Chunk<?>>> futures = new ArrayList<>();
 
             chunks.forEach(chunk -> futures.add(
-                            service
-                                    .submit(() -> {
-                                        chunk.setTargetStorage(targetStorage);
-                                        try {
-                                            return chunk.copyChunk(false);
-                                        } catch (Exception e) {
-                                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
-                                            try {
-                                                if (chunk.getSourceConnection().isValid(0)) {
-                                                    chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
-                                                    chunk.getSourceConnection().close();
-                                                }
-                                            } catch (SQLException exception) {
-                                                log.error("{}", getStackTrace(exception));
-                                            }
-                                            throw e;
+                    service
+                            .submit(() -> {
+                                chunk.setTargetStorage(targetStorage);
+                                try {
+                                    return chunk.copyChunk(false);
+                                } catch (Exception e) {
+                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                                    try {
+                                        if (chunk.getSourceConnection().isValid(0)) {
+                                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e));
+                                            chunk.getSourceConnection().close();
                                         }
-                                    })
+                                    } catch (SQLException exception) {
+                                        log.error("{}", getStackTrace(exception));
+                                    }
+                                    throw e;
+                                }
+                            })
                     )
             );
 
@@ -156,14 +152,18 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                     c = (Chunk<?>) future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
-                    log.error("{}", getStackTrace(e));
-                    service.shutdownNow();
-                    throw new RuntimeException(e);
+                    if (e.getMessage().contains("terminating connection due to administrator command")) {
+                        log.error("{}", getStackTrace(e));
+                    } else {
+                        log.error("{}", getStackTrace(e));
+                        service.shutdownNow();
+                        throw new RuntimeException(e);
+                    }
                 }
             }
 
             if (chunks.isEmpty()) {
-                log.info("Portion of chunks processed");
+                log.info("All chunks are processed");
                 break;
             }
         } while (true);

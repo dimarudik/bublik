@@ -1,0 +1,6 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "switchover"
+  }
+]

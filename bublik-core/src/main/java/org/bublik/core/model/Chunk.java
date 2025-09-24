@@ -175,16 +175,32 @@ public abstract class Chunk<T> implements ChunkService {
 
 
     public Chunk<?> assignSourceConnection() throws SQLException {
-        while (true) {
+        Connection sourceConnection = getSourceStorage().getConnection();
+        setSourceConnection(sourceConnection);
+        return this;
+    }
+
+/*
+    public Chunk<?> assignSourceConnection() throws SQLException {
+        int tries = 10;
+        while (tries > 0) {
             try {
                 Connection sourceConnection = getSourceStorage().getConnection();
                 setSourceConnection(sourceConnection);
                 return this;
             } catch (SQLException e) {
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+                tries--;
                 LOGGER.error("There are no available connections in source pool ...");
             }
         }
+        throw new SQLException("Exceed max tries to get connection from source pool");
     }
+*/
 
     public Chunk<?> assignSourceConnection(Connection connection) throws SQLException {
         setSourceConnection(connection);
