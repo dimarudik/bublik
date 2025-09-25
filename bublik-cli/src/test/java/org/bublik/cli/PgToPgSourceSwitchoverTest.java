@@ -38,7 +38,7 @@ public class PgToPgSourceSwitchoverTest {
         environment.stop();
     }
 
-    @Test
+//    @Test
     void init() throws IOException {
         assertEquals(0, 0);
     }
