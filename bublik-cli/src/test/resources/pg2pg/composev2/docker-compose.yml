@@ -22,19 +22,16 @@ services:
             ETCD_INITIAL_CLUSTER_STATE: new
             ETCD_INITIAL_CLUSTER_TOKEN: tutorial
             ETCD_UNSUPPORTED_ARCH: arm64
-        container_name: demo-etcd1
         hostname: etcd1
         command: etcd --name etcd1 --initial-advertise-peer-urls http://etcd1:2380
 
     etcd2:
         <<: *etcd
-        container_name: demo-etcd2
         hostname: etcd2
         command: etcd --name etcd2 --initial-advertise-peer-urls http://etcd2:2380
 
     etcd3:
         <<: *etcd
-        container_name: demo-etcd3
         hostname: etcd3
         command: etcd --name etcd3 --initial-advertise-peer-urls http://etcd3:2380
 
@@ -43,7 +40,6 @@ services:
         networks: [ demo ]
         env_file: docker/patroni.env
         hostname: haproxy
-        container_name: demo-haproxy
         ports:
             - "5002:5000"
             - "5001:5001"
@@ -58,7 +54,6 @@ services:
         networks: [ demo ]
         env_file: docker/patroni.env
         hostname: patroni1
-        container_name: demo-patroni1
         volumes:
             - ./sql/init-source.sql:/docker-entrypoint-initdb.d/init-source.sql
         ports:
@@ -72,7 +67,6 @@ services:
         networks: [ demo ]
         env_file: docker/patroni.env
         hostname: patroni2
-        container_name: demo-patroni2
         volumes:
           - ./sql/init-source.sql:/docker-entrypoint-initdb.d/init-source.sql
         ports:
@@ -85,7 +79,6 @@ services:
         image: postgres
         networks: [ demo ]
         hostname: target
-        container_name: target
         environment:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
