@@ -14,7 +14,7 @@ networks:
 services:
     etcd1: &etcd
         image: dimarudik/patroni
-        networks: [ demo ]
+#        networks: [ demo ]
         environment:
             ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
             ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
@@ -37,7 +37,7 @@ services:
 
     haproxy:
         image: dimarudik/patroni
-        networks: [ demo ]
+#        networks: [ demo ]
         env_file: docker/patroni.env
         hostname: haproxy
         ports:
@@ -51,7 +51,7 @@ services:
 
     patroni1:
         image: dimarudik/patroni
-        networks: [ demo ]
+#        networks: [ demo ]
         env_file: docker/patroni.env
         hostname: patroni1
         volumes:
@@ -64,7 +64,7 @@ services:
 
     patroni2:
         image: dimarudik/patroni
-        networks: [ demo ]
+#        networks: [ demo ]
         env_file: docker/patroni.env
         hostname: patroni2
         volumes:
@@ -77,7 +77,7 @@ services:
 
     target:
         image: postgres
-        networks: [ demo ]
+#        networks: [ demo ]
         hostname: target
         environment:
           POSTGRES_USER: postgres
