@@ -38,20 +38,20 @@ services:
         hostname: etcd3
         command: etcd --name etcd3 --initial-advertise-peer-urls http://etcd3:2380
 
-    haproxy:
-        image: dimarudik/patroni
-        networks: [ demo ]
-        env_file: docker/patroni.env
-        hostname: haproxy
-        container_name: demo-haproxy
-        ports:
-            - "5002:5000"
-            - "5001:5001"
-        command: haproxy
-        environment: &haproxy_env
-            ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
-            PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
-            PATRONI_SCOPE: demo
+#    haproxy:
+#        image: dimarudik/patroni
+#        networks: [ demo ]
+#        env_file: docker/patroni.env
+#        hostname: haproxy
+#        container_name: demo-haproxy
+#        ports:
+#            - "5002:5000"
+#            - "5001:5001"
+#        command: haproxy
+#        environment: &haproxy_env
+#            ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
+#            PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
+#            PATRONI_SCOPE: demo
 
     patroni1:
         image: dimarudik/patroni
@@ -64,7 +64,10 @@ services:
         ports:
             - "5432:5432"
         environment:
-            <<: *haproxy_env
+            ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
+            PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
+            PATRONI_SCOPE: demo
+#            <<: *haproxy_env
             PATRONI_NAME: patroni1
 
     patroni2:
@@ -78,7 +81,10 @@ services:
         ports:
             - "5433:5432"
         environment:
-            <<: *haproxy_env
+            ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
+            PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
+            PATRONI_SCOPE: demo
+#            <<: *haproxy_env
             PATRONI_NAME: patroni2
 
     target:

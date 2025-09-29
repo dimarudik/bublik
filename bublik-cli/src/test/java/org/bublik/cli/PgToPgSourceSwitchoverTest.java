@@ -4,7 +4,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.ComposeContainer;
+import org.testcontainers.containers.Container;
 import org.testcontainers.containers.ContainerState;
+import org.testcontainers.containers.JdbcDatabaseContainer;
 
 import java.io.File;
 import java.io.IOException;
