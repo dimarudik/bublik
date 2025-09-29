@@ -56,7 +56,7 @@ services:
     patroni1:
         image: dimarudik/patroni
         networks: [ demo ]
-        env_file: docker/patroni.env
+#        env_file: docker/patroni.env
         hostname: patroni1
         container_name: demo-patroni1
         volumes:
@@ -64,6 +64,14 @@ services:
         ports:
             - "5432:5432"
         environment:
+            PATRONI_RESTAPI_USERNAME: admin
+            PATRONI_RESTAPI_PASSWORD: admin
+            PATRONI_SUPERUSER_USERNAME: postgres
+            PATRONI_SUPERUSER_PASSWORD: postgres
+            PATRONI_REPLICATION_USERNAME: replicator
+            PATRONI_REPLICATION_PASSWORD: replicate
+            PATRONI_admin_PASSWORD: admin
+            PATRONI_admin_OPTIONS: createdb,createrole
             ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
             PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
             PATRONI_SCOPE: demo
