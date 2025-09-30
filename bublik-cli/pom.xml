@@ -77,14 +77,12 @@
             <artifactId>cassandra</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
-<!--
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
--->
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.5.6</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <modules>

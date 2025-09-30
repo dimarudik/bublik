@@ -1,14 +1,19 @@
 package org.bublik.cli;
 
+import io.restassured.RestAssured;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
+import java.net.URISyntaxException;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+//@Disabled
 public class PgToPgEnvSwitchoverTest {
 //    private static Network network = Network.newNetwork();
     private static GenericContainer<?> etcd1 = new GenericContainer<>("dimarudik/patroni")
@@ -19,7 +24,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd1"))
-//            .withNetwork(network);
+//            .withNetwork(network)
             .withCommand("etcd --name etcd1 --initial-advertise-peer-urls http://etcd1:2380");
 
     private static GenericContainer<?> etcd2 = new GenericContainer<>("dimarudik/patroni")
@@ -30,7 +35,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd2"))
-//            .withNetwork(network);
+//            .withNetwork(network)
             .withCommand("etcd --name etcd2 --initial-advertise-peer-urls http://etcd2:2380");
 
     private static GenericContainer<?> etcd3 = new GenericContainer<>("dimarudik/patroni")
@@ -41,7 +46,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd3"))
-//            .withNetwork(network);
+//            .withNetwork(network)
             .withCommand("etcd --name etcd3 --initial-advertise-peer-urls http://etcd3:2380");
 
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
@@ -57,7 +62,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni1")
-//            .withNetwork(network);
+//            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni1"));
 
     private static GenericContainer<?> patroni2 = new GenericContainer<>("dimarudik/patroni")
@@ -73,7 +78,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni2")
-//            .withNetwork(network);
+//            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 
     private static GenericContainer<?> target = new GenericContainer<>("postgres")
@@ -85,6 +90,7 @@ public class PgToPgEnvSwitchoverTest {
 
     @BeforeAll
     static void setUp() {
+        etcd1.setPortBindings(java.util.Collections.singletonList("2379:2379"));
         etcd1.start();
         etcd2.start();
         etcd3.start();
@@ -107,6 +113,18 @@ public class PgToPgEnvSwitchoverTest {
     }
 
     @Test
+    public void etcdReadiness() throws InterruptedException, URISyntaxException {
+        RestAssured.baseURI = "http://localhost:2379";
+        given()
+                .when()
+                .get("/v2/members")
+                .then()
+                .assertThat()
+                .statusCode(200)
+                .body("members", hasSize(3));
+    }
+
+//    @Test
     public void init() throws InterruptedException {
 //        Thread.sleep(120_000);
         assertEquals(0, 0);
