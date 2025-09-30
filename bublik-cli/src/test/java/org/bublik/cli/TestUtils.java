@@ -66,6 +66,7 @@ public class TestUtils {
 
     public static Long countRows(JdbcDatabaseContainer db, String query){
         String jdbcUrl = db.getJdbcUrl();
+//        System.out.println(jdbcUrl);
         String username = db.getUsername();
         String password = db.getPassword();
         try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {

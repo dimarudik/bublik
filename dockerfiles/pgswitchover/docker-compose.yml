@@ -63,6 +63,7 @@ services:
             - ./sql/init-source.sql:/docker-entrypoint-initdb.d/init-source.sql
         ports:
             - "5432:5432"
+            - "8008:8008"
         environment:
             PATRONI_RESTAPI_USERNAME: admin
             PATRONI_RESTAPI_PASSWORD: admin
@@ -75,7 +76,6 @@ services:
             ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
             PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
             PATRONI_SCOPE: demo
-#            <<: *haproxy_env
             PATRONI_NAME: patroni1
 
     patroni2:
@@ -92,7 +92,6 @@ services:
             ETCDCTL_ENDPOINTS: http://etcd1:2379,http://etcd2:2379,http://etcd3:2379
             PATRONI_ETCD3_HOSTS: "'etcd1:2379','etcd2:2379','etcd3:2379'"
             PATRONI_SCOPE: demo
-#            <<: *haproxy_env
             PATRONI_NAME: patroni2
 
     target:

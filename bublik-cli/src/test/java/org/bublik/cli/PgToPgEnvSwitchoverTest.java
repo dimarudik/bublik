@@ -12,10 +12,11 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Disabled
 public class PgToPgEnvSwitchoverTest {
@@ -31,7 +32,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName1))
-            .withNetwork(network)
+//            .withNetwork(network)
             .withCommand("etcd --name " + etcdHostName1 + " --initial-advertise-peer-urls http://" + etcdHostName1 +":2380");
 
     private static GenericContainer<?> etcd2 = new GenericContainer<>("dimarudik/patroni")
@@ -42,7 +43,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName2))
-            .withNetwork(network)
+//            .withNetwork(network)
             .withCommand("etcd --name " + etcdHostName2 + " --initial-advertise-peer-urls http://" + etcdHostName2 +":2380");
 
     private static GenericContainer<?> etcd3 = new GenericContainer<>("dimarudik/patroni")
@@ -53,7 +54,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName3))
-            .withNetwork(network)
+//            .withNetwork(network)
             .withCommand("etcd --name " + etcdHostName3 + " --initial-advertise-peer-urls http://" + etcdHostName3 +":2380");
 
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
@@ -69,7 +70,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni1")
-            .withNetwork(network)
+//            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni1"));
 
     private static GenericContainer<?> patroni2 = new GenericContainer<>("dimarudik/patroni")
@@ -85,14 +86,14 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni2")
-            .withNetwork(network)
+//            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 
     private static GenericContainer<?> target = new GenericContainer<>("postgres")
             .withEnv("POSTGRES_USER", "postgres")
             .withEnv("POSTGRES_PASSWORD", "postgres")
             .withEnv("POSTGRES_DB", "postgres")
-            .withNetwork(network)
+//            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("target"));
 
     @BeforeAll
@@ -101,7 +102,10 @@ public class PgToPgEnvSwitchoverTest {
         etcd1.start();
         etcd2.start();
         etcd3.start();
-        patroni1.setPortBindings(java.util.Collections.singletonList("5432:5432"));
+        List<String> ports = new ArrayList<>();
+        ports.add("5432:5432");
+        ports.add("8008:8008");
+        patroni1.setPortBindings(ports);
         patroni2.setPortBindings(java.util.Collections.singletonList("5433:5432"));
         target.setPortBindings(java.util.Collections.singletonList("5434:5432"));
         patroni1.start();
@@ -121,8 +125,8 @@ public class PgToPgEnvSwitchoverTest {
 
     @Test
     public void etcdReadiness() throws InterruptedException, URISyntaxException {
-        String etcdHostName = etcdHostName1;
-        RestAssured.baseURI = "http://" + etcdHostName + ":2379";
+        RestAssured.baseURI = "http://" + etcd1.getHost() + ":2379";
+//        System.out.println("etcdhostname: " + etcd1.getHost());
         RestAssuredConfig config = RestAssured.config()
                 .httpClient(HttpClientConfig.httpClientConfig()
                         .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000)
@@ -135,12 +139,22 @@ public class PgToPgEnvSwitchoverTest {
                 .assertThat()
                 .statusCode(200)
                 .body("members", hasSize(3));
-//        Thread.sleep(10_000);
     }
 
-//    @Test
-    public void init() throws InterruptedException {
-//        Thread.sleep(120_000);
-        assertEquals(0, 0);
+    @Test
+    public void patroniReadiness() throws InterruptedException, URISyntaxException {
+        RestAssured.baseURI = "http://" + patroni1.getHost() + ":8008";
+        RestAssuredConfig config = RestAssured.config()
+                .httpClient(HttpClientConfig.httpClientConfig()
+                        .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000)
+                        .setParam(CoreConnectionPNames.SO_TIMEOUT, 3000));
+        given()
+                .when()
+                .config(config)
+                .get("/cluster")
+                .then()
+                .assertThat()
+                .statusCode(200)
+                .body("members", hasSize(2));
     }
 }
