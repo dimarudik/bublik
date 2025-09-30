@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class PgToPgOneToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;
-    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:latest")
+    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
 //            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
             .withInitScript("./pg2pg/sql/pg-init.sql");

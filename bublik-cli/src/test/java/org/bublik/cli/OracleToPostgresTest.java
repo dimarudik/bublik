@@ -21,7 +21,7 @@ public class OracleToPostgresTest {
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
             .withInitScript("./ora2pg/sql/00_init.sql");
-    private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres:latest")
+    private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
 //            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
             .withInitScript("./ora2pg/sql/pg-init-empty.sql");
