@@ -6,6 +6,7 @@ import io.restassured.config.RestAssuredConfig;
 import org.apache.http.params.CoreConnectionPNames;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -16,7 +17,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
+@Disabled
 public class PgToPgEnvSwitchoverTest {
     private static String etcdHostName1 = "etcd1";
     private static String etcdHostName2 = "etcd2";
@@ -30,7 +31,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName1))
-//            .withNetwork(network)
+            .withNetwork(network)
             .withCommand("etcd --name " + etcdHostName1 + " --initial-advertise-peer-urls http://" + etcdHostName1 +":2380");
 
     private static GenericContainer<?> etcd2 = new GenericContainer<>("dimarudik/patroni")
@@ -41,7 +42,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName2))
-//            .withNetwork(network)
+            .withNetwork(network)
             .withCommand("etcd --name " + etcdHostName2 + " --initial-advertise-peer-urls http://" + etcdHostName2 +":2380");
 
     private static GenericContainer<?> etcd3 = new GenericContainer<>("dimarudik/patroni")
@@ -52,7 +53,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName3))
-//            .withNetwork(network)
+            .withNetwork(network)
             .withCommand("etcd --name " + etcdHostName3 + " --initial-advertise-peer-urls http://" + etcdHostName3 +":2380");
 
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
@@ -68,7 +69,7 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni1")
-//            .withNetwork(network)
+            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni1"));
 
     private static GenericContainer<?> patroni2 = new GenericContainer<>("dimarudik/patroni")
@@ -84,14 +85,14 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni2")
-//            .withNetwork(network)
+            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 
     private static GenericContainer<?> target = new GenericContainer<>("postgres")
             .withEnv("POSTGRES_USER", "postgres")
             .withEnv("POSTGRES_PASSWORD", "postgres")
             .withEnv("POSTGRES_DB", "postgres")
-//            .withNetwork(network)
+            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("target"));
 
     @BeforeAll
