@@ -1,5 +1,6 @@
 package org.bublik.cli;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -95,9 +96,19 @@ public class PgToPgEnvSwitchoverTest {
         target.start();
     }
 
+    @AfterAll
+    static void tearDown() {
+        patroni1.stop();
+        patroni2.stop();
+        target.stop();
+        etcd1.stop();
+        etcd2.stop();
+        etcd3.stop();
+    }
+
     @Test
     public void init() throws InterruptedException {
-        Thread.sleep(120_000);
+//        Thread.sleep(120_000);
         assertEquals(0, 0);
     }
 }
