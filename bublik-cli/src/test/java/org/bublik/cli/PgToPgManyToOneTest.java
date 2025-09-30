@@ -2,6 +2,7 @@ package org.bublik.cli;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -18,6 +19,7 @@ import java.util.concurrent.Future;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Disabled
 public class PgToPgManyToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;

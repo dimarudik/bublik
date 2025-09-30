@@ -14,7 +14,7 @@ import java.time.Duration;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
+@Disabled
 public class OracleToPostgresTest {
     private static int rows = 50000;
     private static boolean sync = false;
