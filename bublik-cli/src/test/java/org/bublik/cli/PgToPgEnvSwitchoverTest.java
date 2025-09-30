@@ -120,7 +120,8 @@ public class PgToPgEnvSwitchoverTest {
 
     @Test
     public void etcdReadiness() throws InterruptedException, URISyntaxException {
-        RestAssured.baseURI = "http://localhost:2379";
+        String etcdHostName = etcdHostName1;
+        RestAssured.baseURI = "http://" + etcdHostName + ":2379";
         RestAssuredConfig config = RestAssured.config()
                 .httpClient(HttpClientConfig.httpClientConfig()
                         .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000)
