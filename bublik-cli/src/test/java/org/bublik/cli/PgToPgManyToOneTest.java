@@ -19,7 +19,7 @@ import java.util.concurrent.Future;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+//@Disabled
 public class PgToPgManyToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;

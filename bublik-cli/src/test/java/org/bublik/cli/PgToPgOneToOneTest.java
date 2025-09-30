@@ -12,7 +12,7 @@ import java.sql.*;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+//@Disabled
 class PgToPgOneToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;

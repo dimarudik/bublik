@@ -18,8 +18,8 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd1"))
-            .withCommand("etcd --name etcd1 --initial-advertise-peer-urls http://etcd1:2380");
 //            .withNetwork(network);
+            .withCommand("etcd --name etcd1 --initial-advertise-peer-urls http://etcd1:2380");
 
     private static GenericContainer<?> etcd2 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("ETCD_LISTEN_PEER_URLS", "http://0.0.0.0:2380")
@@ -29,8 +29,8 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd2"))
-            .withCommand("etcd --name etcd2 --initial-advertise-peer-urls http://etcd2:2380");
 //            .withNetwork(network);
+            .withCommand("etcd --name etcd2 --initial-advertise-peer-urls http://etcd2:2380");
 
     private static GenericContainer<?> etcd3 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("ETCD_LISTEN_PEER_URLS", "http://0.0.0.0:2380")
@@ -40,8 +40,8 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd3"))
-            .withCommand("etcd --name etcd3 --initial-advertise-peer-urls http://etcd3:2380");
 //            .withNetwork(network);
+            .withCommand("etcd --name etcd3 --initial-advertise-peer-urls http://etcd3:2380");
 
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
@@ -56,8 +56,8 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni1")
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni1"));
 //            .withNetwork(network);
+            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni1"));
 
     private static GenericContainer<?> patroni2 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
@@ -72,15 +72,15 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_ETCD3_HOSTS", "'etcd1:2379','etcd2:2379','etcd3:2379'")
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni2")
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 //            .withNetwork(network);
+            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 
     private static GenericContainer<?> target = new GenericContainer<>("postgres")
             .withEnv("POSTGRES_USER", "postgres")
             .withEnv("POSTGRES_PASSWORD", "postgres")
             .withEnv("POSTGRES_DB", "postgres")
+//            .withNetwork(network)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("target"));
-//            .withNetwork(network);
 
     @BeforeAll
     static void setUp() {
