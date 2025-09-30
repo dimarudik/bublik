@@ -1,6 +1,9 @@
 package org.bublik.cli;
 
 import io.restassured.RestAssured;
+import io.restassured.config.HttpClientConfig;
+import io.restassured.config.RestAssuredConfig;
+import org.apache.http.params.CoreConnectionPNames;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -15,7 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
 public class PgToPgEnvSwitchoverTest {
-//    private static Network network = Network.newNetwork();
+    private static String etcdHostName1 = "etcd1";
+    private static String etcdHostName2 = "etcd2";
+    private static String etcdHostName3 = "etcd3";
+    private static Network network = Network.newNetwork();
     private static GenericContainer<?> etcd1 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("ETCD_LISTEN_PEER_URLS", "http://0.0.0.0:2380")
             .withEnv("ETCD_LISTEN_CLIENT_URLS", "http://0.0.0.0:2379")
@@ -23,9 +29,9 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_STATE", "new")
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd1"))
+            .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName1))
 //            .withNetwork(network)
-            .withCommand("etcd --name etcd1 --initial-advertise-peer-urls http://etcd1:2380");
+            .withCommand("etcd --name " + etcdHostName1 + " --initial-advertise-peer-urls http://" + etcdHostName1 +":2380");
 
     private static GenericContainer<?> etcd2 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("ETCD_LISTEN_PEER_URLS", "http://0.0.0.0:2380")
@@ -34,9 +40,9 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_STATE", "new")
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd2"))
+            .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName2))
 //            .withNetwork(network)
-            .withCommand("etcd --name etcd2 --initial-advertise-peer-urls http://etcd2:2380");
+            .withCommand("etcd --name " + etcdHostName2 + " --initial-advertise-peer-urls http://" + etcdHostName2 +":2380");
 
     private static GenericContainer<?> etcd3 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("ETCD_LISTEN_PEER_URLS", "http://0.0.0.0:2380")
@@ -45,9 +51,9 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_INITIAL_CLUSTER_STATE", "new")
             .withEnv("ETCD_INITIAL_CLUSTER_TOKEN", "tutorial")
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName("etcd3"))
+            .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName3))
 //            .withNetwork(network)
-            .withCommand("etcd --name etcd3 --initial-advertise-peer-urls http://etcd3:2380");
+            .withCommand("etcd --name " + etcdHostName3 + " --initial-advertise-peer-urls http://" + etcdHostName3 +":2380");
 
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
@@ -115,13 +121,19 @@ public class PgToPgEnvSwitchoverTest {
     @Test
     public void etcdReadiness() throws InterruptedException, URISyntaxException {
         RestAssured.baseURI = "http://localhost:2379";
+        RestAssuredConfig config = RestAssured.config()
+                .httpClient(HttpClientConfig.httpClientConfig()
+                        .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000)
+                        .setParam(CoreConnectionPNames.SO_TIMEOUT, 3000));
         given()
                 .when()
+                .config(config)
                 .get("/v2/members")
                 .then()
                 .assertThat()
                 .statusCode(200)
                 .body("members", hasSize(3));
+//        Thread.sleep(10_000);
     }
 
 //    @Test
