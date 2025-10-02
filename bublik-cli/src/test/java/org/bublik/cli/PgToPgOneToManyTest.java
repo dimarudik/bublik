@@ -19,36 +19,35 @@ import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
-public class PgToPgManyToOneTest {
+public class PgToPgOneToManyTest {
     private static int rows = 50000;
     private static boolean sync = false;
-    private static JdbcDatabaseContainer<?> source1 = new PostgreSQLContainer<>("postgres")
+    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/manyToOneSource1.sql");
-    private static JdbcDatabaseContainer<?> source2 = new PostgreSQLContainer<>("postgres")
+            .withInitScript("./pg2pg/sql/oneToManySource.sql");
+    private static JdbcDatabaseContainer<?> target1 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/manyToOneSource2.sql");
-    private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
+            .withInitScript("./pg2pg/sql/oneToManyTarget1.sql");
+    private static JdbcDatabaseContainer<?> target2 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/manyToOneTarget.sql");
+            .withInitScript("./pg2pg/sql/oneToManyTarget2.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {
-        source1.setPortBindings(Collections.singletonList("5432:5432"));
-        source1.start();
-        source2.setPortBindings(Collections.singletonList("5433:5432"));
-        source2.start();
-        target.setPortBindings(Collections.singletonList("5434:5432"));
-        target.start();
+        source.setPortBindings(Collections.singletonList("5432:5432"));
+        source.start();
+        target1.setPortBindings(Collections.singletonList("5433:5432"));
+        target1.start();
+        target2.setPortBindings(Collections.singletonList("5434:5432"));
+        target2.start();
     }
 
     @AfterAll
     static void clear() {
-        source1.stop();
-        source2.stop();
-        target.stop();
-        while (source1.isRunning() || source2.isRunning() || target.isRunning()) {
+        source.stop();
+        target1.stop();
+        target2.stop();
+        while (source.isRunning() || target1.isRunning() || target2.isRunning()) {
             try {
                 Thread.sleep(300);
             } catch (InterruptedException e) {
@@ -57,8 +56,8 @@ public class PgToPgManyToOneTest {
         }
     }
 
-    @Test
-    void ManyToOne() throws IOException {
+//    @Test
+    void OneToMany() throws IOException {
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
         long targetCount = 0;
@@ -69,8 +68,8 @@ public class PgToPgManyToOneTest {
                 "pg2pg/mappings/manyToOneSource1.json",
                 rows,
                 sync,
-                getJdbcProperties(source1),
-                getJdbcProperties(target))
+                getJdbcProperties(source),
+                getJdbcProperties(target1))
         ));
 
         futures.add(service.submit(() -> getResult(
@@ -78,8 +77,8 @@ public class PgToPgManyToOneTest {
                 "pg2pg/mappings/manyToOneSource2.json",
                 rows,
                 sync,
-                getJdbcProperties(source2),
-                getJdbcProperties(target))
+                getJdbcProperties(source),
+                getJdbcProperties(target2))
         ));
 
         for (Future<?> future : futures) {

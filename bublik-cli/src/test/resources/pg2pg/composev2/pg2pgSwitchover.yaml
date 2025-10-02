@@ -1,0 +1,11 @@
+threadCount: 10
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432,localhost:5433/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: postgres
+  password: postgres
+toProperties:
+  url: jdbc:postgresql://localhost:5434/postgres
+  user: test
+  password: test
+

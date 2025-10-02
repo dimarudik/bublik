@@ -1153,7 +1153,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             }
             log.info("Ctid chunks created successfully");
         } catch (SQLException e) {
-            log.warn("{}", getStackTrace(e));
+            log.warn("{} {}", e.getSQLState(), getStackTrace(e));
         }
     }
 

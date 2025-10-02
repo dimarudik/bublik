@@ -1,6 +1,6 @@
 package org.bublik.cli;
 
-record TestResult(
+public record TestResult(
         long sourceCount,
         long targetCount
 ){}

@@ -9,7 +9,7 @@ import org.testcontainers.utility.MountableFile;
 import java.io.IOException;
 import java.sql.*;
 
-import static org.bublik.cli.TestUtils.getResult;
+import static org.bublik.cli.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
@@ -33,17 +33,24 @@ class PgToPgOneToOneTest {
     @AfterAll
     static void clear() {
         source.stop();
+        while (source.isRunning()) {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Test
     void allTypes() throws IOException {
         TestResult result = getResult(
                 "./pg2pg/pg2pg.yaml",
-                "./pg2pg/cases/allTypes.json",
+                "pg2pg/mappings/allTypes.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -51,11 +58,11 @@ class PgToPgOneToOneTest {
     void targetTableNotExists() throws IOException {
         TestResult result = getResult(
                 "./pg2pg/pg2pg.yaml",
-                "./pg2pg/cases/targetTableNotExists.json",
+                "pg2pg/mappings/targetTableNotExists.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -63,11 +70,11 @@ class PgToPgOneToOneTest {
     void notNullFailure() throws IOException {
         getResult(
                 "./pg2pg/pg2pg.yaml",
-                "./pg2pg/cases/notNullFailure.json",
+                "pg2pg/mappings/notNullFailure.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         String jdbcUrl = source.getJdbcUrl();
         String username = source.getUsername();
         String password = source.getPassword();
@@ -80,11 +87,11 @@ class PgToPgOneToOneTest {
         }
         TestResult result = getResult(
                 "./pg2pg/pg2pg.yaml",
-                "./pg2pg/cases/notNullFailure.json",
+                "pg2pg/mappings/notNullFailure.json",
                 0,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 }

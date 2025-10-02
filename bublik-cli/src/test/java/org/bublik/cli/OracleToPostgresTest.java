@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Duration;
 
+import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -40,6 +41,13 @@ public class OracleToPostgresTest {
     static void clear() {
         source.stop();
         target.stop();
+        while (source.isRunning() || target.isRunning()) {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Test
@@ -49,8 +57,8 @@ public class OracleToPostgresTest {
                 "ora2pg/cases/parted.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -61,8 +69,8 @@ public class OracleToPostgresTest {
                 "ora2pg/cases/leftJoin.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -73,8 +81,8 @@ public class OracleToPostgresTest {
                 "ora2pg/cases/columnFromMany.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -85,8 +93,8 @@ public class OracleToPostgresTest {
                 "ora2pg/cases/interval.json",
                 rows,
                 sync,
-                source,
-                target);
+                getJdbcProperties(source),
+                getJdbcProperties(target));
         assertEquals(result.targetCount(), result.sourceCount());
     }
 }

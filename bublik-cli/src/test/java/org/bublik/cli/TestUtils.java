@@ -4,11 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.bublik.cli.addons.Utils;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 import java.io.IOException;
 import java.sql.*;
 import java.util.List;
+import java.util.Properties;
 
 import static org.bublik.cli.App.getConfigs;
 
@@ -40,12 +42,12 @@ public class TestUtils {
     }
 */
 
-    protected static TestResult getResult(String connectionPropertyFile,
+    public static TestResult getResult(String connectionPropertyFile,
                                 String mappingFile,
                                 int rows,
                                 boolean sync,
-                                JdbcDatabaseContainer<?> source,
-                                JdbcDatabaseContainer<?> target) throws IOException {
+                                Properties sourceProperties,
+                                Properties targetProperties) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
         Config config = configs.getFirst();
@@ -59,17 +61,15 @@ public class TestUtils {
                         + "."
                         + (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
                 " 1 = 1 ");
-        Long sourceCount = TestUtils.countRows(source, fromQuery);
-        Long targetCount = TestUtils.countRows(target, toQuery);
+        Long sourceCount = TestUtils.countRows(sourceProperties, fromQuery);
+        Long targetCount = TestUtils.countRows(targetProperties, toQuery);
         return new TestResult(sourceCount, targetCount);
     }
 
-    public static Long countRows(JdbcDatabaseContainer db, String query){
-        String jdbcUrl = db.getJdbcUrl();
-//        System.out.println(jdbcUrl);
-        String username = db.getUsername();
-        String password = db.getPassword();
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+    public static Long countRows(Properties p, String query) {
+        try (Connection connection =
+                     DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
+//            System.out.println(p.getProperty("url"));
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
             resultSet.next();
@@ -82,5 +82,13 @@ public class TestUtils {
 
     private static String getQuery(String tableName, String whereClause) {
         return "SELECT count(1) from " + tableName + " where " + whereClause;
+    }
+
+    public static Properties getJdbcProperties(JdbcDatabaseContainer<?> db) {
+        Properties properties = new Properties();
+        properties.setProperty("url", db.getJdbcUrl());
+        properties.setProperty("user", db.getUsername());
+        properties.setProperty("password", db.getPassword());
+        return properties;
     }
 }
