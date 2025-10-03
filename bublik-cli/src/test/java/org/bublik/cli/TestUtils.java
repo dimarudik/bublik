@@ -43,16 +43,26 @@ public class TestUtils {
 */
 
     public static TestResult getResult(String connectionPropertyFile,
-                                String mappingFile,
-                                int rows,
-                                boolean sync,
-                                Properties sourceProperties,
-                                Properties targetProperties) throws IOException {
+                                       String mappingFile,
+                                       int rows,
+                                       boolean sync,
+                                       Properties sourceProperties,
+                                       Properties targetProperties) throws IOException {
+        return getResult(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, null);
+    }
+
+    public static TestResult getResult(String connectionPropertyFile,
+                                       String mappingFile,
+                                       int rows,
+                                       boolean sync,
+                                       Properties sourceProperties,
+                                       Properties targetProperties,
+                                       String chunkTableName) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
         Config config = configs.getFirst();
 
-        App.runProcess(cp, configs, rows, sync);
+        App.runProcess(cp, configs, rows, sync, chunkTableName);
 
         String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
                 config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());

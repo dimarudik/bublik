@@ -20,7 +20,7 @@ import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+//@Disabled
 public class PgToPgOneToManyTest {
     private static int rows = 50000;
     private static boolean sync = false;
@@ -59,7 +59,7 @@ public class PgToPgOneToManyTest {
     }
 
     @Test
-    void OneToMany() throws IOException {
+    void OneToMany() throws IOException, InterruptedException {
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
         long targetCount = 0;
@@ -71,7 +71,8 @@ public class PgToPgOneToManyTest {
                 rows,
                 sync,
                 getJdbcProperties(source),
-                getJdbcProperties(target1))
+                getJdbcProperties(target1),
+                "_bublik_chunk_01")
         ));
 
         futures.add(service.submit(() -> getResult(
@@ -80,7 +81,8 @@ public class PgToPgOneToManyTest {
                 rows,
                 sync,
                 getJdbcProperties(source),
-                getJdbcProperties(target2))
+                getJdbcProperties(target2),
+                "_bublik_chunk_02")
         ));
 
         for (Future<?> future : futures) {
@@ -95,6 +97,7 @@ public class PgToPgOneToManyTest {
             }
         }
 
+//        Thread.sleep(120_000);
         service.shutdown();
         service.close();
         assertEquals(targetCount, sourceCount);

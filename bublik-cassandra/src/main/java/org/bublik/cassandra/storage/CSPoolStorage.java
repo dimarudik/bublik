@@ -97,12 +97,12 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
 
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage) throws SQLException {
+    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String chunkTable) throws SQLException {
 
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean sync, int rows) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
 
     }
 
@@ -112,7 +112,7 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
         return List.of();
     }
 

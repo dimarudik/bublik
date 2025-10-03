@@ -48,9 +48,9 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException {
         List<Chunk<?>> chunks = new ArrayList<>();
-        String sql = buildStartEndOfChunk(configs);
+        String sql = buildStartEndOfChunk(configs, chunkTableName);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         Map<String, Table> tableMap = new HashMap<>();
         PreparedStatement statement = connection.prepareStatement(sql);
@@ -97,10 +97,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs) {
+    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
         List<String> taskNames = new ArrayList<>();
         configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
-        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name from public.ctid_chunks where task_name in ('" +
+        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name from " +
+                chunkTableName + " where task_name in ('" +
                 String.join("', '", taskNames) + "') " +
                 // тут надо разбираться при запуске из нескольких подов
                 "and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
@@ -1108,8 +1109,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean sync, int required) throws SQLException {
-        createTableCtidChunks(connection, sync);
+    public void createChunks(Connection connection,
+                             List<Config> configs,
+                             boolean sync,
+                             int required,
+                             String chunkTableName) throws SQLException {
+        createChunkTable(connection, sync, chunkTableName);
         try {
             for (Config config : configs) {
                 long reltuples = 0;
@@ -1140,13 +1145,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         reltuples,
                         (double) required,
                         pagesInChunk);
-                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required);
+                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, chunkTableName);
 
-                max_end_page = getMaxEndPageOfChunks(connection, config);
+                max_end_page = getMaxEndPageOfChunks(connection, config, chunkTableName);
 
                 // всавка последних чанков
                 if (heap_blks_total > max_end_page) {
-                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required);
+                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, chunkTableName);
                 }
             }
             if (!sync) {
@@ -1177,18 +1182,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         connection.close();
     }
 
-    private void createTableCtidChunks(Connection connection, boolean sync) {
+    private void createChunkTable(Connection connection, boolean sync, String chunkTableName) {
         try {
-            Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE);
-            dropTable.close();
-            connection.commit();
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE);
+            createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName", chunkTableName));
             createTable.close();
+/*
             Statement truncateTable = connection.createStatement();
             truncateTable.executeUpdate(DDL_TRUNCATE_CHUNK_TABLE);
             truncateTable.close();
+*/
             if (!sync) {
                 connection.commit();
             }
@@ -1197,6 +1200,20 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
     }
 
+    @Override
+    public void dropChunkTable(Connection connection, boolean sync, String chunkTableName) {
+        try {
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", chunkTableName));
+            dropTable.close();
+            connection.commit();
+            if (!sync) {
+                connection.commit();
+            }
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
 
     @Override
     public Table configToTable(String schemaName, String tableName) {

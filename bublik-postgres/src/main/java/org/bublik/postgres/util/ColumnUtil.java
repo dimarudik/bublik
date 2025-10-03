@@ -78,9 +78,9 @@ public class ColumnUtil {
         return heap_blks_total;
     }
 
-    public static Long getMaxEndPageOfChunks(Connection connection, Config config) throws SQLException {
+    public static Long getMaxEndPageOfChunks(Connection connection, Config config, String chunkTableName) throws SQLException {
         long max_end_page = 0;
-        PreparedStatement preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE);
+        PreparedStatement preparedStatement = connection.prepareStatement(SQL_MAX_END_PAGE.replace("$tableName", chunkTableName));
         preparedStatement.setString(1, config.fromTaskName());
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
@@ -98,10 +98,10 @@ public class ColumnUtil {
                                            long totalPages,
                                            long pagesInChunk,
                                            ChunkStatus status,
-                                           int required) throws SQLException {
+                                           int required,
+                                           String chunkTableName) throws SQLException {
         String sql = DML_BATCH_INSERT_CHUNK_TABLE
-                .replace("$schemaName", table.getSchemaName().toLowerCase())
-                .replace("$tableName", table.getTableName());
+                .replace("$tableName", chunkTableName);
 //        ObjectMapper objectMapper = new ObjectMapper();
 //        String jacksonData = objectMapper.writeValueAsString(config);
         PreparedStatement chunkInsert = connection.prepareStatement(sql);

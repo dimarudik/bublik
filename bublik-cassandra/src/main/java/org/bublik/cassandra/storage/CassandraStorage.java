@@ -72,6 +72,11 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
     }
 
     @Override
+    public void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException {
+
+    }
+
+    @Override
     public Connection getConnection() throws SQLException {
         return null;
     }

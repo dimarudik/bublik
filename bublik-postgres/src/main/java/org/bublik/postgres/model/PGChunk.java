@@ -20,7 +20,8 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
     private final UUID uuid;
 
-    public PGChunk(Integer id, UUID uuid, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
+    public PGChunk(Integer id, UUID uuid, T start, T end, Config config,
+                   Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
         this.uuid = uuid;
     }
@@ -30,20 +31,24 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public PGChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg) throws SQLException {
+    public PGChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum,
+                                      String errMsg, String chunkTableName) throws SQLException {
         if (status != null) {
             Connection connection = this.getSourceConnection();
             PreparedStatement updateStatus;
             if (errMsg == null) {
-                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CHUNK_TABLE);
+                updateStatus = connection.prepareStatement(
+                        DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
                 updateStatus.setString(1, getUuid().toString());
                 updateStatus.setString(2, status.toString());
                 updateStatus.setLong(3, this.getId());
                 updateStatus.setString(4, this.getConfig().fromTaskName());
             } else {
-                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS);
+                updateStatus = connection.prepareStatement(
+                        DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS.replace("$tableName", chunkTableName));
                 updateStatus.setString(1, status.toString());
-                updateStatus.setString(2, errMsg.substring(0, errMsg.length() > 2048 ? 2047 : errMsg.length()));
+                updateStatus.setString(2, errMsg.substring(0,
+                        errMsg.length() > 2048 ? 2047 : errMsg.length()));
                 updateStatus.setLong(3, this.getId());
                 updateStatus.setString(4, this.getConfig().fromTaskName());
             }
@@ -57,10 +62,10 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveChunkRows(int copied, boolean sync) throws SQLException {
+    public Chunk<?> saveChunkRows(int copied, boolean sync, String chunkTableName) throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
-        updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE);
+        updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE.replace("$tableName", chunkTableName));
 //        updateStatus.setString(1, getUuid().toString());
         updateStatus.setInt(1, copied);
         updateStatus.setInt(2, this.getId());

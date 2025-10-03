@@ -23,10 +23,11 @@ import static org.bublik.core.util.Utils.getStackTrace;
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    void start(List<Config> configs, boolean sync, int rows, Storage targetStorage) throws SQLException;
-    void createChunks(Connection connection, List<Config> configs, boolean sync, int rows) throws SQLException;
+    void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String chunkTable) throws SQLException;
+    void createChunks(Connection connection, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException;
+    void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException;
     void createOutbox() throws SQLException;
-    List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException;
+    List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException;
 //    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?> chunk) throws SQLException;
@@ -88,11 +89,11 @@ public interface StorageService {
         }
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows) throws SQLException {
+    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
         log.info("Bublik starting...");
         Storage sourceStorage = StorageService.getStorage(property.getFromProperty(), property);
         Storage targetStorage = StorageService.getStorage(property.getToProperty(), property);
         assert sourceStorage != null;
-        sourceStorage.start(configs, sync, rows, targetStorage);
+        sourceStorage.start(configs, sync, rows, targetStorage, chunkTable);
     }
 }

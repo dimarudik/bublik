@@ -2,7 +2,7 @@ package org.bublik.postgres.constants;
 
 public abstract class SQLConstants {
     public static final String DDL_CREATE_CHUNK_TABLE =
-            "create table if not exists public.ctid_chunks (" +
+            "create table if not exists $tableName (" +
                     "chunk_id int generated always as identity primary key, " +
                     "uuid varchar(36), " +
                     "start_page bigint, " +
@@ -18,13 +18,28 @@ public abstract class SQLConstants {
                     "end_ts timestamp, " +
                     "err_msg varchar(2048), " +
                     "unique (uuid, start_page, end_page, task_name, status) )";
+    public static final String DDL_DROP_CHUNK_TABLE =
+            "drop table if exists $tableName";
+    public static final String DDL_TRUNCATE_CHUNK_TABLE =
+            "truncate table $tableName";
     public static final String SQL_NUMBER_OF_TUPLES =
             "select reltuples, relpages from pg_class " +
                     "where relnamespace::regnamespace::text = ? and relname = ?";
-    public static final String DDL_DROP_CHUNK_TABLE =
-            "drop table if exists public.ctid_chunks;";
-    public static final String DDL_TRUNCATE_CHUNK_TABLE =
-            "truncate table public.ctid_chunks;";
+    public static final String DML_BATCH_INSERT_CHUNK_TABLE =
+            "insert into $tableName (start_page, end_page, copied, task_name, " +
+                    "schema_name, table_name, status, config, required ) " +
+                    "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
+                    "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+    public static final String SQL_MAX_END_PAGE =
+            "select max(end_page) as max_end_page from $tableName where task_name = ?";
+    public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
+            "update $tableName set uuid = ?, status = ?, err_msg = null where chunk_id = ? and task_name = ?";
+    public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
+            "update $tableName set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
+    public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =
+            "update $tableName set copied = ? where chunk_id = ?";
+    public static final String SQL_HEAP_BLKS_TOTAL =
+            "select pg_relation_size( ? ) / 8192 as heap_blks_total";
     public static final String DDL_CREATE_OUTBOX_TABLE =
             "create table if not exists public.bublik_outbox (" +
                     "chunk_id int, " +
@@ -38,22 +53,9 @@ public abstract class SQLConstants {
                     "rows bigint, " +
                     "task_name varchar(128), " +
                     "unique (chunk_id, uuid, task_name) )";
-    public static final String DML_BATCH_INSERT_CHUNK_TABLE =
-            "insert into public.ctid_chunks (start_page, end_page, copied, task_name, " +
-                    "schema_name, table_name, status, config, required ) " +
-                    "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
-                    "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
-    public static final String SQL_HEAP_BLKS_TOTAL =
-            "select pg_relation_size( ? ) / 8192 as heap_blks_total";
-    public static final String SQL_MAX_END_PAGE =
-            "select max(end_page) as max_end_page from public.ctid_chunks where task_name = ?";
     public static final String DML_INSERT_OUTBOX_TABLE =
             "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name, uuid) " +
                     "values (?, ?, ?, ?, ?, ?, ?, ?)";
-    public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
-            "update public.ctid_chunks set uuid = ?, status = ?, err_msg = null where chunk_id = ? and task_name = ?";
-    public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
-            "update public.ctid_chunks set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
     public static final String SQL_PG_INDEX_BASIC_COLUMNS =
             "select ix.indexrelid as id, i.relname, ix.indisunique as uniq, ix.indisprimary as pri, " +
                     "case ix.indoption[array_position(ix.indkey, a.attnum)] " +
@@ -89,8 +91,6 @@ public abstract class SQLConstants {
                     "where n.oid = c.relnamespace and n.nspname = ? and c.relname = ?";
     public static final String DDL_CREATE_TABLE =
             "create table if not exists $schemaName.$tableName ($columnDefinition) ";
-    public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =
-            "update public.ctid_chunks set copied = ? where chunk_id = ?";
     public static final String SQL_PG_CURRENT_LSN_AND_XID =
             "select pg_current_wal_lsn(), pg_current_xact_id()";
 /*

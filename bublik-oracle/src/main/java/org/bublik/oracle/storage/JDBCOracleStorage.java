@@ -54,7 +54,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String chunkTable) throws SQLException {
         for (Config config : configs) {
             try {
                 CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
@@ -98,14 +98,19 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
+    public void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException {
+
+    }
+
+    @Override
     public void createOutbox() throws SQLException {
 
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
         List<Chunk<?>> chunkHashMap = new ArrayList<>();
-        String sql = buildStartEndOfChunk(configs);
+        String sql = buildStartEndOfChunk(configs, chunkTable);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
         for (Config c : configs)
@@ -136,7 +141,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs) {
+    public String buildStartEndOfChunk(List<Config> configs, String chunkTable) {
         List<String> taskAndWhere = new ArrayList<>();
         configs.forEach(sqlStatement -> {
             String tmp = sqlStatement.fromTaskWhereClause() == null ? "'" : "' and " + sqlStatement.fromTaskWhereClause();

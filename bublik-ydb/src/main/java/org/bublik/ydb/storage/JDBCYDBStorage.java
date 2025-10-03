@@ -1,7 +1,6 @@
 package org.bublik.ydb.storage;
 
 import org.bublik.core.constants.PGKeywords;
-import org.bublik.core.constants.YDBKeywords;
 import org.bublik.core.exception.SourceSQLException;
 import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
@@ -32,7 +31,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs) {
+    public String buildStartEndOfChunk(List<Config> configs, String chunkTable) {
         return "";
     }
 
@@ -52,7 +51,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String chunkTable) throws SQLException {
+
+    }
+
+    @Override
+    public void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException {
 
     }
 
@@ -79,7 +83,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection) throws SQLException {
+    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
         return List.of();
     }
 

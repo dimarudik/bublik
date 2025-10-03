@@ -5,7 +5,9 @@ import org.apache.commons.cli.*;
 import org.bublik.core.constants.ENVProperties;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
+import org.bublik.core.model.Table;
 import org.bublik.core.service.StorageService;
+import org.bublik.postgres.model.PGTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,18 +143,26 @@ public class App {
     }
 
     public static void runProcess(ConnectionProperty property,
-                                   List<Config> configs,
-                                   int rowsParameter,
-                                   boolean sync) {
+                                  List<Config> configs,
+                                  int rowsParameter,
+                                  boolean sync) {
+        runProcess(property, configs, rowsParameter, false, null);
+    }
+
+    public static void runProcess(ConnectionProperty property,
+                                  List<Config> configs,
+                                  int rowsParameter,
+                                  boolean sync,
+                                  String chunkTable) {
         try {
             log.info("THREADS: {}", property.getThreadCount());
             log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
             log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
             log.info("TARGET: {}", property.getToProperty().getProperty("url"));
             log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
-            ObjectMapper mapperJSON = new ObjectMapper();
             try {
-                StorageService.init(property, configs, sync, rowsParameter);
+                StorageService.init(property, configs, sync, rowsParameter,
+                        chunkTable == null ? "public.ctid_chunks" : chunkTable);
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
                 throw new RuntimeException(e);

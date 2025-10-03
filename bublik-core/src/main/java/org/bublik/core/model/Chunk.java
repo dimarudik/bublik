@@ -221,14 +221,14 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public Chunk<?> copyChunk(boolean sync) throws Exception {
+    public Chunk<?> copyChunk(boolean sync, String chunkTableName) throws Exception {
         this
                 .assignSourceConnection()
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, chunkTableName)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-                .saveChunkRows(getRows(), sync)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
+                .saveChunkRows(getRows(), sync, chunkTableName)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTableName)
                 .closeChunkSourceConnection(sync);
         LogMessage logMessage = getLogMessage();
         logMessage.loggerChunkInfo();
@@ -238,14 +238,14 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public void copyChunkSync(Connection connection, boolean sync) throws SQLException {
+    public void copyChunkSync(Connection connection, boolean sync, String chunkTableName) throws SQLException {
         this
                 .assignSourceConnection(connection)
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, chunkTableName)
                 .assignSourceResultSet()
                 .assignResultLogMessage()
-                .saveChunkRows(getRows(), sync)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null)
+                .saveChunkRows(getRows(), sync, chunkTableName)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTableName)
                 .closeChunkSourceConnection(sync);
         LogMessage logMessage = getLogMessage();
         logMessage.loggerChunkInfo();

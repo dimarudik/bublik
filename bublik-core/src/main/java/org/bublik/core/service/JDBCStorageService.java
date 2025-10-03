@@ -1,7 +1,6 @@
 package org.bublik.core.service;
 
 import org.bublik.core.model.Config;
-import org.bublik.core.model.Table;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -11,7 +10,7 @@ import java.util.Map;
 
 public interface JDBCStorageService extends StorageService {
     Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
-    String buildStartEndOfChunk(List<Config> configs);
+    String buildStartEndOfChunk(List<Config> configs, String chunkTableName);
     void createTables();
     void createPrimaryKeys();
     void createUniqueConstraints();
