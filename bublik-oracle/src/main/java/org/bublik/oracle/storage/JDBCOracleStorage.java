@@ -18,8 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.bublik.core.constants.SQLConstants.*;
 import static org.bublik.core.util.Utils.getStackTrace;
+import static org.bublik.oracle.constants.SQLConstants.*;
 
 public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);

@@ -35,9 +35,10 @@ import java.util.*;
 import java.util.function.Consumer;
 
 import static org.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
-import static org.bublik.core.constants.SQLConstants.*;
 import static org.bublik.core.util.ColumnUtil.*;
 import static org.bublik.core.util.Utils.getStackTrace;
+import static org.bublik.postgres.constants.SQLConstants.*;
+import static org.bublik.postgres.util.ColumnUtil.*;
 
 public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
@@ -1162,7 +1163,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         Connection connection = getConnection();
         try {
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_PG_TABLE_BUBLIK_OUTBOX);
+            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE);
             createTable.close();
 //            Statement truncateTable = connection.createStatement();
 //            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
@@ -1179,14 +1180,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     private void createTableCtidChunks(Connection connection, boolean sync) {
         try {
             Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_PG_TABLE_CTID_CHUNKS);
+            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE);
             dropTable.close();
             connection.commit();
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_PG_TABLE_CTID_CHUNKS);
+            createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE);
             createTable.close();
             Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_CTID_CHUNKS);
+            truncateTable.executeUpdate(DDL_TRUNCATE_CHUNK_TABLE);
             truncateTable.close();
             if (!sync) {
                 connection.commit();

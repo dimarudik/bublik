@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 
-import static org.bublik.core.constants.SQLConstants.*;
+import static org.bublik.oracle.constants.SQLConstants.*;
 
 public class OraChunk<T extends RowId> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);

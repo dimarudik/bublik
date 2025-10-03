@@ -20,9 +20,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.bublik.core.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
-import static org.bublik.core.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
 import static org.bublik.core.util.Utils.getStackTrace;
+import static org.bublik.ydb.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
+import static org.bublik.ydb.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
 
 public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);

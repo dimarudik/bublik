@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.*;
 
-import static org.bublik.core.constants.SQLConstants.*;
+import static org.bublik.postgres.constants.SQLConstants.*;
 
 public class PGTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(PGTable.class);
@@ -493,7 +493,7 @@ public class PGTable extends Table {
     @Override
     public void create(Connection connection) throws SQLException {
         String columnDefinition = getColumnDefinition();
-        String query = DDL_PG_CREATE_TABLE
+        String query = DDL_CREATE_TABLE
                 .replace("$schemaName", getFinalSchemaName(true))
                 .replace("$tableName", getFinalTableName(true))
                 .replace("$columnDefinition", columnDefinition);

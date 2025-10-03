@@ -2,6 +2,7 @@ package org.bublik.cli;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -19,6 +20,7 @@ import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Disabled
 public class PgToPgOneToManyTest {
     private static int rows = 50000;
     private static boolean sync = false;
@@ -56,7 +58,7 @@ public class PgToPgOneToManyTest {
         }
     }
 
-//    @Test
+    @Test
     void OneToMany() throws IOException {
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
@@ -64,8 +66,8 @@ public class PgToPgOneToManyTest {
         long sourceCount = 0;
 
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/manyToOneSource1.yaml",
-                "pg2pg/mappings/manyToOneSource1.json",
+                "./pg2pg/connections/oneToManyTarget1.yaml",
+                "pg2pg/mappings/oneToManyTarget.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -73,8 +75,8 @@ public class PgToPgOneToManyTest {
         ));
 
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/manyToOneSource2.yaml",
-                "pg2pg/mappings/manyToOneSource2.json",
+                "./pg2pg/connections/oneToManyTarget2.yaml",
+                "pg2pg/mappings/oneToManyTarget.json",
                 rows,
                 sync,
                 getJdbcProperties(source),

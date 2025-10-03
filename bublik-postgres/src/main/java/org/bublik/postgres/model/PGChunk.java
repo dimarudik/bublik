@@ -14,7 +14,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
-import static org.bublik.core.constants.SQLConstants.*;
+import static org.bublik.postgres.constants.SQLConstants.*;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
@@ -35,13 +35,13 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             Connection connection = this.getSourceConnection();
             PreparedStatement updateStatus;
             if (errMsg == null) {
-                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS);
+                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CHUNK_TABLE);
                 updateStatus.setString(1, getUuid().toString());
                 updateStatus.setString(2, status.toString());
                 updateStatus.setLong(3, this.getId());
                 updateStatus.setString(4, this.getConfig().fromTaskName());
             } else {
-                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CTID_CHUNKS_WITH_ERRORS);
+                updateStatus = connection.prepareStatement(DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS);
                 updateStatus.setString(1, status.toString());
                 updateStatus.setString(2, errMsg.substring(0, errMsg.length() > 2048 ? 2047 : errMsg.length()));
                 updateStatus.setLong(3, this.getId());
@@ -60,7 +60,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     public Chunk<?> saveChunkRows(int copied, boolean sync) throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
-        updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CTID_CHUNKS);
+        updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE);
 //        updateStatus.setString(1, getUuid().toString());
         updateStatus.setInt(1, copied);
         updateStatus.setInt(2, this.getId());
@@ -104,7 +104,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
 
     @Override
     public void insertProcessedChunkInfo(Connection connection, int rows) throws SQLException {
-        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_BUBLIK_OUTBOX_CTID);
+        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE);
         chunkInsert.setLong(1, getId());
         chunkInsert.setLong(2, getStart());
         chunkInsert.setLong(3, getEnd());
