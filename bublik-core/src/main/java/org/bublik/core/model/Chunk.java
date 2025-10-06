@@ -221,14 +221,14 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public Chunk<?> copyChunk(boolean sync, String chunkTableName) throws Exception {
+    public Chunk<?> copyChunk(boolean sync, String tableName) throws Exception {
         this
                 .assignSourceConnection()
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, chunkTableName)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
                 .assignSourceResultSet()
-                .assignResultLogMessage()
-                .saveChunkRows(getRows(), sync, chunkTableName)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTableName)
+                .assignResultLogMessage(tableName)
+                .saveChunkRows(getRows(), sync, tableName)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
                 .closeChunkSourceConnection(sync);
         LogMessage logMessage = getLogMessage();
         logMessage.loggerChunkInfo();
@@ -238,22 +238,22 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public void copyChunkSync(Connection connection, boolean sync, String chunkTableName) throws SQLException {
+    public void copyChunkSync(Connection connection, boolean sync, String tableName) throws SQLException {
         this
                 .assignSourceConnection(connection)
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, chunkTableName)
+                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
                 .assignSourceResultSet()
-                .assignResultLogMessage()
-                .saveChunkRows(getRows(), sync, chunkTableName)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTableName)
+                .assignResultLogMessage(tableName)
+                .saveChunkRows(getRows(), sync, tableName)
+                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
                 .closeChunkSourceConnection(sync);
         LogMessage logMessage = getLogMessage();
         logMessage.loggerChunkInfo();
     }
 
-    public Chunk<?> assignResultLogMessage() throws SQLException {
+    public Chunk<?> assignResultLogMessage(String tableName) throws SQLException {
         try {
-            LogMessage logMessage = this.getTargetStorage().transferToTarget(this);
+            LogMessage logMessage = this.getTargetStorage().transferToTarget(this, tableName);
             this.setLogMessage(logMessage);
             getResultSet().close();
             getPreparedStatement().close();

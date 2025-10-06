@@ -20,8 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.bublik.core.util.Utils.getStackTrace;
-import static org.bublik.ydb.constants.SQLConstants.DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX;
-import static org.bublik.ydb.constants.SQLConstants.DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX;
+import static org.bublik.ydb.constants.SQLConstants.*;
 
 public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);
@@ -51,20 +50,24 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String chunkTable) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
 
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException {
+    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
 
     }
 
     @Override
-    public void createOutbox() throws SQLException {
+    public void createOutbox(String tableName) throws SQLException {
         Connection connection = getConnection();
         try {
+            Statement createTable = connection.createStatement();
+            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tableName));
+            createTable.close();
 //            Table table = TableService.getTable(connection, "", "bublik_outbox");
+/*
             Table table = configToTable("", "bublik_outbox");
             if (table.exists(connection)) {
                 Statement createTable = connection.createStatement();
@@ -72,9 +75,10 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                 createTable.close();
             }
             Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_CREATE_YDB_TABLE_BUBLIK_OUTBOX);
+            truncateTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE);
             truncateTable.close();
             connection.commit();
+*/
             log.info("Outbox table created successfully");
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
@@ -88,7 +92,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
         ResultSet fetchResultSet = chunk.getResultSet();
         Connection connectionFrom = chunk.getSourceConnection();
         if (fetchResultSet.next()) {
@@ -103,7 +107,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             if (table.exists(connectionTo)) {
                 chunk.setTargetTable(table);
                 try {
-                    LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk);
+                    LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk, tableName);
                     connectionTo.close();
                     return logMessage;
                 } catch (SQLException e) {
@@ -137,11 +141,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     private LogMessage fetchAndCopy(Connection connectionTo,
                                     ResultSet fetchResultSet,
-                                    Chunk<?> chunk) throws SQLException, SourceSQLException {
+                                    Chunk<?> chunk,
+                                    String tableName) throws SQLException, SourceSQLException {
         int recordCount = 0;
 
         try {
-            chunk.insertProcessedChunkInfo(connectionTo, recordCount);
+            insertProcessedChunkInfo(connectionTo, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             connectionTo.rollback();
         } catch (SQLException e) {
 //            log.error("Error insert into BUBLIK_OUTBOX for chunk {}, start {}, end {}, rows {}, task {}: {}",
@@ -174,7 +179,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         }
 
         try {
-            chunk.insertProcessedChunkInfo(connectionTo, recordCount);
+            insertProcessedChunkInfo(connectionTo, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             connectionTo.commit();
         } catch (SQLException e) {
             log.error("ON COMMIT chunkId = {} {}", chunk.getId(), getStackTrace(e));
@@ -420,5 +425,30 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
                 config.toTableName() + "` ( " +
                 columnToColumn + " ) VALUES ( " +
                 columnToColumnQ + " ) ";
+    }
+
+    @Override
+    public void dropOutboxTable(Connection connection, boolean sync, String tableName) {
+        try {
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tableName));
+            dropTable.close();
+            connection.commit();
+            if (!sync) {
+                connection.commit();
+            }
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
+        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tableName));
+        chunkInsert.setLong(1, chunkId);
+        chunkInsert.setString(2, taskName);
+        chunkInsert.setLong(3, rows);
+        long r = chunkInsert.executeUpdate();
+        chunkInsert.close();
     }
 }

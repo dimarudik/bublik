@@ -8,7 +8,4 @@ public abstract class SQLConstants {
     public static final String PLSQL_UPDATE_STATUS_ROWID_CHUNKS = "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(?,?,?)";
     public static final String PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS =
             "CALL DBMS_PARALLEL_EXECUTE.SET_CHUNK_STATUS(task_name => ?,chunk_id => ?,status => ?,err_msg => ?)";
-    public static final String DML_INSERT_BUBLIK_OUTBOX_ROWID =
-            "insert into bublik_outbox (chunk_id, start_rowid, end_rowid, rows, task_name, schema_name, table_name) " +
-                    "values (?, ?, ?, ?, ?, ?, ?)";
 }

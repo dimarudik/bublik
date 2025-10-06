@@ -72,7 +72,17 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException {
+    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public void dropOutboxTable(Connection connection, boolean sync, String tableName) throws SQLException {
 
     }
 
@@ -82,7 +92,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
 //        LogMessage logMessage = simpleInsert(chunk);
 //        return simpleBatch(chunk);
         LogMessage logMessage = rangedBatch(chunk);

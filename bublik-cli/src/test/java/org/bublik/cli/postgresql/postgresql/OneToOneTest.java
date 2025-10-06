@@ -1,5 +1,6 @@
-package org.bublik.cli;
+package org.bublik.cli.postgresql.postgresql;
 
+import org.bublik.cli.TestResult;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -13,7 +14,7 @@ import static org.bublik.cli.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
-class PgToPgOneToOneTest {
+class OneToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
@@ -68,30 +69,33 @@ class PgToPgOneToOneTest {
 
     @Test
     void notNullFailure() throws IOException {
-        getResult(
+        TestResult result = getResult(
                 "./pg2pg/pg2pg.yaml",
                 "pg2pg/mappings/notNullFailure.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-        String jdbcUrl = source.getJdbcUrl();
-        String username = source.getUsername();
-        String password = source.getPassword();
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
-            PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
-            ps.executeUpdate();
+
+        if (result.sourceCount() != result.targetCount()) {
+            String jdbcUrl = source.getJdbcUrl();
+            String username = source.getUsername();
+            String password = source.getPassword();
+            try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+                PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
-        catch (SQLException e){
-            throw new RuntimeException(e);
-        }
-        TestResult result = getResult(
+
+        TestResult result2 = getResult(
                 "./pg2pg/pg2pg.yaml",
                 "pg2pg/mappings/notNullFailure.json",
                 0,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-        assertEquals(result.targetCount(), result.sourceCount());
+        assertEquals(result2.sourceCount(), result2.targetCount());
     }
 }

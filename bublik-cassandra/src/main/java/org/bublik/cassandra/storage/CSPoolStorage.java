@@ -97,17 +97,17 @@ public abstract class CSPoolStorage extends Storage implements CSPoolStorageServ
 
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String chunkTable) throws SQLException {
+    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
 
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
 
     }
 
     @Override
-    public void createOutbox() throws SQLException {
+    public void createOutbox(String tableName) throws SQLException {
 
     }
 

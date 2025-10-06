@@ -1,4 +1,4 @@
-create table public.p_src (
+create table if not exists public.p_src (
     id int,
     created timestamp not null,
     name text,
@@ -6,10 +6,10 @@ create table public.p_src (
     shard_key int
 ) partition by range (created);
 alter table public.p_src add primary key (id, created);
-create table public.p_src_def partition of public.p_src default;
-create table public.p_src_202509 partition of public.p_src for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59');
-create table public.p_src_202510 partition of public.p_src for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59');
-create table public.p_src_202511 partition of public.p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
+create table if not exists public.p_src_def partition of public.p_src default;
+create table if not exists public.p_src_202509 partition of public.p_src for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59');
+create table if not exists public.p_src_202510 partition of public.p_src for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59');
+create table if not exists public.p_src_202511 partition of public.p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
 
 insert into public.p_src (id, created, name, amount, shard_key)
     select num as id,

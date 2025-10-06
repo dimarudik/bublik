@@ -15,7 +15,6 @@ public interface ChunkService {
 //    Chunk<?> saveConfig(boolean sync) throws SQLException;
     Chunk<?> assignSourceResultSet() throws SQLException;
     ResultSet getData(Connection connection, String query) throws SQLException;
-    void insertProcessedChunkInfo(Connection connection, int rows) throws SQLException;
 
     default Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync, String chunkTableName) throws SQLException {
         return saveChunkStatus(status, sync, null, null, chunkTableName);

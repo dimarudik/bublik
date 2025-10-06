@@ -44,7 +44,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
         return null;
     }
 
@@ -54,7 +54,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String chunkTable) throws SQLException {
+    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
         for (Config config : configs) {
             try {
                 CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
@@ -98,12 +98,22 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String chunkTable) throws SQLException {
+    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
 
     }
 
     @Override
-    public void createOutbox() throws SQLException {
+    public void createOutbox(String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public void dropOutboxTable(Connection connection, boolean sync, String tableName) throws SQLException {
 
     }
 

@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.bublik.cli.addons.Utils;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 import java.io.IOException;
@@ -17,7 +16,7 @@ import static org.bublik.cli.App.getConfigs;
 @Slf4j
 public class TestUtils {
     public static String getFilePath(String resourceFileName){
-        java.net.URL cfg = PgToPgOneToOneTest.class.getClassLoader().getResource(resourceFileName);
+        java.net.URL cfg = TestUtils.class.getClassLoader().getResource(resourceFileName);
         if(cfg == null){
             throw new RuntimeException("file not found:"+resourceFileName);
         }

@@ -20,3 +20,14 @@ insert into public.p_src (id, created, name, amount, shard_key)
     from generate_series(1, 2000000) as num;
 
 analyze public.p_src ;
+
+create table public.not_null_failure (
+    id int,
+    name varchar(256));
+
+insert into public.not_null_failure (id, name)
+   select num as id,
+      'Item ' || substr(md5(random()::text), 1, 10) as name
+      from generate_series(1, 100000) as num;
+update public.not_null_failure set name = null where id = 1000;
+analyze public.not_null_failure;

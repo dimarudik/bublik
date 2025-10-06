@@ -2,7 +2,7 @@ package org.bublik.postgres.constants;
 
 public abstract class SQLConstants {
     public static final String DDL_CREATE_CHUNK_TABLE =
-            "create table if not exists $tableName (" +
+            "create table $tableName (" +
                     "chunk_id int generated always as identity primary key, " +
                     "uuid varchar(36), " +
                     "start_page bigint, " +
@@ -19,7 +19,7 @@ public abstract class SQLConstants {
                     "err_msg varchar(2048), " +
                     "unique (uuid, start_page, end_page, task_name, status) )";
     public static final String DDL_DROP_CHUNK_TABLE =
-            "drop table if exists $tableName";
+            "drop table $tableName";
     public static final String DDL_TRUNCATE_CHUNK_TABLE =
             "truncate table $tableName";
     public static final String SQL_NUMBER_OF_TUPLES =
@@ -33,29 +33,30 @@ public abstract class SQLConstants {
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
-            "update $tableName set uuid = ?, status = ?, err_msg = null where chunk_id = ? and task_name = ?";
+            "update $tableName set status = ?, err_msg = null where chunk_id = ? and task_name = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
             "update $tableName set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
     public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =
             "update $tableName set copied = ? where chunk_id = ?";
     public static final String SQL_HEAP_BLKS_TOTAL =
             "select pg_relation_size( ? ) / 8192 as heap_blks_total";
+
     public static final String DDL_CREATE_OUTBOX_TABLE =
-            "create table if not exists public.bublik_outbox (" +
-                    "chunk_id int, " +
-                    "uuid varchar(36), " +
-                    "start_rowid varchar(32), " +
-                    "end_rowid varchar(32), " +
-                    "start_page bigint, " +
-                    "end_page bigint, " +
-                    "schema_name varchar(128), " +
-                    "table_name varchar(128), " +
-                    "rows bigint, " +
+            "create table $tableName_outbox (" +
+                    "chunk_id int primary key, " +
                     "task_name varchar(128), " +
-                    "unique (chunk_id, uuid, task_name) )";
+                    "rows bigint)";
+    public static final String DDL_DROP_OUTBOX_TABLE =
+            "drop table $tableName_outbox";
+    public static final String DML_INSERT_OUTBOX_TABLE =
+            "insert into $tableName_outbox (chunk_id, task_name, rows) " +
+                    "values (?, ?, ?)";
+/*
     public static final String DML_INSERT_OUTBOX_TABLE =
             "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name, uuid) " +
                     "values (?, ?, ?, ?, ?, ?, ?, ?)";
+*/
+
     public static final String SQL_PG_INDEX_BASIC_COLUMNS =
             "select ix.indexrelid as id, i.relname, ix.indisunique as uniq, ix.indisprimary as pri, " +
                     "case ix.indoption[array_position(ix.indkey, a.attnum)] " +

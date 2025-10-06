@@ -17,3 +17,7 @@ create table public.p_trg_202510_0 partition of public.p_trg_202510 for values i
 create table public.p_trg_202510_1 partition of public.p_trg_202510 for values in (1);
 create table public.p_trg_202511_0 partition of public.p_trg_202511 for values in (0);
 create table public.p_trg_202511_1 partition of public.p_trg_202511 for values in (1);
+
+create table public.not_null_failure (
+    id int,
+    name varchar(256) not null);

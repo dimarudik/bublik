@@ -1,5 +1,6 @@
-package org.bublik.cli;
+package org.bublik.cli.postgresql.postgresql;
 
+import org.bublik.cli.TestResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,9 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,7 +24,7 @@ import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
-public class PgToPgManyToOneTest {
+public class ManyToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source1 = new PostgreSQLContainer<>("postgres")
@@ -70,7 +74,8 @@ public class PgToPgManyToOneTest {
                 rows,
                 sync,
                 getJdbcProperties(source1),
-                getJdbcProperties(target))
+                getJdbcProperties(target),
+                "_bublik_chunk_01")
         ));
 
         futures.add(service.submit(() -> getResult(
@@ -79,7 +84,8 @@ public class PgToPgManyToOneTest {
                 rows,
                 sync,
                 getJdbcProperties(source2),
-                getJdbcProperties(target))
+                getJdbcProperties(target),
+                "_bublik_chunk_02")
         ));
 
         for (Future<?> future : futures) {

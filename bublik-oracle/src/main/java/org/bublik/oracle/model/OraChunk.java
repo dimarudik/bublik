@@ -62,6 +62,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         return statement.executeQuery();
     }
 
+/*
     @Override
     public void insertProcessedChunkInfo(Connection connection, int rows) throws SQLException {
         PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_BUBLIK_OUTBOX_ROWID);
@@ -75,6 +76,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         long r = chunkInsert.executeUpdate();
         chunkInsert.close();
     }
+*/
 
     @Override
     public Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync, String chunkTableName) throws SQLException {

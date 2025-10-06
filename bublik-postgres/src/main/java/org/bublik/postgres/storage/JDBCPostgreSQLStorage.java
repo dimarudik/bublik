@@ -1,6 +1,5 @@
 package org.bublik.postgres.storage;
 
-import com.fasterxml.uuid.Generators;
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import de.bytefish.pgbulkinsert.pgsql.constants.DataType;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
@@ -79,7 +78,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 chunks.add(
                         new PGChunk<>(
                                 rs.getInt("chunk_id"),
-                                uuid == null ? Generators.timeBasedEpochRandomGenerator().generate() : UUID.fromString(uuid),
+//                                uuid == null ? Generators.timeBasedEpochRandomGenerator().generate() : UUID.fromString(uuid),
                                 rs.getLong("start_page"),
                                 rs.getLong("end_page"),
                                 config,
@@ -110,7 +109,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk) throws SQLException, BinaryWriteFailedException,
+    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
             SourceSQLException, TargetSQLException {
         ResultSet fetchResultSet = chunk.getResultSet();
         Connection connectionFrom = chunk.getSourceConnection();
@@ -127,7 +126,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             chunk.setTargetTable(table);
             try {
-                LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk);
+                LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk, tableName);
                 connectionTo.close();
                 return logMessage;
             } catch (SQLException e) {
@@ -159,13 +158,16 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     private LogMessage fetchAndCopy(Connection connectionTo,
                                     ResultSet fetchResultSet,
-                                    Chunk<?> chunk) throws SQLException, BinaryWriteFailedException, SourceSQLException{
+                                    Chunk<?> chunk,
+                                    String tableName) throws SQLException, BinaryWriteFailedException, SourceSQLException{
         int recordCount = 0;
 
         try {
-            chunk.insertProcessedChunkInfo(connectionTo, recordCount);
+            insertProcessedChunkInfo(connectionTo, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+//            insertProcessedChunkInfo(connectionTo, recordCount, chunk);
             connectionTo.rollback();
         } catch (PSQLException p) {
+            log.error("{}", getStackTrace(p));
             connectionTo.rollback();
             return new LogMessage(
                     0,
@@ -242,7 +244,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
 
         chunk.setRows(recordCount);
-        chunk.insertProcessedChunkInfo(connectionTo, recordCount);
+        insertProcessedChunkInfo(connectionTo, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+//        insertProcessedChunkInfo(connectionTo, recordCount, chunk);
         connectionTo.commit();
 
         return new LogMessage(
@@ -399,6 +402,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         return columnMap;
     }
 
+/*
     protected Map<String, PGEncryptedColumn> readTargetEncryptedColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
         Map<String, PGEncryptedColumn> columnMap = new HashMap<>();
         try {
@@ -442,6 +446,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         }
         return columnMap;
     }
+*/
 
     private void simpleRowConsume(SimpleRow row,
                                   Map<String, Column> neededColumnsToDB,
@@ -1113,8 +1118,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                              List<Config> configs,
                              boolean sync,
                              int required,
-                             String chunkTableName) throws SQLException {
-        createChunkTable(connection, sync, chunkTableName);
+                             String tableName) throws SQLException {
+        createChunkTable(connection, sync, tableName);
         try {
             for (Config config : configs) {
                 long reltuples = 0;
@@ -1145,13 +1150,13 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                         reltuples,
                         (double) required,
                         pagesInChunk);
-                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, chunkTableName);
+                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, tableName);
 
-                max_end_page = getMaxEndPageOfChunks(connection, config, chunkTableName);
+                max_end_page = getMaxEndPageOfChunks(connection, config, tableName);
 
                 // всавка последних чанков
                 if (heap_blks_total > max_end_page) {
-                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, chunkTableName);
+                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, tableName);
                 }
             }
             if (!sync) {
@@ -1164,15 +1169,12 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createOutbox() throws SQLException {
+    public void createOutbox(String tableName) throws SQLException {
         Connection connection = getConnection();
         try {
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE);
+            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tableName));
             createTable.close();
-//            Statement truncateTable = connection.createStatement();
-//            truncateTable.executeUpdate(DDL_TRUNCATE_PG_TABLE_BUBLIK_OUTBOX);
-//            truncateTable.close();
             connection.commit();
             log.info("Outbox table created successfully");
         } catch (SQLException e) {
@@ -1187,11 +1189,6 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName", chunkTableName));
             createTable.close();
-/*
-            Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_TRUNCATE_CHUNK_TABLE);
-            truncateTable.close();
-*/
             if (!sync) {
                 connection.commit();
             }
@@ -1201,10 +1198,10 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String chunkTableName) {
+    public void dropChunkTable(Connection connection, boolean sync, String tableName) {
         try {
             Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", chunkTableName));
+            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
             dropTable.close();
             connection.commit();
             if (!sync) {
@@ -1214,6 +1211,32 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
             log.error("{}", getStackTrace(e));
         }
     }
+
+    @Override
+    public void dropOutboxTable(Connection connection, boolean sync, String tableName) {
+        try {
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tableName));
+            dropTable.close();
+            connection.commit();
+            if (!sync) {
+                connection.commit();
+            }
+        } catch (SQLException e) {
+            log.error("{}", getStackTrace(e));
+        }
+    }
+
+    @Override
+    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
+        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tableName));
+        chunkInsert.setLong(1, chunkId);
+        chunkInsert.setString(2, taskName);
+        chunkInsert.setLong(3, rows);
+        long r = chunkInsert.executeUpdate();
+        chunkInsert.close();
+    }
+
 
     @Override
     public Table configToTable(String schemaName, String tableName) {

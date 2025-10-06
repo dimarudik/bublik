@@ -1,4 +1,4 @@
-package org.bublik.cli;
+package org.bublik.cli.oracle.ydb;
 
 import org.junit.jupiter.api.Disabled;
 import org.testcontainers.containers.JdbcDatabaseContainer;

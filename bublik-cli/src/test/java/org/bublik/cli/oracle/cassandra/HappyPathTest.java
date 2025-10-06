@@ -1,11 +1,11 @@
-package org.bublik.cli;
+package org.bublik.cli.oracle.cassandra;
 
 import org.bublik.cassandra.storage.CSPool;
+import org.bublik.cli.TestUtils;
 import org.bublik.cli.addons.Utils;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
@@ -19,7 +19,7 @@ import static org.bublik.core.util.Utils.getStackTrace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Disabled
-public class OracleToCassandraTest {
+public class HappyPathTest {
 //    private static final Logger log = LoggerFactory.getLogger(OracleToCassandra.class);
 
     private static int rows = 50000;

@@ -6,7 +6,7 @@
     <parent>
       <groupId>bublik</groupId>
       <artifactId>bublik-parent</artifactId>
-      <version>25.1.25</version>
+      <version>25.1.26</version>
     </parent>
     <artifactId>bublik-postgres</artifactId>
     <version>${project.parent.version}</version>
@@ -46,11 +46,13 @@
             <artifactId>log4j-slf4j-impl</artifactId>
         </dependency>
         <!-- UUID v7 -->
+<!--
         <dependency>
             <groupId>com.fasterxml.uuid</groupId>
             <artifactId>java-uuid-generator</artifactId>
             <version>5.1.0</version>
         </dependency>
+-->
     </dependencies>
 
     <build>

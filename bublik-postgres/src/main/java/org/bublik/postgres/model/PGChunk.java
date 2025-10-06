@@ -12,22 +12,15 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.UUID;
 
 import static org.bublik.postgres.constants.SQLConstants.*;
 
 public class PGChunk<T extends Long> extends Chunk<T> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
-    private final UUID uuid;
 
-    public PGChunk(Integer id, UUID uuid, T start, T end, Config config,
+    public PGChunk(Integer id, T start, T end, Config config,
                    Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
-        this.uuid = uuid;
-    }
-
-    public UUID getUuid() {
-        return uuid;
     }
 
     @Override
@@ -39,10 +32,10 @@ public class PGChunk<T extends Long> extends Chunk<T> {
             if (errMsg == null) {
                 updateStatus = connection.prepareStatement(
                         DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
-                updateStatus.setString(1, getUuid().toString());
-                updateStatus.setString(2, status.toString());
-                updateStatus.setLong(3, this.getId());
-                updateStatus.setString(4, this.getConfig().fromTaskName());
+//                updateStatus.setString(1, getUuid().toString());
+                updateStatus.setString(1, status.toString());
+                updateStatus.setLong(2, this.getId());
+                updateStatus.setString(3, this.getConfig().fromTaskName());
             } else {
                 updateStatus = connection.prepareStatement(
                         DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS.replace("$tableName", chunkTableName));
@@ -105,20 +98,5 @@ public class PGChunk<T extends Long> extends Chunk<T> {
         statement.setFetchSize(10000);
         setPreparedStatement(statement);
         return statement.executeQuery();
-    }
-
-    @Override
-    public void insertProcessedChunkInfo(Connection connection, int rows) throws SQLException {
-        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE);
-        chunkInsert.setLong(1, getId());
-        chunkInsert.setLong(2, getStart());
-        chunkInsert.setLong(3, getEnd());
-        chunkInsert.setLong(4, rows);
-        chunkInsert.setString(5, getConfig().fromTaskName());
-        chunkInsert.setString(6, getTargetTable().getSchemaName().toLowerCase());
-        chunkInsert.setString(7, getTargetTable().getFinalTableName(false));
-        chunkInsert.setString(8, getUuid().toString());
-        long r = chunkInsert.executeUpdate();
-        chunkInsert.close();
     }
 }

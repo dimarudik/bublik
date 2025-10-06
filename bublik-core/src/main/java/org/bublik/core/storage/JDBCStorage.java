@@ -69,13 +69,13 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     }
 
     @Override
-    public void start(List<Config> cfgs, boolean sync, int rows, Storage targetStorage, String chunkTable) throws SQLException {
+    public void start(List<Config> cfgs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (!sync) {
-            startNOSync(targetStorage, configs, rows, chunkTable);
+            startNOSync(targetStorage, configs, rows, tableName);
         } else {
             try {
-                startSync(targetStorage, configs, rows, chunkTable);
+                startSync(targetStorage, configs, rows, tableName);
             } catch (Exception e) {
                 log.info("{}", getStackTrace(e));
                 targetStorage.closeStorage();
@@ -94,13 +94,13 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         return configs;
     }
 
-    private void startNOSync(Storage targetStorage, List<Config> configs, int rows, String chunkTableName) throws SQLException {
+    private void startNOSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
         Connection sourceConnection = this.getConnection();
 
         Storage sourceStorage = this;
         if (rows > 0) {
-            createChunks(sourceConnection, configs, false, rows, chunkTableName);
-            targetStorage.createOutbox();
+            createChunks(sourceConnection, configs, false, rows, tableName);
+            targetStorage.createOutbox(tableName);
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
@@ -120,7 +120,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             Connection sConnection = this.getConnection();
-            List<Chunk<?>> chunks = getChunkList(configs, sConnection, chunkTableName);
+            List<Chunk<?>> chunks = getChunkList(configs, sConnection, tableName);
             sConnection.close();
             List<Future<Chunk<?>>> futures = new ArrayList<>();
 
@@ -129,12 +129,12 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                             .submit(() -> {
                                 chunk.setTargetStorage(targetStorage);
                                 try {
-                                    return chunk.copyChunk(false, chunkTableName);
+                                    return chunk.copyChunk(false, tableName);
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                                     try {
                                         if (chunk.getSourceConnection().isValid(0)) {
-                                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), chunkTableName);
+                                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
                                             chunk.getSourceConnection().close();
                                         }
                                     } catch (SQLException exception) {
@@ -168,22 +168,26 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             }
         } while (true);
 
-        Connection dropChunkConnection = this.getConnection();
-        dropChunkTable(dropChunkConnection, false, chunkTableName);
-        dropChunkConnection.close();
-
         service.shutdown();
         service.close();
+
+        Connection dropChunkConnection = this.getConnection();
+        dropChunkTable(dropChunkConnection, false, tableName);
+        dropChunkConnection.close();
+
+        Connection dropOutboxConnection = targetStorage.getConnection();
+        dropOutboxTable(dropOutboxConnection, false, tableName);
+        dropOutboxConnection.close();
     }
 
-    private void startSync(Storage targetStorage, List<Config> configs, int rows, String chunkTable) throws SQLException {
+    private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
         Connection sourceConnection = this.getConnection();
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
         Storage sourceStorage = this;
         if (rows > 0) {
-            createChunks(sourceConnection, configs, true, rows, chunkTable);
-            targetStorage.createOutbox();
+            createChunks(sourceConnection, configs, true, rows, tableName);
+            targetStorage.createOutbox(tableName);
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
@@ -202,11 +206,11 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
 
-        List<Chunk<?>> chunks = getChunkList(configs, sourceConnection, chunkTable);
+        List<Chunk<?>> chunks = getChunkList(configs, sourceConnection, tableName);
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
             try {
-                chunk.copyChunkSync(sourceConnection, true, chunkTable);
+                chunk.copyChunkSync(sourceConnection, true, tableName);
             } catch (Exception e) {
                 log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                 throw new RuntimeException(e);

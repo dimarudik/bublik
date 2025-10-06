@@ -1,5 +1,6 @@
-package org.bublik.cli;
+package org.bublik.cli.oracle.postgresql;
 
+import org.bublik.cli.TestResult;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -16,7 +17,7 @@ import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
-public class OracleToPostgresTest {
+public class HappyPathTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
