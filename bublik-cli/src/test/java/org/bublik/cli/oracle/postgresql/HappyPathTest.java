@@ -54,8 +54,8 @@ public class HappyPathTest {
     @Test
     void parted() throws IOException {
         TestResult result = getResult(
-                "ora2pg/ora2pg.yaml",
-                "ora2pg/cases/parted.json",
+                "./ora2pg/ora2pg.yaml",
+                "./ora2pg/cases/parted.json",
                 rows,
                 sync,
                 getJdbcProperties(source),

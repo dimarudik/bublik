@@ -1,0 +1,12 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "to_ydb",
+    "toSchemaName": "",
+    "toTableName": "to_ydb",
+    "columnToColumn" : {
+      "id": "id",
+      "name": "name"
+    }
+  }
+]
