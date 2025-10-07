@@ -176,7 +176,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         dropChunkConnection.close();
 
         Connection dropOutboxConnection = targetStorage.getConnection();
-        dropOutboxTable(dropOutboxConnection, false, tableName);
+        targetStorage.dropOutboxTable(dropOutboxConnection, false, tableName);
         dropOutboxConnection.close();
     }
 

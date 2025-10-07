@@ -66,8 +66,7 @@ public class TestUtils {
         String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
                 config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
         String toQuery = getQuery(
-                (config.toSchemaName() == null ? config.fromSchemaName() : config.toSchemaName())
-                        + "."
+                (config.toSchemaName() == null ? config.fromSchemaName() + "." : config.toSchemaName() + ".")
                         + (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
                 " 1 = 1 ");
         Long sourceCount = TestUtils.countRows(sourceProperties, fromQuery);

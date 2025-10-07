@@ -61,10 +61,17 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     @Override
     public void createOutbox(String tableName) throws SQLException {
+        String[] t = tableName.split("\\.");
+        String tName;
+        if (t.length == 1) {
+            tName = t[0];
+        } else {
+            tName = t[1];
+        }
         Connection connection = getConnection();
         try {
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tableName));
+            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tName));
             createTable.close();
 //            Table table = TableService.getTable(connection, "", "bublik_outbox");
 /*
@@ -429,9 +436,16 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     @Override
     public void dropOutboxTable(Connection connection, boolean sync, String tableName) {
+        String[] t = tableName.split("\\.");
+        String tName;
+        if (t.length == 1) {
+            tName = t[0];
+        } else {
+            tName = t[1];
+        }
         try {
             Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tableName));
+            dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tName));
             dropTable.close();
             connection.commit();
             if (!sync) {
@@ -444,7 +458,14 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
 
     @Override
     public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
-        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tableName));
+        String[] t = tableName.split("\\.");
+        String tName;
+        if (t.length == 1) {
+            tName = t[0];
+        } else {
+            tName = t[1];
+        }
+        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tName));
         chunkInsert.setLong(1, chunkId);
         chunkInsert.setString(2, taskName);
         chunkInsert.setLong(3, rows);

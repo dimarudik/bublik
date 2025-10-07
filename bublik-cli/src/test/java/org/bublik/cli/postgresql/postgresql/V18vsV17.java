@@ -12,16 +12,16 @@ public class V18vsV17 {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source1 = new PostgreSQLContainer<>("postgres")
-            .withDatabaseName("postgres")
+            .withDatabaseName("postgresql")
             .withInitScript("./pg2pg/sql/manyToOneSource1.sql");
     private static JdbcDatabaseContainer<?> target1 = new PostgreSQLContainer<>("postgres")
-            .withDatabaseName("postgres")
+            .withDatabaseName("postgresql")
             .withInitScript("./pg2pg/sql/manyToOneTarget.sql");
     private static JdbcDatabaseContainer<?> source2 = new PostgreSQLContainer<>("postgres:17.6")
-            .withDatabaseName("postgres")
+            .withDatabaseName("postgresql")
             .withInitScript("./pg2pg/sql/manyToOneSource2.sql");
     private static JdbcDatabaseContainer<?> target2 = new PostgreSQLContainer<>("postgres:17.6")
-            .withDatabaseName("postgres")
+            .withDatabaseName("postgresql")
             .withInitScript("./pg2pg/sql/manyToOneTarget.sql");
 
     @BeforeAll

@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static io.restassured.RestAssured.given;
+import static java.util.Collections.singletonList;
 import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.hamcrest.Matchers.hasSize;
@@ -80,8 +81,8 @@ public class PgToPgEnvSwitchoverTest {
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
             .withEnv("PATRONI_RESTAPI_PASSWORD", "admin")
-            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgres")
-            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgres")
+            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgresql")
+            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgresql")
             .withEnv("PATRONI_REPLICATION_USERNAME", "replicator")
             .withEnv("PATRONI_REPLICATION_PASSWORD", "replicate")
             .withEnv("PATRONI_admin_PASSWORD", "admin")
@@ -96,8 +97,8 @@ public class PgToPgEnvSwitchoverTest {
     private static GenericContainer<?> patroni2 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
             .withEnv("PATRONI_RESTAPI_PASSWORD", "admin")
-            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgres")
-            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgres")
+            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgresql")
+            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgresql")
             .withEnv("PATRONI_REPLICATION_USERNAME", "replicator")
             .withEnv("PATRONI_REPLICATION_PASSWORD", "replicate")
             .withEnv("PATRONI_admin_PASSWORD", "admin")
@@ -110,14 +111,14 @@ public class PgToPgEnvSwitchoverTest {
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 
     private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
-            .withDatabaseName("postgres")
+            .withDatabaseName("postgresql")
             .withNetwork(network)
             .withInitScript("./pg2pg/composev2/sql/init-target.sql")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("target"));
 
     @BeforeAll
     static void setUp() throws InterruptedException {
-        etcd1.setPortBindings(java.util.Collections.singletonList("2379:2379"));
+        etcd1.setPortBindings(singletonList("2379:2379"));
         etcd1.start();
         etcd2.start();
         etcd3.start();
@@ -125,8 +126,8 @@ public class PgToPgEnvSwitchoverTest {
         ports.add(patroni1PortBinding1);
         ports.add(patroni1PortBinding2);
         patroni1.setPortBindings(ports);
-        patroni2.setPortBindings(java.util.Collections.singletonList(patroni2PortBinding1));
-        target.setPortBindings(java.util.Collections.singletonList(targetPortBinding1));
+        patroni2.setPortBindings(singletonList(patroni2PortBinding1));
+        target.setPortBindings(singletonList(targetPortBinding1));
         patroni1.start();
         patroni2.start();
         target.start();
@@ -261,7 +262,7 @@ public class PgToPgEnvSwitchoverTest {
                         .append(",")
         );
         sb.deleteCharAt(sb.length() - 1);
-        sb.append("/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off");
+        sb.append("/postgresql");
         Properties properties = new Properties();
         properties.setProperty("url", sb.toString());
         properties.setProperty("user", dbs[0].getEnvMap().get("PATRONI_SUPERUSER_USERNAME"));
