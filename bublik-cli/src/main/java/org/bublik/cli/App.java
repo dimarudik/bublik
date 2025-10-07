@@ -162,7 +162,7 @@ public class App {
             log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
             try {
                 StorageService.init(property, configs, sync, rowsParameter,
-                        chunkTable == null ? "public.ctid_chunks" : chunkTable);
+                        chunkTable == null ? "public._bublik" : chunkTable);
             } catch (SQLException e) {
                 log.error("{}", getStackTrace(e));
                 throw new RuntimeException(e);

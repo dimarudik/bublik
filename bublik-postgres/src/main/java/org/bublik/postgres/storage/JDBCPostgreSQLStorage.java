@@ -1077,7 +1077,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(connection);
                 sourceTable.setPkColumns(sourcePKColumns);
 
-                if (getMajorStorageVersion(connection) >= 14) {
+                if (getMajorStorageVersion(connection) >= 15) {
                     List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(connection);
                     sourceTable.setUniqueConstraints(uniqueConstraints);
                 }
