@@ -53,6 +53,6 @@ public class FooTest {
                 .withLocalDatacenter(target.getLocalDatacenter())
                 .build();
         cqlSession.close();
-        Thread.sleep(60_000);
+//        Thread.sleep(120_000);
     }
 }

@@ -6,7 +6,7 @@
     <parent>
         <groupId>bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.29</version>
+        <version>25.1.30</version>
     </parent>
     <artifactId>bublik-cassandra</artifactId>
     <version>${project.parent.version}</version>
@@ -30,6 +30,12 @@
             <version>5.0.0.Alpha2</version>
         </dependency>
 -->
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.2.6.Final</version>
+        </dependency>
 
         <dependency>
             <groupId>org.apache.cassandra</groupId>
