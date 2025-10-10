@@ -18,7 +18,7 @@ public class CSPool {
 
     public CSPool(Properties properties, int size) {
         this.size = size;
-        properties.forEach((k, v) -> log.debug("Cassandra property: {}={}", k, v));
+//        properties.forEach((k, v) -> log.debug("Cassandra property: {}={}", k, v));
         this.cqlSession = createCqlSession(properties);
     }
 

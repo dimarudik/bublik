@@ -8,7 +8,6 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -22,8 +21,7 @@ import java.util.Properties;
 import static org.bublik.cli.App.getConfigs;
 import static org.bublik.cli.TestUtils.getJdbcProperties;
 
-@Disabled
-public class FooTest {
+public class HappyPathTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
@@ -60,7 +58,7 @@ public class FooTest {
     }
 
     @Test
-    public void Foo() throws InterruptedException, IOException {
+    public void joinLikes() throws InterruptedException, IOException {
 //        System.out.println(target.getLocalDatacenter());
 /*
         CqlSession cqlSession = CqlSession
