@@ -3,6 +3,8 @@ package org.bublik.cassandra.storage;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -10,9 +12,13 @@ import java.util.List;
 import java.util.Properties;
 
 public class CSPool {
+    private static final Logger log = LoggerFactory.getLogger(CSPool.class);
     private final CqlSession cqlSession;
+    private final int size;
 
-    public CSPool(Properties properties) {
+    public CSPool(Properties properties, int size) {
+        this.size = size;
+        properties.forEach((k, v) -> log.debug("Cassandra property: {}={}", k, v));
         this.cqlSession = createCqlSession(properties);
     }
 
@@ -41,8 +47,8 @@ public class CSPool {
     public DriverConfigLoader getConfigLoader(Properties properties) {
         return DriverConfigLoader
                 .programmaticBuilder()
-                .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, 8)
-                .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, 8)
+                .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, size)
+                .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, size)
 //                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT,
 //                        Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
                 .build();

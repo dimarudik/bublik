@@ -1,22 +1,36 @@
 package org.bublik.cli.postgresql.cassandra;
 
-import com.datastax.oss.driver.api.core.CqlSession;
+import org.bublik.cli.App;
+import org.bublik.cli.TestResult;
+import org.bublik.cli.TestUtils;
+import org.bublik.cli.addons.Utils;
+import org.bublik.core.model.Config;
+import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-import java.sql.SQLException;
+import java.io.IOException;
+import java.sql.*;
+import java.util.List;
+import java.util.Properties;
 
+import static org.bublik.cli.App.getConfigs;
+import static org.bublik.cli.TestUtils.getJdbcProperties;
+
+@Disabled
 public class FooTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("./postgresql/cassandra/sql/pg-init.sql");
-    private static CassandraContainer target = new CassandraContainer("cassandra");
+    private static CassandraContainer target = new CassandraContainer("cassandra")
+            .withInitScript("./postgresql/cassandra/sql/cs-init.cql");
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -46,13 +60,87 @@ public class FooTest {
     }
 
     @Test
-    public void Foo() throws InterruptedException {
+    public void Foo() throws InterruptedException, IOException {
+//        System.out.println(target.getLocalDatacenter());
+/*
         CqlSession cqlSession = CqlSession
                 .builder()
                 .addContactPoint(target.getContactPoint())
                 .withLocalDatacenter(target.getLocalDatacenter())
                 .build();
         cqlSession.close();
-//        Thread.sleep(120_000);
+*/
+        Properties sourceProperties = getJdbcProperties(source);
+        Properties targetProperties = getJdbcPropertiesOfCassandra(target);
+        TestResult result = getResult(
+                "./postgresql/cassandra/yaml/pg2cs.yaml",
+                "./postgresql/cassandra/json/pg2cs.json",
+                rows,
+                sync,
+                sourceProperties,
+                targetProperties);
+
+//        Thread.sleep(90_000);
+    }
+
+    public static TestResult getResult(String connectionPropertyFile,
+                                       String mappingFile,
+                                       int rows,
+                                       boolean sync,
+                                       Properties sourceProperties,
+                                       Properties targetProperties) throws IOException {
+        return getResult(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, null);
+    }
+
+    public static TestResult getResult(String connectionPropertyFile,
+                                       String mappingFile,
+                                       int rows,
+                                       boolean sync,
+                                       Properties sourceProperties,
+                                       Properties targetProperties,
+                                       String chunkTableName) throws IOException {
+        ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
+        List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
+        Config config = configs.getFirst();
+
+        App.runProcess(cp, configs, rows, sync, chunkTableName);
+
+        String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
+                config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
+        String toQuery = getQuery((config.toTableName() == null ? config.fromTableName() : config.toTableName()),
+                " 1 = 1 ");
+        Long sourceCount = countRows(sourceProperties, fromQuery);
+//        Long targetCount = countRows(targetProperties, toQuery);
+        return new TestResult(sourceCount, 0);
+    }
+
+    public static Long countRows(Properties p, String query) {
+        try (Connection connection =
+                     DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
+//            System.out.println(p.getProperty("url"));
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(query);
+            resultSet.next();
+            return resultSet.getLong(1);
+        }
+        catch (SQLException e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String getQuery(String tableName, String whereClause) {
+        return "SELECT count(1) from " + tableName + " where " + whereClause;
+    }
+
+    private Properties getJdbcPropertiesOfCassandra(CassandraContainer target) {
+        Properties properties = new Properties();
+        properties.setProperty("class", "org.bublik.cassandra.storage.CSPoolStorage");
+        properties.setProperty("keyspace", "test");
+        properties.setProperty("user", "test");
+        properties.setProperty("password", "test");
+        properties.setProperty("datacenter", "datacenter1");
+        properties.setProperty("port", "9042");
+        properties.setProperty("batchSize", "256");
+        return properties;
     }
 }

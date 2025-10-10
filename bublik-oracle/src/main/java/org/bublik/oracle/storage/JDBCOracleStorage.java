@@ -113,7 +113,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void dropOutboxTable(Connection connection, boolean sync, String tableName) throws SQLException {
+    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
 
     }
 

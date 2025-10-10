@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.bublik.cli.App.getConfigs;
+import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Disabled
@@ -35,7 +36,7 @@ public class FooTest {
                     .withCreateContainerCmdModifier(cmd -> cmd.withHostName("localhost"));
 
     @BeforeAll
-    static void setUp() throws SQLException {
+    static void setUp() throws SQLException, InterruptedException {
         source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
         source.start();
         List<String> ports = new ArrayList<>();
@@ -51,6 +52,7 @@ public class FooTest {
                 throw new RuntimeException(e);
             }
         }
+        Thread.sleep(3_000);
     }
 
     @AfterAll
@@ -156,13 +158,5 @@ public class FooTest {
 
     private static String getQuery(String tableName, String whereClause) {
         return "SELECT count(1) from " + tableName + " where " + whereClause;
-    }
-
-    public static Properties getJdbcProperties(JdbcDatabaseContainer<?> db) {
-        Properties properties = new Properties();
-        properties.setProperty("url", db.getJdbcUrl());
-        properties.setProperty("user", db.getUsername());
-        properties.setProperty("password", db.getPassword());
-        return properties;
     }
 }

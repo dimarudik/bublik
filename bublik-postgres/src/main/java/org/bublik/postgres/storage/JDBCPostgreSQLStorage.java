@@ -1213,15 +1213,14 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void dropOutboxTable(Connection connection, boolean sync, String tableName) {
+    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
         try {
+            Connection connection = getConnection();
             Statement dropTable = connection.createStatement();
             dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tableName));
             dropTable.close();
             connection.commit();
-            if (!sync) {
-                connection.commit();
-            }
+            connection.close();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
         }

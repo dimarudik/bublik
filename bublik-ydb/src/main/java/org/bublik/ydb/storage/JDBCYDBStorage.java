@@ -435,7 +435,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void dropOutboxTable(Connection connection, boolean sync, String tableName) {
+    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
         String[] t = tableName.split("\\.");
         String tName;
         if (t.length == 1) {
@@ -444,13 +444,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             tName = t[1];
         }
         try {
+            Connection connection = getConnection();
             Statement dropTable = connection.createStatement();
             dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tName));
             dropTable.close();
             connection.commit();
-            if (!sync) {
-                connection.commit();
-            }
+            connection.close();
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
         }

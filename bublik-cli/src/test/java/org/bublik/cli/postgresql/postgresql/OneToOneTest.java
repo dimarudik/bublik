@@ -52,7 +52,14 @@ class OneToOneTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-        assertEquals(result.targetCount(), result.sourceCount());
+        TestResult result2 = getResult(
+                "./pg2pg/pg2pg.yaml",
+                "pg2pg/mappings/allTypes.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
     }
 
     @Test

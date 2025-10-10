@@ -40,7 +40,7 @@ public class HappyPathTest {
        try {
            ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath("ora2cs/ora2cs.yaml"));
            Properties properties = cp.getToProperty();
-           CSPool csPool = new CSPool(properties);
+           CSPool csPool = new CSPool(properties, 1);
            csPool.closeCqlSession();
        } catch (Exception e) {
            System.out.println(getStackTrace(e));

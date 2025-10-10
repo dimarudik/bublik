@@ -1,0 +1,15 @@
+threadCount: 10
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  class: org.bublik.cassandra.storage.CSPoolStorage
+  datacenter: datacenter1
+  hosts: localhost
+  port: 9042
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 128

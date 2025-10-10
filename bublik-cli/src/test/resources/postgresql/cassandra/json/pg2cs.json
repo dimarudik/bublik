@@ -1,0 +1,36 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "user",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description"
+    }
+  },
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "item",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.item_id as item_id"          : "item_id",
+      "l.user_id as user_id"          : "user_id",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email"
+    }
+  }
+]

@@ -175,9 +175,12 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         dropChunkTable(dropChunkConnection, false, tableName);
         dropChunkConnection.close();
 
+        targetStorage.dropOutboxTable(false, tableName);
+/*
         Connection dropOutboxConnection = targetStorage.getConnection();
         targetStorage.dropOutboxTable(dropOutboxConnection, false, tableName);
         dropOutboxConnection.close();
+*/
     }
 
     private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {

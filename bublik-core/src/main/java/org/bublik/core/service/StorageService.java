@@ -1,6 +1,7 @@
 package org.bublik.core.service;
 
 import org.bublik.core.model.*;
+import org.bublik.core.storage.AutoColseableStorageClass;
 import org.bublik.core.storage.JDBCStorageClass;
 import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
@@ -28,7 +29,7 @@ public interface StorageService {
     void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException;
     void createOutbox(String tableName) throws SQLException;
     void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException;
-    void dropOutboxTable(Connection connection, boolean sync, String tableName) throws SQLException;
+    void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException;
 //    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
     Connection getConnection() throws SQLException;
@@ -45,8 +46,14 @@ public interface StorageService {
     static Storage getStorage(Properties properties, ConnectionProperty connectionProperty) {
         try {
             StorageClass storageClass = StorageService.getStorageClass(properties);
-            if (storageClass == null) {
-                return StorageService.reflectStorage(CASSANDRA_STORAGE_CLASS_NAME, properties, connectionProperty);
+            if (storageClass instanceof AutoColseableStorageClass) {
+                Properties props = storageClass.getProperties();
+                String className = props.getProperty("class");
+                if (className == null || className.isEmpty()) {
+                    throw new RuntimeException("Class name is null");
+                } else {
+                    return StorageService.reflectStorage(className, properties, connectionProperty);
+                }
             }
             try {
                 if (storageClass instanceof JDBCStorageClass) {
@@ -71,9 +78,10 @@ public interface StorageService {
     }
 
     static StorageClass getStorageClass(Properties properties) throws SQLException {
-        String className = properties.getProperty("type");
-        if (className != null ) {
-            return null;
+        String className = properties.getProperty("class");
+        String url = properties.getProperty("url");
+        if (className != null && url == null) {
+            return new AutoColseableStorageClass(AutoCloseable.class, properties);
         } else {
 //            Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return new JDBCStorageClass(Connection.class, properties);
@@ -84,7 +92,9 @@ public interface StorageService {
         try {
             Class<?> clazz = Class.forName(className);
             Constructor<?> constructor = clazz.getConstructor(StorageClass.class, ConnectionProperty.class);
-            return (Storage) constructor.newInstance(getStorageClass(properties), connectionProperty);
+            StorageClass storageClass = getStorageClass(properties);
+            log.info("Storage class: {} ", className);
+            return (Storage) constructor.newInstance(storageClass, connectionProperty);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
