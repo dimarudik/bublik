@@ -1,5 +1,6 @@
 package org.bublik.cli.postgresql.cassandra;
 
+import com.datastax.oss.driver.api.core.CqlSession;
 import org.bublik.cli.App;
 import org.bublik.cli.TestResult;
 import org.bublik.cli.TestUtils;
@@ -20,6 +21,7 @@ import java.util.Properties;
 
 import static org.bublik.cli.App.getConfigs;
 import static org.bublik.cli.TestUtils.getJdbcProperties;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class HappyPathTest {
     private static int rows = 50000;
@@ -59,15 +61,6 @@ public class HappyPathTest {
 
     @Test
     public void joinLikes() throws InterruptedException, IOException {
-//        System.out.println(target.getLocalDatacenter());
-/*
-        CqlSession cqlSession = CqlSession
-                .builder()
-                .addContactPoint(target.getContactPoint())
-                .withLocalDatacenter(target.getLocalDatacenter())
-                .build();
-        cqlSession.close();
-*/
         Properties sourceProperties = getJdbcProperties(source);
         Properties targetProperties = getJdbcPropertiesOfCassandra(target);
         TestResult result = getResult(
@@ -77,8 +70,8 @@ public class HappyPathTest {
                 sync,
                 sourceProperties,
                 targetProperties);
-
-//        Thread.sleep(90_000);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
     public static TestResult getResult(String connectionPropertyFile,
@@ -99,23 +92,37 @@ public class HappyPathTest {
                                        String chunkTableName) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
-        Config config = configs.getFirst();
 
         App.runProcess(cp, configs, rows, sync, chunkTableName);
 
-        String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
-                config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
-        String toQuery = getQuery((config.toTableName() == null ? config.fromTableName() : config.toTableName()),
-                " 1 = 1 ");
+        String fromQuery = "SELECT count(1) * 2 FROM public.likes l left join users u on u.id = l.user_id left join items i on i.id = l.item_id";
         Long sourceCount = countRows(sourceProperties, fromQuery);
-//        Long targetCount = countRows(targetProperties, toQuery);
-        return new TestResult(sourceCount, 0);
+        Long targetCount = countCassandra();
+        return new TestResult(sourceCount, targetCount);
+    }
+
+    private static Long countCassandra() {
+        CqlSession cqlSession = CqlSession
+                .builder()
+                .addContactPoint(target.getContactPoint())
+                .withLocalDatacenter(target.getLocalDatacenter())
+                .build();
+        com.datastax.oss.driver.api.core.cql.ResultSet resultSet = cqlSession.execute("SELECT user_id FROM test.user");
+        long rowCount = 0;
+        for (com.datastax.oss.driver.api.core.cql.Row row : resultSet) {
+            rowCount++;
+        }
+        com.datastax.oss.driver.api.core.cql.ResultSet resultSet1 = cqlSession.execute("SELECT item_id FROM test.item");
+        for (com.datastax.oss.driver.api.core.cql.Row row : resultSet1) {
+            rowCount++;
+        }
+        cqlSession.close();
+        return rowCount;
     }
 
     public static Long countRows(Properties p, String query) {
         try (Connection connection =
                      DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
-//            System.out.println(p.getProperty("url"));
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
             resultSet.next();
@@ -124,10 +131,6 @@ public class HappyPathTest {
         catch (SQLException e){
             throw new RuntimeException(e);
         }
-    }
-
-    private static String getQuery(String tableName, String whereClause) {
-        return "SELECT count(1) from " + tableName + " where " + whereClause;
     }
 
     private Properties getJdbcPropertiesOfCassandra(CassandraContainer target) {

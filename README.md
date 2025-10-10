@@ -8,6 +8,7 @@
 | Oracle     | YDB        |
 | PostgreSQL | PostgreSQL |
 | PostgreSQL | YDB        |
+| PostgreSQL | Cassandra  |
 
 This tool facilitates the efficient transfer of data between databases.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 

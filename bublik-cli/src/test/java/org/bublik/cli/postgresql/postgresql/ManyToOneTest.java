@@ -99,6 +99,6 @@ public class ManyToOneTest {
 
         service.shutdown();
         service.close();
-        assertEquals(targetCount, sourceCount);
+        assertEquals(sourceCount, targetCount);
     }
 }
