@@ -154,21 +154,19 @@ public class App {
                                   int rowsParameter,
                                   boolean sync,
                                   String chunkTable) {
+        log.info("THREADS: {}", property.getThreadCount());
+        log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
+        log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
+        log.info("TARGET: {}", property.getToProperty().getProperty("url"));
+        log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
         try {
-            log.info("THREADS: {}", property.getThreadCount());
-            log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
-            log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
-            log.info("TARGET: {}", property.getToProperty().getProperty("url"));
-            log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
-            try {
-                StorageService.init(property, configs, sync, rowsParameter,
-                        chunkTable == null ? "public._bublik" : chunkTable);
-            } catch (SQLException e) {
-                log.error("{}", getStackTrace(e));
-                throw new RuntimeException(e);
-            }
-        } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
+            StorageService.init(property, configs, sync, rowsParameter,
+                    chunkTable == null ? "public._bublik" : chunkTable);
+        } catch (SQLException e) {
+            log.error("{} {}", e.getSQLState(), getStackTrace(e));
+//            throw new RuntimeException(e);
+        } catch (Exception r) {
+            log.error("{}", getStackTrace(r));
         }
     }
 

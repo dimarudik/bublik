@@ -28,7 +28,6 @@ public interface StorageService {
     void createChunks(Connection connection, List<Config> configs, boolean sync, int rows, String tableName) throws SQLException;
     void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException;
     void createOutbox(String tableName) throws SQLException;
-    void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException;
 //    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
@@ -103,9 +102,14 @@ public interface StorageService {
 
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
         log.info("Bublik starting...");
-        Storage sourceStorage = StorageService.getStorage(property.getFromProperty(), property);
-        Storage targetStorage = StorageService.getStorage(property.getToProperty(), property);
-        assert sourceStorage != null;
-        sourceStorage.start(configs, sync, rows, targetStorage, chunkTable);
+        try (Storage sourceStorage = StorageService.getStorage(property.getFromProperty(), property);
+             Storage targetStorage = StorageService.getStorage(property.getToProperty(), property)) {
+            assert sourceStorage != null;
+            sourceStorage.start(configs, sync, rows, targetStorage, chunkTable);
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

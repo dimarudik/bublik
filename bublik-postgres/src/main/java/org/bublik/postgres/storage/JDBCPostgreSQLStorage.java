@@ -1120,52 +1120,48 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                              int required,
                              String tableName) throws SQLException {
         createChunkTable(connection, sync, tableName);
-        try {
-            for (Config config : configs) {
-                long reltuples = 0;
-                long relpages = 0;
-                long max_end_page;
-                Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+        for (Config config : configs) {
+            long reltuples = 0;
+            long relpages = 0;
+            long max_end_page;
+            Table table = configToTable(config.fromSchemaName(), config.fromTableName());
 
-                PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
-                preparedStatement.setString(1, table.getSchemaName().toLowerCase());
-                preparedStatement.setString(2, table.getFinalTableName(false));
-                ResultSet resultSet = preparedStatement.executeQuery();
-                while (resultSet.next()) {
-                    reltuples = resultSet.getLong("reltuples");
-                    relpages = resultSet.getLong("relpages");
-                }
-                resultSet.close();
-                preparedStatement.close();
-
-                long heap_blks_total = getTotalPagesOfTable(connection, table);
-                long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
-                        (int) Math.round(relpages / (reltuples / (double) required));
-                long pagesInChunk = Math.min(v, relpages + 1);
-                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
-                        config.fromSchemaName(),
-                        config.fromTableName(),
-                        relpages,
-                        heap_blks_total,
-                        reltuples,
-                        (double) required,
-                        pagesInChunk);
-                insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, tableName);
-
-                max_end_page = getMaxEndPageOfChunks(connection, config, tableName);
-
-                // всавка последних чанков
-                if (heap_blks_total > max_end_page) {
-                    insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, tableName);
-                }
+            PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
+            preparedStatement.setString(1, table.getSchemaName().toLowerCase());
+            preparedStatement.setString(2, table.getFinalTableName(false));
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                reltuples = resultSet.getLong("reltuples");
+                relpages = resultSet.getLong("relpages");
             }
-            if (!sync) {
-                connection.commit();
+            resultSet.close();
+            preparedStatement.close();
+
+            long heap_blks_total = getTotalPagesOfTable(connection, table);
+            long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
+                    (int) Math.round(relpages / (reltuples / (double) required));
+            long pagesInChunk = Math.min(v, relpages + 1);
+            log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                    config.fromSchemaName(),
+                    config.fromTableName(),
+                    relpages,
+                    heap_blks_total,
+                    reltuples,
+                    (double) required,
+                    pagesInChunk);
+            insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk, ChunkStatus.UNASSIGNED, required, tableName);
+
+            max_end_page = getMaxEndPageOfChunks(connection, config, tableName);
+
+            // всавка последних чанков
+            if (heap_blks_total > max_end_page) {
+                insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total, pagesInChunk, ChunkStatus.UNASSIGNED, required, tableName);
             }
-            log.info("Ctid chunks created successfully");
-        } catch (SQLException e) {
-            log.warn("{} {}", e.getSQLState(), getStackTrace(e));
         }
+        if (!sync) {
+            connection.commit();
+        }
+        log.info("Ctid chunks created successfully");
     }
 
     @Override
@@ -1184,7 +1180,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         connection.close();
     }
 
-    private void createChunkTable(Connection connection, boolean sync, String chunkTableName) {
+    private void createChunkTable(Connection connection, boolean sync, String chunkTableName) throws SQLException {
         try {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName", chunkTableName));
@@ -1193,7 +1189,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
                 connection.commit();
             }
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+//            log.error("{}", getStackTrace(e));
+            throw e;
         }
     }
 

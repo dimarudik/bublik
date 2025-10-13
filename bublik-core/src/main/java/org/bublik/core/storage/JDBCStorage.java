@@ -146,13 +146,24 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                     )
             );
 
+            int timeoutCounter = 0;
+            int adminCommandCounter = 0;
             for (Future<?> future : futures) {
                 Chunk<?> c;
                 try {
                     c = (Chunk<?>) future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
-                    if (e.getMessage().contains("terminating connection due to administrator command")) {
+                    if (e.getMessage().contains("terminating connection due to administrator command") && adminCommandCounter / threadCount < 3) {
+                        adminCommandCounter++;
+                        log.error("{}", getStackTrace(e));
+                    } else if (e.getMessage().contains("Query timed out after PT2S") && timeoutCounter / threadCount < 20) {
+                        try {
+                            Thread.sleep(1_000);
+                        } catch (InterruptedException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        timeoutCounter++;
                         log.error("{}", getStackTrace(e));
                     } else {
                         log.error("{}", getStackTrace(e));
@@ -174,13 +185,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         Connection dropChunkConnection = this.getConnection();
         dropChunkTable(dropChunkConnection, false, tableName);
         dropChunkConnection.close();
-
         targetStorage.dropOutboxTable(false, tableName);
-/*
-        Connection dropOutboxConnection = targetStorage.getConnection();
-        targetStorage.dropOutboxTable(dropOutboxConnection, false, tableName);
-        dropOutboxConnection.close();
-*/
     }
 
     private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
@@ -302,5 +307,10 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     @Override
     public boolean isWrapperFor(Class<?> iface) {
         return false;
+    }
+
+    @Override
+    public void close() throws Exception {
+        closeStorage();
     }
 }

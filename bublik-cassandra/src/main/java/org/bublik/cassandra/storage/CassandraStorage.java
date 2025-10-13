@@ -13,7 +13,10 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
-import org.bublik.core.model.*;
+import org.bublik.core.model.Chunk;
+import org.bublik.core.model.Column;
+import org.bublik.core.model.ConnectionProperty;
+import org.bublik.core.model.LogMessage;
 import org.bublik.core.service.StorageService;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.core.util.Utils;
@@ -22,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -37,6 +39,7 @@ import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
 //import static org.bublik.util.Utils.getStackTrace;
 //import static org.bublik.storage.cassandraaddons.MM3.*;
 
+@Deprecated
 public class CassandraStorage extends CSPoolStorage implements StorageService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
     private final int batchSize;
@@ -71,25 +74,6 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
         this.batchSize = getBatchSize(connectionProperty);
     }
 
-    @Override
-    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
-
-    }
-
-    @Override
-    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
-
-    }
-
-    @Override
-    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
-
-    }
-
-    @Override
-    public Connection getConnection() throws SQLException {
-        return null;
-    }
 
 /*
     @Override
@@ -333,13 +317,6 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
-
-/*
-    @Override
-    public void closeStorage() {
-        cqlSession.close();
-    }
-*/
 
     public int getBatchSize(ConnectionProperty connectionProperty) {
         String batchSize = connectionProperty.getToProperty().getProperty("batchSize");

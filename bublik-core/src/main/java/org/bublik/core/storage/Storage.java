@@ -7,7 +7,7 @@ import org.bublik.core.service.StorageService;
 import java.sql.Wrapper;
 import java.util.Map;
 
-public abstract class Storage implements StorageService, Wrapper {
+public abstract class Storage implements StorageService, Wrapper, AutoCloseable {
     private final StorageClass storageClass;
     private final ConnectionProperty connectionProperty;
     private Map<Table, Table> tables;
