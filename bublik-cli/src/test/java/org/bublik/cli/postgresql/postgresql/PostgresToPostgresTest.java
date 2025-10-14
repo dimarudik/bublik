@@ -14,13 +14,12 @@ import static org.bublik.cli.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
-class OneToOneTest {
+public class PostgresToPostgresTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-//            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
-            .withInitScript("./pg2pg/sql/pg-init.sql");
+            .withInitScript("./postgresql/postgresql/sql/pg-init.sql");
     private static JdbcDatabaseContainer<?> target = source;
 
     @BeforeAll
@@ -46,15 +45,15 @@ class OneToOneTest {
     @Test
     void allTypes() throws IOException {
         TestResult result = getResult(
-                "./pg2pg/pg2pg.yaml",
-                "pg2pg/mappings/allTypes.json",
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         TestResult result2 = getResult(
-                "./pg2pg/pg2pg.yaml",
-                "pg2pg/mappings/allTypes.json",
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -65,8 +64,8 @@ class OneToOneTest {
     @Test
     void targetTableNotExists() throws IOException {
         TestResult result = getResult(
-                "./pg2pg/pg2pg.yaml",
-                "pg2pg/mappings/targetTableNotExists.json",
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/targetTableNotExists.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -77,8 +76,8 @@ class OneToOneTest {
     @Test
     void notNullFailure() throws IOException {
         TestResult result = getResult(
-                "./pg2pg/pg2pg.yaml",
-                "pg2pg/mappings/notNullFailure.json",
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/notNullFailure.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -97,8 +96,8 @@ class OneToOneTest {
         }
 
         TestResult result2 = getResult(
-                "./pg2pg/pg2pg.yaml",
-                "pg2pg/mappings/notNullFailure.json",
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/notNullFailure.json",
                 0,
                 sync,
                 getJdbcProperties(source),

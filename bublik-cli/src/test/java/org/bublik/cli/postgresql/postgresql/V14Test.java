@@ -22,7 +22,7 @@ public class V14Test {
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:14-alpine")
             .withDatabaseName("postgres")
 //            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
-            .withInitScript("./pg2pg/sql/pg-init-v14.sql");
+            .withInitScript("postgresql/postgresql/sql/pg-init-v14.sql");
     private static JdbcDatabaseContainer<?> target = source;
 
     @BeforeAll
@@ -48,8 +48,8 @@ public class V14Test {
     @Test
     void allTypes() throws IOException {
         TestResult result = getResult(
-                "./pg2pg/pg2pg.yaml",
-                "./pg2pg/mappings/allTypes.json",
+                "postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getJdbcProperties(source),

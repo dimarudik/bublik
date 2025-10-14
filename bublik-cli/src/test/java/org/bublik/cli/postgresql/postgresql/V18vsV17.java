@@ -13,16 +13,16 @@ public class V18vsV17 {
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source1 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgresql")
-            .withInitScript("./pg2pg/sql/manyToOneSource1.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneSource1.sql");
     private static JdbcDatabaseContainer<?> target1 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgresql")
-            .withInitScript("./pg2pg/sql/manyToOneTarget.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneTarget.sql");
     private static JdbcDatabaseContainer<?> source2 = new PostgreSQLContainer<>("postgres:17.6")
             .withDatabaseName("postgresql")
-            .withInitScript("./pg2pg/sql/manyToOneSource2.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneSource2.sql");
     private static JdbcDatabaseContainer<?> target2 = new PostgreSQLContainer<>("postgres:17.6")
             .withDatabaseName("postgresql")
-            .withInitScript("./pg2pg/sql/manyToOneTarget.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneTarget.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {

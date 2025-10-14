@@ -1,3 +1,4 @@
+alter session set container = freepdb1;
 create table test.to_ydb (
     id int,
     name varchar2(256));

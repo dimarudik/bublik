@@ -26,13 +26,13 @@ public class ManyToOneTest {
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source1 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/manyToOneSource1.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneSource1.sql");
     private static JdbcDatabaseContainer<?> source2 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/manyToOneSource2.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneSource2.sql");
     private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/manyToOneTarget.sql");
+            .withInitScript("postgresql/postgresql/sql/manyToOneTarget.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -66,8 +66,8 @@ public class ManyToOneTest {
         long sourceCount = 0;
 
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/manyToOneSource1.yaml",
-                "pg2pg/mappings/manyToOneSource1.json",
+                "postgresql/postgresql/yaml/manyToOneSource1.yaml",
+                "postgresql/postgresql/json/manyToOneSource1.json",
                 rows,
                 sync,
                 getJdbcProperties(source1),
@@ -76,8 +76,8 @@ public class ManyToOneTest {
         ));
 
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/manyToOneSource2.yaml",
-                "pg2pg/mappings/manyToOneSource2.json",
+                "postgresql/postgresql/yaml/manyToOneSource2.yaml",
+                "postgresql/postgresql/json/manyToOneSource2.json",
                 rows,
                 sync,
                 getJdbcProperties(source2),

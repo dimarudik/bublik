@@ -4,14 +4,13 @@ import org.bublik.cli.App;
 import org.bublik.cli.TestResult;
 import org.bublik.cli.TestUtils;
 import org.bublik.cli.addons.Utils;
-import org.bublik.cli.postgresql.ydb.PortsGenerator;
-import org.bublik.cli.postgresql.ydb.YdbDockerContainer;
-import org.bublik.cli.postgresql.ydb.YdbEnvironment;
+import org.bublik.cli.PortsGenerator;
+import org.bublik.cli.YdbDockerContainer;
+import org.bublik.cli.YdbEnvironment;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
@@ -26,13 +25,12 @@ import java.util.Properties;
 import static org.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
-public class FooTest {
+public class OracleToYDBTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
-            .withInitScript("./oracle/ydb/sql/ora-init.sql");
+            .withInitScript("oracle/ydb/sql/oracle/ora-init.sql");
     private static YdbDockerContainer target =
             new YdbDockerContainer(new YdbEnvironment(), new PortsGenerator())
                     .withCreateContainerCmdModifier(cmd -> cmd.withHostName("localhost"));
@@ -47,14 +45,14 @@ public class FooTest {
         ports.add("8765:8765");
         target.setPortBindings(ports);
         target.start();
-        while (!target.isRunning() && !source.isRunning()) {
+        while ((!target.isRunning()) && (!source.isRunning())) {
             try {
-                Thread.sleep(300);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
-        Thread.sleep(3_000);
+        Thread.sleep(10_000);
     }
 
     @AfterAll

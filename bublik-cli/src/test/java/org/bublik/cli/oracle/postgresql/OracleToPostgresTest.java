@@ -16,17 +16,15 @@ import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
-public class HappyPathTest {
+public class OracleToPostgresTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
-            .withInitScript("./ora2pg/sql/00_init.sql");
+            .withInitScript("./oracle/postgres/sql/oracle/01_init.sql");
     private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-//            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
-            .withInitScript("./ora2pg/sql/pg-init-empty.sql");
+            .withInitScript("./oracle/postgres/sql/pg-init-empty.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -54,8 +52,8 @@ public class HappyPathTest {
     @Test
     void parted() throws IOException {
         TestResult result = getResult(
-                "./ora2pg/ora2pg.yaml",
-                "./ora2pg/cases/parted.json",
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/parted.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -66,8 +64,8 @@ public class HappyPathTest {
     @Test
     void leftJoin() throws IOException {
         TestResult result = getResult(
-                "ora2pg/ora2pg.yaml",
-                "ora2pg/cases/leftJoin.json",
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/leftJoin.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -78,8 +76,8 @@ public class HappyPathTest {
     @Test
     void columnFromMany() throws IOException {
         TestResult result = getResult(
-                "ora2pg/ora2pg.yaml",
-                "ora2pg/cases/columnFromMany.json",
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/columnFromMany.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -90,8 +88,8 @@ public class HappyPathTest {
     @Test
     void interval() throws IOException {
         TestResult result = getResult(
-                "ora2pg/ora2pg.yaml",
-                "ora2pg/cases/interval.json",
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/interval.json",
                 rows,
                 sync,
                 getJdbcProperties(source),

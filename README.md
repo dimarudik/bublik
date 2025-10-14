@@ -4,11 +4,12 @@
 
 | SOURCE     | TARGET     |
 |:-----------|:-----------|
+| Oracle     | Cassandra  |
 | Oracle     | PostgreSQL |
 | Oracle     | YDB        |
+| PostgreSQL | Cassandra  |
 | PostgreSQL | PostgreSQL |
 | PostgreSQL | YDB        |
-| PostgreSQL | Cassandra  |
 
 This tool facilitates the efficient transfer of data between databases.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
@@ -16,6 +17,11 @@ In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 
 * [Build](#Build)
+* [Oracle To Cassandra](#Oracle-To-Cassandra)
+    * [Prepare Oracle To Cassandra environment](#Prepare-Oracle-To-Cassandra-environment)
+    * [Prepare Oracle To Cassandra Connection Settings](#Prepare-Oracle-To-Cassandra-Connection-Settings)
+    * [Prepare Oracle To Cassandra Mapping File](#Prepare-Oracle-To-Cassandra-Mapping-File)
+    * [Oracle To Cassandra Run](#Oracle-To-PostgreSQL-Run)
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
@@ -26,6 +32,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
     * [Prepare Oracle To YDB Connection Settings](#Prepare-Oracle-To-YDB-Connection-Settings)
     * [Prepare Oracle To YDB Mapping File](#Prepare-Oracle-To-YDB-Mapping-File)
     * [Oracle To YDB Run](#Oracle-To-YDB-Run)
+* [PostgreSQL To Cassandra](#PostgreSQL-To-YDB)
+    * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
+    * [Prepare PostgreSQL To Cassandra Connection Settings](#Prepare-PostgreSQL-To-Cassandra-Connection-Settings)
+    * [Prepare PostgreSQL To Cassandra Mapping File](#Prepare-PostgreSQL-To-Cassandra-Mapping-File)
+    * [PostgreSQL To YDB Run](#PostgreSQL-To-YDB-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
@@ -56,9 +67,147 @@ Build and install all dependencies to local maven repository
 mvn clean install
 ```
 
+## Oracle To Cassandra
+![Oracle To Cassandra](./bublik-cli/src/test/resources/images/ora2cs.png)
+
+The objective is to migrate data of tables <strong>USERS</strong>, <strong>ITEMS</strong>, <strong>LIKES</strong> from Oracle schema <strong>TEST</strong> to a Cassandra database keyspace <strong>TEST</strong>.
+The data transforms to adjust most optimal Cassandra data modeling. 
+
+### Prepare Oracle To Cassandra environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="OracleToCassandraTest"
+```
+
+Or you can run test case in docker containers manually:
+
+#### Prepare Oracle environment
+
+```shell
+docker run --name oracle \
+    -p 1521:1521 \
+    -e ORACLE_PASSWORD=oracle_4U \
+    -v ./bublik-cli/src/test/resources/oracle/cassandra/sql/oracle:/docker-entrypoint-initdb.d \
+    -d gvenzl/oracle-free:slim-faststart
+```
+
+>  **WARNING**: Tables `USERS`, `ITEMS`, `LIKES` will be created and fulfilled during oracle docker container startup
+
+How to connect to Oracle by [Instant Client](https://www.oracle.com/database/technologies/instant-client.html):
+
+```shell
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
+```
+
+#### Prepare Cassandra environment
+
+```shell
+docker run --name cassandra \
+        -h cassandra \
+        -p 9042:9042 \
+        -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
+        -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
+        -e HEAP_NEWSIZE=128M \
+        -e MAX_HEAP_SIZE=1024M \
+        -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
+        -e CASSANDRA_DC=datacenter1 \
+        -d cassandra
+```
+
+To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
+
+```shell
+cqlsh -f ./bublik-cli/src/test/resources/oracle/cassandra/sql/cs-init.cql
+```
+
+### Prepare Oracle To Cassandra Connection Settings
+
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/oracle/cassandra/yaml/ora2cs.yaml` with connection settings:
+
+
+```yaml
+threadCount: 10
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
+  user: test
+  password: test
+toProperties:
+  class: org.bublik.cassandra.storage.CSPoolStorage
+  datacenter: datacenter1
+  hosts: localhost
+  port: 9042
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 128
+```
+
+### Prepare Oracle To Cassandra Mapping File
+
+You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/cassandra/json/ora2cs.json` with mapping settings:
+
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "join users u on u.id = l.user_id join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "user",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "join users u on u.id = l.user_id join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "item",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.item_id as item_id"          : "item_id",
+      "l.user_id as user_id"          : "user_id",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email"
+    }
+  }
+]
+```
+
+
+### Oracle To Cassandra Run
+
+Halt any changes to the movable tables in the source database (Oracle) and run:
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/oracle/cassandra/yaml/ora2cs.yaml \
+    -m ./bublik-cli/src/test/resources/oracle/cassandra/json/ora2cs.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
 
 ## Oracle To PostgreSQL
-![Oracle To PostgreSQL](/sql/oracletopostgresql.png)
+![Oracle To PostgreSQL](./bublik-cli/src/test/resources/images/ora2pg.png)
 
 The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</strong>, <strong>PARTED</strong> from Oracle schema <strong>TEST</strong> to a PostgreSQL database.
 
@@ -82,64 +231,46 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 
 ### Prepare Oracle To PostgreSQL environment
 
-Build jar file for Oracle To PostgreSQL migration
+You can run test in TestContainers environment by executing the command below:
 
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="OracleToPostgresTest"
 ```
-mvn clean package -DskipTests -Poracle,postgres
-```
 
-Possible values for -P: postgres,cassandra,oracle,ydb
-
-[Use Java >= 21](https://jdk.java.net/archive/)
+Or you can run test case in docker containers manually:
 
 #### Prepare Oracle environment
 
-  > ```
-  > docker run --name oracle \
-  >     -p 1521:1521 \
-  >     -e ORACLE_PASSWORD=oracle_4U \
-  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-  >     -d gvenzl/oracle-free:slim-faststart
-  > ```
+```
+docker run --name oracle \
+    -p 1521:1521 \
+    -e ORACLE_PASSWORD=oracle_4U \
+    -v ./bublik-cli/src/test/resources/oracle/postgres/sql/oracle:/docker-entrypoint-initdb.d \
+    -d gvenzl/oracle-free:slim-faststart
+```
 
->  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
+>  **WARNING**: All tables participating in test case will be created and fulfilled during docker containers startup
 
-How to connect to Oracle:
+How to connect to Oracle by [Instant Client](https://www.oracle.com/database/technologies/instant-client.html):
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
 ```
-
-> [!NOTE]
-> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 
 #### Prepare PostgreSQL environment
 
 ```
 docker run --name postgres \
         -h postgres \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=postgres \
+        -e POSTGRES_USER=test \
+        -e POSTGRES_PASSWORD=test \
         -e POSTGRES_DB=postgres \
         -p 5432:5432 \
-        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
-        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -v ./bublik-cli/src/test/resources/oracle/postgres/sql/pg-init-empty.sql:/docker-entrypoint-initdb.d/init.sql \
         -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
-        -c timezone="+03" \
-        -c max_connections=200 \
-        -c logging_collector=on \
-        -c log_directory=pg_log \
-        -c log_filename=%u_%a.log \
-        -c log_min_duration_statement=3 \
-        -c log_statement=all \
-        -c wal_level=logical \
-        -c auto_explain.log_min_duration=0 \
-        -c auto_explain.log_analyze=true
+        -c shared_preload_libraries="pg_stat_statements,auto_explain"
 ```
 
->  **WARNING**: Tables `public.table1`, `public.table2`, `public.parted` will be created during postgre docker container startup
 
 How to connect to PostgreSQL:
 
@@ -149,12 +280,10 @@ psql postgresql://test:test@localhost/postgres
 
 ### Prepare Oracle To PostgreSQL Connection Settings
 
-You can run the tool by using yaml with connection settings:
-
-##### ./bublik-cli/config/ora2pg.yaml
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/oracle/postgres/yaml/ora2pg.yaml` with connection settings:
 
 ```yaml
-threadCount: 10
+threadCount: 4
 
 fromProperties:
   url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
@@ -169,8 +298,8 @@ toProperties:
 Or you can use environment variables (do not specify -c parameter):
 
 ```
-export THREAD_COUNT=10
-export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=ORCLPDB1)))
+export THREAD_COUNT=4
+export FROM_URL=oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
 export FROM_USER=test
 export FROM_PASSWORD=test
 export TO_URL=jdbc:postgresql://localhost:5432/postgres
@@ -180,21 +309,52 @@ export TO_PASSWORD=test
 
 ### Prepare Oracle To PostgreSQL Mapping File
 
-##### ./bublik-cli/config/ora2pg.json
+You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/postgres/json/ora2pg.json` with mapping settings:
 
 ```json
 [
   {
     "fromSchemaName" : "TEST",
-    "fromTableName" : "TABLE1",
+    "fromTableName" : "\"Table2\"",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "\"TABLE2\"",
+    "fetchHintClause" : "/*+ no_index(TABLE2) */",
+    "fromTaskName" : "TABLE2_TASK",
+    "columnToColumn" : {
+      "id"          : "id",
+      "\"LEVEL\""   : "level",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    },
+    "columnFromMany" : {
+      "tstzrange" : ["create_at", "update_at"]
+    }
+  },
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "INTERVALS",
+    "toSchemaName" : "public",
+    "toTableName" : "intervals",
+    "fetchHintClause" : "/*+ no_index(INTERVALS) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "INTERVALS_TASK",
+    "columnToColumn" : {
+      "id"            : "id",
+      "time_period_1" : "time_period_1",
+      "time_period_2" : "time_period_2",
+      "time_period_3" : "time_period_3",
+      "time_period_4" : "time_period_4"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "table1",
     "fromTableAlias" : "t",
     "fromTableAdds" : "left join test.currencies c on t.currency_id = c.id",
-    "toSchemaName" : "PUBLIC",
-    "toTableName" : "TABLE1",
     "fetchHintClause" : "/*+ no_index(T) */",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE1_TASK",
-    "fromTaskWhereClause" : " 1 = 1 ",
     "tryCharIfAny" : ["current_mood"],
     "columnToColumn" : {
       "\"LEVEL\""         : "level",
@@ -214,27 +374,6 @@ export TO_PASSWORD=test
       "t.id as id" : "id",
       "c.name as currency_name" : "currency_name",
       "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
-    }
-  },
-  {
-    "fromSchemaName" : "TEST",
-    "fromTableName" : "\"Table2\"",
-    "toSchemaName" : "PUBLIC",
-    "toTableName" : "\"TABLE2\"",
-    "fetchHintClause" : "/*+ no_index(TABLE2) */",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE2_TASK",
-    "columnToColumn" : {
-      "id"          : "id",
-      "\"LEVEL\""   : "level",
-      "create_at"   : "create_at",
-      "update_at"   : "update_at",
-      "gender"      : "gender",
-      "byteablob"   : "byteablob",
-      "textclob"    : "textclob"
-    },
-    "columnFromMany" : {
-       "tstzrange" : ["create_at", "update_at"]
     }
   },
   {
@@ -297,8 +436,11 @@ export TO_PASSWORD=test
 
 Halt any changes to the movable tables in the source database (Oracle) and run:
 
-```
-java -jar ./bublik-cli/target/bublik-cli-<version>.jar -k 50000 -c ./bublik-cli/config/ora2pg.yaml -m ./bublik-cli/config/ora2pg.json
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/oracle/postgres/yaml/ora2pg.yaml \
+    -m ./bublik-cli/src/test/resources/oracle/postgres/json/ora2pg.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -310,51 +452,42 @@ Chunks will be created automatically with parameter -k at startup
 
 ## Oracle To YDB
 
-The objective is to migrate table <strong>likes</strong> to table <strong>likes_all</strong> from PostgreSQL to YDB with enrichment of data from other tables.
+![Oracle To PostgreSQL](./bublik-cli/src/test/resources/images/ora2ydb.png)
+
+The objective is to migrate table <strong>to_ydb</strong> to table <strong>to_ydb</strong> from Oracle to YDB.
 
 ### Prepare Oracle To YDB environment
 
-Build jar file for Oracle To PostgreSQL migration
+You can run test in TestContainers environment by executing the command below:
 
-```
-mvn clean package -DskipTests -Poracle,ydb
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="OracleToYDBTest"
 ```
 
-[Use Java >= 21](https://jdk.java.net/archive/)
+Or you can run test case in docker containers manually:
 
 #### Prepare Oracle environment
 
-> ```
-  > docker run --name oracle \
-  >     -p 1521:1521 \
-  >     -e ORACLE_PASSWORD=oracle_4U \
-  >     -v ./dockerfiles/scripts:/docker-entrypoint-initdb.d \
-  >     -d gvenzl/oracle-free:slim-faststart
-  > ```
+```
+docker run --name oracle \
+    -p 1521:1521 \
+    -e ORACLE_PASSWORD=oracle_4U \
+    -v ./bublik-cli/src/test/resources/oracle/ydb/sql/oracle:/docker-entrypoint-initdb.d \
+    -d gvenzl/oracle-free:slim-faststart
+```
 
->  **WARNING**: Tables `TABLE1`, `Table2`, `PARTED` will be created and fulfilled during oracle docker container startup
-
-How to connect to Oracle:
+How to connect to Oracle by [Instant Client](https://www.oracle.com/database/technologies/instant-client.html):
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
 ```
-
-> [!NOTE]
-> [How to install Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html)
 
 #### Prepare YDB environment
 
 Do the next steps:
 
 ```shell
-mkdir ~/ydbd && cd ~/ydbd
-mkdir ydb_data
-mkdir ydb_certs
-```
-
-```shell
-docker run -d --rm --name ydb-local -h localhost \
+docker run -d --rm --name ydb -h localhost \
   --platform linux/amd64 \
   -p 2135:2135 -p 2136:2136 -p 8765:8765 -p 9092:9092 \
   -v $(pwd)/ydb_certs:/ydb_certs -v $(pwd)/ydb_data:/ydb_data \
@@ -363,13 +496,10 @@ docker run -d --rm --name ydb-local -h localhost \
   ydbplatform/local-ydb:latest
 ```
 
-```shell
-curl -sSL https://install.ydb.tech/cli | bash
-exec -l $SHELL
-```
+To create tables run [ydb](https://ydb.tech/docs/en/reference/ydb-cli/install) script:
 
 ```shell
-ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, primary key (id));'
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table to_ydb (id Uint32, name String, primary key (id))'
 ```
 
 <ul><li>How to connect to YDB</li></ul>
@@ -380,9 +510,7 @@ ydb -e grpc://localhost:2136 -d /local
 
 ### Prepare Oracle To YDB Connection Settings
 
-You can run the tool by using yaml with connection settings:
-
-##### ./bublik-cli/config/ora2ydb.yaml
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/oracle/ydb/yaml/ora2ydb.yaml` with connection settings:
 
 ```yaml
 threadCount: 4
@@ -411,19 +539,134 @@ export TO_PASSWORD=""
 
 ### Prepare Oracle To YDB Mapping File
 
-##### ./bublik-cli/config/ora2ydb.json
+You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/ydb/json/ora2ydb.json` with mapping settings:
 
 ```json
 [
   {
-    "fromSchemaName" : "test",
+    "fromSchemaName": "test",
+    "fromTableName": "to_ydb",
+    "toSchemaName": "",
+    "toTableName": "to_ydb",
+    "columnToColumn" : {
+      "id": "id",
+      "name": "name"
+    }
+  }
+]
+```
+
+### Oracle To YDB Run
+
+Halt any changes to the movable tables in the source database (Oracle) and run:
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/oracle/ydb/yaml/ora2ydb.yaml \
+    -m ./bublik-cli/src/test/resources/oracle/ydb/json/ora2ydb.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
+
+
+
+## PostgreSQL To Cassandra
+![Oracle To Cassandra](./bublik-cli/src/test/resources/images/pg2cs.png)
+
+The objective is to migrate data of tables <strong>USERS</strong>, <strong>ITEMS</strong>, <strong>LIKES</strong> from PostgreSQL schema <strong>TEST</strong> to a Cassandra database keyspace <strong>TEST</strong>.
+The data transforms to adjust most optimal Cassandra data modeling.
+
+### Prepare PostgreSQL To Cassandra environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="PostgresToCassandraTest"
+```
+
+Or you can run test case in docker containers manually:
+
+#### Prepare PostgreSQL environment
+
+```shell
+docker run --name postgres \
+        -h postgres \
+        -e POSTGRES_USER=test \
+        -e POSTGRES_PASSWORD=test \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./bublik-cli/src/test/resources/postgresql/cassandra/sql/pg-init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain"
+```
+
+>  **WARNING**: Tables `USERS`, `ITEMS`, `LIKES` will be created and fulfilled during oracle docker container startup
+
+
+#### Prepare Cassandra environment
+
+```shell
+docker run --name cassandra \
+        -h cassandra \
+        -p 9042:9042 \
+        -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
+        -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
+        -e HEAP_NEWSIZE=128M \
+        -e MAX_HEAP_SIZE=1024M \
+        -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
+        -e CASSANDRA_DC=datacenter1 \
+        -d cassandra
+```
+
+To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
+
+```shell
+cqlsh -f ./bublik-cli/src/test/resources/postgresql/cassandra/sql/cs-init.cql
+```
+
+### Prepare PostgreSQL To Cassandra Connection Settings
+
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/postgresql/cassandra/yaml/pg2cs.yaml` with connection settings:
+
+
+```yaml
+threadCount: 10
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  class: org.bublik.cassandra.storage.CSPoolStorage
+  datacenter: datacenter1
+  hosts: localhost
+  port: 9042
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 128
+```
+
+### Prepare PostgreSQL To Cassandra Mapping File
+
+You can run the tool by using json file `./bublik-cli/src/test/resources/postgresql/cassandra/json/pg2cs.json` with mapping settings:
+
+```json
+[
+  {
+    "fromSchemaName" : "public",
     "fromTableName" : "likes",
     "fromTableAlias" : "l",
     "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
-    "toSchemaName" : "",
-    "toTableName" : "likes_all",
+    "toSchemaName" : "test",
+    "toTableName" : "user",
+    "fetchWhereClause" : "1 = 1",
     "expressionToColumn" : {
-      "l.id as id"                    : "id",
       "l.user_id as user_id"          : "user_id",
       "l.item_id as item_id"          : "item_id",
       "u.user_name as user_name"      : "user_name",
@@ -431,39 +674,36 @@ export TO_PASSWORD=""
       "i.item_name as item_name"      : "item_name",
       "i.description as description"  : "description"
     }
+  },
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "item",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.item_id as item_id"          : "item_id",
+      "l.user_id as user_id"          : "user_id",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email"
+    }
   }
 ]
 ```
 
-> [!IMPORTANT]
-> The case-sensitive or reserved words must be quoted with double quotation and backslashes
-
-> [!NOTE]
-> To enrich data from other tables you can use combination of <br>
-> **fromTableAlias**, **fromTableAdds** and **expressionToColumn** definitions <br>
-> In example with TABLE1 the data will be retrieved by query:
-
-> ```
- > select /* bublik */ /*+ no_index(l) */ 
- > 	l.user_id as user_id,
- > 	u.email as email,
- > 	l.id as id,
- > 	u.user_name as user_name,
- > 	l.item_id as item_id,
- > 	i.description as description,
- > 	i.item_name as item_name 
- > from test.likes l 
- > left join users u on u.id = l.user_id 
- > left join items i on i.id = l.item_id 
- > where ( 1 = 1 ) and l.rowid between ? and ?
- > ```
-
-### Oracle To YDB Run
+### PostgreSQL To Cassandra Run
 
 Halt any changes to the movable tables in the source database (Oracle) and run:
 
-```
-java -jar ./bublik-cli/target/bublik-cli-<version>.jar -k 50000 -c ./bublik-cli/config/ora2ydb.yaml -m ./bublik-cli/config/ora2ydb.json
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/postgresql/cassandra/yaml/pg2cs.yaml \
+    -m ./bublik-cli/src/test/resources/postgresql/cassandra/json/pg2cs.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -474,12 +714,9 @@ Chunks will be created automatically with parameter -k at startup
 
 
 ## PostgreSQL To PostgreSQL
-![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
+![PostgreSQL To PostgreSQL](./bublik-cli/src/test/resources/images/pg2pg.png)
 
-The objective is to migrate table <strong>Source</strong> to table <strong>target</strong> from one PostgreSQL database to another. To simplify test case we're using same database
-
-
-### Prepare PostgreSQL To PostgreSQL environment
+The objective is to migrate partitions of table from one PostgreSQL database to another. To simplify test case we're using same database
 
 > [!NOTE]
 > Bublik uses Tid Range Scan to retrieve data, however this access method has been implemented in PostgreSQL 14.0 and later.
@@ -487,51 +724,30 @@ The objective is to migrate table <strong>Source</strong> to table <strong>targe
 
 [E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
 
+You can run test in TestContainers environment by executing the command below:
 
-All activities are reproducible in docker containers
-
-Build jar file for PostgreSQL To PostgreSQL migration
-
-```
-mvn clean package -DskipTests -Ppostgres
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="org/bublik/cli/postgresql/postgresql/*"
 ```
 
-[Use Java >= 21](https://jdk.java.net/archive/)
+### Prepare PostgreSQL To PostgreSQL environment
 
-
-```
+```shell
 docker run --name postgres \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=postgres \
+        -h postgres \
+        -e POSTGRES_USER=test \
+        -e POSTGRES_PASSWORD=test \
         -e POSTGRES_DB=postgres \
         -p 5432:5432 \
-        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
+        -v ./bublik-cli/src/test/resources/postgresql/postgresql/sql/pg-init.sql:/docker-entrypoint-initdb.d/init.sql \
         -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
         -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
-        -c max_connections=200 \
-        -c logging_collector=on \
-        -c log_directory=pg_log \
-        -c log_filename=%u_%a.log \
-        -c log_min_duration_statement=3 \
-        -c log_statement=all \
-        -c wal_level=logical \
-        -c auto_explain.log_min_duration=0 \
-        -c auto_explain.log_analyze=true
-```
-
->  **WARNING**: SOURCE & TARGET tables will be created during postgre docker container startup
-
-<ul><li>How to connect</li></ul>
-
-```
-psql postgresql://test:test@localhost/postgres
+        -c shared_preload_libraries="pg_stat_statements,auto_explain"
 ```
 
 ### Prepare PostgreSQL To PostgreSQL Connection Settings
 
-You can run the tool by using yaml with connection settings:
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/postgresql/postgresql/yaml/pg2pg.yaml` with connection settings:
 
 ```yaml
 threadCount: 10
@@ -560,37 +776,48 @@ export TO_PASSWORD=test
 
 ### Prepare PostgreSQL To PostgreSQL Mapping File
 
+You can run the tool by using json file `./bublik-cli/src/test/resources/postgresql/postgresql/json/pg2pg.json` with mapping settings:
+
 ```json
 [
   {
-    "fromSchemaName" : "PUBLIC",
-    "fromTableName" : "\"Source\"",
-    "toSchemaName" : "PUBLIC",
-    "toTableName" : "TARGET",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "TABLE1_TASK",
-    "tryCharIfAny" : ["current_mood", "gender"],
-    "columnToColumn" : {
-      "id"            : "id",
-      "uuid"          : "uuid",
-      "\"Primary\""   : "\"Primary\"",
-      "boolean"       : "boolean",
-      "int2"          : "int2",
-      "int4"          : "int4",
-      "int8"          : "int8",
-      "smallint"      : "smallint",
-      "bigint"        : "bigint",
-      "numeric"       : "numeric",
-      "float8"        : "float8",
-      "date"          : "date",
-      "timestamp"     : "timestamp",
-      "timestamptz"   : "timestamptz",
-      "description"   : "rem",
-      "image"         : "image",
-      "current_mood"  : "current_mood"
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202510",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202510",
+    "fetchWhereClause": "0 = 0",
+    "fromTaskName": "p_src_202510_task"
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202511",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202511",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "p_src_202511_task",
+    "columnToColumn": {
+      "id" : "id",
+      "created" : "created",
+      "name" : "name",
+      "amount" : "amount"
     },
     "expressionToColumn" : {
-      "(select 'male') as gender" : "gender"
+      "0 as shard_key" : "shard_key"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202512",
+    "toSchemaName": "public",
+    "toTableName": "p_trg_202512",
+    "fetchWhereClause": "1 = 1",
+    "fromTaskName": "p_src_202512_task",
+    "expressionToColumn" : {
+      "id" : "id",
+      "created" : "created",
+      "name" : "name",
+      "amount" : "amount",
+      "0 as shard_key" : "shard_key"
     }
   }
 ]
@@ -610,8 +837,11 @@ export TO_PASSWORD=test
 
 Halt any changes to the movable tables in the source database and run:
 
-```
-java -jar ./bublik-cli/target/bublik-cli-<version>.jar -k 50000 -c ./bublik-cli/config/pg2pg.yaml -m ./bublik-cli/config/pg2pg.json
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/postgresql/postgresql/yaml/pg2pg.yaml \
+    -m ./bublik-cli/src/test/resources/postgresql/postgresql/json/pg2pg.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -626,12 +856,9 @@ Chunks will be created automatically with parameter -k at startup
 
 
 ## PostgreSQL To YDB
-![PostgreSQL To PostgreSQL](/sql/PostgreSQLToPostgreSQL.png)
+![PostgreSQL To YDB](./bublik-cli/src/test/resources/images/pg2ydb.png)
 
 The objective is to migrate table <strong>likes</strong> to table <strong>likes_all</strong> from PostgreSQL to YDB with enrichment of data from other tables.
-
-
-### Prepare PostgreSQL To YDB environment
 
 > [!NOTE]
 > Bublik uses Tid Range Scan to retrieve data, however this access method has been implemented in PostgreSQL 14.0 and later.
@@ -639,52 +866,35 @@ The objective is to migrate table <strong>likes</strong> to table <strong>likes_
 
 [E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
 
+You can run test in TestContainers environment by executing the command below:
 
-All activities are reproducible in docker containers
-
-Build jar file for PostgreSQL to YDB migration
-
-```
-mvn clean package -DskipTests -Ppostgres,ydb
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="PostgresToYDBTest"
 ```
 
-[Use Java >= 21](https://jdk.java.net/archive/)
+Or you can run test case in docker containers manually:
 
+### Prepare PostgreSQL To YDB environment
 
-```
+```shell
 docker run --name postgres \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=postgres \
+        -h postgres \
+        -e POSTGRES_USER=test \
+        -e POSTGRES_PASSWORD=test \
         -e POSTGRES_DB=postgres \
         -p 5432:5432 \
-        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
-        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -v ./bublik-cli/src/test/resources/postgresql/ydb/sql/pg-init.sql:/docker-entrypoint-initdb.d/init.sql \
         -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
-        -c max_connections=200 \
-        -c logging_collector=on \
-        -c log_directory=pg_log \
-        -c log_filename=%u_%a.log \
-        -c log_min_duration_statement=3 \
-        -c log_statement=all \
-        -c wal_level=logical \
-        -c auto_explain.log_min_duration=0 \
-        -c auto_explain.log_analyze=true
+        -c shared_preload_libraries="pg_stat_statements,auto_explain"
 ```
 
-<ul><li>How to connect</li></ul>
-
-```
-psql postgresql://test:test@localhost/postgres
-```
 
 [YDB Quick Start](https://ydb.tech/docs/en/quickstart?tabs=defaultTabsGroup-3dol9c63_docker%2520x86_64)
 
 Do the next steps to prepare YDB environment:
 
 ```shell
-docker run -d --rm --name ydb-local -h localhost \
+docker run -d --rm --name ydb -h localhost \
   --platform linux/amd64 \
   -p 2135:2135 -p 2136:2136 -p 8765:8765 -p 9092:9092 \
   -v $(pwd)/ydb_certs:/ydb_certs -v $(pwd)/ydb_data:/ydb_data \
@@ -693,13 +903,10 @@ docker run -d --rm --name ydb-local -h localhost \
   ydbplatform/local-ydb:latest
 ```
 
-```shell
-curl -sSL https://install.ydb.tech/cli | bash
-exec -l $SHELL
-```
+To create tables run [ydb](https://ydb.tech/docs/en/reference/ydb-cli/install) script:
 
 ```shell
-ydb -e grpc://localhost:2136 -d /local yql -s 'create table `likes_all` (id Uint64, user_id Uint64, item_id Uint64, user_name bytes, email bytes, item_name bytes, description bytes, last_update timestamp, primary key (id));'
+ydb -e grpc://localhost:2136 -d /local yql -s 'create table to_ydb (id Uint32, name String, primary key (id))'
 ```
 
 <ul><li>How to connect to YDB</li></ul>
@@ -710,7 +917,7 @@ ydb -e grpc://localhost:2136 -d /local
 
 ### Prepare PostgreSQL To YDB Connection Settings
 
-You can run the tool by using yaml with connection settings:
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/postgresql/ydb/yaml/pg2ydb.yaml` with connection settings:
 
 ```yaml
 threadCount: 4
@@ -727,7 +934,7 @@ toProperties:
 
 Or you can use environment variables (do not specify -c parameter):
 
-```
+```shell
 export THREAD_COUNT=4
 export FROM_URL=jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
 export FROM_USER=test
@@ -739,48 +946,33 @@ export TO_PASSWORD="
 
 ### Prepare PostgreSQL To YDB Mapping File
 
-In this example we will enrich data from other tables
+You can run the tool by using json file `./bublik-cli/src/test/resources/postgresql/ydb/json/pg2ydb.json` with mapping settings:
 
 ```json
 [
   {
-    "fromSchemaName" : "public",
-    "fromTableName" : "likes",
-    "fromTableAlias" : "l",
-    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
-    "toSchemaName" : "",
-    "toTableName" : "likes_all",
-    "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "likes_all",
-    "expressionToColumn" : {
-      "l.id as id"                    : "id",
-      "l.user_id as user_id"          : "user_id",
-      "l.item_id as item_id"          : "item_id",
-      "u.user_name as user_name"      : "user_name",
-      "u.email as email"              : "email",
-      "i.item_name as item_name"      : "item_name",
-      "i.description as description"  : "description"
+    "fromSchemaName": "public",
+    "fromTableName": "to_ydb",
+    "toSchemaName": "",
+    "toTableName": "to_ydb",
+    "columnToColumn" : {
+      "id": "id",
+      "name": "name"
     }
   }
 ]
 ```
 
-> [!IMPORTANT]
-> The case-sensitive or reserved words must be quoted with double quotation and backslashes
-
-> [!NOTE]
-> **expressionToColumn** might be used for declaration of subquery for enrichment of data
-
-> [!NOTE]
-> If the target column type doesn't support by tool you can try to use Character  
-> by using declaration of column's name in **tryCharIfAny** array
 
 ### PostgreSQL To YDB Run
 
 Halt any changes to the movable tables in the source database and run:
 
-```
-java -jar ./bublik-cli/target/bublik-cli-<version>.jar -k 50000 -c ./bublik-cli/config/pg2ydb.yaml -m ./bublik-cli/config/pg2ydb.json
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/postgresql/ydb/yaml/pg2ydb.yaml \
+    -m ./bublik-cli/src/test/resources/postgresql/ydb/json/pg2ydb.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -792,144 +984,4 @@ Chunks will be created automatically with parameter -k at startup
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
-
-
-
-## PostgreSQL To Cassandra (development)
-
-![Cassandra](/sql/cassandra4.png)
-
-[Java Datatype Mappings](https://documentation.softwareag.com/webmethods/adapters_estandards/Adapters/Apache_Cassandra/Apache_for_Cassandra_10-2/10-2-0_Apache_Cassandra_webhelp/index.html#page/cassandra-webhelp/co-cql_data_type_to_jdbc_data_type.html)
-
-### Prepare PostgreSQL To Cassandra environment
-
-```shell
-docker network create \
-  --driver=bridge \
-  --subnet=172.28.0.0/16 \
-  --gateway=172.28.5.254 \
-  bublik-network
-```
-
-```shell
-docker run \
-        --name postgres \
-        --ip 172.28.0.7 \
-        -h postgres \
-        --network bublik-network \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=postgres \
-        -e POSTGRES_DB=postgres \
-        -p 5432:5432 \
-        -v ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/.psqlrc:/var/lib/postgresql/.psqlrc \
-        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
-        -d postgres \
-        -c shared_preload_libraries="pg_stat_statements,auto_explain" \
-        -c timezone="+03" \
-        -c max_connections=200 \
-        -c logging_collector=on \
-        -c log_directory=pg_log \
-        -c log_filename=%u_%a.log \
-        -c log_min_duration_statement=3 \
-        -c log_statement=all \
-        -c auto_explain.log_min_duration=0 \
-        -c auto_explain.log_analyze=true
-```
-
-```shell
-docker build ./dockerfiles/cs1 -t cs1 ; \
-docker build ./dockerfiles/cs2 -t cs2 ; \
-docker build ./dockerfiles/cs3 -t cs3 ; \
-docker build ./dockerfiles/cs4 -t cs4 ; \
-docker build ./dockerfiles/cs5 -t cs5 ; \
-docker build ./dockerfiles/cs6 -t cs6
-```
-
-```shell
-docker run -d -h cs1 --ip 172.28.0.1 --name cs1 --network bublik-network -p 9042:9042 cs1 ; \
-sleep 15; docker run -d -h cs2 --ip 172.28.0.2 --name cs2 --network bublik-network cs2 ; \
-sleep 45; docker run -d -h cs3 --ip 172.28.0.3 --name cs3 --network bublik-network cs3 ; \
-sleep 45; docker run -d -h cs4 --ip 172.28.0.4 --name cs4 --network bublik-network cs4 ; \
-sleep 45; docker run -d -h cs5 --ip 172.28.0.5 --name cs5 --network bublik-network cs5 ; \
-sleep 45; docker run -d -h cs6 --ip 172.28.0.6 --name cs6 --network bublik-network cs6
-```
-
-> [!IMPORTANT]
-> Wait until all nodes start. To check the status you can use nodetool as shown below.
-> If a node fails to start, remove node like: 
-> docker exec cs1 nodetool assassinate IP 
-> and re-create the broken container 
-
-```shell
-docker exec cs1 nodetool status
-# or
-docker exec cs1 nodetool describecluster
-```
-
-Adjust the ``batch_size_fail_threshold_in_kb`` parameter
-
-```shell
-docker exec -it cs1 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs2 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs3 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs4 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs5 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024 ; \
-docker exec -it cs6 nodetool sjk mx -ms -b org.apache.cassandra.db:type=StorageService -f BatchSizeFailureThreshold -v 1024
-```
-
-Prepare the Keyspace and tables
-
-```shell
-cqlsh -u cassandra -p cassandra -f ./sql/data.cql
-```
-
-```shell
-docker exec -it cs1 nodetool repair ; \
-docker exec -it cs2 nodetool repair ; \
-docker exec -it cs3 nodetool repair ; \
-docker exec -it cs4 nodetool repair ; \
-docker exec -it cs5 nodetool repair ; \
-docker exec -it cs6 nodetool repair
-```
-
-```shell
-mvn clean install -DskipTests ; \ 
-psql postgresql://test:test@localhost/postgres -c "drop table ctid_chunks" ; \
-docker rm cli -f ; \
-docker image rm cli ; \
-docker rmi $(docker images -f "dangling=true" -q) ; \
-docker volume prune -f ; \
-docker build --no-cache -t cli . ; \
-docker run -h cli --network bublik-network --name cli cli:latest
-```
-
-## Usage
-
-![Bublik](/sql/bublik.png)
-
-Bublik library might be used as standalone utility or as a part of service
-
-### Usage as a service
-
-Build the service (example)
-
-```shell
-cd ./service
-./gradlew clean build -x test
-```
-
-Halt any changes to the movable tables in the source database
-
-Run the service:
-
-```
-java -jar ./build/libs/service-25.1.0.jar
-```
-
-Consume the service:
-
-```shell
-newman run ./postman/postman_collection.json
-```
 

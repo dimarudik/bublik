@@ -1,4 +1,4 @@
-package org.bublik.cli.postgresql.ydb;
+package org.bublik.cli;
 
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;

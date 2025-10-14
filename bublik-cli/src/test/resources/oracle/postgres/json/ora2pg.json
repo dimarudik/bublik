@@ -1,0 +1,80 @@
+[
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "\"Table2\"",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "\"TABLE2\"",
+    "fetchHintClause" : "/*+ no_index(TABLE2) */",
+    "fromTaskName" : "TABLE2_TASK",
+    "columnToColumn" : {
+      "id"          : "id",
+      "\"LEVEL\""   : "level",
+      "create_at"   : "create_at",
+      "update_at"   : "update_at",
+      "gender"      : "gender",
+      "byteablob"   : "byteablob",
+      "textclob"    : "textclob"
+    },
+    "columnFromMany" : {
+      "tstzrange" : ["create_at", "update_at"]
+    }
+  },
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "INTERVALS",
+    "toSchemaName" : "public",
+    "toTableName" : "intervals",
+    "fetchHintClause" : "/*+ no_index(INTERVALS) */",
+    "fetchWhereClause" : "1 = 1",
+    "fromTaskName" : "INTERVALS_TASK",
+    "columnToColumn" : {
+      "id"            : "id",
+      "time_period_1" : "time_period_1",
+      "time_period_2" : "time_period_2",
+      "time_period_3" : "time_period_3",
+      "time_period_4" : "time_period_4"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "table1",
+    "fromTableAlias" : "t",
+    "fromTableAdds" : "left join test.currencies c on t.currency_id = c.id",
+    "fetchHintClause" : "/*+ no_index(T) */",
+    "tryCharIfAny" : ["current_mood"],
+    "columnToColumn" : {
+      "\"LEVEL\""         : "level",
+      "create_at"         : "create_at",
+      "update_at"         : "update_at",
+      "gender"            : "gender",
+      "byteablob"         : "byteablob",
+      "textclob"          : "textclob",
+      "\"CaseSensitive\"" : "\"CaseSensitive\"",
+      "rawbytea"          : "rawbytea",
+      "doc"               : "doc",
+      "uuid"              : "uuid",
+      "clobjsonb"         : "clobjsonb",
+      "current_mood"      : "current_mood"
+    },
+    "expressionToColumn" : {
+      "t.id as id" : "id",
+      "c.name as currency_name" : "currency_name",
+      "(select name from test.countries c where c.id = t.country_id) as country_name" : "country_name"
+    }
+  },
+  {
+    "fromSchemaName" : "TEST",
+    "fromTableName" : "PARTED",
+    "toSchemaName" : "PUBLIC",
+    "toTableName" : "PARTED",
+    "fetchHintClause" : "/*+ no_index(PARTED) */",
+    "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
+    "fromTaskName" : "PARTED_TASK",
+    "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)))",
+    "columnToColumn" : {
+      "id"        : "id",
+      "create_at" : "create_at",
+      "name"      : "name"
+    }
+  }
+]

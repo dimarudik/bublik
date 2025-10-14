@@ -1,8 +1,6 @@
 package org.bublik.cli.postgresql.ydb;
 
-import org.bublik.cli.App;
-import org.bublik.cli.TestResult;
-import org.bublik.cli.TestUtils;
+import org.bublik.cli.*;
 import org.bublik.cli.addons.Utils;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
@@ -23,13 +21,11 @@ import static org.bublik.cli.App.getConfigs;
 import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
-public class FooTest {
+public class PostgresToYDBTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-//            .withCopyFileToContainer(MountableFile.forHostPath("images/bublik.png"), "/var/lib/postgresql/bublik.png")
             .withInitScript("./postgresql/ydb/sql/pg-init.sql");
     private static YdbDockerContainer target =
             new YdbDockerContainer(new YdbEnvironment(), new PortsGenerator())
@@ -47,12 +43,12 @@ public class FooTest {
         target.start();
         while (!target.isRunning() && !source.isRunning()) {
             try {
-                Thread.sleep(300);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
-        Thread.sleep(3_000);
+        Thread.sleep(7_000);
     }
 
     @AfterAll
@@ -68,10 +64,8 @@ public class FooTest {
         }
     }
 
-
-// ydb -e grpc://localhost:2136 -d /local
     @Test
-    public void Foo() throws InterruptedException, IOException {
+    public void postgresToYDB() throws InterruptedException, IOException {
         Properties sourceProperties = getJdbcProperties(source);
         Properties targetProperties = getJdbcPropertiesOfYdb(target);
         createTargetTable(targetProperties);

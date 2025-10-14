@@ -1,4 +1,4 @@
-package org.bublik.cli.postgresql.ydb;
+package org.bublik.cli;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.testcontainers.shaded.com.google.common.base.Supplier;

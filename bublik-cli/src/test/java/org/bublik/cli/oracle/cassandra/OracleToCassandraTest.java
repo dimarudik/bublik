@@ -1,4 +1,4 @@
-package org.bublik.cli.postgresql.cassandra;
+package org.bublik.cli.oracle.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import org.bublik.cli.App;
@@ -9,13 +9,15 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.oracle.OracleContainer;
 
 import java.io.IOException;
 import java.sql.*;
+import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
@@ -23,18 +25,18 @@ import static org.bublik.cli.App.getConfigs;
 import static org.bublik.cli.TestUtils.getJdbcProperties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class HappyPathTest {
+public class OracleToCassandraTest {
     private static int rows = 50000;
     private static boolean sync = false;
-    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
-            .withDatabaseName("postgres")
-            .withInitScript("./postgresql/cassandra/sql/pg-init.sql");
+    private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
+            .withStartupTimeout(Duration.ofMinutes(10))
+            .withInitScript("./oracle/cassandra/sql/oracle/ora-init.sql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
-            .withInitScript("./postgresql/cassandra/sql/cs-init.cql");
+            .withInitScript("./oracle/cassandra/sql/cs-init.cql");
 
     @BeforeAll
     static void setUp() throws SQLException {
-        source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
+        source.setPortBindings(java.util.Collections.singletonList("1521:1521"));
         source.start();
         target.setPortBindings(java.util.Collections.singletonList("9042:9042"));
         target.start();
@@ -50,7 +52,8 @@ public class HappyPathTest {
     @AfterAll
     static void clear() {
         source.stop();
-        while (source.isRunning()) {
+        target.stop();
+        while (source.isRunning() || target.isRunning()) {
             try {
                 Thread.sleep(300);
             } catch (InterruptedException e) {
@@ -60,12 +63,12 @@ public class HappyPathTest {
     }
 
     @Test
-    public void joinLikes() throws InterruptedException, IOException {
+    public void oracleToCassandra() throws InterruptedException, IOException {
         Properties sourceProperties = getJdbcProperties(source);
         Properties targetProperties = getJdbcPropertiesOfCassandra(target);
         TestResult result = getResult(
-                "./postgresql/cassandra/yaml/pg2cs.yaml",
-                "./postgresql/cassandra/json/pg2cs.json",
+                "./oracle/cassandra/yaml/ora2cs.yaml",
+                "./oracle/cassandra/json/ora2cs.json",
                 rows,
                 sync,
                 sourceProperties,
@@ -95,7 +98,7 @@ public class HappyPathTest {
 
         App.runProcess(cp, configs, rows, sync, chunkTableName);
 
-        String fromQuery = "SELECT count(1) * 2 FROM public.likes l left join users u on u.id = l.user_id left join items i on i.id = l.item_id";
+        String fromQuery = "SELECT count(1) * 2 FROM test.likes l join users u on u.id = l.user_id join items i on i.id = l.item_id";
         Long sourceCount = countRows(sourceProperties, fromQuery);
         Long targetCount = countCassandra();
         return new TestResult(sourceCount, targetCount);
@@ -145,3 +148,4 @@ public class HappyPathTest {
         return properties;
     }
 }
+

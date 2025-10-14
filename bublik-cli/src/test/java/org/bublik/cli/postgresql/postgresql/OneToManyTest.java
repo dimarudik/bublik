@@ -29,13 +29,13 @@ public class OneToManyTest {
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/oneToManySource.sql");
+            .withInitScript("postgresql/postgresql/sql/oneToManySource.sql");
     private static JdbcDatabaseContainer<?> target1 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/oneToManyTarget1.sql");
+            .withInitScript("postgresql/postgresql/sql/oneToManyTarget1.sql");
     private static JdbcDatabaseContainer<?> target2 = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
-            .withInitScript("./pg2pg/sql/oneToManyTarget2.sql");
+            .withInitScript("postgresql/postgresql/sql/oneToManyTarget2.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -69,8 +69,8 @@ public class OneToManyTest {
         long sourceCount = 0;
 
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/connections/oneToManyTarget1.yaml",
-                "pg2pg/mappings/oneToManyTarget.json",
+                "postgresql/postgresql/yaml/oneToManyTarget1.yaml",
+                "postgresql/postgresql/json/oneToManyTarget.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -79,8 +79,8 @@ public class OneToManyTest {
         ));
 
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/connections/oneToManyTarget2.yaml",
-                "pg2pg/mappings/oneToManyTarget.json",
+                "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
+                "postgresql/postgresql/json/oneToManyTarget.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -114,8 +114,8 @@ public class OneToManyTest {
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/connections/oneToManyTarget1.yaml",
-                "./pg2pg/mappings/notNullFailure2.json",
+                "postgresql/postgresql/yaml/oneToManyTarget1.yaml",
+                "postgresql/postgresql/json/notNullFailure2.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -123,8 +123,8 @@ public class OneToManyTest {
                 "_bublik_chunk_01")
         ));
         futures.add(service.submit(() -> getResult(
-                "./pg2pg/connections/oneToManyTarget2.yaml",
-                "./pg2pg/mappings/notNullFailure2.json",
+                "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
+                "postgresql/postgresql/json/notNullFailure2.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -165,8 +165,8 @@ public class OneToManyTest {
         ExecutorService service2 = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures2 = new ArrayList<>();
         futures2.add(service2.submit(() -> getResult(
-                "./pg2pg/connections/oneToManyTarget1.yaml",
-                "./pg2pg/mappings/notNullFailure2.json",
+                "postgresql/postgresql/yaml/oneToManyTarget1.yaml",
+                "postgresql/postgresql/json/notNullFailure2.json",
                 0,
                 sync,
                 getJdbcProperties(source),
@@ -174,8 +174,8 @@ public class OneToManyTest {
                 "_bublik_chunk_01")
         ));
         futures2.add(service2.submit(() -> getResult(
-                "./pg2pg/connections/oneToManyTarget2.yaml",
-                "./pg2pg/mappings/notNullFailure2.json",
+                "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
+                "postgresql/postgresql/json/notNullFailure2.json",
                 0,
                 sync,
                 getJdbcProperties(source),

@@ -1,4 +1,4 @@
-package org.bublik.cli.postgresql.ydb;
+package org.bublik.cli;
 
 import javax.net.ServerSocketFactory;
 import java.io.IOException;
