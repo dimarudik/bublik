@@ -21,7 +21,7 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
     * [Prepare Oracle To Cassandra environment](#Prepare-Oracle-To-Cassandra-environment)
     * [Prepare Oracle To Cassandra Connection Settings](#Prepare-Oracle-To-Cassandra-Connection-Settings)
     * [Prepare Oracle To Cassandra Mapping File](#Prepare-Oracle-To-Cassandra-Mapping-File)
-    * [Oracle To Cassandra Run](#Oracle-To-PostgreSQL-Run)
+    * [Oracle To Cassandra Run](#Oracle-To-Cassandra-Run)
 * [Oracle To PostgreSQL](#Oracle-To-PostgreSQL)
   * [Prepare Oracle To PostgreSQL environment](#Prepare-Oracle-To-PostgreSQL-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#Prepare-Oracle-To-PostgreSQL-Connection-Settings)
@@ -32,11 +32,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
     * [Prepare Oracle To YDB Connection Settings](#Prepare-Oracle-To-YDB-Connection-Settings)
     * [Prepare Oracle To YDB Mapping File](#Prepare-Oracle-To-YDB-Mapping-File)
     * [Oracle To YDB Run](#Oracle-To-YDB-Run)
-* [PostgreSQL To Cassandra](#PostgreSQL-To-YDB)
+* [PostgreSQL To Cassandra](#PostgreSQL-To-Cassandra)
     * [Prepare PostgreSQL To Cassandra environment](#Prepare-PostgreSQL-To-Cassandra-environment)
     * [Prepare PostgreSQL To Cassandra Connection Settings](#Prepare-PostgreSQL-To-Cassandra-Connection-Settings)
     * [Prepare PostgreSQL To Cassandra Mapping File](#Prepare-PostgreSQL-To-Cassandra-Mapping-File)
-    * [PostgreSQL To YDB Run](#PostgreSQL-To-YDB-Run)
+    * [PostgreSQL To Cassandra Run](#PostgreSQL-To-Cassandra-Run)
 * [PostgreSQL To PostgreSQL](#PostgreSQL-To-PostgreSQL)
   * [Prepare PostgreSQL To PostgreSQL environment](#Prepare-PostgreSQL-To-PostgreSQL-environment)
   * [Prepare PostgreSQL To PostgreSQL Connection Settings](#Prepare-PostgreSQL-To-PostgreSQL-Connection-Settings)
@@ -47,8 +47,6 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
   * [Prepare PostgreSQL To YDB Connection Settings](#Prepare-PostgreSQL-To-YDB-Connection-Settings)
   * [Prepare PostgreSQL To YDB Mapping File](#Prepare-PostgreSQL-To-YDB-Mapping-File)
   * [PostgreSQL To YDB Run](#PostgreSQL-To-YDB-Run)
-* [Usage](#Usage)
-  * [Usage as a service](#Usage-as-a-service)
 
 ## Build
 
@@ -70,7 +68,7 @@ mvn clean install
 ## Oracle To Cassandra
 ![Oracle To Cassandra](./bublik-cli/src/test/resources/images/ora2cs.png)
 
-The objective is to migrate data of tables <strong>USERS</strong>, <strong>ITEMS</strong>, <strong>LIKES</strong> from Oracle schema <strong>TEST</strong> to a Cassandra database keyspace <strong>TEST</strong>.
+The objective is to migrate data of tables <strong>USERS</strong>, <strong>ITEMS</strong>, <strong>LIKES</strong> from Oracle schema <strong>TEST</strong> to Cassandra database with keyspace <strong>TEST</strong>.
 The data transforms to adjust most optimal Cassandra data modeling. 
 
 ### Prepare Oracle To Cassandra environment
