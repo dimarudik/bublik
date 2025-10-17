@@ -6,7 +6,7 @@
     <parent>
         <groupId>bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.35</version>
+        <version>25.1.36</version>
     </parent>
     <artifactId>bublik-cassandra</artifactId>
     <version>${project.parent.version}</version>
@@ -22,15 +22,6 @@
             <artifactId>bublik-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
-
-<!--
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-all</artifactId>
-            <version>5.0.0.Alpha2</version>
-        </dependency>
--->
-
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
@@ -42,6 +33,7 @@
             <artifactId>java-driver-core</artifactId>
             <version>4.19.0</version>
         </dependency>
+<!--
         <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>java-driver-query-builder</artifactId>
@@ -53,6 +45,7 @@
             <version>4.19.0</version>
             <scope>runtime</scope>
         </dependency>
+-->
 <!--
         <dependency>
             <groupId>com.datastax.oss</groupId>

@@ -5,12 +5,17 @@ import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.DriverException;
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import org.bublik.cassandra.service.CSPoolStorageService;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
 import org.bublik.core.model.*;
+import org.bublik.core.service.Sourceable;
+import org.bublik.core.service.Targetable;
 import org.bublik.core.storage.AutoColseableStorage;
 import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
@@ -30,7 +35,7 @@ import java.util.*;
 import static org.bublik.cassandra.constants.SQLConstants.*;
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
 
-public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorageService {
+public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorageService, Sourceable, Targetable {
     private static final Logger log = LoggerFactory.getLogger(CSPoolStorage.class);
 
     private final int batchSize;
@@ -47,6 +52,13 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     public int getBatchSize(ConnectionProperty connectionProperty) {
         String batchSize = connectionProperty.getToProperty().getProperty("batchSize");
         return  batchSize == null ? 100 : Integer.parseInt(batchSize);
+    }
+
+    @Override
+    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
+        log.info("Cassandra target storage started");
+        createChunks(configs, sync, rows, tableName);
+//        dropChunkTable(sync, tableName);
     }
 
     @Override
@@ -245,18 +257,36 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
-
+    public void createChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
+        CqlSession cqlSession = csPool.getCqlSession();
+        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
+        PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName",getChunkTableName(tableName)));
+        csPool.getTokenRanges().forEach(tr -> {
+            log.info("TokenRange: {} - {}",
+                    ((Murmur3Token) tr.getStart()).getValue(),
+                    ((Murmur3Token) tr.getEnd()).getValue());
+            BoundStatement bs = ps.bind(((Murmur3Token) tr.getStart()).getValue(), ((Murmur3Token) tr.getEnd()).getValue(), "UNASSIGNED");
+            cqlSession.execute(bs);
+        });
+        log.info("Chunk table created successfully");
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
-
+    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
+        CqlSession cqlSession = csPool.getCqlSession();
+        cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTableName(tableName)));
     }
 
-    @Override
-    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
-
+    private String getChunkTableName(String tableName) {
+        String[] t = tableName.split("\\.");
+        String tmpName;
+        if (t.length == 1) {
+            tmpName = t[0];
+        } else {
+            tmpName = t[1];
+        }
+        String kSpace = "\"" + connectionProperty.getToProperty().getProperty("keyspace") + "\"";
+        return kSpace + "." + "\"" + tmpName + "\"";
     }
 
     private String getOutboxTableName(String tableName) {
@@ -292,7 +322,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     @Override
     public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        cqlSession.execute(DDL_DROP_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName)));
+        cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTableName(tableName)));
     }
 
     @Override
@@ -300,14 +330,17 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
         return List.of();
     }
 
+/*
     @Override
-    public Connection getConnection() throws SQLException {
+    public Connection getPoolConnection() throws SQLException {
         return null;
     }
+*/
 
     @Override
     public void closeStorage() {
         csPool.closeCqlSession();
+        log.info("Cassandra target storage stopped");
     }
 
     @Override

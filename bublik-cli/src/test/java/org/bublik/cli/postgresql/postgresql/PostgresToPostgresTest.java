@@ -28,6 +28,13 @@ public class PostgresToPostgresTest {
         source.addFileSystemBind(mf.getResolvedPath(), "/var/lib/postgresql/bublik.png", BindMode.READ_ONLY);
         source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
         source.start();
+        while (!source.isRunning()) {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @AfterAll

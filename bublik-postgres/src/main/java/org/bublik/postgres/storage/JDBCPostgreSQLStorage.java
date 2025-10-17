@@ -13,7 +13,8 @@ import org.bublik.core.exception.SourceSQLException;
 import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
-import org.bublik.core.service.JDBCStorageService;
+import org.bublik.core.service.Sourceable;
+import org.bublik.core.service.Targetable;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.postgres.model.PGChunk;
@@ -39,7 +40,7 @@ import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.postgres.constants.SQLConstants.*;
 import static org.bublik.postgres.util.ColumnUtil.*;
 
-public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageService {
+public class JDBCPostgreSQLStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
 
     public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
@@ -116,7 +117,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
         if (fetchResultSet.next()) {
             Connection connectionTo;
             try {
-                connectionTo = getConnection();
+                connectionTo = getPoolConnection();
 //                PGConnection connection = connectionTo.unwrap(PGConnection.class);
             } catch (SQLTransientConnectionException t) {
                 throw new TargetSQLException(getStackTrace(t));
@@ -984,7 +985,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public void createPrimaryKeys() {
         Map<Table, Table> tables = getTables();
         try {
-            Connection targetConnection = getConnection();
+            Connection targetConnection = getPoolConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table targetTable = entry.getValue();
                 targetTable.createPrimaryKey(targetConnection);
@@ -999,7 +1000,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public void createIndexes() {
         Map<Table, Table> tables = getTables();
         try {
-            Connection targetConnection = getConnection();
+            Connection targetConnection = getPoolConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table taregtTable = entry.getValue();
                 taregtTable.createIndexes(targetConnection);
@@ -1014,7 +1015,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public void createTables() {
         Map<Table, Table> tables = getTables();
         try {
-            Connection targetConnection = getConnection();
+            Connection targetConnection = getPoolConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table taregtTable = entry.getValue();
                 taregtTable.create(targetConnection);
@@ -1029,7 +1030,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public void createForeignKeys() {
         Map<Table, Table> tables = getTables();
         try {
-            Connection targetConnection = getConnection();
+            Connection targetConnection = getPoolConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table taregtTable = entry.getValue();
                 taregtTable.createForeignKeys(targetConnection);
@@ -1054,7 +1055,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     public void createUniqueConstraints() {
         Map<Table, Table> tables = getTables();
         try {
-            Connection targetConnection = getConnection();
+            Connection targetConnection = getPoolConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table taregtTable = entry.getValue();
                 taregtTable.createUniqueConstraints(targetConnection);
@@ -1101,7 +1102,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
-        try (Statement st = getConnection().createStatement();
+        try (Statement st = getPoolConnection().createStatement();
              ResultSet rs = st.executeQuery(SQL_PG_CURRENT_LSN_AND_XID)) {
             if (rs.next()) {
                 String lsn = rs.getString(1);
@@ -1114,11 +1115,11 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void createChunks(Connection connection,
-                             List<Config> configs,
+    public void createChunks(List<Config> configs,
                              boolean sync,
                              int required,
                              String tableName) throws SQLException {
+        Connection connection = getConnection();
         createChunkTable(connection, sync, tableName);
         for (Config config : configs) {
             long reltuples = 0;
@@ -1166,7 +1167,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
 
     @Override
     public void createOutbox(String tableName) throws SQLException {
-        Connection connection = getConnection();
+        Connection connection = getPoolConnection();
         try {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tableName));
@@ -1195,7 +1196,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String tableName) {
+    public void dropChunkTable(boolean sync, String tableName) {
+        Connection connection = getConnection();
         try {
             Statement dropTable = connection.createStatement();
             dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
@@ -1212,7 +1214,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage implements JDBCStorageSer
     @Override
     public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
         try {
-            Connection connection = getConnection();
+            Connection connection = getPoolConnection();
             Statement dropTable = connection.createStatement();
             dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tableName));
             dropTable.close();

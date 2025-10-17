@@ -2,6 +2,7 @@ package org.bublik.core.model;
 
 import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.service.ChunkService;
+import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,38 +170,12 @@ public abstract class Chunk<T> implements ChunkService {
         this.chunkStatus = chunkStatus;
     }
 
-//    public abstract Integer getParentId();
-
-//    public abstract Long getXidMin();
-
-
     public Chunk<?> assignSourceConnection() throws SQLException {
-        Connection sourceConnection = getSourceStorage().getConnection();
+        JDBCStorage sourceJDBCStorage = getSourceStorage().unwrap(JDBCStorage.class);
+        Connection sourceConnection = sourceJDBCStorage.getPoolConnection();
         setSourceConnection(sourceConnection);
         return this;
     }
-
-/*
-    public Chunk<?> assignSourceConnection() throws SQLException {
-        int tries = 10;
-        while (tries > 0) {
-            try {
-                Connection sourceConnection = getSourceStorage().getConnection();
-                setSourceConnection(sourceConnection);
-                return this;
-            } catch (SQLException e) {
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException ex) {
-                    throw new RuntimeException(ex);
-                }
-                tries--;
-                LOGGER.error("There are no available connections in source pool ...");
-            }
-        }
-        throw new SQLException("Exceed max tries to get connection from source pool");
-    }
-*/
 
     public Chunk<?> assignSourceConnection(Connection connection) throws SQLException {
         setSourceConnection(connection);

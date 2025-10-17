@@ -4,7 +4,7 @@ import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.*;
-import org.bublik.core.service.JDBCStorageService;
+import org.bublik.core.service.Sourceable;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.oracle.model.OraChunk;
@@ -21,7 +21,7 @@ import java.util.Map;
 import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.oracle.constants.SQLConstants.*;
 
-public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService {
+public class JDBCOracleStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);
     private static final int HIGH_BIT_FLAG = 0x80000000;
 
@@ -54,7 +54,8 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
+    public void createChunks(List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
+        Connection connection = getConnection();
         for (Config config : configs) {
             try {
                 CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
@@ -98,7 +99,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
 
     }
 
@@ -237,7 +238,7 @@ public class JDBCOracleStorage extends JDBCStorage implements JDBCStorageService
     public void enrichSourceTables(Connection connection) {
         Map<Table, Table> tables = getTables();
         try {
-            Connection sourceConnection = getConnection();
+            Connection sourceConnection = getPoolConnection();
             for (Map.Entry<Table, Table> entry : tables.entrySet()) {
                 Table sourceTable = entry.getKey();
                 List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);

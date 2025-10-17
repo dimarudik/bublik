@@ -5,7 +5,7 @@ import org.bublik.core.exception.SourceSQLException;
 import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
-import org.bublik.core.service.JDBCStorageService;
+import org.bublik.core.service.Targetable;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.ydb.model.YDBTable;
@@ -22,7 +22,7 @@ import java.util.Map;
 import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.ydb.constants.SQLConstants.*;
 
-public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
+public class JDBCYDBStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);
 
     public JDBCYDBStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
@@ -50,12 +50,12 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
     }
 
     @Override
-    public void createChunks(Connection connection, List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
+    public void createChunks(List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
 
     }
 
     @Override
-    public void dropChunkTable(Connection connection, boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
 
     }
 
@@ -68,7 +68,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         } else {
             tName = t[1];
         }
-        Connection connection = getConnection();
+        Connection connection = getPoolConnection();
         try {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tName));
@@ -105,7 +105,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
         if (fetchResultSet.next()) {
             Connection connectionTo;
             try {
-                connectionTo = getConnection();
+                connectionTo = getPoolConnection();
             } catch (SQLTransientConnectionException t) {
                 throw new TargetSQLException(getStackTrace(t));
             }
@@ -444,7 +444,7 @@ public class JDBCYDBStorage extends JDBCStorage implements JDBCStorageService {
             tName = t[1];
         }
         try {
-            Connection connection = getConnection();
+            Connection connection = getPoolConnection();
             Statement dropTable = connection.createStatement();
             dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tName));
             dropTable.close();

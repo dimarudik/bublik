@@ -8,6 +8,8 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.bublik.core.model.Table;
 import org.bublik.core.service.JDBCStorageService;
+import org.bublik.core.service.Sourceable;
+import org.bublik.core.service.Targetable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,10 +23,11 @@ import java.util.concurrent.Future;
 
 import static org.bublik.core.util.Utils.getStackTrace;
 
-public abstract class JDBCStorage extends Storage implements JDBCStorageService {
+public abstract class JDBCStorage extends Storage implements JDBCStorageService, Sourceable, Targetable {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     protected final int threadCount;
+    private Connection connection;
 
 
     protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
@@ -45,8 +48,18 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     }
 
     @Override
-    public Connection getConnection() throws SQLException {
+    public Connection getPoolConnection() throws SQLException {
             return dataSource.getConnection();
+    }
+
+    @Override
+    public Connection getConnection() {
+        return connection;
+    }
+
+    @Override
+    public void setConnection(Connection connection) {
+        this.connection = connection;
     }
 
     private HikariConfig buildConfiguration(Properties property, ConnectionProperty connectionProperty) throws SQLException {
@@ -82,8 +95,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                 this.closeStorage();
             }
         }
-        targetStorage.closeStorage();
-        this.closeStorage();
+//        targetStorage.closeStorage();
+//        this.closeStorage();
     }
 
     private List<Config> copyConfigs(List<Config> cfgs) {
@@ -95,11 +108,12 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     }
 
     private void startNOSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
-        Connection sourceConnection = this.getConnection();
+        Connection sourceConnection = this.getPoolConnection();
+        setConnection(sourceConnection);
 
         Storage sourceStorage = this;
         if (rows > 0) {
-            createChunks(sourceConnection, configs, false, rows, tableName);
+            createChunks(configs, false, rows, tableName);
             targetStorage.createOutbox(tableName);
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
@@ -110,16 +124,17 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
             sourceJDBCStorage.enrichSourceTables(sourceConnection);
-            log.info("{} {}", sourceStorage.getTables().hashCode(), sourceJDBCStorage.getTables().hashCode());
+//            log.info("{} {}", sourceStorage.getTables().hashCode(), sourceJDBCStorage.getTables().hashCode());
             sourceJDBCStorage.enrichTargetTables();
             targetJDBCStorage.createTables();
         }
+
         sourceConnection.close();
 
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
-            Connection sConnection = this.getConnection();
+            Connection sConnection = this.getPoolConnection();
             List<Chunk<?>> chunks = getChunkList(configs, sConnection, tableName);
             sConnection.close();
             List<Future<Chunk<?>>> futures = new ArrayList<>();
@@ -182,19 +197,21 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         service.shutdown();
         service.close();
 
-        Connection dropChunkConnection = this.getConnection();
-        dropChunkTable(dropChunkConnection, false, tableName);
+        Connection dropChunkConnection = this.getPoolConnection();
+        setConnection(dropChunkConnection);
+        dropChunkTable(false, tableName);
         dropChunkConnection.close();
         targetStorage.dropOutboxTable(false, tableName);
     }
 
     private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
-        Connection sourceConnection = this.getConnection();
+        Connection sourceConnection = this.getPoolConnection();
+        setConnection(sourceConnection);
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
         Storage sourceStorage = this;
         if (rows > 0) {
-            createChunks(sourceConnection, configs, true, rows, tableName);
+            createChunks(configs, true, rows, tableName);
             targetStorage.createOutbox(tableName);
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
@@ -225,8 +242,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             }
         });
         sourceConnection.commit();
-        Connection targetConnection = targetStorage.getConnection();
         JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
+        Connection targetConnection = targetJDBCStorage.getPoolConnection();
         targetJDBCStorage.setTables(getTables());
         targetJDBCStorage.createPrimaryKeys();
         targetJDBCStorage.createUniqueConstraints();

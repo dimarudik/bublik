@@ -1,0 +1,20 @@
+threadCount: 10
+
+fromProperties:
+  class: org.bublik.cassandra.storage.CSPoolStorage
+  datacenter: datacenter1
+  hosts: localhost
+  port: 9042
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 128
+toProperties:
+  class: org.bublik.cassandra.storage.CSPoolStorage
+  datacenter: datacenter1
+  hosts: localhost
+  port: 9043
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 128
