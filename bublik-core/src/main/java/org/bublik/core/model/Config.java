@@ -15,13 +15,17 @@ public record Config(
         String fetchWhereClause,
         String fromTaskName,
         String fromTaskWhereClause,
+        String timestamp,
+        Boolean withTTL,
         List<String> tryCharIfAny,
         Map<String, String> columnToColumn,
         Map<String, String> expressionToColumn,
+/*
         Map<String, EncryptedColumn> expressionToCrypto,
         Map<String, String> cryptoToColumn,
-        Map<String, List<String>> columnFromMany,
-        List<String> toPrimaryKeys
+*/
+        Map<String, List<String>> columnFromMany
+//        List<String> toPrimaryKeys
 ) {
 
     public Config copy() {
@@ -39,13 +43,15 @@ public record Config(
                         this.fromTableName.replaceAll("^\"|\"$", "") + "_" +
                         (this.toTableName == null ? null : this.toTableName.replaceAll("^\"|\"$", "")) + "_task": this.fromTaskName,
                 this.fromTaskWhereClause,
+                this.timestamp,
+                this.withTTL == null ? Boolean.TRUE : this.withTTL,
                 this.tryCharIfAny == null ? null : List.copyOf(this.tryCharIfAny),
                 this.columnToColumn == null ? null : Map.copyOf(this.columnToColumn),
                 this.expressionToColumn == null ? null : Map.copyOf(this.expressionToColumn),
-                this.expressionToCrypto == null ? null : Map.copyOf(this.expressionToCrypto),
-                this.cryptoToColumn == null ? null : Map.copyOf(this.cryptoToColumn),
-                this.columnFromMany == null ? null : Map.copyOf(this.columnFromMany),
-                this.toPrimaryKeys == null ? null : List.copyOf(this.toPrimaryKeys)
+//                this.expressionToCrypto == null ? null : Map.copyOf(this.expressionToCrypto),
+//                this.cryptoToColumn == null ? null : Map.copyOf(this.cryptoToColumn),
+                this.columnFromMany == null ? null : Map.copyOf(this.columnFromMany)
+//                this.toPrimaryKeys == null ? null : List.copyOf(this.toPrimaryKeys)
         );
     }
 }

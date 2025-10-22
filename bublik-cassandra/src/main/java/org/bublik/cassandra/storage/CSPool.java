@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -50,8 +51,8 @@ public class CSPool {
                 .programmaticBuilder()
                 .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, size)
                 .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, size)
-//                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT,
-//                        Duration.ofSeconds(Long.parseLong(properties.getProperty("query_time_out"))))
+                .withDuration(DefaultDriverOption.REQUEST_TIMEOUT,
+                        Duration.ofSeconds(14))
                 .build();
     }
 

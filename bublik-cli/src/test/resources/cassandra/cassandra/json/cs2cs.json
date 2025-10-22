@@ -12,5 +12,19 @@
       "item_name"        : "item_name",
       "description"      : "description"
     }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "user2",
+    "toSchemaName" : "test",
+    "toTableName" : "user2",
+    "expressionToColumn" : {
+      "user_id"          : "user_id",
+      "item_id"          : "item_id",
+      "user_name"        : "user_name",
+      "email"            : "email",
+      "item_name"        : "item_name",
+      "description"      : "description"
+    }
   }
 ]

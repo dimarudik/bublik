@@ -76,10 +76,10 @@ public class ForeignKey implements DDLService {
             fkTable.getSchemaName(),
             fkTable.getTableName(),
             fkName,
-            String.join(", ", fkColumns.stream().map(Column::getColumnName).toList()),
+            String.join(", ", fkColumns.stream().map(Column::columnName).toList()),
             pkTable.getSchemaName(),
             pkTable.getTableName(),
-            String.join(", ", pkColumns.stream().map(Column::getColumnName).toList())
+            String.join(", ", pkColumns.stream().map(Column::columnName).toList())
         );
         log.info("{}", sql);
         try {

@@ -56,7 +56,7 @@ public class CassandraToCassandraTest {
     }
 
     @Test
-    public void postgresToCassandra() throws InterruptedException, IOException {
+    public void cassandraToCassandra() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("9042");
         Properties targetProperties = getPropertiesOfCassandra("9043");
         TestResult result = getResult(
@@ -96,38 +96,6 @@ public class CassandraToCassandraTest {
 //        Long sourceCount = countRows(sourceProperties, fromQuery);
 //        Long targetCount = countCassandra();
         return new TestResult(0, 0);
-    }
-
-    private static Long countCassandra() {
-        CqlSession cqlSession = CqlSession
-                .builder()
-                .addContactPoint(target.getContactPoint())
-                .withLocalDatacenter(target.getLocalDatacenter())
-                .build();
-        com.datastax.oss.driver.api.core.cql.ResultSet resultSet = cqlSession.execute("SELECT user_id FROM test.user");
-        long rowCount = 0;
-        for (com.datastax.oss.driver.api.core.cql.Row row : resultSet) {
-            rowCount++;
-        }
-        com.datastax.oss.driver.api.core.cql.ResultSet resultSet1 = cqlSession.execute("SELECT item_id FROM test.item");
-        for (com.datastax.oss.driver.api.core.cql.Row row : resultSet1) {
-            rowCount++;
-        }
-        cqlSession.close();
-        return rowCount;
-    }
-
-    public static Long countRows(Properties p, String query) {
-        try (Connection connection =
-                     DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(query);
-            resultSet.next();
-            return resultSet.getLong(1);
-        }
-        catch (SQLException e){
-            throw new RuntimeException(e);
-        }
     }
 
     private Properties getPropertiesOfCassandra(String port) {

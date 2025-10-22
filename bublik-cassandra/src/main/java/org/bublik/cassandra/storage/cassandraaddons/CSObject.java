@@ -109,13 +109,13 @@ public class CSObject {
         return this;
     }
 
-    public CSObject cassandraColumnMap(Chunk<?> chunk) {
+    public CSObject cassandraColumnMap(Chunk<?, ?> chunk) {
         Map<String, Column> csmap = readTargetColumnsAndTypes(chunk, metadata);
         setCassandraColumnMap(csmap);
         return this;
     }
 
-    public CSObject query(Chunk<?> chunk) {
+    public CSObject query(Chunk<?, ?> chunk) {
         String q = buildInsertStatement(chunk, getCassandraColumnMap());
         setQuery(q);
         return this;
@@ -127,13 +127,13 @@ public class CSObject {
         return this;
     }
 
-    public CSObject partitionKeyMap(Chunk<?> chunk) {
+    public CSObject partitionKeyMap(Chunk<? ,?> chunk) {
         Map<Integer, CSPartitionKey> map = readPartitonKeyMap(chunk);
         setPartitionKeyMap(map);
         return this;
     }
 
-    private Map<Integer, CSPartitionKey> readPartitonKeyMap(Chunk<?> chunk) {
+    private Map<Integer, CSPartitionKey> readPartitonKeyMap(Chunk<?, ?> chunk) {
         Config config = chunk.getConfig();
         ResultSet resultSet = cqlSession.execute(
                 "select column_name, type, position from system_schema.columns " +
@@ -149,7 +149,7 @@ public class CSObject {
         return map;
     }
 
-    private Map<String, Column> readTargetColumnsAndTypes(Chunk<?> chunk, Metadata metadata) {
+    private Map<String, Column> readTargetColumnsAndTypes(Chunk<?, ?> chunk, Metadata metadata) {
         Map<String, Column> columnMap = new HashMap<>();
         Config config = chunk.getConfig();
         KeyspaceMetadata keyspaceMetadata = metadata
@@ -182,8 +182,8 @@ public class CSObject {
         return columnMap;
     }
 
-    private String buildInsertStatement(Chunk<?> chunk, Map<String, Column> stringCassandraColumnMap) {
-        List<String> targetColumns = stringCassandraColumnMap.values().stream().map(Column::getColumnName).toList();
+    private String buildInsertStatement(Chunk<? ,?> chunk, Map<String, Column> stringCassandraColumnMap) {
+        List<String> targetColumns = stringCassandraColumnMap.values().stream().map(Column::columnName).toList();
         return PGKeywords.INSERT + " " + PGKeywords.INTO + " " +
                 chunk.getConfig().toSchemaName() + "." +
                 chunk.getConfig().toTableName() + " (" +
@@ -194,7 +194,7 @@ public class CSObject {
                 ");";
     }
 
-    public static CSObject createCSObject(CqlSession cqlSession, Chunk<?> chunk) {
+    public static CSObject createCSObject(CqlSession cqlSession, Chunk<?, ?> chunk) {
         return new CSObject(cqlSession)
                 .metadata()
                 .tokenRangeSet()

@@ -60,7 +60,7 @@ public class Index implements DDLService {
     @Override
     public void create(Table table, Connection connection) {
         String sqlInclude = includeColumns.isEmpty() ? "" : " INCLUDE (" +
-                String.join(", ", includeColumns.values().stream().map(Column::getColumnName).toList()) + ")";
+                String.join(", ", includeColumns.values().stream().map(Column::columnName).toList()) + ")";
         String sql = String.format(
                 "CREATE %s INDEX %s ON %s.%s (%s) %s %s",
                 isUnique ? "UNIQUE" : "",

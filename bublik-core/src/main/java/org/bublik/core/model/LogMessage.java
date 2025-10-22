@@ -7,7 +7,7 @@ public record LogMessage (int rowCount,
                           long start,
                           long stop,
                           String operation,
-                          Chunk<?> chunk) {
+                          Chunk<?, ?> chunk) {
     private static final Logger LOGGER = LoggerFactory.getLogger(LogMessage.class);
 
     @Override

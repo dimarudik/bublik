@@ -106,7 +106,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
     }
 */
 
-    public LogMessage simpleBatch(Chunk<?> chunk) throws SQLException {
+    public LogMessage simpleBatch(Chunk<?, ?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
         CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
@@ -137,7 +137,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                 chunk);
     }
 
-    public LogMessage rangedBatch(Chunk<?> chunk) throws SQLException {
+    public LogMessage rangedBatch(Chunk<?, ?> chunk) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
@@ -202,14 +202,14 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
 //        long temp = 0;
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
-            String targetType = entry.getValue().getColumnType();
+            String targetType = entry.getValue().columnType();
             switch (targetType) {
                 case "smallint": {
                     short v = resultSet.getShort(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), smallIntToBytes(v)));
                     objectList.add(v);
@@ -221,7 +221,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), intToBytes(v)));
                     objectList.add(v);
@@ -232,7 +232,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), longToBytes(v)));
                     objectList.add(v);
@@ -243,7 +243,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), stringToBytes(v)));
                     objectList.add(v);
@@ -262,7 +262,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), timestampToBytes(v)));
                     objectList.add(v);
@@ -301,7 +301,7 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                     Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .orElseThrow();
                     mapBytes.put(keyEntry.getKey(), uuidToBytes(uuid));

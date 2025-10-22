@@ -41,7 +41,7 @@ public class UniqueConstraint implements DDLService {
                 constraintName,
                 nullsNotDistinct ? "nulls not distinct" : "",
                 String.join(", ", columns.values().stream()
-                        .map(Column::getColumnName)
+                        .map(Column::columnName)
                         .toList())
         );
         try {

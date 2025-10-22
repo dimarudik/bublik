@@ -111,10 +111,10 @@ public class PostgresToCassandraTest {
                 .withLocalDatacenter(target.getLocalDatacenter())
                 .build();
         SimpleStatement stmt1 = SimpleStatement.builder("SELECT user_id FROM test.user")
-//                .setPageSize(pageSize) // set page size
+                .setPageSize(pageSize) // set page size
                 .build();
         SimpleStatement stmt2 = SimpleStatement.builder("SELECT item_id FROM test.item")
-//                .setPageSize(pageSize) // set page size
+                .setPageSize(pageSize) // set page size
                 .build();
         long start1 = System.currentTimeMillis();
         com.datastax.oss.driver.api.core.cql.ResultSet resultSet = cqlSession.execute(stmt1);

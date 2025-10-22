@@ -16,7 +16,7 @@ import java.util.Map;
 public class OraTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(OraTable.class);
 
-    public OraTable(){}
+//    public OraTable(){}
     public OraTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }

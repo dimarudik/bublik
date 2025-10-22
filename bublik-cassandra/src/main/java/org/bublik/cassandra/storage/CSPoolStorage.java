@@ -3,13 +3,12 @@ package org.bublik.cassandra.storage;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.DriverException;
-import com.datastax.oss.driver.api.core.cql.BatchStatement;
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
-import com.datastax.oss.driver.api.core.cql.BoundStatement;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
+import org.bublik.cassandra.model.CSTable;
 import org.bublik.cassandra.service.CSPoolStorageService;
+import org.bublik.cassandra.service.CSTableService;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
@@ -27,6 +26,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -55,23 +55,30 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
+    public void start(List<Config> cfgs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
         log.info("Cassandra target storage started");
+        List<Config> configs = copyConfigs(cfgs);
+        createChunkTable(sync, tableName);
         createChunks(configs, sync, rows, tableName);
 //        dropChunkTable(sync, tableName);
     }
 
+    private void createChunkTable(boolean sync, String tableName) {
+        CqlSession cqlSession = csPool.getCqlSession();
+        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
+    }
+
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException {
         return rangedBatch(chunk, tableName);
     }
 
-    public LogMessage rangedBatch(Chunk<?> chunk, String tableName) throws SQLException {
+    public LogMessage rangedBatch(Chunk<?, ?> chunk, String tableName) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
         CqlSession cqlSession = csPool.getCqlSession();
-        if (isChunkProcessed(cqlSession, chunk.getId(), chunk.getConfig().fromTaskName(), tableName)) {
+        if (isChunkProcessed(cqlSession, (int) chunk.getId(), chunk.getConfig().fromTaskName(), tableName)) {
             return new LogMessage(
                     0,
                     chunk.getStartTime(),
@@ -90,7 +97,9 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
             Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
-            batchStatementBuilder.addStatement(csObject.getPreparedStatement().bind(entry.getValue()));
+            BatchableStatement<?> statement = csObject.getPreparedStatement().bind(entry.getValue());
+//            log.info("{}", csObject.getQuery());
+            batchStatementBuilder.addStatement(statement);
             batchEntity.increaseCounter();
             recordCount++;
             // batch_size_fail_threshold_in_kb: 50
@@ -106,7 +115,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                 batchCount++;
             }
         }
-        insertProcessedChunkInfo(cqlSession, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+        insertProcessedChunkInfo(cqlSession, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
         long stop = System.currentTimeMillis();
         return new LogMessage(
                 recordCount,
@@ -120,6 +129,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
         try {
             BatchStatement batchStatement = batchStatementBuilder
                     .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
+                    .setTimeout(Duration.ofSeconds(20))
                     .build();
             cqlSession.execute(batchStatement);
             batchStatementBuilder.clearStatements();
@@ -140,14 +150,14 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
 //        long temp = 0;
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
-            String targetType = entry.getValue().getColumnType();
+            String targetType = entry.getValue().columnType();
             switch (targetType) {
                 case "smallint": {
                     short v = resultSet.getShort(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), smallIntToBytes(v)));
                     objectList.add(v);
@@ -159,7 +169,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), intToBytes(v)));
                     objectList.add(v);
@@ -170,7 +180,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), longToBytes(v)));
                     objectList.add(v);
@@ -181,7 +191,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), stringToBytes(v)));
                     objectList.add(v);
@@ -200,7 +210,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                     partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.getKey(), timestampToBytes(v)));
                     objectList.add(v);
@@ -239,7 +249,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                     Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
                             .entrySet()
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().getColumnName()))
+                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .orElseThrow();
                     mapBytes.put(keyEntry.getKey(), uuidToBytes(uuid));
@@ -259,22 +269,82 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     @Override
     public void createChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
-        PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName",getChunkTableName(tableName)));
-        csPool.getTokenRanges().forEach(tr -> {
-            log.info("TokenRange: {} - {}",
-                    ((Murmur3Token) tr.getStart()).getValue(),
-                    ((Murmur3Token) tr.getEnd()).getValue());
-            BoundStatement bs = ps.bind(((Murmur3Token) tr.getStart()).getValue(), ((Murmur3Token) tr.getEnd()).getValue(), "UNASSIGNED");
-            cqlSession.execute(bs);
-        });
-        log.info("Chunk table created successfully");
+        Set<TokenRange> trs = csPool.getTokenRanges();
+
+        for (Config c : configs) {
+            Table pseudoTable = new PseudoTable(c.fromSchemaName(), c.fromTableName());
+            List<Column> partitionKey = CSTableService.getKey(cqlSession, pseudoTable, "partition_key");
+            List<Column> clusteringKey = CSTableService.getKey(cqlSession, pseudoTable, "clustering");
+            CSTable sourceTable = new CSTable(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
+            trs.forEach(tr -> {
+//                UUID chunkId = Uuids.timeBased();
+                long startValue = ((Murmur3Token) tr.getStart()).getValue();
+                long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
+                if (stopValue > startValue) {
+                    double estimatedRowsInRange = (long) getEstimatedRowsInRange(cqlSession, sourceTable, tr);
+                    log.info("Estimated rows in range: {} - {} = {}", startValue, stopValue, estimatedRowsInRange);
+                    if (estimatedRowsInRange == 0) {
+                        log.info("Estimated rows in range: {} - {} = 0, skip chunk creation", startValue, stopValue);
+                        return;
+                    }
+/*
+                if (estimatedRowsInRange < rows) {
+                    log.info("Estimated rows in range: {} - {} = {}, less than rows {}, skip chunk creation",
+                            startValue, stopValue, estimatedRowsInRange, rows);
+                    return;
+                }
+*/
+                    long chunkCount = (long) Math.ceil(estimatedRowsInRange / rows);
+                    long shift = (stopValue - startValue) / chunkCount;
+                    long i = startValue;
+                    PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
+                    while ((i = i + shift) < stopValue) {
+                        insertChunk(cqlSession, ps, i - shift, i, sourceTable, c.fromTaskName());
+                    }
+                    insertChunk(cqlSession, ps, i - shift, stopValue, sourceTable, c.fromTaskName());
+                }
+            });
+        }
+        log.info("Chunk table fulfilled successfully");
+    }
+
+    private void insertChunk(CqlSession cqlSession, PreparedStatement ps, long start, long stop, CSTable sourceTable, String taskName) {
+        BoundStatement bs = ps.bind(
+                start,
+                stop,
+                sourceTable.getSchemaName(),
+                sourceTable.getTableName(),
+                "UNASSIGNED",
+                taskName);
+        cqlSession.execute(bs);
+    }
+
+    private double getEstimatedRowsInRange(CqlSession cqlSession, CSTable sourceTable, TokenRange tr) {
+        String queryCount = CSTableService.countRowsInTableQuery(sourceTable);
+        PreparedStatement ps = cqlSession.prepare(queryCount);
+        long startValue = ((Murmur3Token) tr.getStart()).getValue();
+        long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
+        long delta = (stopValue - startValue) / 10;
+        long g = delta / 10;
+        long subRange = 0;
+        long rowsInSubRange = 0;
+        for (long j = startValue; j < startValue + delta; j = j + g ) {
+            BoundStatement bsCount = ps.bind(j, j + g).setPageSize(10000);
+            com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(bsCount);
+            long rCount = 0;
+            for (Row row : rs) {
+                rCount++;
+            }
+            subRange += g;
+            rowsInSubRange += rCount;
+        }
+        return (double) Math.round((double) (stopValue - startValue) / subRange * rowsInSubRange);
     }
 
     @Override
     public void dropChunkTable(boolean sync, String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTableName(tableName)));
+        cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getChunkTableName(tableName)));
     }
 
     private String getChunkTableName(String tableName) {
@@ -285,7 +355,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
         } else {
             tmpName = t[1];
         }
-        String kSpace = "\"" + connectionProperty.getToProperty().getProperty("keyspace") + "\"";
+        String kSpace = "\"" + connectionProperty.getFromProperty().getProperty("keyspace") + "\"";
         return kSpace + "." + "\"" + tmpName + "\"";
     }
 
@@ -326,7 +396,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
+    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
         return List.of();
     }
 
@@ -354,7 +424,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
         return Map.of();
     }
 
@@ -395,5 +465,14 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     @Override
     public void close() throws Exception {
         csPool.closeCqlSession();
+    }
+
+    @Override
+    public List<Config> copyConfigs(List<Config> cfgs) {
+        List<Config> configs = new ArrayList<>();
+        for (Config c : cfgs) {
+            configs.add(c.copy());
+        }
+        return configs;
     }
 }

@@ -15,16 +15,16 @@ import java.sql.SQLException;
 
 import static org.bublik.postgres.constants.SQLConstants.*;
 
-public class PGChunk<T extends Long> extends Chunk<T> {
+public class PGChunk<T extends Long, K extends Integer> extends Chunk<T, K> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
 
-    public PGChunk(Integer id, T start, T end, Config config,
+    public PGChunk(K id, T start, T end, Config config,
                    Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
     }
 
     @Override
-    public PGChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum,
+    public PGChunk<T, K> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum,
                                       String errMsg, String chunkTableName) throws SQLException {
         if (status != null) {
             Connection connection = this.getSourceConnection();
@@ -55,7 +55,7 @@ public class PGChunk<T extends Long> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveChunkRows(int copied, boolean sync, String chunkTableName) throws SQLException {
+    public Chunk<?, ?> saveChunkRows(int copied, boolean sync, String chunkTableName) throws SQLException {
         Connection connection = this.getSourceConnection();
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE.replace("$tableName", chunkTableName));

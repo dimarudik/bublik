@@ -12,10 +12,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public abstract class Chunk<T> implements ChunkService {
+public abstract class Chunk<T, K> implements ChunkService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
 
-    private final Integer id;
+    private final K id;
     private final T start;
     private final T end;
     private final Config config;
@@ -35,7 +35,7 @@ public abstract class Chunk<T> implements ChunkService {
     private int upserted;
     private ChunkStatus chunkStatus;
 
-    public Chunk(Integer id, T start, T end, Config config, Table sourceTable,
+    public Chunk(K id, T start, T end, Config config, Table sourceTable,
                  String fetchQuery, Storage sourceStorage) {
         this.id = id;
         this.start = start;
@@ -46,7 +46,7 @@ public abstract class Chunk<T> implements ChunkService {
         this.sourceStorage = sourceStorage;
     }
 
-    public Integer getId() {
+    public K getId() {
         return id;
     }
 
@@ -170,20 +170,20 @@ public abstract class Chunk<T> implements ChunkService {
         this.chunkStatus = chunkStatus;
     }
 
-    public Chunk<?> assignSourceConnection() throws SQLException {
+    public Chunk<?, ?> assignSourceConnection() throws SQLException {
         JDBCStorage sourceJDBCStorage = getSourceStorage().unwrap(JDBCStorage.class);
         Connection sourceConnection = sourceJDBCStorage.getPoolConnection();
         setSourceConnection(sourceConnection);
         return this;
     }
 
-    public Chunk<?> assignSourceConnection(Connection connection) throws SQLException {
+    public Chunk<?, ?> assignSourceConnection(Connection connection) throws SQLException {
         setSourceConnection(connection);
         return this;
     }
 
     @Override
-    public Chunk<?> assignSourceResultSet() throws SQLException {
+    public Chunk<?, ?> assignSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
         String q;
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
@@ -196,7 +196,7 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public Chunk<?> copyChunk(boolean sync, String tableName) throws Exception {
+    public Chunk<?, ?> copyChunk(boolean sync, String tableName) throws Exception {
         this
                 .assignSourceConnection()
                 .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
@@ -226,7 +226,7 @@ public abstract class Chunk<T> implements ChunkService {
         logMessage.loggerChunkInfo();
     }
 
-    public Chunk<?> assignResultLogMessage(String tableName) throws SQLException {
+    public Chunk<?, ?> assignResultLogMessage(String tableName) throws SQLException {
         try {
             LogMessage logMessage = this.getTargetStorage().transferToTarget(this, tableName);
             this.setLogMessage(logMessage);
@@ -239,7 +239,7 @@ public abstract class Chunk<T> implements ChunkService {
         }
     }
 
-    public Chunk<?> closeChunkSourceConnection(boolean sync) throws SQLException {
+    public Chunk<?, ?> closeChunkSourceConnection(boolean sync) throws SQLException {
         Connection connection = getSourceConnection();
         if (connection.isValid(0) && !sync) {
             connection.close();
@@ -249,7 +249,7 @@ public abstract class Chunk<T> implements ChunkService {
         return this;
     }
 
-    public Chunk<?> closeChunkTargetConnection() throws SQLException {
+    public Chunk<?, ?> closeChunkTargetConnection() throws SQLException {
         Connection connection = getTargetConnection();
         if (connection.isValid(0)) {
             connection.close();

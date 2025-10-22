@@ -99,7 +99,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
 //        this.closeStorage();
     }
 
-    private List<Config> copyConfigs(List<Config> cfgs) {
+    @Override
+    public List<Config> copyConfigs(List<Config> cfgs) {
         List<Config> configs = new ArrayList<>();
         for (Config c : cfgs) {
             configs.add(c.copy());
@@ -135,9 +136,9 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             Connection sConnection = this.getPoolConnection();
-            List<Chunk<?>> chunks = getChunkList(configs, sConnection, tableName);
+            List<Chunk<?, ?>> chunks = getChunkList(configs, sConnection, tableName);
             sConnection.close();
-            List<Future<Chunk<?>>> futures = new ArrayList<>();
+            List<Future<Chunk<?, ?>>> futures = new ArrayList<>();
 
             chunks.forEach(chunk -> futures.add(
                     service
@@ -164,15 +165,18 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
             int timeoutCounter = 0;
             int adminCommandCounter = 0;
             for (Future<?> future : futures) {
-                Chunk<?> c;
+                Chunk<?, ?> c;
                 try {
-                    c = (Chunk<?>) future.get();
+                    c = (Chunk<?, ?>) future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
                     if (e.getMessage().contains("terminating connection due to administrator command") && adminCommandCounter / threadCount < 3) {
                         adminCommandCounter++;
                         log.error("{}", getStackTrace(e));
-                    } else if (e.getMessage().contains("Query timed out after PT2S") && timeoutCounter / threadCount < 20) {
+                    } else if ((
+                            e.getMessage().contains("Query timed out after PT2S") ||
+                            e.getMessage().contains("Cassandra timeout during BATCH"))
+                            && timeoutCounter / threadCount < 20) {
                         try {
                             Thread.sleep(1_000);
                         } catch (InterruptedException ex) {
@@ -231,7 +235,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
 
-        List<Chunk<?>> chunks = getChunkList(configs, sourceConnection, tableName);
+        List<Chunk<?, ?>> chunks = getChunkList(configs, sourceConnection, tableName);
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
             try {

@@ -5,7 +5,6 @@ import org.bublik.core.exception.SourceSQLException;
 import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
-import org.bublik.core.service.Targetable;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.ydb.model.YDBTable;
@@ -94,12 +93,12 @@ public class JDBCYDBStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
+    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
         return List.of();
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException {
         ResultSet fetchResultSet = chunk.getResultSet();
         Connection connectionFrom = chunk.getSourceConnection();
         if (fetchResultSet.next()) {
@@ -148,12 +147,12 @@ public class JDBCYDBStorage extends JDBCStorage {
 
     private LogMessage fetchAndCopy(Connection connectionTo,
                                     ResultSet fetchResultSet,
-                                    Chunk<?> chunk,
+                                    Chunk<?, ?> chunk,
                                     String tableName) throws SQLException, SourceSQLException {
         int recordCount = 0;
 
         try {
-            insertProcessedChunkInfo(connectionTo, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             connectionTo.rollback();
         } catch (SQLException e) {
 //            log.error("Error insert into BUBLIK_OUTBOX for chunk {}, start {}, end {}, rows {}, task {}: {}",
@@ -186,7 +185,7 @@ public class JDBCYDBStorage extends JDBCStorage {
         }
 
         try {
-            insertProcessedChunkInfo(connectionTo, chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             connectionTo.commit();
         } catch (SQLException e) {
             log.error("ON COMMIT chunkId = {} {}", chunk.getId(), getStackTrace(e));
@@ -222,7 +221,7 @@ public class JDBCYDBStorage extends JDBCStorage {
         int index = 0;
         for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
             String sourceColName = entry.getKey().replaceAll("\"", "");
-            String targetColType = entry.getValue().getColumnType();
+            String targetColType = entry.getValue().columnType();
             index++;
             switch (targetColType) {
                 case "Uint8", "Int8" : {
@@ -283,7 +282,7 @@ public class JDBCYDBStorage extends JDBCStorage {
         ps.addBatch();
     }
 
-    private boolean hasNext(ResultSet resultSet, Chunk<?> chunk) throws SQLException {
+    private boolean hasNext(ResultSet resultSet, Chunk<?, ?> chunk) throws SQLException {
         try {
             return resultSet.next();
         } catch (SQLException e) {
@@ -293,7 +292,7 @@ public class JDBCYDBStorage extends JDBCStorage {
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
         Map<String, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
@@ -422,7 +421,7 @@ public class JDBCYDBStorage extends JDBCStorage {
     public String batchInsertStatement(Config config, Map<String, Column> neededColumnsToDB) {
         List<String> strings = new ArrayList<>();
         for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
-            strings.add(entry.getValue().getColumnName());
+            strings.add(entry.getValue().columnName());
         }
         String columnToColumn = String.join(", ", strings);
         String columnToColumnQ = " ?,".repeat(Math.max(0, strings.size() - 1)) +

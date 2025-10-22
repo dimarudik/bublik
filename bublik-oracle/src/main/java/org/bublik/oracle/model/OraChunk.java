@@ -12,15 +12,15 @@ import java.sql.*;
 
 import static org.bublik.oracle.constants.SQLConstants.*;
 
-public class OraChunk<T extends RowId> extends Chunk<T> {
+public class OraChunk<T extends RowId, K extends Integer> extends Chunk<T, K> {
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
 
-    public OraChunk(Integer id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
+    public OraChunk(K id, T start, T end, Config config, Table sourceTable, String fetchQuery, Storage sourceStorage) {
         super(id, start, end, config, sourceTable, fetchQuery, sourceStorage);
     }
 
     @Override
-    public OraChunk<T> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
+    public OraChunk<T, K> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
         try {
             Connection connection = this.getSourceConnection();
             if (errMsg == null) {
@@ -48,7 +48,7 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
     }
 
     @Override
-    public Chunk<?> saveChunkRows(int rows, boolean sync, String chunkTableName) throws SQLException {
+    public Chunk<?, ?> saveChunkRows(int rows, boolean sync, String chunkTableName) throws SQLException {
         return this;
     }
 
@@ -62,24 +62,8 @@ public class OraChunk<T extends RowId> extends Chunk<T> {
         return statement.executeQuery();
     }
 
-/*
     @Override
-    public void insertProcessedChunkInfo(Connection connection, int rows) throws SQLException {
-        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_BUBLIK_OUTBOX_ROWID);
-        chunkInsert.setLong(1, getId());
-        chunkInsert.setString(2, String.valueOf(getStart()));
-        chunkInsert.setString(3, String.valueOf(getEnd()));
-        chunkInsert.setLong(4, rows);
-        chunkInsert.setString(5, getConfig().fromTaskName());
-        chunkInsert.setString(6, getTargetTable().getSchemaName().toLowerCase());
-        chunkInsert.setString(7, getTargetTable().getFinalTableName(false));
-        long r = chunkInsert.executeUpdate();
-        chunkInsert.close();
-    }
-*/
-
-    @Override
-    public Chunk<?> saveChunkStatus(ChunkStatus status, boolean sync, String chunkTableName) throws SQLException {
+    public Chunk<?, ?> saveChunkStatus(ChunkStatus status, boolean sync, String chunkTableName) throws SQLException {
         return super.saveChunkStatus(status, sync, null);
     }
 }

@@ -44,7 +44,7 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException {
         return null;
     }
 
@@ -119,8 +119,8 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
-        List<Chunk<?>> chunkHashMap = new ArrayList<>();
+    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
+        List<Chunk<?, ?>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, chunkTable);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
@@ -179,20 +179,22 @@ public class JDBCOracleStorage extends JDBCStorage {
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
         Map<String, String> expressionToColumnMap = config.expressionToColumn();
-        Map<String, EncryptedColumn> encryptedEntityMap = config.expressionToCrypto();
-        Map<String, String> cryptoToColumnMap = config.cryptoToColumn();
+//        Map<String, EncryptedColumn> encryptedEntityMap = config.expressionToCrypto();
+//        Map<String, String> cryptoToColumnMap = config.cryptoToColumn();
         if (columnToColumnMap != null) {
             strings.addAll(columnToColumnMap.keySet());
         }
         if (expressionToColumnMap != null) {
             strings.addAll(expressionToColumnMap.keySet());
         }
+/*
         if (encryptedEntityMap != null) {
             strings.addAll(encryptedEntityMap.keySet());
         }
         if (cryptoToColumnMap != null) {
             strings.addAll(cryptoToColumnMap.keySet());
         }
+*/
         String columnToColumn = String.join(", ", strings);
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +
@@ -210,7 +212,7 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
         return Map.of();
     }
 

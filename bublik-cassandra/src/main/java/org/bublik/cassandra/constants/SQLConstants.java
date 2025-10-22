@@ -17,7 +17,7 @@ public abstract class SQLConstants {
                     "err_msg text, " +
                     "primary key (status, chunk_id))";
     public static final String DML_INSERT_CHUNK_TABLE =
-            "INSERT INTO $tableName (chunk_id, start_page, end_page, status) VALUES (now(), ?, ?, ?)";
+            "INSERT INTO $tableName (chunk_id, start_page, end_page, schema_name, table_name, status, task_name) VALUES (now(), ?, ?, ?, ?, ?, ?)";
     public static final String DDL_CREATE_OUTBOX_TABLE =
             "create table $tableName (" +
                 "chunk_id int, " +
@@ -31,4 +31,7 @@ public abstract class SQLConstants {
                     "values (?, ?, ?)";
     public static final String DML_SELECT_OUTBOX_TABLE =
             "select chunk_id, task_name, rows from $tableName where chunk_id = ?";
+    public static final String SQL_KEY_BY_TYPE =
+            "select column_name, type, position from system_schema.columns " +
+                    "where keyspace_name = ? and table_name = ? and kind = ? allow filtering";
 }

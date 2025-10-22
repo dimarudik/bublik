@@ -13,18 +13,13 @@ import static org.bublik.postgres.constants.SQLConstants.*;
 public class PGTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(PGTable.class);
 
-    public PGTable(){}
+//    public PGTable(){}
     public PGTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }
 
     @Override
     public boolean exists(Connection connection) throws SQLException {
-/*
-        if (tableExistsCache().contains(getFinalTableName(false))) {
-            return true;
-        }
-*/
         ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
                 getFinalSchemaName(false),
@@ -441,7 +436,7 @@ public class PGTable extends Table {
                 .append(" ADD PRIMARY KEY (");
         for (int i = 0; i < getPkColumns().size(); i++) {
             Column column = getPkColumns().get(i);
-            pkQuery.append(column.getColumnName());
+            pkQuery.append(column.columnName());
             if (i < getPkColumns().size() - 1) {
                 pkQuery.append(", ");
             }
@@ -510,32 +505,32 @@ public class PGTable extends Table {
         StringBuilder columnDefinition = new StringBuilder();
         for (Column column : this.getColumns()) {
             columnDefinition.append(
-                    column.isCaseSensitiveWord(column.getColumnName()) ?
-                            "\"" + column.getColumnName() + "\"" :
-                            column.getColumnName().toLowerCase()
+                    column.isCaseSensitiveWord(column.columnName()) ?
+                            "\"" + column.columnName() + "\"" :
+                            column.columnName().toLowerCase()
                     ).append(" ")
-                    .append(column.getColumnType());
-            if (    column.getColumnType().equals("varchar") ||
-                    column.getColumnType().equals("character varying") ||
-                    column.getColumnType().equals("numeric") ||
-                    column.getColumnType().equals("decimal") ||
-                    column.getColumnType().equals("char") ||
-                    column.getColumnType().equals("character") ||
-                    column.getColumnType().equals("bpchar")
+                    .append(column.columnType());
+            if (    column.columnType().equals("varchar") ||
+                    column.columnType().equals("character varying") ||
+                    column.columnType().equals("numeric") ||
+                    column.columnType().equals("decimal") ||
+                    column.columnType().equals("char") ||
+                    column.columnType().equals("character") ||
+                    column.columnType().equals("bpchar")
             ) {
-                if (column.getCharOctetLength() > 0 && column.getCharOctetLength() < 100000) {
-                    columnDefinition.append("(").append(column.getCharOctetLength());
-                    if (column.getDecimalDigits() > 0) {
-                        columnDefinition.append(", ").append(column.getDecimalDigits());
+                if (column.charOctetLength() > 0 && column.charOctetLength() < 100000) {
+                    columnDefinition.append("(").append(column.charOctetLength());
+                    if (column.decimalDigits() > 0) {
+                        columnDefinition.append(", ").append(column.decimalDigits());
                     }
                     columnDefinition.append(")");
                 }
             }
-            if (column.getIsNullable() == 0) {
+            if (column.isNullable() == 0) {
                 columnDefinition.append(" NOT NULL");
             }
-            if (column.getDefaultValue() != null) {
-                columnDefinition.append(" DEFAULT ").append(column.getDefaultValue());
+            if (column.defaultValue() != null) {
+                columnDefinition.append(" DEFAULT ").append(column.defaultValue());
             }
             columnDefinition.append(", ");
         }
