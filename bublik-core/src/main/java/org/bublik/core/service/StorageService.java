@@ -26,8 +26,6 @@ public interface StorageService {
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
     List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException;
-//    Map<Integer, Chunk<?>> getChunkMap(List<Config> configs, Connection connection) throws SQLException;
-//    Connection getPoolConnection() throws SQLException;
     LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config);
