@@ -2,18 +2,12 @@ package org.bublik.core.model;
 
 import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.service.ChunkService;
-import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-public abstract class Chunk<T, K> implements ChunkService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Chunk.class);
+public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkService<K, T, S, R> {
+    private static final Logger log = LoggerFactory.getLogger(Chunk.class);
 
     private final K id;
     private final T start;
@@ -21,27 +15,27 @@ public abstract class Chunk<T, K> implements ChunkService {
     private final Config config;
     private final Table sourceTable;
     private final String fetchQuery;
+    private final ChunkStatus chunkStatus;
     private Table targetTable;
     private final Storage sourceStorage;
     private long startTime;
     private Storage targetStorage;
-    private Connection sourceConnection;
-    private Connection targetConnection;
+    private S sourceSession;
+    private S targetSession;
     private LogMessage logMessage;
-    private ResultSet resultSet;
-    private PreparedStatement preparedStatement;
+    private R resultSet;
     private int rows;
     private String batchInsertQuery;
     private int upserted;
-    private ChunkStatus chunkStatus;
 
     public Chunk(K id, T start, T end, Config config, Table sourceTable,
-                 String fetchQuery, Storage sourceStorage) {
+                 ChunkStatus status, String fetchQuery, Storage sourceStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
         this.config = config;
         this.sourceTable = sourceTable;
+        this.chunkStatus = status;
         this.fetchQuery = fetchQuery;
         this.sourceStorage = sourceStorage;
     }
@@ -90,22 +84,6 @@ public abstract class Chunk<T, K> implements ChunkService {
         return targetStorage;
     }
 
-    public Connection getSourceConnection() {
-        return sourceConnection;
-    }
-
-    public void setSourceConnection(Connection sourceConnection) {
-        this.sourceConnection = sourceConnection;
-    }
-
-    public Connection getTargetConnection() {
-        return targetConnection;
-    }
-
-    public void setTargetConnection(Connection targetConnection) {
-        this.targetConnection = targetConnection;
-    }
-
     public LogMessage getLogMessage() {
         return logMessage;
     }
@@ -114,20 +92,12 @@ public abstract class Chunk<T, K> implements ChunkService {
         this.logMessage = logMessage;
     }
 
-    public ResultSet getResultSet() {
+    public R getResultSet() {
         return resultSet;
     }
 
-    public void setResultSet(ResultSet resultSet) {
+    public void setResultSet(R resultSet) {
         this.resultSet = resultSet;
-    }
-
-    public PreparedStatement getPreparedStatement() {
-        return preparedStatement;
-    }
-
-    public void setPreparedStatement(PreparedStatement preparedStatement) {
-        this.preparedStatement = preparedStatement;
     }
 
     public void setTargetStorage(Storage targetStorage) {
@@ -166,96 +136,19 @@ public abstract class Chunk<T, K> implements ChunkService {
         return chunkStatus;
     }
 
-    public void setChunkStatus(ChunkStatus chunkStatus) {
-        this.chunkStatus = chunkStatus;
+    public S getSourceSession() {
+        return sourceSession;
     }
 
-    public Chunk<?, ?> assignSourceConnection() throws SQLException {
-        JDBCStorage sourceJDBCStorage = getSourceStorage().unwrap(JDBCStorage.class);
-        Connection sourceConnection = sourceJDBCStorage.getPoolConnection();
-        setSourceConnection(sourceConnection);
-        return this;
+    public void setSourceSession(S sourceSession) {
+        this.sourceSession = sourceSession;
     }
 
-    public Chunk<?, ?> assignSourceConnection(Connection connection) throws SQLException {
-        setSourceConnection(connection);
-        return this;
+    public S getTargetSession() {
+        return targetSession;
     }
 
-    @Override
-    public Chunk<?, ?> assignSourceResultSet() throws SQLException {
-        setStartTime(System.currentTimeMillis());
-        String q;
-        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-            q = getSourceStorage().buildFetchStatement(config, getSourceTable());
-        } else {
-            q = getSourceStorage().buildFetchStatement(config);
-        }
-        ResultSet resultSet = getData(getSourceConnection(), q);
-        setResultSet(resultSet);
-        return this;
-    }
-
-    public Chunk<?, ?> copyChunk(boolean sync, String tableName) throws Exception {
-        this
-                .assignSourceConnection()
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
-                .assignSourceResultSet()
-                .assignResultLogMessage(tableName)
-                .saveChunkRows(getRows(), sync, tableName)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
-                .closeChunkSourceConnection(sync);
-        LogMessage logMessage = getLogMessage();
-        logMessage.loggerChunkInfo();
-        if (getSourceConnection().isValid(0)) {
-            getSourceConnection().close();
-        }
-        return this;
-    }
-
-    public void copyChunkSync(Connection connection, boolean sync, String tableName) throws SQLException {
-        this
-                .assignSourceConnection(connection)
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
-                .assignSourceResultSet()
-                .assignResultLogMessage(tableName)
-                .saveChunkRows(getRows(), sync, tableName)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
-                .closeChunkSourceConnection(sync);
-        LogMessage logMessage = getLogMessage();
-        logMessage.loggerChunkInfo();
-    }
-
-    public Chunk<?, ?> assignResultLogMessage(String tableName) throws SQLException {
-        try {
-            LogMessage logMessage = this.getTargetStorage().transferToTarget(this, tableName);
-            this.setLogMessage(logMessage);
-            getResultSet().close();
-            getPreparedStatement().close();
-            return this;
-        } catch (SQLException | RuntimeException e) {
-            this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));
-            throw e;
-        }
-    }
-
-    public Chunk<?, ?> closeChunkSourceConnection(boolean sync) throws SQLException {
-        Connection connection = getSourceConnection();
-        if (connection.isValid(0) && !sync) {
-            connection.close();
-        } /*else {
-            throw new RuntimeException();
-        }*/
-        return this;
-    }
-
-    public Chunk<?, ?> closeChunkTargetConnection() throws SQLException {
-        Connection connection = getTargetConnection();
-        if (connection.isValid(0)) {
-            connection.close();
-        } else {
-            throw new RuntimeException();
-        }
-        return this;
+    public void setTargetSession(S targetSession) {
+        this.targetSession = targetSession;
     }
 }

@@ -6,12 +6,14 @@ import com.datastax.oss.driver.api.core.DriverException;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
+import org.bublik.cassandra.model.CSChunk;
 import org.bublik.cassandra.model.CSTable;
 import org.bublik.cassandra.service.CSPoolStorageService;
 import org.bublik.cassandra.service.CSTableService;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
+import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.model.*;
 import org.bublik.core.service.Sourceable;
 import org.bublik.core.service.Targetable;
@@ -31,20 +33,26 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.bublik.cassandra.constants.SQLConstants.*;
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorageService, Sourceable, Targetable {
     private static final Logger log = LoggerFactory.getLogger(CSPoolStorage.class);
 
     private final int batchSize;
     private final CSPool csPool;
+    protected final int threadCount;
     private final ConnectionProperty connectionProperty;
 
     public CSPoolStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
         this.connectionProperty = connectionProperty;
+        this.threadCount = connectionProperty.getThreadCount();
         this.batchSize = getBatchSize(connectionProperty);
         this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
     }
@@ -58,9 +66,64 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     public void start(List<Config> cfgs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
         log.info("Cassandra target storage started");
         List<Config> configs = copyConfigs(cfgs);
-        createChunkTable(sync, tableName);
-        createChunks(configs, sync, rows, tableName);
+        if (rows > 0) {
+            createChunkTable(sync, tableName);
+            createChunks(configs, sync, rows, tableName);
+        }
+
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        do {
+            List<Chunk<?, ?, ?, ?>> chunks =  getChunkList(configs, tableName);
+            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
+
+            chunks.forEach(chunk -> futures.add(
+                    service.submit(() -> {
+                        Chunk<?, ?, CqlSession, ?> csChunk = (CSChunk<?, ?, CqlSession, ?>) chunk;
+                        csChunk.setSourceSession(csPool.getCqlSession());
+                        String tName = getChunkTableName(tableName);
+                        csChunk.saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tName);
+//                        csChunk.saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tName);
+//                        log.info("Chunk id = {} assigned to thread", chunk.getId());
+                        return chunk;
+                    })
+                    )
+            );
+
+            int timeoutCounter = 0;
+            for (Future<?> future : futures) {
+                try {
+                    Chunk<?, ?, ?, ?> c = (Chunk<?, ?, ?, ?>) future.get();
+                    Thread.sleep(2);
+                } catch (Exception e) {
+                    if ((e.getMessage().contains("Query timed out after PT2S") ||
+                            e.getMessage().contains("Cassandra timeout during BATCH"))
+                            && timeoutCounter / threadCount < 20) {
+                        try {
+                            Thread.sleep(1_000);
+                        } catch (InterruptedException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        timeoutCounter++;
+                        log.error("{}", getStackTrace(e));
+                    } else {
+                        log.error("{}", getStackTrace(e));
+                        service.shutdownNow();
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            break;
+/*
+            if (chunks.isEmpty()) {
+                log.info("All chunks are processed");
+                break;
+            }
+*/
+        } while (true);
+
 //        dropChunkTable(sync, tableName);
+        service.shutdown();
+        service.close();
     }
 
     private void createChunkTable(boolean sync, String tableName) {
@@ -69,11 +132,11 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
         return rangedBatch(chunk, tableName);
     }
 
-    public LogMessage rangedBatch(Chunk<?, ?> chunk, String tableName) throws SQLException {
+    public LogMessage rangedBatch(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
@@ -87,7 +150,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                     chunk);
         }
         CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
-        ResultSet resultSet = chunk.getResultSet();
+        ResultSet resultSet = (ResultSet) chunk.getResultSet();
         while (resultSet.next()) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     resultSet,
@@ -282,9 +345,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
                 long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
                 if (stopValue > startValue) {
                     double estimatedRowsInRange = (long) getEstimatedRowsInRange(cqlSession, sourceTable, tr);
-                    log.info("Estimated rows in range: {} - {} = {}", startValue, stopValue, estimatedRowsInRange);
                     if (estimatedRowsInRange == 0) {
-                        log.info("Estimated rows in range: {} - {} = 0, skip chunk creation", startValue, stopValue);
                         return;
                     }
 /*
@@ -395,17 +456,49 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
         cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTableName(tableName)));
     }
 
-    @Override
-    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
-        return List.of();
+//    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
+        String sql = buildStartEndOfChunk(configs, getChunkTableName(chunkTableName));
+        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
+        CqlSession cqlSession = csPool.getCqlSession();
+        configs.forEach(c -> {
+            Table pseudoTable = new PseudoTable(c.fromSchemaName(), c.fromTableName());
+            List<Column> partitionKey = CSTableService.getKey(cqlSession, pseudoTable, "partition_key");
+            List<Column> clusteringKey = CSTableService.getKey(cqlSession, pseudoTable, "clustering");
+            CSTable sourceTable = new CSTable(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
+            PreparedStatement ps = cqlSession.prepare(sql);
+            BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName());
+            com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(bs);
+            for (Row row : rs) {
+                String status = row.getString("status");
+                chunks.add(
+                        new CSChunk<>(
+                                row.getUuid("chunk_id"),
+                                row.getLong("start_page"),
+                                row.getLong("end_page"),
+                                c,
+                                sourceTable,
+                                ChunkStatus.valueOf(status),
+                                null,
+                                this
+                ));
+            }
+        });
+        return chunks;
     }
 
-/*
     @Override
-    public Connection getPoolConnection() throws SQLException {
-        return null;
+    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
+        List<String> taskNames = new ArrayList<>();
+        configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
+        return "select chunk_id, start_page, end_page, task_name, schema_name, table_name, status from " +
+                chunkTableName + " where task_name in ('" +
+                String.join("', '", taskNames) +
+                "') and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
+                " and schema_name = ? and table_name = ? " +
+                " per partition limit 1000 allow filtering ";
     }
-*/
 
     @Override
     public void closeStorage() {
@@ -424,7 +517,7 @@ public class CSPoolStorage extends AutoColseableStorage implements CSPoolStorage
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         return Map.of();
     }
 

@@ -93,15 +93,17 @@ public class JDBCYDBStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
         return List.of();
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException {
-        ResultSet fetchResultSet = chunk.getResultSet();
-        Connection connectionFrom = chunk.getSourceConnection();
+    public LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+        ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
+        Connection connectionFrom = (Connection) chunk.getSourceSession();
+//        Connection connectionFrom = chunk.getSourceConnection();
         if (fetchResultSet.next()) {
+/*
             Connection connectionTo;
             try {
                 connectionTo = getPoolConnection();
@@ -109,11 +111,13 @@ public class JDBCYDBStorage extends JDBCStorage {
                 throw new TargetSQLException(getStackTrace(t));
             }
             chunk.setTargetConnection(connectionTo);
+*/
+            Connection connectionTo = (Connection) chunk.getTargetSession();
             Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connectionTo)) {
                 chunk.setTargetTable(table);
                 try {
-                    LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk, tableName);
+                    LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                     connectionTo.close();
                     return logMessage;
                 } catch (SQLException e) {
@@ -145,11 +149,13 @@ public class JDBCYDBStorage extends JDBCStorage {
         }
     }
 
-    private LogMessage fetchAndCopy(Connection connectionTo,
+    private LogMessage fetchAndCopy(/*Connection connectionTo,*/
                                     ResultSet fetchResultSet,
-                                    Chunk<?, ?> chunk,
+                                    Chunk<?, ?, ?, ?> chunk,
                                     String tableName) throws SQLException, SourceSQLException {
         int recordCount = 0;
+//        Connection connectionTo = chunk.getTargetConnection();
+        Connection connectionTo = (Connection) chunk.getTargetSession();
 
         try {
             insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
@@ -282,7 +288,7 @@ public class JDBCYDBStorage extends JDBCStorage {
         ps.addBatch();
     }
 
-    private boolean hasNext(ResultSet resultSet, Chunk<?, ?> chunk) throws SQLException {
+    private boolean hasNext(ResultSet resultSet, Chunk<?, ?, ?, ?> chunk) throws SQLException {
         try {
             return resultSet.next();
         } catch (SQLException e) {
@@ -292,7 +298,7 @@ public class JDBCYDBStorage extends JDBCStorage {
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         Map<String, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(

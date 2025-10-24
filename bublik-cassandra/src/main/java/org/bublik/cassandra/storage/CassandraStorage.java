@@ -1,50 +1,13 @@
 package org.bublik.cassandra.storage;
 
 
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
-import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
-import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
-import com.datastax.oss.driver.api.core.cql.BatchStatement;
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
-import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
-import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
-import org.bublik.cassandra.storage.cassandraaddons.CSObject;
-import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
-import org.bublik.core.model.Chunk;
-import org.bublik.core.model.Column;
-import org.bublik.core.model.ConnectionProperty;
-import org.bublik.core.model.LogMessage;
-import org.bublik.core.service.StorageService;
-import org.bublik.core.storage.StorageClass;
-import org.bublik.core.util.Utils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.*;
-
-import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
-
-//import static org.bublik.util.Utils.getStackTrace;
-//import static org.bublik.storage.cassandraaddons.MM3.*;
-
 @Deprecated
-public class CassandraStorage extends CSPoolStorage implements StorageService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
-    private final int batchSize;
-    private final CqlSession cqlSession;
+public class CassandraStorage {
+//    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraStorage.class);
+//    private final int batchSize;
+//    private final CqlSession cqlSession;
 
+/*
     public CassandraStorage(StorageClass storageClass,
                             ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
@@ -65,48 +28,13 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                 .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
                 .withLocalDatacenter(properties.getProperty("datacenter"))
                 .build();
-/*
-        this.tokenRangeSet = metadata.getTokenMap().orElseThrow().getTokenRanges();
-        tokenRangeSet
-                .forEach(tokenRange -> System.out.println(((Murmur3Token)tokenRange.getStart()).getValue() + " : " +
-                        ((Murmur3Token)tokenRange.getEnd()).getValue()));
-*/
         this.batchSize = getBatchSize(connectionProperty);
     }
+*/
 
 
 /*
-    @Override
-    public LogMessage transferToTarget(Chunk<?> chunk, String tableName) throws SQLException {
-        LogMessage logMessage = rangedBatch(chunk);
-        return logMessage;
-    }
-*/
-
-/*
-    public LogMessage simpleInsert(Chunk<?> chunk) throws SQLException {
-        int recordCount = 0;
-        long start = System.currentTimeMillis();
-        Map<String, CassandraColumn> stringCassandraColumnMap = readTargetColumnsAndTypes(chunk);
-        String insertString = buildInsertStatement(chunk, stringCassandraColumnMap);
-        PreparedStatement preparedStatement = cqlSession.prepare(insertString);
-        ResultSet resultSet = chunk.getResultSet();
-        while (resultSet.next()) {
-            Map.Entry<TokenRange, Object[]> entry = getPreparedStatementObjects(resultSet, stringCassandraColumnMap);
-            cqlSession.execute(preparedStatement.bind(entry.getValue()));
-            recordCount++;
-        }
-        long stop = System.currentTimeMillis();
-        return new LogMessage(
-                recordCount,
-                start,
-                stop,
-                "Cassandra SIMPLE INSERT",
-                chunk);
-    }
-*/
-
-    public LogMessage simpleBatch(Chunk<?, ?> chunk) throws SQLException {
+    public LogMessage simpleBatch(Chunk<?, ?, ?, ?> chunk) throws SQLException {
         int recordCount = 0;
         long start = System.currentTimeMillis();
         CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
@@ -114,13 +42,12 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
         String insertString = csObject.getQuery();
         BatchStatementBuilder batchStatementBuilder = BatchStatement.builder(DefaultBatchType.LOGGED);
         PreparedStatement preparedStatement = cqlSession.prepare(insertString);
-        ResultSet resultSet = chunk.getResultSet();
+        ResultSet resultSet = (ResultSet) chunk.getResultSet();
         while (resultSet.next()) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(resultSet, null, stringCassandraColumnMap,
                     csObject.getTokenRangeSet());
             batchStatementBuilder.addStatement(preparedStatement.bind(entry.getValue()));
             recordCount++;
-            // batch_size_fail_threshold_in_kb: 50
             if (recordCount % batchSize == 0) {
                 batchApply(batchStatementBuilder);
             }
@@ -136,13 +63,15 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                 "Cassandra SIMPLE BATCH APPLY",
                 chunk);
     }
+*/
 
-    public LogMessage rangedBatch(Chunk<?, ?> chunk) throws SQLException {
+/*
+    public LogMessage rangedBatch(Chunk<?, ?, ?, ?> chunk) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
         CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
-        ResultSet resultSet = chunk.getResultSet();
+        ResultSet resultSet = (ResultSet) chunk.getResultSet();
         while (resultSet.next()) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     resultSet,
@@ -176,7 +105,9 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                 "Cassandra RANGED BATCH APPLY (batches: " + batchCount + ")",
                 chunk);
     }
+*/
 
+/*
     private void batchApply(BatchStatementBuilder batchStatementBuilder) {
         BatchStatement batchStatement = batchStatementBuilder
                 .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
@@ -192,14 +123,15 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
         batchStatementBuilder.clearStatements();
         batchStatement.clear();
     }
+*/
 
+/*
     private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,
                                                                   Map<Integer, CSPartitionKey> partitionKeyMap,
                                                                   Map<String, Column> stringCassandraColumnMap,
                                                                   Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
-//        long temp = 0;
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetType = entry.getValue().columnType();
@@ -217,7 +149,6 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
                 }
                 case "int": {
                     int v = resultSet.getInt(sourceColumn);
-//                    temp = v;
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -317,9 +248,12 @@ public class CassandraStorage extends CSPoolStorage implements StorageService {
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
+*/
 
+/*
     public int getBatchSize(ConnectionProperty connectionProperty) {
         String batchSize = connectionProperty.getToProperty().getProperty("batchSize");
         return  batchSize == null ? 100 : Integer.parseInt(batchSize);
     }
+*/
 }

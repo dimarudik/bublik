@@ -1,16 +1,12 @@
 package org.bublik.core.service;
 
-import org.bublik.core.model.Config;
-
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.Map;
 
 public interface JDBCStorageService extends StorageService {
     Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
-    String buildStartEndOfChunk(List<Config> configs, String chunkTableName);
     Connection getPoolConnection() throws SQLException;
     void createTables();
     void createPrimaryKeys();

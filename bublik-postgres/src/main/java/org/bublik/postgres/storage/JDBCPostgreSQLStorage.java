@@ -46,8 +46,9 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException {
-        List<Chunk<?, ?>> chunks = new ArrayList<>();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
+        Connection connection = getConnection();
         String sql = buildStartEndOfChunk(configs, chunkTableName);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         Map<String, Table> tableMap = new HashMap<>();
@@ -73,7 +74,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
                     query = buildFetchStatement(config);
                 }
                 tableMap.put(query, sourceTable);
-                String uuid = rs.getString("uuid");
+                String status = rs.getString("status");
                 chunks.add(
                         new PGChunk<>(
                                 rs.getInt("chunk_id"),
@@ -82,6 +83,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
                                 rs.getLong("end_page"),
                                 config,
                                 sourceTable,
+                                ChunkStatus.valueOf(status),
                                 null,
                                 this
                         )
@@ -98,7 +100,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
     public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
         List<String> taskNames = new ArrayList<>();
         configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
-        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name from " +
+        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name, status from " +
                 chunkTableName + " where task_name in ('" +
                 String.join("', '", taskNames) + "') " +
                 // тут надо разбираться при запуске из нескольких подов
@@ -108,28 +110,29 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
+    public LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
             SourceSQLException, TargetSQLException {
-        ResultSet fetchResultSet = chunk.getResultSet();
-        Connection connectionFrom = chunk.getSourceConnection();
+        ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
+        Connection connectionFrom = (Connection) chunk.getSourceSession();
+//        Connection connectionFrom = chunk.getSourceConnection();
         if (fetchResultSet.next()) {
+/*
             Connection connectionTo;
             try {
                 connectionTo = getPoolConnection();
-//                PGConnection connection = connectionTo.unwrap(PGConnection.class);
             } catch (SQLTransientConnectionException t) {
                 throw new TargetSQLException(getStackTrace(t));
             }
             chunk.setTargetConnection(connectionTo);
-//            Table table = TableService.getTable(connectionTo, chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+*/
+            Connection connectionTo = (Connection) chunk.getTargetSession();
             Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             chunk.setTargetTable(table);
             try {
-                LogMessage logMessage = fetchAndCopy(connectionTo, fetchResultSet, chunk, tableName);
+                LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                 connectionTo.close();
                 return logMessage;
             } catch (SQLException e) {
-//                log.error("{}", getStackTrace(e));
                 connectionTo.rollback();
                 connectionTo.close();
                 throw e;
@@ -155,15 +158,15 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
         }
     }
 
-    private LogMessage fetchAndCopy(Connection connectionTo,
-                                    ResultSet fetchResultSet,
-                                    Chunk<?, ?> chunk,
+    private LogMessage fetchAndCopy(ResultSet fetchResultSet,
+                                    Chunk<?, ?, ?, ?> chunk,
                                     String tableName) throws SQLException, BinaryWriteFailedException, SourceSQLException{
         int recordCount = 0;
+        Connection connectionTo = (Connection) chunk.getTargetSession();
+//        Connection connectionTo = chunk.getTargetConnection();
 
         try {
             insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
-//            insertProcessedChunkInfo(connectionTo, recordCount, chunk);
             connectionTo.rollback();
         } catch (PSQLException p) {
             log.error("{}", getStackTrace(p));
@@ -177,17 +180,8 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
         }
 
         Map<String, Column> columnToColumnMap = readTargetColumnsAndTypes(connectionTo, chunk);
-//        columnToColumnMap.forEach((k, v) -> log.info("Column to copy: {} -> {}:{}", k, v.getColumnName(), v.getColumnType()));
-//        neededColumnsToDB.forEach((s, pgColumn) -> System.out.println(s + " " + pgColumn.getColumnName() + ":" + pgColumn.getColumnType()));
         Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
 
-//        Map<String, PGEncryptedColumn> neededEncryptedColumns = readTargetEncryptedColumnsAndTypes(connectionTo, chunk);
-/*
-        neededEncryptedColumns.forEach((s1, pgEncryptedColumn) -> System.out.println(s1 + " " +
-                pgEncryptedColumn.column().getColumnName() + " " +
-                pgEncryptedColumn.encryptedColumn().targetEncColumnName() + " " +
-                pgEncryptedColumn.encryptedColumn().targetEncMetaColumnName()));
-*/
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
 
         String[] columnNames = columnToColumnMap
@@ -196,21 +190,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
                 .map(Column::columnName)
                 .toList()
                 .toArray(String[]::new);
-/*
-        String[] metaColumnNames = neededEncryptedColumns
-                .values()
-                .stream()
-                .map(PGEncryptedColumn::encryptedColumn)
-                .toList()
-                .stream().map(EncryptedColumn::targetEncMetaColumnName)
-                .filter(Objects::nonNull)
-                .toArray(String[]::new);
-*/
         String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
-//        log.info("Here... {}", columnNames.length);
-//        Arrays.stream(cNames).forEach(c -> log.info("Column for COPY: {}", c));
-//        String[] cNames = Arrays.copyOf(columnNames, columnNames.length + metaColumnNames.length);
-//        System.arraycopy(metaColumnNames, 0, cNames, columnNames.length, metaColumnNames.length);
         SimpleRowWriter.Table table =
                 new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
                         chunk.getTargetTable().getFinalTableName(true), cNames);
@@ -265,7 +245,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         Map<String, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
@@ -367,7 +347,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
         return columnMap;
     }
 
-    protected Map<List<String>, Column> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?, ?> chunk) {
+    protected Map<List<String>, Column> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         Map<List<String>, Column> columnMap = new HashMap<>();
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
@@ -454,7 +434,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
 //                                  Map<String, PGEncryptedColumn> neededEncryptedColumns,
                                   Map<List<String>, Column> neededColumnsFromMany,
                                   ResultSet fetchResultSet,
-                                  Chunk<?, ?> chunk,
+                                  Chunk<?, ?, ?, ?> chunk,
                                   Connection connectionTo,
                                   SimpleRowWriter writer) throws SQLException, BinaryWriteFailedException {
         for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
@@ -574,7 +554,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
                                     s = fetchResultSet.getString(sourceColumn).replaceAll("\u0000", "");
                                     break;
                             }
-                        } else if (chunk instanceof PGChunk<?, ?>) {
+                        } else if (chunk instanceof PGChunk<?, ?, ?, ?>) {
                             s = fetchResultSet.getString(sourceColumn);
                         }
                         row.setJsonb(targetColumn, s);
@@ -796,7 +776,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
                                 default:
                                     break;
                             }
-                        } else if (chunk instanceof PGChunk<?, ?>) {
+                        } else if (chunk instanceof PGChunk<?, ?, ?, ?>) {
                             PGInterval pgInterval = (PGInterval) fetchResultSet.getObject(sourceColumn);
                             interval = new Interval(
                                     pgInterval.getYears() * 12 + pgInterval.getMonths(),
@@ -839,7 +819,7 @@ public class JDBCPostgreSQLStorage extends JDBCStorage {
                                 default:
                                     break;
                             }
-                        } else if (chunk instanceof PGChunk<?, ?>) {
+                        } else if (chunk instanceof PGChunk<?, ?, ?, ?>) {
                             bytes = fetchResultSet.getBytes(sourceColumn);
                         }
                         row.setByteArray(targetColumn, bytes);

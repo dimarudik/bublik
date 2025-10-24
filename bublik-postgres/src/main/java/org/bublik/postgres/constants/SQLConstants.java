@@ -33,9 +33,9 @@ public abstract class SQLConstants {
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
-            "update $tableName set status = ?, err_msg = null where chunk_id = ? and task_name = ?";
+            "update $tableName set status = ?, err_msg = null where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
-            "update $tableName set status = ?, err_msg = ? where chunk_id = ? and task_name = ?";
+            "update $tableName set status = ?, err_msg = ? where chunk_id = ?";
     public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =
             "update $tableName set copied = ? where chunk_id = ?";
     public static final String SQL_HEAP_BLKS_TOTAL =

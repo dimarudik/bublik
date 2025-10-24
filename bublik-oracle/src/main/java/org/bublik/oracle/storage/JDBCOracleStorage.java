@@ -2,9 +2,9 @@ package org.bublik.oracle.storage;
 
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
+import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.*;
-import org.bublik.core.service.Sourceable;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.oracle.model.OraChunk;
@@ -44,7 +44,7 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException {
+    public LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
         return null;
     }
 
@@ -119,8 +119,9 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTable) throws SQLException {
-        List<Chunk<?, ?>> chunkHashMap = new ArrayList<>();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
+        Connection connection = getConnection();
+        List<Chunk<?, ?, ?, ?>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, chunkTable);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
@@ -133,6 +134,7 @@ public class JDBCOracleStorage extends JDBCStorage {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
+                String status = resultSet.getString("status");
                 chunkHashMap.add(
                         new OraChunk<>(
                                 resultSet.getInt("chunk_id"),
@@ -140,6 +142,7 @@ public class JDBCOracleStorage extends JDBCStorage {
                                 resultSet.getRowId("end_rowid"),
                                 config,
                                 sourceTable,
+                                ChunkStatus.valueOf(status),
                                 null,
                                 this
                         )
@@ -159,10 +162,10 @@ public class JDBCOracleStorage extends JDBCStorage {
             taskAndWhere.add(sqlStatement.fromTaskName() + tmp);
         });
         String part1 = """
-                select rownum, chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from (
-                \tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from (
+                select rownum, chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from (
+                \tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from (
                 """;
-        String tmpPart2 = "\t\tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name from user_parallel_execute_chunks where " +
+        String tmpPart2 = "\t\tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from user_parallel_execute_chunks where " +
                 "status <> 'PROCESSED' " + " and task_name = '";
         String part2 = tmpPart2 + String.join(" and rownum <= 1000 union all \n" + tmpPart2, taskAndWhere);
         String part3 = "\n\t) order by ora_hash(concat(task_name,start_rowid)) \n) order by 1";
@@ -212,7 +215,7 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk) {
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         return Map.of();
     }
 

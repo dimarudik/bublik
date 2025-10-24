@@ -25,12 +25,13 @@ public interface StorageService {
     void createOutbox(String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
-    List<Chunk<?, ?>> getChunkList(List<Config> configs, Connection connection, String chunkTableName) throws SQLException;
-    LogMessage transferToTarget(Chunk<?, ?> chunk, String tableName) throws SQLException;
+    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException;
+    String buildStartEndOfChunk(List<Config> configs, String chunkTableName);
+    LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config);
     String buildFetchStatement(Config config, Table sourceTable);
-    Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?> chunk);
+    Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
     Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
     Table configToTable(String schemaName, String tableName);
     Table getTagetTableBySourceTable(Table table);

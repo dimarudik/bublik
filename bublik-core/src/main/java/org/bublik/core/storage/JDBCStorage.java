@@ -95,8 +95,6 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
                 this.closeStorage();
             }
         }
-//        targetStorage.closeStorage();
-//        this.closeStorage();
     }
 
     @Override
@@ -136,9 +134,10 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             Connection sConnection = this.getPoolConnection();
-            List<Chunk<?, ?>> chunks = getChunkList(configs, sConnection, tableName);
+            setConnection(sConnection);
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName);
             sConnection.close();
-            List<Future<Chunk<?, ?>>> futures = new ArrayList<>();
+            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
 
             chunks.forEach(chunk -> futures.add(
                     service
@@ -149,9 +148,10 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                                     try {
-                                        if (chunk.getSourceConnection().isValid(0)) {
+                                        ///  тут исправлял
+                                        if (((Connection)chunk.getSourceSession()).isValid(0)) {
                                             chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
-                                            chunk.getSourceConnection().close();
+                                            ((Connection)chunk.getSourceSession()).close();
                                         }
                                     } catch (SQLException exception) {
                                         log.error("{}", getStackTrace(exception));
@@ -165,9 +165,9 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
             int timeoutCounter = 0;
             int adminCommandCounter = 0;
             for (Future<?> future : futures) {
-                Chunk<?, ?> c;
+//                Chunk<?, ?, ?> c;
                 try {
-                    c = (Chunk<?, ?>) future.get();
+                    Chunk<?, ?, ?, ?> c = (Chunk<?, ?, ?, ?>) future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
                     if (e.getMessage().contains("terminating connection due to administrator command") && adminCommandCounter / threadCount < 3) {
@@ -235,11 +235,12 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
 
-        List<Chunk<?, ?>> chunks = getChunkList(configs, sourceConnection, tableName);
+        List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName);
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
             try {
-                chunk.copyChunkSync(sourceConnection, true, tableName);
+                chunk.copyChunk(true, tableName);
+//                chunk.copyChunkSync(sourceConnection, true, tableName);
             } catch (Exception e) {
                 log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                 throw new RuntimeException(e);
