@@ -18,45 +18,46 @@ import java.util.Properties;
 import static org.bublik.core.constants.CLassConstants.*;
 import static org.bublik.core.util.Utils.getStackTrace;
 
-public interface StorageService {
+public interface StorageService<K, T, S extends AutoCloseable, R> {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    void start(List<Config> configs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException;
+    void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException;
     void createOutbox(String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
-    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException;
+    List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException;
     String buildStartEndOfChunk(List<Config> configs, String chunkTableName);
-    LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
+    LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config);
-    String buildFetchStatement(Config config, Table sourceTable);
+    String buildFetchStatement(Config config, Table<?> sourceTable);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
-    Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
-    Table configToTable(String schemaName, String tableName);
-    Table getTagetTableBySourceTable(Table table);
-    Table getSourceTableByTargetTable(Table table);
+    Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage);
+    Table<S> configToTable(String schemaName, String tableName);
+    Table<S> getTagetTableBySourceTable(Table<S> table);
+    Table<S> getSourceTableByTargetTable(Table<S> table);
+    S getPoolConnection() throws SQLException;
+//    void setTargetSession(S targetSession);
 
-    static Storage getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
-//        StorageClass storageClass = StorageService.getStorageClass(properties);
+    static Storage<?, ?, ?, ?> getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
         if (storageClass instanceof AutoColseableStorageClass) {
             Properties props = storageClass.getProperties();
             String className = props.getProperty("class");
             if (className == null || className.isEmpty()) {
                 throw new NullPointerException();
             } else {
-                return StorageService.reflectStorage(className, properties, connectionProperty);
+                return reflectStorage(className, properties, connectionProperty);
             }
         }
         if (storageClass instanceof JDBCStorageClass) {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return switch (driver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" ->
-                    StorageService.reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty);
                 case "org.postgresql.Driver" ->
-                    StorageService.reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty);
                 case "tech.ydb.jdbc.YdbDriver" ->
-                    StorageService.reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty);
                 default -> throw new RuntimeException();
             };
         }
@@ -73,13 +74,13 @@ public interface StorageService {
         }
     }
 
-    static Storage reflectStorage(String className, Properties properties, ConnectionProperty connectionProperty) {
+    static Storage<?, ?, ?, ?> reflectStorage(String className, Properties properties, ConnectionProperty connectionProperty) {
         try {
             Class<?> clazz = Class.forName(className);
             Constructor<?> constructor = clazz.getConstructor(StorageClass.class, ConnectionProperty.class);
             StorageClass storageClass = getStorageClass(properties);
             log.info("Storage class: {} ", className);
-            return (Storage) constructor.newInstance(storageClass, connectionProperty);
+            return (Storage<?, ?, ?, ?>) constructor.newInstance(storageClass, connectionProperty);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
@@ -90,8 +91,8 @@ public interface StorageService {
         log.info("Bublik starting...");
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage sourceStorage = StorageService.getStorage(sourceStorageClass, property.getFromProperty(), property);
-             Storage targetStorage = StorageService.getStorage(targetStorageClass, property.getToProperty(), property)) {
+        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
+             Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property)) {
             assert sourceStorage != null;
             sourceStorage.start(configs, sync, rows, targetStorage, chunkTable);
         } catch (SQLException e) {

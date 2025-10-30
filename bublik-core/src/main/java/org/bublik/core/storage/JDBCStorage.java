@@ -8,8 +8,8 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.bublik.core.model.Table;
 import org.bublik.core.service.JDBCStorageService;
-import org.bublik.core.service.Sourceable;
-import org.bublik.core.service.Targetable;
+import org.bublik.core.service.Source;
+import org.bublik.core.service.Target;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,12 +23,12 @@ import java.util.concurrent.Future;
 
 import static org.bublik.core.util.Utils.getStackTrace;
 
-public abstract class JDBCStorage extends Storage implements JDBCStorageService, Sourceable, Targetable {
+public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage<K, T, S, R>
+        implements JDBCStorageService<K, T, S, R>, Source, Target {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     protected final int threadCount;
     private Connection connection;
-
 
     protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
@@ -48,8 +48,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
     }
 
     @Override
-    public Connection getPoolConnection() throws SQLException {
-            return dataSource.getConnection();
+    public S getPoolConnection() throws SQLException {
+            return (S) dataSource.getConnection();
     }
 
     @Override
@@ -82,7 +82,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
     }
 
     @Override
-    public void start(List<Config> cfgs, boolean sync, int rows, Storage targetStorage, String tableName) throws SQLException {
+    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (!sync) {
             startNOSync(targetStorage, configs, rows, tableName);
@@ -106,24 +106,23 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         return configs;
     }
 
-    private void startNOSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+    private void startNOSync(Storage<K, T, S, R> targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
 
-        Storage sourceStorage = this;
+        Storage<K, T, S, R> sourceStorage = this;
         if (rows > 0) {
             createChunks(configs, false, rows, tableName);
             targetStorage.createOutbox(tableName);
         }
-        Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
+        Map<Table<S>, Table<S>> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
         targetStorage.setTables(sourceTables);
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
-            JDBCStorage sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
-            JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
+            JDBCStorage<K, T, S, R> sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
+            JDBCStorage<K, T, S, R> targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
             log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
             sourceJDBCStorage.enrichSourceTables(sourceConnection);
-//            log.info("{} {}", sourceStorage.getTables().hashCode(), sourceJDBCStorage.getTables().hashCode());
             sourceJDBCStorage.enrichTargetTables();
             targetJDBCStorage.createTables();
         }
@@ -135,7 +134,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         do {
             Connection sConnection = this.getPoolConnection();
             setConnection(sConnection);
-            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName);
+            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName);
             sConnection.close();
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
 
@@ -144,13 +143,13 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
                             .submit(() -> {
                                 chunk.setTargetStorage(targetStorage);
                                 try {
-                                    return chunk.copyChunk(false, tableName);
+                                    return chunk.allStages(false, tableName);
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                                     try {
                                         ///  тут исправлял
                                         if (((Connection)chunk.getSourceSession()).isValid(0)) {
-                                            chunk.saveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
+                                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
                                             ((Connection)chunk.getSourceSession()).close();
                                         }
                                     } catch (SQLException exception) {
@@ -235,11 +234,11 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
 
-        List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName);
+        List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName);
         chunks.forEach(chunk -> {
             chunk.setTargetStorage(targetStorage);
             try {
-                chunk.copyChunk(true, tableName);
+                chunk.allStages(true, tableName);
 //                chunk.copyChunkSync(sourceConnection, true, tableName);
             } catch (Exception e) {
                 log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
@@ -270,10 +269,10 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
 
     @Override
     public void enrichTargetTables() {
-        Map<Table, Table> tables = getTables();
-        for (Map.Entry<Table, Table> entry : tables.entrySet()) {
-            Table sourceTable = entry.getKey();
-            Table targetTable = entry.getValue();
+        Map<Table<S>, Table<S>> tables = getTables();
+        for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
+            Table<S> sourceTable = entry.getKey();
+            Table<S> targetTable = entry.getValue();
 
             targetTable.setColumns(sourceTable.getColumns());
             targetTable.setPkColumns(sourceTable.getPkColumns());
@@ -284,13 +283,13 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
         }
     }
 
-    private boolean inList(List<Table> tables, Table table) {
+    private boolean inList(List<Table<S>> tables, Table<S> table) {
         return tables.contains(table);
     }
 
     @Override
-    public Table getTagetTableBySourceTable(Table sourceTable) {
-        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
+    public Table<S> getTagetTableBySourceTable(Table<S> sourceTable) {
+        for (Map.Entry<Table<S>, Table<S>> entry : getTables().entrySet()) {
             if (entry.getKey().equals(sourceTable)) {
                 return entry.getValue();
             }
@@ -299,8 +298,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
     }
 
     @Override
-    public Table getSourceTableByTargetTable(Table targetTable) {
-        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
+    public Table<S> getSourceTableByTargetTable(Table<S> targetTable) {
+        for (Map.Entry<Table<S>, Table<S>> entry : getTables().entrySet()) {
             if (entry.getValue().equals(targetTable)) {
                 return entry.getKey();
             }
@@ -309,8 +308,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
     }
 
     @Override
-    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
-        Map<Table, Table> tables = new HashMap<>();
+    public Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage) {
+        Map<Table<S>, Table<S>> tables = new HashMap<>();
         for (Config c : configs) {
             tables.put(configToTable(c.fromSchemaName(), c.fromTableName()), targetStorage.configToTable(c.toSchemaName(), c.toTableName()));
         }
@@ -318,9 +317,9 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService,
     }
 
     @Override
-    public <T> T unwrap(Class<T> iface) {
+    public <C> C unwrap(Class<C> iface) {
         if (iface.isInstance(this)) {
-            return (T) this;
+            return (C) this;
         } else {
             throw new RuntimeException("No object found that implements the interface: " + iface.getName());
         }

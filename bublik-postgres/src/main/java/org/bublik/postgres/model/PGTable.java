@@ -10,7 +10,7 @@ import java.util.*;
 
 import static org.bublik.postgres.constants.SQLConstants.*;
 
-public class PGTable extends Table {
+public class PGTable<S extends Connection> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(PGTable.class);
 
 //    public PGTable(){}
@@ -487,18 +487,20 @@ public class PGTable extends Table {
 
     @Override
     public void create(Connection connection) throws SQLException {
-        String columnDefinition = getColumnDefinition();
-        String query = DDL_CREATE_TABLE
-                .replace("$schemaName", getFinalSchemaName(true))
-                .replace("$tableName", getFinalTableName(true))
-                .replace("$columnDefinition", columnDefinition);
-        if (this.getOptions() != null && !getOptions().isEmpty()) {
-            query += " WITH (" + getOptionDefinition() + ")";
+        if (!exists(connection)) {
+            String columnDefinition = getColumnDefinition();
+            String query = DDL_CREATE_TABLE
+                    .replace("$schemaName", getFinalSchemaName(true))
+                    .replace("$tableName", getFinalTableName(true))
+                    .replace("$columnDefinition", columnDefinition);
+            if (this.getOptions() != null && !getOptions().isEmpty()) {
+                query += " WITH (" + getOptionDefinition() + ")";
+            }
+            log.info("{}", query);
+            Statement statement = connection.createStatement();
+            statement.execute(query);
+            connection.commit();
         }
-        log.info("{}", query);
-        Statement statement = connection.createStatement();
-        statement.execute(query);
-        connection.commit();
     }
 
     private String getColumnDefinition() {

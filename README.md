@@ -133,7 +133,7 @@ fromProperties:
   user: test
   password: test
 toProperties:
-  class: org.bublik.cassandra.storage.CSPoolStorage
+  class: org.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   port: 9042
@@ -640,7 +640,7 @@ fromProperties:
   user: test
   password: test
 toProperties:
-  class: org.bublik.cassandra.storage.CSPoolStorage
+  class: org.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   port: 9042

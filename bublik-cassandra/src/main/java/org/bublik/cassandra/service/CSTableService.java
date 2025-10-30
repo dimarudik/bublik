@@ -4,7 +4,6 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import org.bublik.cassandra.model.CSTable;
-import org.bublik.cassandra.storage.CSPoolStorage;
 import org.bublik.core.model.Column;
 import org.bublik.core.model.Table;
 import org.slf4j.Logger;
@@ -15,7 +14,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.bublik.cassandra.constants.SQLConstants.SQL_KEY_BY_TYPE;
-import static org.bublik.core.util.Utils.getStackTrace;
 
 public interface CSTableService {
     Logger log = LoggerFactory.getLogger(CSTableService.class);
@@ -47,7 +45,7 @@ public interface CSTableService {
         return key;
     }
 
-    static String countRowsInTableQuery(CSTable table) {
+    static String countRowsInTableQuery(CSTable<?> table) {
         List<Column> pkColumns = table.getPartitionKey();
         Collections.sort(pkColumns);
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());

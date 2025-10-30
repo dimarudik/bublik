@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class YDBTable extends Table {
+public class YDBTable<S extends Connection> extends Table<S> {
     public YDBTable(){}
     public YDBTable(String schemaName, String tableName) {
         super(schemaName, tableName);

@@ -5,9 +5,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 
-public interface JDBCStorageService extends StorageService {
+public interface JDBCStorageService<K, T, S extends AutoCloseable, R> extends StorageService<K, T, S, R> {
     Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException;
-    Connection getPoolConnection() throws SQLException;
     void createTables();
     void createPrimaryKeys();
     void createUniqueConstraints();
@@ -17,9 +16,9 @@ public interface JDBCStorageService extends StorageService {
     int getMajorStorageVersion(Connection connection) throws SQLException;
     void enrichSourceTables(Connection connection);
     void enrichTargetTables();
-    <T extends Serializable> byte[] intervalYM2Interval(T intervalym);
-    <T extends Serializable> byte[] intervalDS2Interval(T intervalds);
+    <W extends Serializable> byte[] intervalYM2Interval(W intervalym);
+    <W extends Serializable> byte[] intervalDS2Interval(W intervalds);
+    void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException;
     Connection getConnection() throws SQLException;
     void setConnection(Connection connection) throws SQLException;
-    void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException;
 }

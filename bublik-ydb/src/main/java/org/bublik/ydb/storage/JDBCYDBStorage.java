@@ -21,7 +21,7 @@ import java.util.Map;
 import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.ydb.constants.SQLConstants.*;
 
-public class JDBCYDBStorage extends JDBCStorage {
+public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);
 
     public JDBCYDBStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
@@ -93,12 +93,12 @@ public class JDBCYDBStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
         return List.of();
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
         Connection connectionFrom = (Connection) chunk.getSourceSession();
 //        Connection connectionFrom = chunk.getSourceConnection();
@@ -140,12 +140,7 @@ public class JDBCYDBStorage extends JDBCStorage {
                         + chunk.getConfig().toTableName() + " does not exist.");
             }
         } else {
-            return new LogMessage(
-                    0,
-                    chunk.getStartTime(),
-                    System.currentTimeMillis(),
-                    "NO ROWS FETCH",
-                    chunk);
+            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "NO ROWS FETCH");
         }
     }
 
@@ -165,11 +160,9 @@ public class JDBCYDBStorage extends JDBCStorage {
 //                    chunk.getId(), chunk.getStart(), chunk.getEnd(), chunk.getRows(), chunk.getConfig().fromTaskName(), e.getMessage());
             if (e.getMessage().contains("#2012 Conflict with existing key")) {
                 return new LogMessage(
-                        0,
                         chunk.getStartTime(),
                         System.currentTimeMillis(),
-                        "The chunk has already been copied",
-                        chunk);
+                        "The chunk has already been copied");
             } else {
                 throw new SQLException(e);
             }
@@ -212,13 +205,8 @@ public class JDBCYDBStorage extends JDBCStorage {
         }
 */
 
-
-        return new LogMessage(
-                recordCount,
-                chunk.getStartTime(),
-                System.currentTimeMillis(),
-                "YDB Batch Insert ",
-                chunk);
+        chunk.setRows(recordCount);
+        return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "YDB Batch Insert ");
     }
 
     private void prepareBatchInsert(ResultSet rs,
@@ -381,12 +369,12 @@ public class JDBCYDBStorage extends JDBCStorage {
     }
 
     @Override
-    public <T extends Serializable> byte[] intervalYM2Interval(T intervalym) {
+    public <W extends Serializable> byte[] intervalYM2Interval(W intervalym) {
         return null;
     }
 
     @Override
-    public <T extends Serializable> byte[] intervalDS2Interval(T intervalds) {
+    public <W extends Serializable> byte[] intervalDS2Interval(W intervalds) {
         return null;
     }
 

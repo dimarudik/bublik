@@ -21,30 +21,30 @@ import java.util.Map;
 import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.oracle.constants.SQLConstants.*;
 
-public class JDBCOracleStorage extends JDBCStorage {
+public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);
-    private static final int HIGH_BIT_FLAG = 0x80000000;
+//    private static final int HIGH_BIT_FLAG = 0x80000000;
 
     public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 
     @Override
-    public <T extends Serializable> byte[] intervalYM2Interval(T intervalym) {
+    public <W extends Serializable> byte[] intervalYM2Interval(W intervalym) {
         byte[] bytes;
         bytes = ((INTERVALYM)intervalym).toBytes();
         return bytes;
     }
 
     @Override
-    public <T extends Serializable> byte[] intervalDS2Interval(T intervalds) {
+    public <W extends Serializable> byte[] intervalDS2Interval(W intervalds) {
         byte[] bytes;
         bytes = ((INTERVALDS)intervalds).toBytes();
         return bytes;
     }
 
     @Override
-    public LogMessage transferToTarget(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
 
@@ -119,9 +119,9 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
         Connection connection = getConnection();
-        List<Chunk<?, ?, ?, ?>> chunkHashMap = new ArrayList<>();
+        List<Chunk<K, T, S, R>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, chunkTable);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         StringBuffer sb = new StringBuffer();
@@ -137,9 +137,9 @@ public class JDBCOracleStorage extends JDBCStorage {
                 String status = resultSet.getString("status");
                 chunkHashMap.add(
                         new OraChunk<>(
-                                resultSet.getInt("chunk_id"),
-                                resultSet.getRowId("start_rowid"),
-                                resultSet.getRowId("end_rowid"),
+                                (K)Integer.valueOf(resultSet.getInt("chunk_id")),
+                                (T)resultSet.getRowId("start_rowid"),
+                                (T)resultSet.getRowId("end_rowid"),
                                 config,
                                 sourceTable,
                                 ChunkStatus.valueOf(status),
@@ -241,12 +241,12 @@ public class JDBCOracleStorage extends JDBCStorage {
 
     @Override
     public void enrichSourceTables(Connection connection) {
-        Map<Table, Table> tables = getTables();
+        Map<Table<S>, Table<S>> tables = getTables();
         try {
             Connection sourceConnection = getPoolConnection();
-            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
-                Table sourceTable = entry.getKey();
-                List<Column> allSourceColumns = sourceTable.getAllColumns(sourceConnection);
+            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
+                Table<S> sourceTable = entry.getKey();
+                List<Column> allSourceColumns = sourceTable.getAllColumns((S)sourceConnection);
                 sourceTable.setColumns(allSourceColumns);
             }
             sourceConnection.close();
@@ -261,7 +261,14 @@ public class JDBCOracleStorage extends JDBCStorage {
     }
 
     @Override
-    public Table configToTable(String schemaName, String tableName) {
-        return new OraTable(schemaName, tableName);
+    public Table<S> configToTable(String schemaName, String tableName) {
+        return new OraTable<>(schemaName, tableName);
     }
+
+/*
+    @Override
+    public void setTargetSession(S targetSession) {
+        setConnection(targetSession);
+    }
+*/
 }

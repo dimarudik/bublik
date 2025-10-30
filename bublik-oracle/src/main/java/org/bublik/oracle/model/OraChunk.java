@@ -5,14 +5,14 @@ import org.bublik.core.model.Chunk;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.LogMessage;
 import org.bublik.core.model.Table;
-import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 
-import static org.bublik.oracle.constants.SQLConstants.*;
+import static org.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS;
+import static org.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS;
 
 public class OraChunk<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
@@ -23,7 +23,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public OraChunk<K, T, S, R> saveChunkStatus(ChunkStatus status, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
+    public OraChunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
         try {
             Connection connection = this.getSourceSession();
             if (errMsg == null) {
@@ -31,7 +31,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
                         connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
                 callableStatement.setString(1, this.getConfig().fromTaskName());
                 callableStatement.setInt(2, this.getId());
-                callableStatement.setInt(3, status.ordinal());
+                callableStatement.setInt(3, newStatus.ordinal());
                 callableStatement.execute();
                 callableStatement.close();
             } else {
@@ -39,7 +39,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
                         connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
                 callableStatement.setString(1, this.getConfig().fromTaskName());
                 callableStatement.setInt(2, this.getId());
-                callableStatement.setInt(3, status.ordinal());
+                callableStatement.setInt(3, newStatus.ordinal());
                 callableStatement.setString(4, errMsg);
                 callableStatement.execute();
                 callableStatement.close();
@@ -51,7 +51,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public Chunk<K, T, S, R> assignSourceResultSet() throws SQLException {
+    public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
         String q;
         if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
@@ -65,7 +65,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public Chunk<K, T, S, R> saveChunkRows(int rows, boolean sync, String chunkTableName) throws SQLException {
+    public Chunk<K, T, S, R> interStageSaveChunkRows(int rows, boolean sync, String chunkTableName) throws SQLException {
         return this;
     }
 
@@ -80,33 +80,18 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public Chunk<K, T, S, R> assignTargetSession() throws SQLException {
-        if (getTargetStorage() instanceof JDBCStorage) {
-            JDBCStorage targetJDBCStorage = getTargetStorage().unwrap(JDBCStorage.class);
-            Connection targetConnection = targetJDBCStorage.getPoolConnection();
-            setTargetSession((S) targetConnection);
-        }
-        return this;
-    }
-
-    @Override
-    public Chunk<?, ?, ?, ?> saveChunkStatus(ChunkStatus status, boolean sync, String chunkTableName) throws SQLException {
-        return super.saveChunkStatus(status, sync, chunkTableName);
-    }
-
-    @Override
-    public Chunk<K, T, S, R> copyChunk(boolean sync, String tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(boolean sync, String tableName) throws SQLException {
         this
-                .assignSourceSession()
-                .assignTargetSession()
-                .saveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
-                .assignSourceResultSet()
-                .assignResultLogMessage(tableName)
-                .saveChunkRows(getRows(), sync, tableName)
-                .saveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
-                .closeChunkSourceSession(sync);
+                .firstStageAssignSourceSession(this)
+                .firstStageAssignTargetSession(this)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
+                .secondStageGetSourceResultSet()
+                .mainStageTransfer(tableName)
+                .interStageSaveChunkRows(getRows(), sync, tableName)
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
+                .lastStageCloseSourceSession(sync);
         LogMessage logMessage = getLogMessage();
-        logMessage.loggerChunkInfo();
+        logChunkInfo();
         if (getSourceSession().isValid(0)) {
             getSourceSession().close();
         }
@@ -114,27 +99,19 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public void closeChunkSourceSession(boolean sync) throws SQLException{
+    public void lastStageCloseSourceSession(boolean sync) throws SQLException{
         getSourceSession().close();
     }
 
     @Override
-    public Chunk<K, T, S, R> assignSourceSession() throws SQLException {
-        JDBCStorage sourceJDBCStorage = getSourceStorage().unwrap(JDBCStorage.class);
-        Connection sourceConnection = sourceJDBCStorage.getPoolConnection();
-        setSourceSession((S)sourceConnection);
-        return this;
-    }
-
-    @Override
-    public Chunk<K, T, S, R> assignResultLogMessage(String tableName) throws SQLException {
+    public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
         try {
-            LogMessage logMessage = this.getTargetStorage().transferToTarget(this, tableName);
+            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
             this.setLogMessage(logMessage);
             getResultSet().close();
             return this;
         } catch (SQLException | RuntimeException e) {
-            this.setLogMessage(new LogMessage (0, 0, 0, " UNREACHABLE TASK ", this));
+            this.setLogMessage(new LogMessage (0, 0, " UNREACHABLE TASK "));
             throw e;
         }
     }

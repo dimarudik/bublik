@@ -6,68 +6,77 @@ import com.datastax.oss.driver.api.core.DriverException;
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
 import com.datastax.oss.driver.api.core.cql.BatchableStatement;
+import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import org.bublik.cassandra.model.CSChunk;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
-import org.bublik.core.model.Chunk;
-import org.bublik.core.model.Column;
-import org.bublik.core.model.ConnectionProperty;
-import org.bublik.core.model.LogMessage;
+import org.bublik.core.model.*;
+import org.bublik.core.service.Target;
+import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.sql.ResultSet;
+import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.*;
 
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
 
-public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
-        extends CSStorage<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
-    private final int batchSize;
+public class CassandraStorageSource<K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
+        extends CSStorage<K, T, S, R> implements Target {
 
-    public CassandraStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
+    private static final Logger log = LoggerFactory.getLogger(CassandraStorageSource.class);
+
+    private final int batchSize;
+    private final CSPool csPool;
+    protected final int threadCount;
+    private final ConnectionProperty connectionProperty;
+
+    public CassandraStorageSource(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
+        this.connectionProperty = connectionProperty;
+        this.threadCount = connectionProperty.getThreadCount();
         this.batchSize = getBatchSize(connectionProperty);
+        this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+    }
+
+    public CSPool getCsPool() {
+        return csPool;
+    }
+
+    public int getBatchSize(ConnectionProperty connectionProperty) {
+        String batchSize = connectionProperty.getToProperty().getProperty("batchSize");
+        return batchSize == null ? 100 : Integer.parseInt(batchSize);
     }
 
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        if (chunk.getSourceStorage() instanceof CSStorage<K,T,S,R> && chunk.getTargetSession() instanceof CSStorage<?,?,?,?>) {
-            return null;
-        } else {
+        return rangedBatch(chunk, tableName);
+    }
+
+    public LogMessage rangedBatch(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+        int recordCount = 0;
+        int batchCount = 0;
+        long start = System.currentTimeMillis();
+        CqlSession cqlSession = csPool.getCqlSession();
 /*
-        if (isChunkProcessed(cqlSession, (Integer) chunk.getId(), chunk.getConfig().fromTaskName(), tableName)) {
+        if (isChunkProcessed(cqlSession, (UUID) chunk.getId(), chunk.getConfig().fromTaskName(), tableName)) {
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(),
                     "Chunk id = " + chunk.getId() + " already processed, skip it");
         }
 */
-            LogMessage logMessage = rangedBatch(chunk, tableName);
-//        insertProcessedChunkInfo(cqlSession, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
-            return logMessage;
-        }
-    }
-
-    public LogMessage rangedBatch(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        int recordCount = 0;
-        int batchCount = 0;
-        long start = System.currentTimeMillis();
-        CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
-        ResultSet resultSet = (ResultSet) chunk.getResultSet();
-        while (resultSet.next()) {
+        com.datastax.oss.driver.api.core.cql.ResultSet resultSet = (com.datastax.oss.driver.api.core.cql.ResultSet) chunk.getResultSet();
+        for (Row row : resultSet) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
-                    resultSet,
+                    row,
                     csObject.getPartitionKeyMap(),
                     csObject.getCassandraColumnMap(),
                     csObject.getTokenRangeSet());
@@ -92,6 +101,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 batchCount++;
             }
         }
+//        insertProcessedChunkInfo(cqlSession, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
         long stop = System.currentTimeMillis();
         chunk.setRows(recordCount);
         return new LogMessage(start, stop, "BATCH APPLY (batches: " + batchCount + ")");
@@ -111,19 +121,18 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
     }
 
-    private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,
-                                                                  Map<Integer, CSPartitionKey> partitionKeyMap,
-                                                                  Map<String, Column> stringCassandraColumnMap,
-                                                                  Set<TokenRange> tokenRangeSet) throws SQLException {
+    private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(Row row,
+                                                                        Map<Integer, CSPartitionKey> partitionKeyMap,
+                                                                        Map<String, Column> stringCassandraColumnMap,
+                                                                        Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
-//        long temp = 0;
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetType = entry.getValue().columnType();
             switch (targetType) {
                 case "smallint": {
-                    short v = resultSet.getShort(sourceColumn);
+                    short v = row.getShort(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -134,8 +143,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 case "int": {
-                    int v = resultSet.getInt(sourceColumn);
-//                    temp = v;
+                    int v = row.getInt(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -146,7 +154,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 case "bigint": {
-                    long v = resultSet.getLong(sourceColumn);
+                    long v = row.getLong(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -157,7 +165,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 case "text": {
-                    String v = resultSet.getString(sourceColumn);
+                    String v = row.getString(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -168,15 +176,12 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 case "date": {
-                    Timestamp timestamp = resultSet.getTimestamp(sourceColumn);
-                    long l = timestamp.getTime();
-                    LocalDate date = Instant.ofEpochMilli(l)
-                            .atZone(ZoneId.systemDefault()).toLocalDate();
+                    LocalDate date = row.getLocalDate(sourceColumn);
                     objectList.add(date);
                     break;
                 }
                 case "timestamp": {
-                    Instant v = resultSet.getTimestamp(sourceColumn).toInstant();
+                    Instant v = row.getInstant(sourceColumn);
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -187,41 +192,31 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 case "boolean": {
-                    objectList.add(resultSet.getBoolean(sourceColumn));
+                    objectList.add(row.getBoolean(sourceColumn));
                     break;
                 }
                 case "blob": {
-                    byte[] bytes = resultSet.getBytes(sourceColumn);
-                    if (bytes != null) {
-                        ByteBuffer buffer = ByteBuffer.wrap(bytes);
-                        objectList.add(buffer);
-                    } else {
-                        objectList.add(null);
-                    }
+                    ByteBuffer buffer = row.getByteBuffer(sourceColumn);
+                    objectList.add(buffer);
                     break;
                 }
                 case "float": {
-                    objectList.add(resultSet.getFloat(sourceColumn));
+                    objectList.add(row.getFloat(sourceColumn));
                     break;
                 }
                 case "decimal": {
-                    objectList.add(resultSet.getBigDecimal(sourceColumn));
+                    objectList.add(row.getBigDecimal(sourceColumn));
                     break;
                 }
                 case "uuid": {
-                    Object v = resultSet.getObject(sourceColumn);
-                    UUID uuid = null;
-                    try {
-                        uuid = (UUID) v;
-                    } catch (ClassCastException e) {
-                        uuid = UUID.fromString((String) v);
-                    }
+                    UUID uuid = row.getUuid(sourceColumn);
                     Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
                             .entrySet()
                             .stream()
                             .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
                             .findFirst()
                             .orElseThrow();
+                    assert uuid != null;
                     mapBytes.put(keyEntry.getKey(), uuidToBytes(uuid));
                     objectList.add(uuid);
                     break;
@@ -234,5 +229,94 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
+    }
+
+    @Override
+    public void close() throws Exception {
+
+    }
+
+    @Override
+    public <C> C unwrap(Class<C> iface) {
+        if (iface.isInstance(this)) {
+            return (C) this;
+        } else {
+            throw new RuntimeException("No object found that implements the interface: " + iface.getName());
+        }
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> iface) {
+        return false;
+    }
+
+    @Override
+    public void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public void createOutbox(String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
+
+    }
+
+    @Override
+    public List<Config> copyConfigs(List<Config> cfgs) {
+        return List.of();
+    }
+
+    @Override
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException {
+        return List.of();
+    }
+
+    @Override
+    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
+        return "";
+    }
+
+    @Override
+    public void closeStorage() {
+
+    }
+
+    @Override
+    public String buildFetchStatement(Config config) {
+        return "";
+    }
+
+    @Override
+    public String buildFetchStatement(Config config, Table<?> sourceTable) {
+        return "";
+    }
+
+    @Override
+    public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
+        return Map.of();
+    }
+
+    @Override
+    public Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage) {
+        return Map.of();
+    }
+
+    @Override
+    public Table configToTable(String schemaName, String tableName) {
+        return null;
+    }
+
+    @Override
+    public Table getTagetTableBySourceTable(Table table) {
+        return null;
+    }
+
+    @Override
+    public Table getSourceTableByTargetTable(Table table) {
+        return null;
     }
 }

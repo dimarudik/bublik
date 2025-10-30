@@ -15,11 +15,10 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private final Config config;
     private final Table sourceTable;
     private final String fetchQuery;
-    private final ChunkStatus chunkStatus;
     private Table targetTable;
-    private final Storage sourceStorage;
+    private final Storage<K, T, S, R> sourceStorage;
     private long startTime;
-    private Storage targetStorage;
+    private Storage<K, T, S, R> targetStorage;
     private S sourceSession;
     private S targetSession;
     private LogMessage logMessage;
@@ -27,9 +26,10 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private int rows;
     private String batchInsertQuery;
     private int upserted;
+    private ChunkStatus chunkStatus;
 
     public Chunk(K id, T start, T end, Config config, Table sourceTable,
-                 ChunkStatus status, String fetchQuery, Storage sourceStorage) {
+                 ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
@@ -64,7 +64,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         return targetTable;
     }
 
-    public Storage getSourceStorage() {
+    public Storage<K, T, S, R> getSourceStorage() {
         return sourceStorage;
     }
 
@@ -80,7 +80,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.startTime = startTime;
     }
 
-    public Storage getTargetStorage() {
+    public Storage<K, T, S, R> getTargetStorage() {
         return targetStorage;
     }
 
@@ -100,7 +100,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.resultSet = resultSet;
     }
 
-    public void setTargetStorage(Storage targetStorage) {
+    public void setTargetStorage(Storage<K, T, S, R> targetStorage) {
         this.targetStorage = targetStorage;
     }
 
@@ -136,6 +136,10 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         return chunkStatus;
     }
 
+    public void setChunkStatus(ChunkStatus chunkStatus) {
+        this.chunkStatus = chunkStatus;
+    }
+
     public S getSourceSession() {
         return sourceSession;
     }
@@ -150,5 +154,23 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
 
     public void setTargetSession(S targetSession) {
         this.targetSession = targetSession;
+    }
+
+    public void logChunkInfo() {
+        log.info("{} {}\t {} sec",
+                getLogMessage().operation(),
+                this,
+                Math.round((float) (getLogMessage().stop() - getLogMessage().start()) / 10) / 100.0);
+    }
+
+    @Override
+    public String toString() {
+        String toTableName = getTargetTable() == null ? "" : " to " + getTargetTable().getTableName();
+        return  "from " + getSourceTable().getTableName() +
+                toTableName +
+                " of " + rows +
+                " rows (start:" + getStart() +
+                ", end:" + getEnd() +
+                ") chunk_id:" + getId();
     }
 }

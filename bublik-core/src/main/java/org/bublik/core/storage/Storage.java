@@ -7,10 +7,10 @@ import org.bublik.core.service.StorageService;
 import java.sql.Wrapper;
 import java.util.Map;
 
-public abstract class Storage implements StorageService, Wrapper, AutoCloseable {
+public abstract class Storage<K, T, S extends AutoCloseable, R> implements StorageService<K, T, S, R>, Wrapper, AutoCloseable {
     private final StorageClass storageClass;
     private final ConnectionProperty connectionProperty;
-    private Map<Table, Table> tables;
+    private Map<Table<S>, Table<S>> tables;
 
 
     protected Storage(StorageClass storageClass, ConnectionProperty connectionProperty) {
@@ -18,11 +18,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable 
         this.connectionProperty = connectionProperty;
     }
 
-    public Map<Table, Table> getTables() {
+    public Map<Table<S>, Table<S>> getTables() {
         return tables;
     }
 
-    public void setTables(Map<Table, Table> tables) {
+    public void setTables(Map<Table<S>, Table<S>> tables) {
         this.tables = tables;
     }
 

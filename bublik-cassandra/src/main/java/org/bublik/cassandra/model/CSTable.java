@@ -1,5 +1,10 @@
 package org.bublik.cassandra.model;
 
+import com.datastax.oss.driver.api.core.CqlIdentifier;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.metadata.Metadata;
+import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -7,10 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class CSTable extends Table {
+public class CSTable<S extends CqlSession> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(CSTable.class);
     private final List<Column> partitionKey;
     private final List<Column> clusteringKey;
@@ -50,8 +56,23 @@ public class CSTable extends Table {
     }
 
     @Override
-    public List<Column> getAllColumns(Connection connection) throws SQLException {
-        return List.of();
+    public List<Column> getAllColumns(CqlSession cqlSession) {
+        List<Column> columns = new ArrayList<>();
+        Metadata metadata = cqlSession.getMetadata();
+        KeyspaceMetadata keyspaceMetadata = metadata
+                .getKeyspace(getSchemaName())
+                .orElseThrow();
+        Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
+                .getTable(getTableName())
+                .orElseThrow()
+                .getColumns();
+        List<ColumnMetadata> columnMetadata = mapColumnMetaData.values().stream().toList();
+        columnMetadata.forEach(c -> {
+            String columnName = c.getName().toString();
+            String columnType = c.getType().toString().toLowerCase();
+            columns.add(new Column(0, columnName, columnType, null, null, null, null, null, 0, null, 0, null));
+        });
+        return columns;
     }
 
     @Override

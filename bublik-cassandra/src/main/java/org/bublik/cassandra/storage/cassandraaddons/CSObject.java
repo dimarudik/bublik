@@ -158,7 +158,6 @@ public class CSObject {
         Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
                 .getTable(config.toTableName())
                 .orElseThrow()
-//                .get()
                 .getColumns();
         List<ColumnMetadata> columnMetadata = mapColumnMetaData.values().stream().toList();
 

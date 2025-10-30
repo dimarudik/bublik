@@ -7,6 +7,8 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.bublik.core.model.Table;
 import org.bublik.core.service.StorageService;
+import org.bublik.core.storage.Storage;
+import org.bublik.core.storage.StorageClass;
 import org.bublik.postgres.model.PGTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OraTable extends Table {
+public class OraTable<S extends Connection> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(OraTable.class);
 
 //    public OraTable(){}
