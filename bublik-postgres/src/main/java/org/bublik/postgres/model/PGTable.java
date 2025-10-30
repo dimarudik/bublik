@@ -1,6 +1,7 @@
 package org.bublik.postgres.model;
 
 import org.bublik.core.model.*;
+import org.bublik.core.service.NameSyntaxService;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,8 +192,9 @@ public class PGTable<S extends Connection> extends Table<S> {
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
             columns.add(new Column(
                     ordinalPosition,
-                    columnName,
-                    columnType,
+//                    isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
+                    isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
+                    columnType.equals("bigserial") ? "bigint" : columnType,
                     dataType,
                     nullable,
                     columnDefault,
@@ -496,6 +498,7 @@ public class PGTable<S extends Connection> extends Table<S> {
             if (this.getOptions() != null && !getOptions().isEmpty()) {
                 query += " WITH (" + getOptionDefinition() + ")";
             }
+            query = query.replace("\"\"","\"");
             log.info("{}", query);
             Statement statement = connection.createStatement();
             statement.execute(query);

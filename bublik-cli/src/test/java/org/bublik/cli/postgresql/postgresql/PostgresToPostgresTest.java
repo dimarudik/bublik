@@ -69,7 +69,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void targetTableNotExists() throws IOException {
+    void targetTableNotExists() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/targetTableNotExists.json",
@@ -77,7 +77,9 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-        assertEquals(result.targetCount(), result.sourceCount());
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
     @Test
@@ -110,5 +112,19 @@ public class PostgresToPostgresTest {
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         assertEquals(result2.sourceCount(), result2.targetCount());
+    }
+
+    @Test
+    void serialColumn() throws IOException, InterruptedException {
+        TestResult result = getResult(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/serialColumn.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 }

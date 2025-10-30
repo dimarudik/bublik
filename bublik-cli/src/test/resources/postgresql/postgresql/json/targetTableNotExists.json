@@ -3,5 +3,10 @@
     "fromSchemaName": "public",
     "fromTableName": "p_src_202509",
     "toSchemaName": "test"
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "p_src_202501",
+    "toSchemaName": "test"
   }
 ]

@@ -152,18 +152,27 @@ analyze public."Source" ;
 
 create table public.not_null_failure (
     id int,
-    name varchar(256));
+    name varchar(256),
+    "table" bigint,
+    "Table" bigint,
+    "c" int);
 
-insert into public.not_null_failure (id, name)
+insert into public.not_null_failure (id, name, "table", "Table", "c")
    select num as id,
-      'Item ' || substr(md5(random()::text), 1, 10) as name
+      'Item ' || substr(md5(random()::text), 1, 10) as name,
+      num "table",
+      num as "Table",
+      num as "c"
       from generate_series(1, 100000) as num;
 update public.not_null_failure set name = null where id = 1000;
 analyze public.not_null_failure;
 
 create table test.not_null_failure (
     id int,
-    name varchar(256) not null);
+    name varchar(256) not null,
+    "table" bigint,
+    "Table" bigint,
+    "c" int);
 
 create table public.users (
     id int,
@@ -238,10 +247,21 @@ create table public.p_src (
 ) partition by range (created);
 alter table public.p_src add primary key (id, created);
 create table public.p_src_def partition of public.p_src default;
+create table public.p_src_202501 partition of public.p_src for values from ('2025-01-01 00:00:00') to ('2025-01-31 23:59:59');
 create table public.p_src_202509 partition of public.p_src for values from ('2025-09-01 00:00:00') to ('2025-09-30 23:59:59');
 create table public.p_src_202510 partition of public.p_src for values from ('2025-10-01 00:00:00') to ('2025-10-31 23:59:59');
 create table public.p_src_202511 partition of public.p_src for values from ('2025-11-01 00:00:00') to ('2025-11-30 23:59:59');
 create table public.p_src_202512 partition of public.p_src for values from ('2025-12-01 00:00:00') to ('2025-12-31 23:59:59');
+
+insert into public.p_src (id, created, name, amount, shard_key, names, texts)
+    select num as id,
+            timestamp '2025-01-01 00:00:00' + random() * (timestamp '2025-01-31 00:00:00' - timestamp '2025-01-01 23:59:59') as created,
+            'Name ' || substr(md5(random()::text), 1, 10) as name,
+            floor(random() * 1000000)::bigint as amount,
+            random() * 1 as shard_key,
+            case when num % 10 = 0 then array['A:' || substr(md5(random()::text), 1, 10),'B:' || substr(md5(random()::text), 1, 10),'C:' || substr(md5(random()::text), 1, 10)] else null end as names,
+            case when num % 10 = 0 then array['D:' || substr(md5(random()::text), 1, 10),'E:' || substr(md5(random()::text), 1, 10),'F:' || substr(md5(random()::text), 1, 10)] else null end as texts
+    from generate_series(1, 10) as num;
 
 insert into public.p_src (id, created, name, amount, shard_key, names, texts)
     select num as id,
@@ -279,6 +299,22 @@ create table public.p_trg_202511_0 partition of public.p_trg_202511 for values i
 create table public.p_trg_202511_1 partition of public.p_trg_202511 for values in (1);
 create table public.p_trg_202512_0 partition of public.p_trg_202512 for values in (0);
 create table public.p_trg_202512_1 partition of public.p_trg_202512 for values in (1);
+
+create sequence public.serialcolumn_seq;
+create table public.serialcolumn (
+    id bigint DEFAULT nextval('serialcolumn_seq') primary key,
+    name varchar(256)
+);
+
+insert into public.serialcolumn (id, name)
+    select num as id,
+           'Description ' || substr(md5(random()::text), 1, 30) as name
+    from generate_series(1, 100) as num;
+
+create table test.serialcolumn (
+    id bigint,
+    name varchar(256)
+);
 
 -- select * from users where user_id = 800 \gx
 -- select i.item_id, i.item_name, i.description from items i, likes l where i.item_id = l.item_id and l.user_id = 800 \gx
