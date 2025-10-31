@@ -24,7 +24,8 @@
       "image"         : "image",
       "current_mood"  : "current_mood",
       "j"             : "j",
-      "time"          : "time"
+      "time"          : "time",
+      "ip"            : "ip"
     },
     "expressionToColumn" : {
       "(select 'male') as gender" : "gender"

@@ -26,6 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.*;
 import java.sql.Date;
 import java.time.*;
@@ -735,6 +739,32 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         throw e;
                     }
                 }
+                case "inet":
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setInet4Addr(targetColumn, null);
+                            break;
+                        }
+                        Inet4Address inet4Address = null;
+                        Inet6Address inet6Address = null;
+                        try {
+                            inet4Address = (Inet4Address) InetAddress.getByName(fetchResultSet.getString(sourceColumn));
+                            row.setInet4Addr(targetColumn, inet4Address);
+                        } catch (UnknownHostException e) {
+                            try {
+                                inet6Address = (Inet6Address) InetAddress.getByName(fetchResultSet.getString(sourceColumn));
+                                row.setInet6Addr(targetColumn, inet6Address);
+                            } catch (UnknownHostException e1) {
+                                throw new RuntimeException(e1);
+                            }
+                            throw new RuntimeException(e);
+                        }
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        throw e;
+                    }
                 case "uuid":
                     try {
                         Object o = fetchResultSet.getObject(sourceColumn);
