@@ -50,7 +50,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void allTypes() throws IOException {
+    void allTypes() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/allTypes.json",

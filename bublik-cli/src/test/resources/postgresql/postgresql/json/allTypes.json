@@ -23,6 +23,7 @@
       "description"   : "rem",
       "image"         : "image",
       "current_mood"  : "current_mood",
+      "j"             : "j",
       "time"          : "time"
     },
     "expressionToColumn" : {

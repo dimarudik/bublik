@@ -347,7 +347,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     */
 
             switch (targetType) {
-                case "varchar": {
+                case "json", "varchar": {
                     try {
                         String s = fetchResultSet.getString(sourceColumn);
                         if (s == null) {
