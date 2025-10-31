@@ -112,7 +112,9 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
         Storage<K, T, S, R> sourceStorage = this;
         if (rows > 0) {
+            dropChunkTable(false, tableName);
             createChunks(configs, false, rows, tableName);
+            targetStorage.dropOutboxTable(false, tableName);
             targetStorage.createOutbox(tableName);
         }
         Map<Table<S>, Table<S>> sourceTables = configsToTables(configs, targetStorage);

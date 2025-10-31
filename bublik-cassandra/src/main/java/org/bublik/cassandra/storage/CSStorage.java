@@ -246,8 +246,12 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
     @Override
     public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
-        CqlSession cqlSession = csPool.getCqlSession();
-        cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTableName(tableName)));
+        try {
+            CqlSession cqlSession = csPool.getCqlSession();
+            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTableName(tableName)));
+        } catch (Exception e) {
+            log.info("Outbox table {} not found, nothing to drop", getOutboxTableName(tableName));
+        }
     }
 
     private void createChunkTable(boolean sync, String tableName) {

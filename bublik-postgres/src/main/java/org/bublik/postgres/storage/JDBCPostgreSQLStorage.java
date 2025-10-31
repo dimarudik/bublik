@@ -1060,8 +1060,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     @Override
     public void dropChunkTable(boolean sync, String tableName) {
         Connection connection = getConnection();
-        try {
-            Statement dropTable = connection.createStatement();
+        try (Statement dropTable = connection.createStatement()) {
             dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
             dropTable.close();
             connection.commit();
@@ -1069,21 +1068,32 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 connection.commit();
             }
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            try {
+                connection.rollback();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+            log.warn("Chunk table {} does not exist", tableName);
+//            log.warn("{}", getStackTrace(e));
         }
     }
 
     @Override
     public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
-        try {
-            Connection connection = getPoolConnection();
-            Statement dropTable = connection.createStatement();
+        Connection connection = getPoolConnection();
+        try (Statement dropTable = connection.createStatement()){
             dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tableName));
             dropTable.close();
             connection.commit();
             connection.close();
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            try {
+                connection.rollback();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+            log.warn("Outbox table {} does not exist", tableName);
+//            log.error("{}", getStackTrace(e));
         }
     }
 
