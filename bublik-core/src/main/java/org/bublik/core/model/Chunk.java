@@ -18,7 +18,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private Table targetTable;
     private final Storage<K, T, S, R> sourceStorage;
     private long startTime;
-    private Storage<K, T, S, R> targetStorage;
+    private final Storage<K, T, S, R> targetStorage;
     private S sourceSession;
     private S targetSession;
     private LogMessage logMessage;
@@ -28,8 +28,8 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private int upserted;
     private ChunkStatus chunkStatus;
 
-    public Chunk(K id, T start, T end, Config config, Table sourceTable,
-                 ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage) {
+    public Chunk(K id, T start, T end, Config config, Table sourceTable, ChunkStatus status,
+                 String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
         this.id = id;
         this.start = start;
         this.end = end;
@@ -38,6 +38,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.chunkStatus = status;
         this.fetchQuery = fetchQuery;
         this.sourceStorage = sourceStorage;
+        this.targetStorage = targetStorage;
     }
 
     public K getId() {
@@ -100,9 +101,11 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.resultSet = resultSet;
     }
 
+/*
     public void setTargetStorage(Storage<K, T, S, R> targetStorage) {
         this.targetStorage = targetStorage;
     }
+*/
 
     public String getFetchQuery() {
         return fetchQuery;

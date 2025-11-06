@@ -100,7 +100,7 @@ public class CassandraToCassandraTest {
 
     private Properties getPropertiesOfCassandra(String port) {
         Properties properties = new Properties();
-        properties.setProperty("class", "org.bublik.cassandra.storage.CSPoolStorage");
+        properties.setProperty("class", "org.bublik.cassandra.storage.CassandraStorage");
         properties.setProperty("keyspace", "test");
         properties.setProperty("user", "test");
         properties.setProperty("password", "test");

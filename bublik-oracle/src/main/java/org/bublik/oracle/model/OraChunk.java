@@ -18,8 +18,8 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
 
     public OraChunk(K id, T start, T end, Config config, Table sourceTable,
-                    ChunkStatus status, String fetchQuery, Storage sourceStorage) {
-        super(id, start, end, config, sourceTable, status, fetchQuery, sourceStorage);
+                    ChunkStatus status, String fetchQuery, Storage sourceStorage, Storage targetStorage) {
+        super(id, start, end, config, sourceTable, status, fetchQuery, sourceStorage, targetStorage);
     }
 
     @Override
@@ -55,11 +55,11 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
         setStartTime(System.currentTimeMillis());
         String q;
         if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
-            q = getSourceStorage().buildFetchStatement(getConfig(), getSourceTable());
+            q = getSourceStorage().buildFetchStatement(getConfig(), this);
         } else {
             q = getSourceStorage().buildFetchStatement(getConfig());
         }
-        ResultSet resultSet = (ResultSet) getData(q);
+        ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);
         return this;
     }

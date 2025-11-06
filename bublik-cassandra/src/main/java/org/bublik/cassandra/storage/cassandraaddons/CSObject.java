@@ -9,6 +9,7 @@ import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import org.bublik.cassandra.storage.CSPool;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.Chunk;
 import org.bublik.core.model.Column;
@@ -82,9 +83,8 @@ public class CSObject {
         this.partitionKeyMap = partitionKeyMap;
     }
 
-    public CSObject metadata() {
-        Metadata m = getCqlSession().getMetadata();
-        setMetadata(m);
+    public CSObject metadata(Metadata metadata) {
+        setMetadata(metadata);
         return this;
     }
 
@@ -96,9 +96,8 @@ public class CSObject {
         this.mm3Batch = mm3Batch;
     }
 
-    public CSObject tokenRangeSet() {
-        Set<TokenRange> t = getMetadata().getTokenMap().orElseThrow().getTokenRanges();
-        setTokenRangeSet(t);
+    public CSObject tokenRangeSet(Set<TokenRange> tokenRangeSet) {
+        setTokenRangeSet(tokenRangeSet);
         return this;
     }
 
@@ -193,10 +192,10 @@ public class CSObject {
                 ");";
     }
 
-    public static CSObject createCSObject(CqlSession cqlSession, Chunk<?, ?, ?, ?> chunk) {
-        return new CSObject(cqlSession)
-                .metadata()
-                .tokenRangeSet()
+    public static CSObject createCSObject(CSPool csPool, Chunk<?, ?, ?, ?> chunk) {
+        return new CSObject(csPool.getCqlSession())
+                .metadata(csPool.getMetadata())
+                .tokenRangeSet(csPool.tokenRanges())
                 .mm3batch()
                 .cassandraColumnMap(chunk)
                 .query(chunk)

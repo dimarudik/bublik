@@ -33,9 +33,10 @@ public class MM3 {
         return new Murmur3TokenRange(Murmur3TokenFactory.MIN_TOKEN, Murmur3TokenFactory.MAX_TOKEN);
     }
 
-    public static TokenRange defaultTokenRange(long v){
-        System.out.println(v + " = " + Murmur3TokenFactory.MIN_TOKEN + ":" + Murmur3TokenFactory.MAX_TOKEN);
-        return new Murmur3TokenRange(Murmur3TokenFactory.MIN_TOKEN, Murmur3TokenFactory.MAX_TOKEN);
+    public static byte[] byteToBytes(byte b) {
+        byte[] result = new byte[1];
+        result[0] = b;
+        return result;
     }
 
     public static byte[] smallIntToBytes(int i) {

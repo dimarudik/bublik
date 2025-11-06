@@ -6,6 +6,7 @@ import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.ydb.model.YDBTable;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table sourceTable) {
+    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
         return buildFetchStatement(config);
     }
 
@@ -93,7 +94,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable, Storage<K, T, S, R> targetStorage) throws SQLException {
         return List.of();
     }
 
@@ -112,7 +113,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
             }
             chunk.setTargetConnection(connectionTo);
 */
-            Connection connectionTo = (Connection) chunk.getTargetSession();
+            Connection connectionTo = chunk.getTargetSession();
             Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
             if (table.exists(connectionTo)) {
                 chunk.setTargetTable(table);

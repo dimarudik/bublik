@@ -1,3 +1,4 @@
+create extension hstore;
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
 create table public."Source" (
@@ -20,13 +21,14 @@ create table public."Source" (
     current_mood mood,
     time time,
     j json,
-    ip inet
+    ip inet,
+    h hstore
 );
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description
         , image
-        , current_mood, time, j, ip)
+        , current_mood, time, j, ip, h)
     select gen_random_uuid() as uuid, 'PostgreSQL ' || n as name,
         case when mod(n, 2) = 0 then false else true end as boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
@@ -40,11 +42,12 @@ insert into public."Source" (uuid, "Primary", boolean,
             else null end as current_mood,
         now() as time,
         '{"key": "value"}' j,
-        case when mod(n, 2) = 0 then '192.168.2.1'::inet else '192.168.2.24'::inet end as ip
+        case when mod(n, 2) = 0 then '192.168.2.1'::inet else '192.168.2.24'::inet end as ip,
+        'a=>1,b=>2'::hstore h
     from generate_series(1, 50000) as n;
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
-        date, timestamp, timestamptz, description, current_mood, time, j, ip)
+        date, timestamp, timestamptz, description, current_mood, time, j, ip, h)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
@@ -56,7 +59,8 @@ insert into public."Source" (uuid, "Primary", boolean,
             else null end as current_mood,
         now() time,
         '{"key": "value"}' j,
-        case when mod(n, 2) = 0 then '192.168.2.1'::inet else '192.168.2.24'::inet end as ip
+        case when mod(n, 2) = 0 then '192.168.2.1'::inet else '192.168.2.24'::inet end as ip,
+        'c=>3,d=>3'::hstore h
     from generate_series(1,500000) as n;
 analyze public."Source" ;
 create table public.target as
@@ -80,5 +84,6 @@ select
     current_mood,
     time as time,
     j,
-    ip
+    ip,
+    h
  from public."Source" where 0 = 1;

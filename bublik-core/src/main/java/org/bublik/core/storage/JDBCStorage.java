@@ -136,23 +136,22 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         do {
             Connection sConnection = this.getPoolConnection();
             setConnection(sConnection);
-            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName);
+            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
             sConnection.close();
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
 
             chunks.forEach(chunk -> futures.add(
                     service
                             .submit(() -> {
-                                chunk.setTargetStorage(targetStorage);
                                 try {
                                     return chunk.allStages(false, tableName);
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                                     try {
                                         ///  тут исправлял
-                                        if (((Connection)chunk.getSourceSession()).isValid(0)) {
+                                        if ((chunk.getSourceSession()).isValid(0)) {
                                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
-                                            ((Connection)chunk.getSourceSession()).close();
+                                            (chunk.getSourceSession()).close();
                                         }
                                     } catch (SQLException exception) {
                                         log.error("{}", getStackTrace(exception));
@@ -236,12 +235,10 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
 
-        List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName);
+        List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
         chunks.forEach(chunk -> {
-            chunk.setTargetStorage(targetStorage);
             try {
                 chunk.allStages(true, tableName);
-//                chunk.copyChunkSync(sourceConnection, true, tableName);
             } catch (Exception e) {
                 log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
                 throw new RuntimeException(e);

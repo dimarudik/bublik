@@ -25,7 +25,8 @@
       "current_mood"  : "current_mood",
       "j"             : "j",
       "time"          : "time",
-      "ip"            : "ip"
+      "ip"            : "ip",
+      "h"             : "h"
     },
     "expressionToColumn" : {
       "(select 'male') as gender" : "gender"

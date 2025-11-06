@@ -6,6 +6,7 @@ import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.oracle.model.OraChunk;
 import org.bublik.oracle.model.OraTable;
@@ -119,7 +120,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable, Storage<K, T, S, R> targetStorage) throws SQLException {
         Connection connection = getConnection();
         List<Chunk<K, T, S, R>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, chunkTable);
@@ -144,7 +145,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                                 sourceTable,
                                 ChunkStatus.valueOf(status),
                                 null,
-                                this
+                                this,
+                                targetStorage
                         )
                 );
             }
@@ -173,7 +175,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table sourceTable) {
+    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
         return buildFetchStatement(config);
     }
 

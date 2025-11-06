@@ -26,8 +26,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
 
     public CSChunk(K id, T start, T end, Config config, Table sourceTable,
-                   ChunkStatus status, String fetchQuery, Storage sourceStorage) {
-        super(id, start, end, config, sourceTable, status, fetchQuery, sourceStorage);
+                   ChunkStatus status, String fetchQuery, Storage sourceStorage, Storage targetStorage) {
+        super(id, start, end, config, sourceTable, status, fetchQuery, sourceStorage, targetStorage);
     }
 
     @Override
@@ -80,16 +80,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-//        String q;
-        String q = getSourceStorage().buildFetchStatement(getConfig(), getSourceTable());
-/*
-        if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
-            log.info("Fetching data from source table: {}.{}", getSourceTable().getSchemaName(), getSourceTable().getTableName());
-            q = getSourceStorage().buildFetchStatement(getConfig(), getSourceTable());
-        } else {
-            q = getSourceStorage().buildFetchStatement(getConfig());
-        }
-*/
+//        String q = getSourceStorage().buildFetchStatement(getConfig(), getSourceTable());
+        String q = getSourceStorage().buildFetchStatement(getConfig(), this);
 //        log.info("Fetch query: {}", q);
         ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);

@@ -7,6 +7,10 @@ import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ColumnUtil {
     private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);
@@ -47,5 +51,24 @@ public class ColumnUtil {
             }
         }
         return 0;
+    }
+
+    public static Map<String, String> parseHstoreString(String hstoreStr) {
+        Map<String, String> result = new HashMap<>();
+        if (hstoreStr == null || hstoreStr.isEmpty()) {
+            return result;
+        }
+
+        // Разделяем по запятым, но учитываем, что значения могут быть в кавычках
+        Pattern pairPattern = Pattern.compile("(\"[^\"]+\"|[^=>]+)=>(\"[^\"]+\"|[^,]+)");
+        Matcher matcher = pairPattern.matcher(hstoreStr);
+
+        while (matcher.find()) {
+            String key = matcher.group(1).replaceAll(", ", "").replaceAll("\"", "").trim();//.replaceAll("^\"|\"$", "").trim();
+            String value = matcher.group(2).replaceAll("\"", "");//.replaceAll("^\"|\"$", "").trim();
+            result.put(key, value);
+        }
+
+        return result;
     }
 }

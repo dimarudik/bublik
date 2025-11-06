@@ -25,12 +25,13 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     void createOutbox(String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
-    List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException;
+    List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException;
     String buildStartEndOfChunk(List<Config> configs, String chunkTableName);
     LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config);
-    String buildFetchStatement(Config config, Table<?> sourceTable);
+//    String buildFetchStatement(Config config, Table<?> sourceTable);
+    String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
     Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage);
     Table<S> configToTable(String schemaName, String tableName);

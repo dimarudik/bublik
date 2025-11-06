@@ -13,7 +13,6 @@ import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
 import org.bublik.core.model.*;
 import org.bublik.core.service.Target;
-import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
@@ -58,24 +57,18 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
 
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        return rangedBatch(chunk, tableName);
+        return rangedBatchCS(chunk, tableName);
     }
 
-    public LogMessage rangedBatch(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+    public LogMessage rangedBatchCS(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
         CqlSession cqlSession = csPool.getCqlSession();
-/*
-        if (isChunkProcessed(cqlSession, (UUID) chunk.getId(), chunk.getConfig().fromTaskName(), tableName)) {
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(),
-                    "Chunk id = " + chunk.getId() + " already processed, skip it");
-        }
-*/
-        CSObject csObject = CSObject.createCSObject(cqlSession, chunk);
+        CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
         com.datastax.oss.driver.api.core.cql.ResultSet resultSet = (com.datastax.oss.driver.api.core.cql.ResultSet) chunk.getResultSet();
         for (Row row : resultSet) {
-            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
+            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjectsCS(
                     row,
                     csObject.getPartitionKeyMap(),
                     csObject.getCassandraColumnMap(),
@@ -101,7 +94,6 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
                 batchCount++;
             }
         }
-//        insertProcessedChunkInfo(cqlSession, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
         long stop = System.currentTimeMillis();
         chunk.setRows(recordCount);
         return new LogMessage(start, stop, "BATCH APPLY (batches: " + batchCount + ")");
@@ -121,10 +113,10 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
         }
     }
 
-    private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(Row row,
-                                                                        Map<Integer, CSPartitionKey> partitionKeyMap,
-                                                                        Map<String, Column> stringCassandraColumnMap,
-                                                                        Set<TokenRange> tokenRangeSet) throws SQLException {
+    private Map.Entry<TokenRange, Object[]> getTokenRangedObjectsCS(Row row,
+                                                                    Map<Integer, CSPartitionKey> partitionKeyMap,
+                                                                    Map<String, Column> stringCassandraColumnMap,
+                                                                    Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
@@ -271,7 +263,7 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         return List.of();
     }
 
@@ -291,7 +283,7 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> sourceTable) {
+    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
         return "";
     }
 

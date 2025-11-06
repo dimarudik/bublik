@@ -8,9 +8,11 @@ import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenFactory;
 import org.bublik.cassandra.model.CSChunk;
 import org.bublik.cassandra.model.CSTable;
 import org.bublik.cassandra.service.CSTableService;
+import org.bublik.cassandra.storage.cassandraaddons.MM3;
 import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.*;
@@ -36,6 +38,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     private final CSPool csPool;
     protected final int threadCount;
     private final ConnectionProperty connectionProperty;
+
     protected CSStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
         this.connectionProperty = connectionProperty;
@@ -62,19 +65,19 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (rows > 0) {
+            dropChunkTable(sync, tableName);
             createChunkTable(sync, tableName);
             createChunks(configs, sync, rows, tableName);
         }
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
-            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName);
+            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
             String tName = getChunkTableName(tableName);
 
             chunks.forEach(chunk -> futures.add(
                             service.submit(() -> {
-                                chunk.setTargetStorage(targetStorage);
                                 try {
                                     return chunk.allStages(false, tName);
                                 } catch (Exception e) {
@@ -93,7 +96,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                     Thread.sleep(2);
                 } catch (Exception e) {
                     if ((e.getMessage().contains("Query timed out after PT") ||
-                            e.getMessage().contains("Cassandra timeout during BATCH"))
+                            e.getMessage().contains("Cassandra timeout during BATCH") ||
+                            e.getMessage().contains("failure during write query at consistency"))
                             && timeoutCounter / threadCount < 20) {
                         try {
                             Thread.sleep(1_000);
@@ -125,7 +129,16 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     @Override
     public void createChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        Set<TokenRange> trs = csPool.getTokenRanges();
+        Set<TokenRange> trs = new HashSet<>(csPool.getTokenRanges());
+        // добавляются хвостики сверху и снизу ренджа
+        TokenRange defaultToken = MM3.defaultTokenRange();
+        TokenRange firstToken = trs.stream().min(Comparator.comparing(TokenRange::getStart)).orElse(defaultToken);
+        TokenRange lastToken = trs.stream().max(Comparator.comparing(TokenRange::getEnd)).orElse(defaultToken);
+        Murmur3TokenFactory factory = new Murmur3TokenFactory();
+        TokenRange floor = factory.range(defaultToken.getStart(), firstToken.getStart());
+        TokenRange ceil = factory.range(lastToken.getEnd(), defaultToken.getEnd());
+        trs.add(floor);
+        trs.add(ceil);
 
         for (Config c : configs) {
             Table<?> pseudoTable = new PseudoTable<>(c.fromSchemaName(), c.fromTableName());
@@ -199,7 +212,11 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     @Override
     public void dropChunkTable(boolean sync, String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getChunkTableName(tableName)));
+        try {
+            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getChunkTableName(tableName)));
+        } catch (Exception e) {
+            log.warn("Table {} not found", getChunkTableName(tableName));
+        }
     }
 
     private String getChunkTableName(String tableName) {
@@ -272,13 +289,13 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, getChunkTableName(chunkTableName));
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         CqlSession cqlSession = csPool.getCqlSession();
-        configs.forEach(c -> {
-            Table<?> pseudoTable = new PseudoTable<>(c.fromSchemaName(), c.fromTableName());
+        configs.forEach(config -> {
+            Table<?> pseudoTable = new PseudoTable<>(config.fromSchemaName(), config.fromTableName());
             List<Column> partitionKey = CSTableService.getKey(cqlSession, pseudoTable, "partition_key");
             List<Column> clusteringKey = CSTableService.getKey(cqlSession, pseudoTable, "clustering");
             CSTable<?> sourceTable = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
@@ -289,17 +306,26 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(bs);
             for (Row row : rs) {
                 String status = row.getString("status");
-                chunks.add(
+                Chunk<K, T, S, R> chunk =
                         new CSChunk<>(
                                 (K)row.getUuid("chunk_id"),
                                 (T)(Long)row.getLong("start_page"),
                                 (T)(Long)row.getLong("end_page"),
-                                c,
+                                config,
                                 sourceTable,
                                 ChunkStatus.valueOf(status),
                                 null,
-                                this
-                        ));
+                                this,
+                                targetStorage
+                        );
+                chunks.add(chunk);
+                CqlSession targetSession = chunk.getTargetSession();
+//                targetStorage.getPoolConnection();
+                Table<?> targetPseudoTable = new PseudoTable<>(config.toSchemaName(), config.toTableName());
+                List<Column> targetPartitionKey = CSTableService.getKey(targetSession, targetPseudoTable, "partition_key");
+                List<Column> targetClusteringKey = CSTableService.getKey(targetSession, targetPseudoTable, "clustering");
+                CSTable<?> targetTable = new CSTable<>(targetPseudoTable.getSchemaName(), targetPseudoTable.getTableName(), targetPartitionKey, targetClusteringKey);
+                chunk.setTargetTable(targetTable);
             }
         });
         return chunks;
@@ -366,8 +392,9 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> sourceTable) {
-        List<Column> pkColumns = new ArrayList<>(((CSTable<?>) sourceTable).getPartitionKey());
+    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
+        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
+        List<Column> pkColumns = new ArrayList<>(sourceTable.getPartitionKey());
         Collections.sort(pkColumns);
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());
         List<String> strings = new ArrayList<>();

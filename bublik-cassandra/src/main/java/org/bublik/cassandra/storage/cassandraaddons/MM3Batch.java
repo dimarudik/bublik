@@ -13,7 +13,7 @@ import java.util.Set;
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.defaultTokenRange;
 
 public class MM3Batch {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MM3Batch.class);
+    private static final Logger log = LoggerFactory.getLogger(MM3Batch.class);
     private final Map<TokenRange, BatchEntity> tokenRangeMap = new HashMap<>();
 
     private MM3Batch() {
@@ -49,7 +49,7 @@ public class MM3Batch {
 
     public void initMM3Batch(Set<TokenRange> tokenRangeSet) {
         TokenRange defaultTokenRange = defaultTokenRange();
-        this.putTokenRange(defaultTokenRange, new BatchEntity(BatchStatement.builder(DefaultBatchType.LOGGED)));
-        tokenRangeSet.forEach(v -> this.putTokenRange(v, new BatchEntity(BatchStatement.builder(DefaultBatchType.LOGGED))));
+        putTokenRange(defaultTokenRange, new BatchEntity(BatchStatement.builder(DefaultBatchType.LOGGED)));
+        tokenRangeSet.forEach(v -> putTokenRange(v, new BatchEntity(BatchStatement.builder(DefaultBatchType.LOGGED))));
     }
 }

@@ -14,12 +14,15 @@ import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.postgres.model.PGChunk;
 import org.bublik.postgres.model.PGTable;
 import org.bublik.postgres.util.ColumnUtil;
 import org.postgresql.PGConnection;
+import org.postgresql.core.Encoding;
 import org.postgresql.replication.LogSequenceNumber;
+import org.postgresql.util.HStoreConverter;
 import org.postgresql.util.PGInterval;
 import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
@@ -50,7 +53,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName) throws SQLException {
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
         Connection connection = getConnection();
         String sql = buildStartEndOfChunk(configs, chunkTableName);
@@ -71,27 +74,25 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 config.fromSchemaName() + "." +
                                 config.fromTableName() + " not exists in cache"))
                         .getKey();
+                String status = rs.getString("status");
+                Chunk <K, T, S, R> chunk = new PGChunk<>(
+                        (K)(Integer)rs.getInt("chunk_id"),
+                        (T)(Long)rs.getLong("start_page"),
+                        (T)(Long)rs.getLong("end_page"),
+                        config,
+                        sourceTable,
+                        ChunkStatus.valueOf(status),
+                        null,
+                        this,
+                        targetStorage);
+                chunks.add(chunk);
                 String query;
                 if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-                    query = buildFetchStatement(config, sourceTable);
+                    query = buildFetchStatement(config, chunk);
                 } else {
                     query = buildFetchStatement(config);
                 }
                 tableMap.put(query, sourceTable);
-                String status = rs.getString("status");
-                chunks.add(
-                        new PGChunk<K, T, S, R>(
-                                (K)(Integer)rs.getInt("chunk_id"),
-//                                uuid == null ? Generators.timeBasedEpochRandomGenerator().generate() : UUID.fromString(uuid),
-                                (T)(Long)rs.getLong("start_page"),
-                                (T)(Long)rs.getLong("end_page"),
-                                config,
-                                sourceTable,
-                                ChunkStatus.valueOf(status),
-                                null,
-                                this
-                        )
-                );
             }
         }
         tableMap.keySet().forEach(s -> log.info("{}", s));
@@ -351,6 +352,21 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     */
 
             switch (targetType) {
+                case "hstore": {
+                    try {
+                        String s = fetchResultSet.getString(sourceColumn);
+                        if (s == null) {
+                            row.setHstore(targetColumn, null);
+                            break;
+                        }
+                        Map<String, String> hstoreMap = parseHstoreString(s);
+                        row.setHstore(targetColumn, hstoreMap);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        throw e;
+                    }
+                }
                 case "json", "varchar": {
                     try {
                         String s = fetchResultSet.getString(sourceColumn);
@@ -746,18 +762,15 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                             row.setInet4Addr(targetColumn, null);
                             break;
                         }
-                        Inet4Address inet4Address = null;
-                        Inet6Address inet6Address = null;
                         try {
-                            inet4Address = (Inet4Address) InetAddress.getByName(fetchResultSet.getString(sourceColumn));
-                            row.setInet4Addr(targetColumn, inet4Address);
-                        } catch (UnknownHostException e) {
-                            try {
-                                inet6Address = (Inet6Address) InetAddress.getByName(fetchResultSet.getString(sourceColumn));
+                            InetAddress inetAddress = InetAddress.getByName(fetchResultSet.getString(sourceColumn));
+                            if (inetAddress instanceof Inet4Address inet4Address) {
+                                row.setInet4Addr(targetColumn, inet4Address);
+                            } else {
+                                Inet6Address inet6Address = (Inet6Address) inetAddress;
                                 row.setInet6Addr(targetColumn, inet6Address);
-                            } catch (UnknownHostException e1) {
-                                throw new RuntimeException(e1);
                             }
+                        } catch (UnknownHostException e) {
                             throw new RuntimeException(e);
                         }
                         break;
@@ -839,10 +852,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> sourceTable) {
+    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
-        if (sourceTable != null && columnToColumnMap == null) {
+        if (chunk != null && columnToColumnMap == null) {
+            Table<?> sourceTable = chunk.getSourceTable();
             strings.addAll(
                     sourceTable.getColumns()
                             .stream()
