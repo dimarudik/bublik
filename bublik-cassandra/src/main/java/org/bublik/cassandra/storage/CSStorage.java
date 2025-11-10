@@ -358,7 +358,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
     @Override
     public Table<S> configToTable(String schemaName, String tableName) {
-        return null;
+        return new CSTable<>(schemaName, tableName, null, null);
     }
 
     @Override

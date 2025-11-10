@@ -10,7 +10,6 @@ import de.bytefish.pgbulkinsert.util.PostgreSqlUtils;
 import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.exception.SourceSQLException;
-import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
@@ -20,9 +19,7 @@ import org.bublik.postgres.model.PGChunk;
 import org.bublik.postgres.model.PGTable;
 import org.bublik.postgres.util.ColumnUtil;
 import org.postgresql.PGConnection;
-import org.postgresql.core.Encoding;
 import org.postgresql.replication.LogSequenceNumber;
-import org.postgresql.util.HStoreConverter;
 import org.postgresql.util.PGInterval;
 import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
@@ -52,6 +49,70 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         super(storageClass, connectionProperty);
     }
 
+    @Override
+    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
+        List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
+        Connection sourceConnection = getSession();
+        String sql = buildStartEndOfChunk(configs, chunkTableName);
+        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
+        for (Config config : configs) {
+//            Map<Table<S>, Table<S>> sourceTables = configsToTables(configs, targetStorage);
+            Map<Table<S>, Table<S>> sourceTables = new HashMap<>();
+            sourceTables.put(configToTable(config.fromSchemaName(), config.fromTableName()),
+                    targetStorage.configToTable(config.toSchemaName(), config.toTableName()));
+            setTables(sourceTables);
+            targetStorage.setTables(sourceTables);
+            if (getClass().equals(targetStorage.getClass())) {
+                JDBCStorage<K, T, S, R> sourceJDBCStorage = unwrap(JDBCStorage.class);
+                JDBCStorage<K, T, S, R> targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
+                log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
+                sourceJDBCStorage.enrichSourceTables(sourceConnection);
+                sourceJDBCStorage.enrichTargetTables();
+                targetJDBCStorage.createTables();
+            }
+
+            Table<?> sourceTable = getTables().keySet().stream()
+                    .filter(t -> t.equals(new PseudoTable<>(config.fromSchemaName(), config.fromTableName())))
+                    .findFirst()
+                    .orElseThrow();
+            getTables().values().forEach(t -> log.info("{} {}", t.getSchemaName(), t.getTableName()));
+            Table<?> targetTable = getTables().values().stream()
+                    .filter(t -> t.equals(new PseudoTable<>(config.toSchemaName(), config.toTableName())))
+                    .findFirst()
+                    .orElseThrow();
+            String fetchQuery;
+            if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+                fetchQuery = buildFetchStatement(config, sourceTable);
+            } else {
+                fetchQuery = buildFetchStatement(config);
+            }
+            log.info("Fetch query: \n{}", fetchQuery);
+            PreparedStatement preparedStatement = sourceConnection.prepareStatement(sql);
+            preparedStatement.setString(1, config.fromSchemaName());
+            preparedStatement.setString(2, config.fromTableName());
+            ResultSet rs = preparedStatement.executeQuery();
+            while (rs.next()) {
+                String status = rs.getString("status");
+                Chunk<K, T, S, R> chunk = new PGChunk<>(
+                        (K) (Integer) rs.getInt("chunk_id"),
+                        (T) (Long) rs.getLong("start_page"),
+                        (T) (Long) rs.getLong("end_page"),
+                        config,
+                        sourceTable,
+                        ChunkStatus.valueOf(status),
+                        fetchQuery,
+                        this,
+                        targetStorage);
+                chunks.add(chunk);
+                chunk.setTargetTable(targetTable);
+            }
+            rs.close();
+            preparedStatement.close();
+        }
+        return chunks;
+    }
+
+/*
     @Override
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
@@ -100,7 +161,23 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         statement.close();
         return chunks;
     }
+*/
 
+    @Override
+    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
+        List<String> taskNames = new ArrayList<>();
+        configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
+        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name, status from " +
+                chunkTableName + " where task_name in ('" +
+                String.join("', '", taskNames) + "') " +
+                // тут надо разбираться при запуске из нескольких подов
+                " and schema_name = ? and table_name = ? " +
+                " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
+                + " limit 1000 "
+                ;
+    }
+
+/*
     @Override
     public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
         List<String> taskNames = new ArrayList<>();
@@ -113,6 +190,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 + " limit 1000 "
                 ;
     }
+*/
 
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
@@ -159,7 +237,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             connectionTo.rollback();
         } catch (PSQLException p) {
-            log.error("{}", getStackTrace(p));
+//            log.error("{}", getStackTrace(p));
             connectionTo.rollback();
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
         }
@@ -1137,7 +1215,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 throw new RuntimeException(ex);
             }
             log.warn("Outbox table {} does not exist", tableName);
-//            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -1153,7 +1230,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
 
 
     @Override
-    public Table configToTable(String schemaName, String tableName) {
-        return new PGTable(schemaName, tableName);
+    public Table<S> configToTable(String schemaName, String tableName) {
+        return new PGTable<>(schemaName, tableName);
     }
 }

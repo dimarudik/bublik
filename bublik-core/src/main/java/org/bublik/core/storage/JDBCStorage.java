@@ -73,7 +73,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
-        hikariConfig.setConnectionTimeout(10000);
+        hikariConfig.setConnectionTimeout(20000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
     }
@@ -122,20 +122,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             targetStorage.dropOutboxTable(false, tableName);
             targetStorage.createOutbox(tableName);
         }
-        Map<Table<S>, Table<S>> sourceTables = configsToTables(configs, targetStorage);
-        sourceStorage.setTables(sourceTables);
-        targetStorage.setTables(sourceTables);
-        if (sourceStorage.getClass().equals(targetStorage.getClass())) {
-            JDBCStorage<K, T, S, R> sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
-            JDBCStorage<K, T, S, R> targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
-            log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
-            sourceJDBCStorage.enrichSourceTables(sourceConnection);
-            sourceJDBCStorage.enrichTargetTables();
-            targetJDBCStorage.createTables();
-        }
-
         sourceConnection.close();
-
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
@@ -175,7 +162,12 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                     Chunk<?, ?, ?, ?> c = (Chunk<?, ?, ?, ?>) future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
-                    if (e.getMessage().contains("terminating connection due to administrator command") && adminCommandCounter / threadCount < 3) {
+                    if ((
+                                e.getMessage().contains("terminating connection due to administrator command") ||
+                                e.getMessage().contains("Database connection failed when ending copy") ||
+                                e.getMessage().contains("Write to copy failed") ||
+                                e.getMessage().contains("Connection is closed")
+                        ) && adminCommandCounter / threadCount < 4) {
                         adminCommandCounter++;
                         log.error("{}", getStackTrace(e));
                     } else if ((

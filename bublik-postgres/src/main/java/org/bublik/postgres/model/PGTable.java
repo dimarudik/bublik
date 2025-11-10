@@ -1,7 +1,6 @@
 package org.bublik.postgres.model;
 
 import org.bublik.core.model.*;
-import org.bublik.core.service.NameSyntaxService;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
