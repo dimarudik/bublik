@@ -35,7 +35,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
+    public String buildFetchStatement(Config config, Table<?> table) {
         return buildFetchStatement(config);
     }
 

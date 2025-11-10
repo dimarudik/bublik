@@ -48,6 +48,11 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
+    public S getSession() {
+        return (S) getConnection();
+    }
+
+    @Override
     public S getPoolConnection() throws SQLException {
             return (S) dataSource.getConnection();
     }

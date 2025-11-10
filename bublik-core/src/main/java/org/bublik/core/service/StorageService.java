@@ -31,13 +31,15 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     void closeStorage();
     String buildFetchStatement(Config config);
 //    String buildFetchStatement(Config config, Table<?> sourceTable);
-    String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk);
+    String buildFetchStatement(Config config, Table<?> table);
+//    String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
     Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage);
     Table<S> configToTable(String schemaName, String tableName);
     Table<S> getTagetTableBySourceTable(Table<S> table);
     Table<S> getSourceTableByTargetTable(Table<S> table);
     S getPoolConnection() throws SQLException;
+    S getSession();
 //    void setTargetSession(S targetSession);
 
     static Storage<?, ?, ?, ?> getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {

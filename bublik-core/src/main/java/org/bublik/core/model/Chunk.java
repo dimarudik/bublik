@@ -13,9 +13,9 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private final T start;
     private final T end;
     private final Config config;
-    private final Table sourceTable;
+    private final Table<?> sourceTable;
     private final String fetchQuery;
-    private Table targetTable;
+    private Table<?> targetTable;
     private final Storage<K, T, S, R> sourceStorage;
     private long startTime;
     private final Storage<K, T, S, R> targetStorage;
@@ -28,7 +28,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private int upserted;
     private ChunkStatus chunkStatus;
 
-    public Chunk(K id, T start, T end, Config config, Table sourceTable, ChunkStatus status,
+    public Chunk(K id, T start, T end, Config config, Table<?> sourceTable, ChunkStatus status,
                  String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
         this.id = id;
         this.start = start;
@@ -168,8 +168,8 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
 
     @Override
     public String toString() {
-        String toTableName = getTargetTable() == null ? "" : " to " + getTargetTable().getTableName();
-        return  "from " + getSourceTable().getTableName() +
+        String toTableName = getTargetTable() == null ? "" : " -> " + getTargetTable().getTableName();
+        return  getSourceTable().getTableName() +
                 toTableName +
                 " of " + rows +
                 " rows (start:" + getStart() +

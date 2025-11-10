@@ -18,7 +18,7 @@ import static org.bublik.cassandra.constants.SQLConstants.SQL_KEY_BY_TYPE;
 public interface CSTableService {
     Logger log = LoggerFactory.getLogger(CSTableService.class);
 
-    static List<Column> getKey(CqlSession cqlSession, Table table, String keyType) {
+    static List<Column> getKey(CqlSession cqlSession, Table<?> table, String keyType) {
         ResultSet resultSet = cqlSession.execute(
                 SQL_KEY_BY_TYPE,
                 table.getSchemaName(),

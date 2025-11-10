@@ -78,7 +78,7 @@ create table test.parted (
   partition parted_p5 values less than (to_date('01/01/2024', 'DD/MM/YYYY')),
   partition parted_p6 values less than (to_date('01/01/2025', 'DD/MM/YYYY'))
 );
-create index parted_at_idx on test.parted (create_at);
+--create index parted_at_idx on test.parted (create_at);
 insert into test.parted
     (select
         rownum as id,

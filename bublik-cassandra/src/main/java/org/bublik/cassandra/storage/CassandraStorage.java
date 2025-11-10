@@ -69,7 +69,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
-//        ResultSet resultSet = (ResultSet) chunk.getResultSet();
         while (resultSet.next()) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     resultSet,
@@ -79,7 +78,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
             BatchableStatement<?> statement = csObject.getPreparedStatement().bind(entry.getValue());
-//            log.info("{}", csObject.getQuery());
             batchStatementBuilder.addStatement(statement);
             batchEntity.increaseCounter();
             recordCount++;
@@ -121,17 +119,22 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
-//        csObject.setTokenRangeSet(getCsPool().tokenRanges());
+        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
+        CSTable<?> targetTable = (CSTable<?>) chunk.getTargetTable();
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
         for (Row row : resultSet) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     row,
-                    csObject.getPartitionKeyMap(),
-                    csObject.getCassandraColumnMap(),
+                    sourceTable.getPartitionKey(),
+                    sourceTable.getColumns(),
+                    targetTable.getPartitionKey(),
+                    targetTable.getColumns(),
+//                    csObject.getCassandraColumnMap(),
                     csObject.getTokenRangeSet());
+            Arrays.stream(entry.getValue()).forEach(System.out::println);
+            System.out.println(csObject.getPreparedStatement().getQuery());
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
-//            log.info("{}", csObject.getQuery());
             BatchableStatement<?> statement = csObject.getPreparedStatement().bind(entry.getValue());
             batchStatementBuilder.addStatement(statement);
             batchEntity.increaseCounter();
@@ -160,7 +163,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                                                                   Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
-//        long temp = 0;
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetType = entry.getValue().columnType();
@@ -189,7 +191,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 }
                 case "int" : {
                     int v = resultSet.getInt(sourceColumn);
-//                    temp = v;
                     partitionKeyMap
                             .entrySet()
                             .stream()
@@ -264,12 +265,21 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 }
                 case "uuid": {
                     Object v = resultSet.getObject(sourceColumn);
-                    UUID uuid = null;
+                    UUID uuid;
                     try {
                         uuid = (UUID) v;
                     } catch (ClassCastException e) {
                         uuid = UUID.fromString((String) v);
                     }
+/*
+                    int position = partitionKeyList
+                            .stream()
+                            .filter(e -> e.columnName().equals(entry.getValue().columnName()))
+                            .findFirst()
+                            .map(Column::columnPosition)
+                            .orElseThrow();
+                    mapBytes.put(position, uuidToBytes(uuid));
+*/
                     Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
                             .entrySet()
                             .stream()
@@ -291,67 +301,72 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 
     private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(Row row,
-                                                                  Map<Integer, CSPartitionKey> partitionKeyMap,
-                                                                  Map<String, Column> stringCassandraColumnMap,
+                                                                  List<Column> sourcePartKeys,
+                                                                  List<Column> sourceColumns,
+                                                                  List<Column> targetPartKeys,
+                                                                  List<Column> targetColumns,
+//                                                                  Map<Integer, CSPartitionKey> partitionKeyMap,
+//                                                                  Map<String, Column> stringCassandraColumnMap,
                                                                   Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
-        for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
-            String sourceColumn = entry.getKey().replaceAll("\"", "");
-            String targetType = entry.getValue().columnType();
+//        for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
+        for (Column entry : targetColumns) {
+//            String sourceColumn = entry.getKey().replaceAll("\"", "");
+//            String targetType = entry.getValue().columnType();
+//            String targetColumn = entry.columnName().replaceAll("\"", "");
+            String sourceColumn = entry.columnName().replaceAll("\"", "");
+            String targetType = entry.columnType();
+            // надо сопоставить имя колонки источника и приемника
             switch (targetType) {
                 case "tinyint" : {
                     byte v = row.getByte(sourceColumn);
-                    partitionKeyMap
-                            .entrySet()
+                    targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.getKey(), byteToBytes(v)));
+                            .ifPresent(e -> mapBytes.put(e.columnPosition(), byteToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "smallint" : {
                     short v = row.getShort(sourceColumn);
-                    partitionKeyMap
-                            .entrySet()
+                    targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.getKey(), smallIntToBytes(v)));
+                            .ifPresent(e -> mapBytes.put(e.columnPosition(), smallIntToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "int" : {
                     int v = row.getInt(sourceColumn);
-                    partitionKeyMap
-                            .entrySet()
+                    targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.getKey(), intToBytes(v)));
+                            .ifPresent(e -> mapBytes.put(e.columnPosition(), intToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "bigint": {
                     long v = row.getLong(sourceColumn);
-                    partitionKeyMap
-                            .entrySet()
+                    targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.getKey(), longToBytes(v)));
+                            .ifPresent(e -> mapBytes.put(e.columnPosition(), longToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "text": {
                     String v = row.getString(sourceColumn);
-                    partitionKeyMap
-                            .entrySet()
+//                    Integer ttl = row.get("ttl(" + sourceColumn + ")", Integer.class);
+                    targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.getKey(), stringToBytes(v)));
+                            .ifPresent(e -> mapBytes.put(e.columnPosition(), stringToBytes(v)));
                     objectList.add(v);
                     break;
                 }
@@ -362,12 +377,11 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 }
                 case "timestamp": {
                     Instant v = row.getInstant(sourceColumn);
-                    partitionKeyMap
-                            .entrySet()
+                    targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.getKey(), timestampToBytes(v)));
+                            .ifPresent(e -> mapBytes.put(e.columnPosition(), timestampToBytes(v)));
                     objectList.add(v);
                     break;
                 }
@@ -390,14 +404,13 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 }
                 case "uuid": {
                     UUID uuid = row.getUuid(sourceColumn);
-                    Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
-                            .entrySet()
+                    int position = targetPartKeys
                             .stream()
-                            .filter(e -> e.getValue().getColumnName().equals(entry.getValue().columnName()))
+                            .filter(e -> e.columnName().equals(entry.columnName()))
                             .findFirst()
+                            .map(Column::columnPosition)
                             .orElseThrow();
-                    assert uuid != null;
-                    mapBytes.put(keyEntry.getKey(), uuidToBytes(uuid));
+                    mapBytes.put(position, uuidToBytes(uuid));
                     objectList.add(uuid);
                     break;
                 }

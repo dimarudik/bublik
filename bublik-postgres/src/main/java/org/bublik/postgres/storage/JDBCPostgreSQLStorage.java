@@ -75,6 +75,12 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 config.fromTableName() + " not exists in cache"))
                         .getKey();
                 String status = rs.getString("status");
+                String fetchQuery;
+                if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+                    fetchQuery = buildFetchStatement(config, sourceTable);
+                } else {
+                    fetchQuery = buildFetchStatement(config);
+                }
                 Chunk <K, T, S, R> chunk = new PGChunk<>(
                         (K)(Integer)rs.getInt("chunk_id"),
                         (T)(Long)rs.getLong("start_page"),
@@ -82,17 +88,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         config,
                         sourceTable,
                         ChunkStatus.valueOf(status),
-                        null,
+                        fetchQuery,
                         this,
                         targetStorage);
                 chunks.add(chunk);
-                String query;
-                if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-                    query = buildFetchStatement(config, chunk);
-                } else {
-                    query = buildFetchStatement(config);
-                }
-                tableMap.put(query, sourceTable);
+                tableMap.put(fetchQuery, sourceTable);
             }
         }
         tableMap.keySet().forEach(s -> log.info("{}", s));
@@ -852,11 +852,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
+    public String buildFetchStatement(Config config, Table<?> sourceTable) {
         List<String> strings = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
-        if (chunk != null && columnToColumnMap == null) {
-            Table<?> sourceTable = chunk.getSourceTable();
+        if (sourceTable != null && columnToColumnMap == null) {
+//            Table<?> sourceTable = chunk.getSourceTable();
             strings.addAll(
                     sourceTable.getColumns()
                             .stream()

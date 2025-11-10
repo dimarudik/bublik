@@ -136,6 +136,12 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
                 Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
                 String status = resultSet.getString("status");
+                String fetchQuery;
+                if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+                    fetchQuery = buildFetchStatement(config, sourceTable);
+                } else {
+                    fetchQuery = buildFetchStatement(config);
+                }
                 chunkHashMap.add(
                         new OraChunk<>(
                                 (K)Integer.valueOf(resultSet.getInt("chunk_id")),
@@ -144,7 +150,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                                 config,
                                 sourceTable,
                                 ChunkStatus.valueOf(status),
-                                null,
+                                fetchQuery,
                                 this,
                                 targetStorage
                         )
@@ -175,7 +181,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
+    public String buildFetchStatement(Config config, Table<?> table) {
         return buildFetchStatement(config);
     }
 

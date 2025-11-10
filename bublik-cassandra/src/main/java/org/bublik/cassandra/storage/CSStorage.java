@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import static org.bublik.cassandra.constants.SQLConstants.*;
 import static org.bublik.core.util.Utils.getStackTrace;
@@ -45,6 +46,11 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         this.threadCount = connectionProperty.getThreadCount();
 //        this.batchSize = getBatchSize(connectionProperty);
         this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+    }
+
+    @Override
+    public S getSession() {
+        return (S) getCsPool().getCqlSession();
     }
 
     public CSPool getCsPool() {
@@ -293,17 +299,17 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, getChunkTableName(chunkTableName));
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
-        CqlSession cqlSession = csPool.getCqlSession();
+        CqlSession sourceSession = getSession();
+        CqlSession targetSession = targetStorage.getSession();
         configs.forEach(config -> {
-            Table<?> pseudoTable = new PseudoTable<>(config.fromSchemaName(), config.fromTableName());
-            List<Column> partitionKey = CSTableService.getKey(cqlSession, pseudoTable, "partition_key");
-            List<Column> clusteringKey = CSTableService.getKey(cqlSession, pseudoTable, "clustering");
-            CSTable<?> sourceTable = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
-            List<Column> columns = sourceTable.getAllColumns(cqlSession);
-            sourceTable.setColumns(columns);
-            PreparedStatement ps = cqlSession.prepare(sql);
+            Table<?> sourceTable = getTable(new PseudoTable<>(config.fromSchemaName(), config.fromTableName()), sourceSession);
+            Table<?> targetTable = getTable(new PseudoTable<>(config.toSchemaName(), config.toTableName()), targetSession);
+            String fetchQuery = buildFetchStatement(config, sourceTable);
+            log.info("Fetch query: \n{}", fetchQuery);
+
+            PreparedStatement ps = sourceSession.prepare(sql);
             BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName());
-            com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(bs);
+            com.datastax.oss.driver.api.core.cql.ResultSet rs = sourceSession.execute(bs);
             for (Row row : rs) {
                 String status = row.getString("status");
                 Chunk<K, T, S, R> chunk =
@@ -314,21 +320,24 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                                 config,
                                 sourceTable,
                                 ChunkStatus.valueOf(status),
-                                null,
+                                fetchQuery,
                                 this,
                                 targetStorage
                         );
                 chunks.add(chunk);
-                CqlSession targetSession = chunk.getTargetSession();
-//                targetStorage.getPoolConnection();
-                Table<?> targetPseudoTable = new PseudoTable<>(config.toSchemaName(), config.toTableName());
-                List<Column> targetPartitionKey = CSTableService.getKey(targetSession, targetPseudoTable, "partition_key");
-                List<Column> targetClusteringKey = CSTableService.getKey(targetSession, targetPseudoTable, "clustering");
-                CSTable<?> targetTable = new CSTable<>(targetPseudoTable.getSchemaName(), targetPseudoTable.getTableName(), targetPartitionKey, targetClusteringKey);
                 chunk.setTargetTable(targetTable);
             }
         });
         return chunks;
+    }
+
+    public Table<?> getTable(PseudoTable<?> pseudoTable, CqlSession session) {
+        List<Column> partitionKey = CSTableService.getKey(session, pseudoTable, "partition_key");
+        List<Column> clusteringKey = CSTableService.getKey(session, pseudoTable, "clustering");
+        CSTable<?> table = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
+        List<Column> columns = table.getAllColumns(session);
+        table.setColumns(columns);
+        return table;
     }
 
     @Override
@@ -392,28 +401,37 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildFetchStatement(Config config, Chunk<K, T, S, R> chunk) {
-        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
+    public String buildFetchStatement(Config config, Table<?> table) {
+//        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
+        CSTable<?> sourceTable = (CSTable<?>) table;
         List<Column> pkColumns = new ArrayList<>(sourceTable.getPartitionKey());
+        List<Column> ckColumns = new ArrayList<>(sourceTable.getClusteringKey());
         Collections.sort(pkColumns);
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());
-        List<String> strings = new ArrayList<>();
+        List<String> columns = new ArrayList<>();
         Map<String, String> columnToColumnMap = config.columnToColumn();
         if (columnToColumnMap == null) {
-            strings.addAll(
+            columns.addAll(
                     sourceTable.getColumns()
                             .stream()
                             .map(Column::columnName)
                             .toList()
             );
         } else {
-            strings.addAll(columnToColumnMap.keySet());
+            columns.addAll(columnToColumnMap.keySet());
         }
+        List<String> ttlColumns = columns
+                .stream()
+                .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
+                .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
+                .map(s -> "ttl(" + s + ")")
+                .toList();
+        columns.addAll(ttlColumns);
         Map<String, String> expressionToColumnMap = config.expressionToColumn();
         if (expressionToColumnMap != null) {
-            strings.addAll(expressionToColumnMap.keySet());
+            columns.addAll(expressionToColumnMap.keySet());
         }
-        String columnToColumn = String.join(", ", strings);
+        String columnToColumn = String.join(", ", columns);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
                 PGKeywords.FROM + " " +

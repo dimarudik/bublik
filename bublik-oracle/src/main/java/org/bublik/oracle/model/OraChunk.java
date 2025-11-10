@@ -53,12 +53,15 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
+        String q = getFetchQuery();
+/*
         String q;
         if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
             q = getSourceStorage().buildFetchStatement(getConfig(), this);
         } else {
             q = getSourceStorage().buildFetchStatement(getConfig());
         }
+*/
         ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);
         return this;

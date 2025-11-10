@@ -6,7 +6,7 @@
     <parent>
       <groupId>bublik</groupId>
       <artifactId>bublik-parent</artifactId>
-      <version>25.1.44</version>
+      <version>25.1.45</version>
     </parent>
     <artifactId>bublik-oracle</artifactId>
     <version>${project.parent.version}</version>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>bublik</groupId>
             <artifactId>bublik-core</artifactId>
-            <version>25.1.44</version>
+            <version>25.1.45</version>
         </dependency>
         <!--        oracle -->
         <dependency>

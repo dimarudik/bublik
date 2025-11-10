@@ -728,6 +728,8 @@ You can run test in TestContainers environment by executing the command below:
 mvn -f ./bublik-cli/pom.xml test -Dtest="org/bublik/cli/postgresql/postgresql/*"
 ```
 
+Or you can run test case in docker containers manually:
+
 ### Prepare PostgreSQL To PostgreSQL environment
 
 ```shell

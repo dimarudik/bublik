@@ -68,12 +68,15 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
+        String q = getFetchQuery();
+/*
         String q;
         if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
             q = getSourceStorage().buildFetchStatement(getConfig(), this);
         } else {
             q = getSourceStorage().buildFetchStatement(getConfig());
         }
+*/
         ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);
         return this;
