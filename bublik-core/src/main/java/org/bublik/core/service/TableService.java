@@ -27,28 +27,5 @@ public interface TableService<S extends AutoCloseable> {
     void createForeignKeys(Connection connection);
     Map<String, String> getColumnToColumn(Connection connection) throws SQLException;
     void create(Connection connection) throws SQLException;
-
-/*
-    static Class<? extends Table[]> getTableArrayClass(Connection connection) throws SQLException {
-        if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
-            return OraTable[].class;
-        } else if (connection.isWrapperFor(PGConnection.class)) {
-            return PGTable[].class;
-        }
-        throw new SQLException("Unknown DataSource");
-    }
-*/
-
-/*
-    static Table getTable(Connection connection, String schemaName, String tableName) throws SQLException {
-        if (connection.isWrapperFor(oracle.jdbc.OracleConnection.class)) {
-            return new OraTable(schemaName, tableName);
-        } else if (connection.isWrapperFor(PGConnection.class)) {
-            return new PGTable(schemaName, tableName);
-        } else if (connection.isWrapperFor(tech.ydb.jdbc.YdbConnection.class)) {
-            return new YDBTable(schemaName, tableName); // Assuming YDB uses similar table structure
-        }
-        throw new SQLException("Unknown DataSource");
-    }
-*/
+    boolean enrichTable(S session) throws SQLException;
 }

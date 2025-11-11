@@ -13,7 +13,6 @@ import java.sql.*;
 import static org.bublik.cli.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
 public class PostgresToPostgresTest {
     private static int rows = 50000;
     private static boolean sync = false;

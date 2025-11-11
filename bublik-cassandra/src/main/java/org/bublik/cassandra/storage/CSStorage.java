@@ -28,7 +28,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 
 import static org.bublik.cassandra.constants.SQLConstants.*;
 import static org.bublik.core.util.Utils.getStackTrace;
@@ -300,11 +299,21 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         String sql = buildStartEndOfChunk(configs, getChunkTableName(chunkTableName));
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         CqlSession sourceSession = getSession();
-        CqlSession targetSession = targetStorage.getSession();
+        S targetSession = targetStorage.getSession();
         configs.forEach(config -> {
-            Table<?> sourceTable = getTable(new PseudoTable<>(config.fromSchemaName(), config.fromTableName()), sourceSession);
-            Table<?> targetTable = getTable(new PseudoTable<>(config.toSchemaName(), config.toTableName()), targetSession);
-            String fetchQuery = buildFetchStatement(config, sourceTable);
+            Table<S> sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
+            Table<S> targetTable = configToTable(config.toSchemaName(), config.toTableName());
+            try {
+                sourceTable.enrichTable((S)sourceSession);
+                targetTable.enrichTable(targetSession);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+//            Table<S> sourceTable = getTable(new PseudoTable<>(config.fromSchemaName(), config.fromTableName()), sourceSession);
+//            Table<S> targetTable = getTable(new PseudoTable<>(config.toSchemaName(), config.toTableName()), targetSession);
+            List<Column2Column> c2c = new ArrayList<>();
+            Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
+            String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: \n{}", fetchQuery);
 
             PreparedStatement ps = sourceSession.prepare(sql);
@@ -331,14 +340,16 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         return chunks;
     }
 
-    public Table<?> getTable(PseudoTable<?> pseudoTable, CqlSession session) {
+/*
+    public Table<S> getTable(PseudoTable<?> pseudoTable, CqlSession session) {
         List<Column> partitionKey = CSTableService.getKey(session, pseudoTable, "partition_key");
         List<Column> clusteringKey = CSTableService.getKey(session, pseudoTable, "clustering");
-        CSTable<?> table = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
+        CSTable<S> table = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
         List<Column> columns = table.getAllColumns(session);
         table.setColumns(columns);
         return table;
     }
+*/
 
     @Override
     public void closeStorage() {
@@ -401,9 +412,9 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> table) {
+    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
 //        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
-        CSTable<?> sourceTable = (CSTable<?>) table;
+        CSTable<?> sourceTable = (CSTable<?>) t2t.sourceTable();
         List<Column> pkColumns = new ArrayList<>(sourceTable.getPartitionKey());
         List<Column> ckColumns = new ArrayList<>(sourceTable.getClusteringKey());
         Collections.sort(pkColumns);
@@ -450,5 +461,19 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     @Override
     public String buildFetchStatement(Config config) {
         return buildFetchStatement(config, null);
+    }
+
+    @Override
+    public void setSession(S session) {
+    }
+
+    @Override
+    public void enrichTable(Table<S> sourceTable) throws SQLException {
+        sourceTable.enrichTable(getSession());
+    }
+
+    @Override
+    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+        targetTable.enrichTable(getSession());
     }
 }

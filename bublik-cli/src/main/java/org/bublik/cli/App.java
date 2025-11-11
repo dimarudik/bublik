@@ -156,11 +156,6 @@ public class App {
                                   int rowsParameter,
                                   boolean sync,
                                   String chunkTable) {
-        log.info("THREADS: {}", property.getThreadCount());
-        log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
-        log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
-        log.info("TARGET: {}", property.getToProperty().getProperty("url"));
-        log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
         try {
             StorageService.init(property, configs, sync, rowsParameter,
                     chunkTable == null ? "public._bublik" : chunkTable);

@@ -46,7 +46,7 @@ insert into test.likes (id, user_id, item_id)
     select distinct
        floor(dbms_random.value(2,100000)) as user_id,
        floor(dbms_random.value(2,100000)) as item_id
-    from dual connect by level <= 1000000)
+    from dual connect by level <= 500000)
     where user_id <> item_id;
 commit;
 

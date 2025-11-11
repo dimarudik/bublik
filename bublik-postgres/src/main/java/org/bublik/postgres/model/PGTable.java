@@ -489,6 +489,7 @@ public class PGTable<S extends Connection> extends Table<S> {
     @Override
     public void create(Connection connection) throws SQLException {
         if (!exists(connection)) {
+            log.info("Creating table {}.{}", getSchemaName(), getTableName());
             String columnDefinition = getColumnDefinition();
             String query = DDL_CREATE_TABLE
                     .replace("$schemaName", getFinalSchemaName(true))
@@ -503,6 +504,19 @@ public class PGTable<S extends Connection> extends Table<S> {
             statement.execute(query);
             connection.commit();
         }
+    }
+
+    @Override
+    public boolean enrichTable(Connection session) throws SQLException {
+        if (exists(session)) {
+            setColumns(getAllColumns(session));
+            setPkColumns(getPrimaryKeyColumns(session));
+            Map.Entry<Integer, List<TableOption>> options = getOptions(session);
+            setId(options.getKey());
+            setOptions(options.getValue());
+            return true;
+        }
+        return false;
     }
 
     private String getColumnDefinition() {

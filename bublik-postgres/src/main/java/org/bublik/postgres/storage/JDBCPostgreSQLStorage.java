@@ -52,42 +52,20 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     @Override
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
-        Connection sourceConnection = getSession();
         String sql = buildStartEndOfChunk(configs, chunkTableName);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         for (Config config : configs) {
-//            Map<Table<S>, Table<S>> sourceTables = configsToTables(configs, targetStorage);
-            Map<Table<S>, Table<S>> sourceTables = new HashMap<>();
-            sourceTables.put(configToTable(config.fromSchemaName(), config.fromTableName()),
-                    targetStorage.configToTable(config.toSchemaName(), config.toTableName()));
-            setTables(sourceTables);
-            targetStorage.setTables(sourceTables);
-            if (getClass().equals(targetStorage.getClass())) {
-                JDBCStorage<K, T, S, R> sourceJDBCStorage = unwrap(JDBCStorage.class);
-                JDBCStorage<K, T, S, R> targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
-                log.info("Source Version: {} Major Version: {}", sourceJDBCStorage.getStorageVersion(sourceConnection), sourceJDBCStorage.getMajorStorageVersion(sourceConnection));
-                sourceJDBCStorage.enrichSourceTables(sourceConnection);
-                sourceJDBCStorage.enrichTargetTables();
-                targetJDBCStorage.createTables();
-            }
-
-            Table<?> sourceTable = getTables().keySet().stream()
-                    .filter(t -> t.equals(new PseudoTable<>(config.fromSchemaName(), config.fromTableName())))
-                    .findFirst()
-                    .orElseThrow();
-            getTables().values().forEach(t -> log.info("{} {}", t.getSchemaName(), t.getTableName()));
-            Table<?> targetTable = getTables().values().stream()
-                    .filter(t -> t.equals(new PseudoTable<>(config.toSchemaName(), config.toTableName())))
-                    .findFirst()
-                    .orElseThrow();
-            String fetchQuery;
-            if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-                fetchQuery = buildFetchStatement(config, sourceTable);
-            } else {
-                fetchQuery = buildFetchStatement(config);
-            }
+            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+            this.enrichTable(sourceTable);
+            targetStorage.enrichTable(sourceTable, targetTable);
+//            sourceTable.getColumns().forEach(c -> log.info("Source column: {} {}", c.columnName(), c.columnType()));
+            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
+            Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
+            String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: \n{}", fetchQuery);
-            PreparedStatement preparedStatement = sourceConnection.prepareStatement(sql);
+            S sourceSession = this.getPoolConnection();
+            PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
             ResultSet rs = preparedStatement.executeQuery();
@@ -108,60 +86,50 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             }
             rs.close();
             preparedStatement.close();
+            sourceSession.close();
         }
         return chunks;
     }
 
-/*
-    @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
-        List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
-        Connection connection = getConnection();
-        String sql = buildStartEndOfChunk(configs, chunkTableName);
-        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
-        Map<String, Table> tableMap = new HashMap<>();
-        PreparedStatement statement = connection.prepareStatement(sql);
-        ResultSet rs = statement.executeQuery();
-        if (rs.isBeforeFirst()) {
-            while (rs.next()) {
-                Config config = findByTaskName(configs, rs.getString("task_name"));
-                Table sourceTable = getTables()
-                        .entrySet()
-                        .stream()
-                        .filter(s -> s.getKey().getSchemaName().equalsIgnoreCase(config.fromSchemaName())
-                                && s.getKey().getTableName().equalsIgnoreCase(config.fromTableName()))
+    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+        List<Column2Column> column2Column = new ArrayList<>();
+        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(null, c, c)));
+            return column2Column;
+        }
+        if (config.columnToColumn() != null) {
+            for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
+                Column sourceColumn = sourceTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getKey().replaceAll("\"", "")))
                         .findFirst()
-                        .orElseThrow(() -> new TableNotExistsException("Table " +
-                                config.fromSchemaName() + "." +
-                                config.fromTableName() + " not exists in cache"))
-                        .getKey();
-                String status = rs.getString("status");
-                String fetchQuery;
-                if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-                    fetchQuery = buildFetchStatement(config, sourceTable);
-                } else {
-                    fetchQuery = buildFetchStatement(config);
-                }
-                Chunk <K, T, S, R> chunk = new PGChunk<>(
-                        (K)(Integer)rs.getInt("chunk_id"),
-                        (T)(Long)rs.getLong("start_page"),
-                        (T)(Long)rs.getLong("end_page"),
-                        config,
-                        sourceTable,
-                        ChunkStatus.valueOf(status),
-                        fetchQuery,
-                        this,
-                        targetStorage);
-                chunks.add(chunk);
-                tableMap.put(fetchQuery, sourceTable);
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, sourceColumn, targetColumn));
             }
         }
-        tableMap.keySet().forEach(s -> log.info("{}", s));
-        rs.close();
-        statement.close();
-        return chunks;
-    }
+        if (config.expressionToColumn() != null) {
+            for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
+                Column column = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(entry.getKey(), column, column));
+            }
+        }
+/*
+        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
+                c2c.sourceExpression(),
+                c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
+                c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
 */
+        return column2Column;
+    }
 
     @Override
     public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
@@ -170,27 +138,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name, status from " +
                 chunkTableName + " where task_name in ('" +
                 String.join("', '", taskNames) + "') " +
-                // тут надо разбираться при запуске из нескольких подов
                 " and schema_name = ? and table_name = ? " +
                 " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
                 + " limit 1000 "
                 ;
     }
-
-/*
-    @Override
-    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
-        List<String> taskNames = new ArrayList<>();
-        configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
-        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name, status from " +
-                chunkTableName + " where task_name in ('" +
-                String.join("', '", taskNames) + "') " +
-                // тут надо разбираться при запуске из нескольких подов
-                "and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
-                + " limit 1000 "
-                ;
-    }
-*/
 
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
@@ -930,13 +882,18 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> sourceTable) {
-        List<String> strings = new ArrayList<>();
+    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+//        List<String> strings = new ArrayList<>();
+        List<String> strings = t2t.column2Columns()
+                .stream()
+                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
+                .toList();
+/*
         Map<String, String> columnToColumnMap = config.columnToColumn();
-        if (sourceTable != null && columnToColumnMap == null) {
-//            Table<?> sourceTable = chunk.getSourceTable();
+        Map<String, String> expressionToColumnMap = config.expressionToColumn();
+        if (t2t.sourceTable() != null && columnToColumnMap == null && expressionToColumnMap == null) {
             strings.addAll(
-                    sourceTable.getColumns()
+                    t2t.sourceTable().getColumns()
                             .stream()
                             .map(Column::columnName)
                             .toList()
@@ -944,10 +901,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         } else if (columnToColumnMap != null) {
             strings.addAll(columnToColumnMap.keySet());
         }
-        Map<String, String> expressionToColumnMap = config.expressionToColumn();
         if (expressionToColumnMap != null) {
             strings.addAll(expressionToColumnMap.keySet());
         }
+*/
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
@@ -1232,5 +1189,25 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     @Override
     public Table<S> configToTable(String schemaName, String tableName) {
         return new PGTable<>(schemaName, tableName);
+    }
+
+    @Override
+    public void enrichTable(Table<S> sourceTable) throws SQLException {
+        S session = getPoolConnection();
+        sourceTable.enrichTable(session);
+        session.close();
+    }
+
+    @Override
+    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+        S session = getPoolConnection();
+        if (!targetTable.enrichTable(session)) {
+            targetTable.setOptions(sourceTable.getOptions());
+            targetTable.setColumns(sourceTable.getColumns());
+            targetTable.create(session);
+        } else {
+            targetTable.enrichTable(session);
+        }
+        session.close();
     }
 }

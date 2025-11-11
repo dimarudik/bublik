@@ -49,7 +49,7 @@ public class V14Test {
     void allTypes() throws IOException {
         TestResult result = getResult(
                 "postgresql/postgresql/yaml/pg2pg.yaml",
-                "postgresql/postgresql/json/allTypes.json",
+                "postgresql/postgresql/json/allTypes-v14.json",
                 rows,
                 sync,
                 getJdbcProperties(source),

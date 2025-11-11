@@ -97,4 +97,9 @@ public class PseudoTable<S extends AutoCloseable> extends Table<S> {
     public void create(Connection connection) throws SQLException {
 
     }
+
+    @Override
+    public boolean enrichTable(S session) throws SQLException {
+        return false;
+    }
 }

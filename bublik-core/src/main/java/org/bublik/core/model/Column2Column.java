@@ -1,4 +1,4 @@
 package org.bublik.core.model;
 
-public record Column2Column (Column sourceColumn, Column targetColumn) {
+public record Column2Column (String sourceExpression, Column sourceColumn, Column targetColumn) {
 }

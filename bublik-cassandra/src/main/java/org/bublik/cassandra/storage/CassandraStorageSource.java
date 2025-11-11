@@ -283,7 +283,7 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table table) {
+    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
         return "";
     }
 

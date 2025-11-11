@@ -53,6 +53,11 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
+    public void setSession(S session) {
+        setConnection(session);
+    }
+
+    @Override
     public S getPoolConnection() throws SQLException {
             return (S) dataSource.getConnection();
     }
@@ -126,12 +131,8 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
-            Connection sConnection = this.getPoolConnection();
-            setConnection(sConnection);
             List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
-            sConnection.close();
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
-
             chunks.forEach(chunk -> futures.add(
                     service
                             .submit(() -> {
@@ -217,6 +218,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
+/*
         if (sourceStorage.getClass().equals(targetStorage.getClass())) {
             JDBCStorage sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
             JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
@@ -228,6 +230,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                 targetJDBCStorage.createTables();
             }
         }
+*/
 
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());

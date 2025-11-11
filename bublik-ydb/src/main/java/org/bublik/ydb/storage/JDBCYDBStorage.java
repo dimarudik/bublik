@@ -3,7 +3,6 @@ package org.bublik.ydb.storage;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.exception.SourceSQLException;
 import org.bublik.core.exception.TableNotExistsException;
-import org.bublik.core.exception.TargetSQLException;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
@@ -35,7 +34,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> table) {
+    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
         return buildFetchStatement(config);
     }
 
@@ -356,6 +355,16 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
+    public void enrichSourceTables(Connection connection) {
+
+    }
+
+    @Override
+    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+
+    }
+
+    @Override
     public void createPrimaryKeys() {
     }
 
@@ -381,11 +390,6 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
 
     @Override
     public void createUniqueConstraints() {
-
-    }
-
-    @Override
-    public void enrichSourceTables(Connection connection) {
 
     }
 
@@ -464,5 +468,10 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         chunkInsert.setLong(3, rows);
         long r = chunkInsert.executeUpdate();
         chunkInsert.close();
+    }
+
+    @Override
+    public void enrichTable(Table<S> targetTable) throws SQLException {
+        targetTable.enrichTable(getSession());
     }
 }

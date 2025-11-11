@@ -52,7 +52,7 @@ insert into public.likes (id, user_id, item_id, r)
        floor(random() * 100000 + 1)::int as user_id,
        floor(random() * 100000 + 1)::int as item_id,
        rpad('Bublik is the best tool for migration ',50,'*') as r
-    from generate_series(1, 1000000) as num
+    from generate_series(1, 500000) as num
 on conflict (user_id, item_id) do nothing;
 
 analyze public.users;

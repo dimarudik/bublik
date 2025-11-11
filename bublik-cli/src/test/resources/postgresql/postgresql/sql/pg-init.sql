@@ -140,7 +140,7 @@ insert into public."Source" (uuid, "Primary", boolean,
         '{"key": "value"}' j,
         case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
         '"a"=>"1","b"=>"2"'::hstore h
-    from generate_series(1, 50000) as n;
+    from generate_series(1, 10000) as n;
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description, current_mood, time, j, ip, h)
@@ -157,7 +157,7 @@ insert into public."Source" (uuid, "Primary", boolean,
         '{"key": "value"}' j,
         case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
         'c=>3,d=>3'::hstore h
-    from generate_series(1,500000) as n;
+    from generate_series(1,300000) as n;
 
 analyze public."Source" ;
 

@@ -165,4 +165,9 @@ public class OraTable<S extends Connection> extends Table<S> {
     public void create(Connection connection) throws SQLException {
         log.info("Table {}.{} not exists in target database. Please create it manually.", getFinalSchemaName(), getFinalTableName(false));
     }
+
+    @Override
+    public boolean enrichTable(S session) throws SQLException {
+        return false;
+    }
 }

@@ -121,7 +121,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     @Override
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable, Storage<K, T, S, R> targetStorage) throws SQLException {
-        Connection connection = getConnection();
+//        Connection connection = getConnection();
+        S sourceSession = this.getPoolConnection();
         List<Chunk<K, T, S, R>> chunkHashMap = new ArrayList<>();
         String sql = buildStartEndOfChunk(configs, chunkTable);
         log.debug("SQL to fetch metadata of chunks: \n{}", sql);
@@ -129,16 +130,18 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         for (Config c : configs)
             sb.append("\n").append(buildFetchStatement(c));
         log.debug("SQL to fetch chunks: {}", sb);
-        PreparedStatement statement = connection.prepareStatement(sql);
+        PreparedStatement statement = sourceSession.prepareStatement(sql);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.isBeforeFirst()) {
             while (resultSet.next()) {
                 Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                Table sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
+                Table<S> sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
+                Table<S> targetTable = configToTable(config.toSchemaName(), config.toTableName());
                 String status = resultSet.getString("status");
                 String fetchQuery;
+                Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, null);
                 if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-                    fetchQuery = buildFetchStatement(config, sourceTable);
+                    fetchQuery = buildFetchStatement(config, t2t);
                 } else {
                     fetchQuery = buildFetchStatement(config);
                 }
@@ -159,6 +162,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         }
         resultSet.close();
         statement.close();
+        sourceSession.close();
         return chunkHashMap;
     }
 
@@ -181,7 +185,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table<?> table) {
+    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
         return buildFetchStatement(config);
     }
 
@@ -273,10 +277,13 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         return new OraTable<>(schemaName, tableName);
     }
 
-/*
     @Override
-    public void setTargetSession(S targetSession) {
-        setConnection(targetSession);
+    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+
     }
-*/
+
+    @Override
+    public void enrichTable(Table<S> targetTable) throws SQLException {
+        targetTable.enrichTable(getSession());
+    }
 }

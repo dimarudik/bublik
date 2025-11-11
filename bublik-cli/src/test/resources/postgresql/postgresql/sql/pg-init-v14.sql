@@ -1,6 +1,5 @@
 create extension hstore;
 create type mood AS ENUM ('sad', 'ok', 'happy');
-create type gender AS ENUM ('male', 'female', 'NA');
 create table public."Source" (
     id int primary key generated always as identity,
     uuid uuid,

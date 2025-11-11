@@ -59,7 +59,7 @@ insert into test.table1
         to_clob(JSON_OBJECT('name' value 'Foo')) as clobjsonb,
         decode(round(dbms_random.value(0,3)),1,'sad',2,'ok',3,'happy',null) as current_mood,
         decode(round(dbms_random.value(0,1)),0,null,round(dbms_random.value(1,2))) as currency_id
-    from dual connect by level < 1000000);
+    from dual connect by level < 500000);
 commit;
 create table test."Table2" as
 select id, "LEVEL", create_at, update_at, gender, byteablob, textclob, exclude_me, "CaseSensitive", country_id
@@ -84,7 +84,7 @@ insert into test.parted
         rownum as id,
         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2024)), 'DD/MM/YYYY') as update_at,
         rpad('*', round(dbms_random.value(0,1000)),'*') as name
-    from dual connect by level < 1000000);
+    from dual connect by level < 500000);
 commit;
 
 create table test.intervals (

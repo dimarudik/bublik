@@ -117,4 +117,9 @@ public class YDBTable<S extends Connection> extends Table<S> {
     public void create(Connection connection) throws SQLException {
 
     }
+
+    @Override
+    public boolean enrichTable(S session) throws SQLException {
+        return false;
+    }
 }

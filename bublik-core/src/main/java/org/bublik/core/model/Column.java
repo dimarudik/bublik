@@ -15,4 +15,8 @@ public record Column(Integer columnPosition, String columnName, String columnTyp
     public String getColumnNameWithAscOrDesc() {
         return columnName + " " + ascOrDesc;
     }
+
+    public String getColumnNameWithoutQuotes() {
+        return getWordWithoutQuotes(columnName);
+    }
 }

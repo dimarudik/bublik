@@ -5,6 +5,7 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
+import org.bublik.cassandra.service.CSTableService;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -18,12 +19,20 @@ import java.util.Map;
 
 public class CSTable<S extends CqlSession> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(CSTable.class);
-    private final List<Column> partitionKey;
-    private final List<Column> clusteringKey;
+    private List<Column> partitionKey;
+    private List<Column> clusteringKey;
 
     public CSTable(String schemaName, String tableName, List<Column> partitionKey, List<Column> clusteringKey) {
         super(schemaName, tableName);
         this.partitionKey = partitionKey;
+        this.clusteringKey = clusteringKey;
+    }
+
+    public void setPartitionKey(List<Column> partitionKey) {
+        this.partitionKey = partitionKey;
+    }
+
+    public void setClusteringKey(List<Column> clusteringKey) {
         this.clusteringKey = clusteringKey;
     }
 
@@ -133,5 +142,15 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     @Override
     public void create(Connection connection) throws SQLException {
 
+    }
+
+    @Override
+    public boolean enrichTable(S session) {
+        List<Column> partitionKey = CSTableService.getKey(session, this, "partition_key");
+        List<Column> clusteringKey = CSTableService.getKey(session, this, "clustering");
+        setClusteringKey(clusteringKey);
+        setPartitionKey(partitionKey);
+        setColumns(getAllColumns(session));
+        return true;
     }
 }

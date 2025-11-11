@@ -30,7 +30,8 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config);
-    String buildFetchStatement(Config config, Table<?> table);
+    String buildFetchStatement(Config config, Table2Table<S> t2t);
+//    String buildFetchStatement(Config config, Table<?> table);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
     Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage);
     Table<S> configToTable(String schemaName, String tableName);
@@ -38,6 +39,9 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     Table<S> getSourceTableByTargetTable(Table<S> table);
     S getPoolConnection() throws SQLException;
     S getSession();
+    void setSession(S session);
+    void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException;
+    void enrichTable(Table<S> sourceTable) throws SQLException;
 //    void setTargetSession(S targetSession);
 
     static Storage<?, ?, ?, ?> getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
@@ -90,6 +94,11 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
 
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
         log.info("Bublik starting...");
+        log.info("THREADS: {}", property.getThreadCount());
+        log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
+        log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
+        log.info("TARGET: {}", property.getToProperty().getProperty("url"));
+        log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
         try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
