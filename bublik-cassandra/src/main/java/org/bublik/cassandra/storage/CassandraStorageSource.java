@@ -268,18 +268,13 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName) {
         return "";
     }
 
     @Override
     public void closeStorage() {
 
-    }
-
-    @Override
-    public String buildFetchStatement(Config config) {
-        return "";
     }
 
     @Override

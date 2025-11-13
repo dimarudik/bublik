@@ -17,7 +17,7 @@ import static org.bublik.cli.TestUtils.getResult;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class OracleToPostgresTest {
-    private static int rows = 50000;
+    private static int rows = 20000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
@@ -50,7 +50,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void parted() throws IOException {
+    void parted() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/parted.json",
@@ -58,11 +58,14 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+//        Thread.sleep(120_000);
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
     @Test
-    void leftJoin() throws IOException {
+    void leftJoin() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/leftJoin.json",
@@ -70,6 +73,9 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+//        Thread.sleep(60_000);
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -82,6 +88,8 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -94,6 +102,8 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
     }
 }

@@ -48,7 +48,15 @@ create table public.table3 (
     current_mood mood,
     currency_name varchar(256)
 );
-create table public.parted (
+create table public.parted1 (
+    id bigint,
+    create_at timestamp(6) not null,
+    name varchar(1000));
+create table public.parted2 (
+    id bigint,
+    create_at timestamp(6) not null,
+    name varchar(1000));
+create table public.parted3 (
     id bigint,
     create_at timestamp(6) not null,
     name varchar(1000));

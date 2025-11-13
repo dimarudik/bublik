@@ -59,18 +59,24 @@ public class TestUtils {
                                        String chunkTableName) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
-        Config config = configs.getFirst();
+//        Config config = configs.getFirst();
 
         App.runProcess(cp, configs, rows, sync, chunkTableName);
 
-        String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
-                config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
-        String toQuery = getQuery(
-                (config.toSchemaName() == null ? config.fromSchemaName() + "." : config.toSchemaName() + ".")
-                        + (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
-                " 1 = 1 ");
-        Long sourceCount = TestUtils.countRows(sourceProperties, fromQuery);
-        Long targetCount = TestUtils.countRows(targetProperties, toQuery);
+        long sourceCount = 0;
+        long targetCount = 0;
+        for (Config config : configs) {
+            String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
+                    config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
+            String toQuery = getQuery(
+                    (config.toSchemaName() == null ? config.fromSchemaName() + "." : config.toSchemaName() + ".")
+                            + (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
+                    " 1 = 1 ");
+            System.out.println(fromQuery);
+            sourceCount += TestUtils.countRows(sourceProperties, fromQuery);
+            System.out.println(toQuery);
+            targetCount += TestUtils.countRows(targetProperties, toQuery);
+        }
         return new TestResult(sourceCount, targetCount);
     }
 

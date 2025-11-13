@@ -24,7 +24,6 @@ import static org.bublik.oracle.constants.SQLConstants.*;
 
 public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);
-//    private static final int HIGH_BIT_FLAG = 0x80000000;
 
     public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
@@ -121,95 +120,132 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     @Override
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable, Storage<K, T, S, R> targetStorage) throws SQLException {
-//        Connection connection = getConnection();
-        S sourceSession = this.getPoolConnection();
-        List<Chunk<K, T, S, R>> chunkHashMap = new ArrayList<>();
-        String sql = buildStartEndOfChunk(configs, chunkTable);
-        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
-        StringBuffer sb = new StringBuffer();
-        for (Config c : configs)
-            sb.append("\n").append(buildFetchStatement(c));
-        log.debug("SQL to fetch chunks: {}", sb);
-        PreparedStatement statement = sourceSession.prepareStatement(sql);
-        ResultSet resultSet = statement.executeQuery();
-        if (resultSet.isBeforeFirst()) {
+        List<Chunk<K, T, S, R>> chunkHashList = new ArrayList<>();
+        for (Config config : configs) {
+            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+//            log.info("{} {} {} {}", sourceTable.getSchemaName(), sourceTable.getTableName(), targetTable.getSchemaName(), targetTable.getTableName());
+            this.enrichTable(sourceTable);
+            targetStorage.enrichTable(sourceTable, targetTable);
+            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
+            Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
+
+            S sourceSession = this.getPoolConnection();
+            String sql = buildStartEndOfChunk(config, chunkTable);
+            log.debug("SQL to fetch metadata of chunks: {}", sql);
+            PreparedStatement ps = sourceSession.prepareStatement(sql);
+            ps.setString(1, config.fromTaskName());
+            ResultSet resultSet = ps.executeQuery();
+            String fetchQuery = buildFetchStatement(config, t2t);
+            log.info("Fetch query: {}", fetchQuery);
             while (resultSet.next()) {
-                Config config = findByTaskName(configs, resultSet.getString("task_name"));
-                Table<S> sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
-                Table<S> targetTable = configToTable(config.toSchemaName(), config.toTableName());
                 String status = resultSet.getString("status");
-                String fetchQuery;
-                Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, null);
-                if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-                    fetchQuery = buildFetchStatement(config, t2t);
-                } else {
-                    fetchQuery = buildFetchStatement(config);
-                }
-                chunkHashMap.add(
-                        new OraChunk<>(
-                                (K)Integer.valueOf(resultSet.getInt("chunk_id")),
-                                (T)resultSet.getRowId("start_rowid"),
-                                (T)resultSet.getRowId("end_rowid"),
-                                config,
-                                sourceTable,
-                                ChunkStatus.valueOf(status),
-                                fetchQuery,
-                                this,
-                                targetStorage
-                        )
-                );
+                Chunk<K, T, S, R> chunk = new OraChunk<>(
+                        (K)Integer.valueOf(resultSet.getInt("chunk_id")),
+                        (T)resultSet.getRowId("start_rowid"),
+                        (T)resultSet.getRowId("end_rowid"),
+                        config,
+                        t2t,
+                        ChunkStatus.valueOf(status),
+                        fetchQuery,
+                        this,
+                        targetStorage);
+                chunkHashList.add(chunk);
             }
+            resultSet.close();
+            ps.close();
+            sourceSession.close();
         }
-        resultSet.close();
-        statement.close();
-        sourceSession.close();
-        return chunkHashMap;
+/*
+        try {
+            Thread.sleep(180_000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+*/
+        return chunkHashList;
     }
 
+    private void logColumn2Column(List<Column2Column> column2Column) {
+        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
+                c2c.sourceExpression(),
+                c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
+                c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
+    }
+
+    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+        List<Column2Column> column2Column = new ArrayList<>();
+        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(null, c, c)));
+        }
+        if (config.columnToColumn() != null) {
+            for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
+                Column sourceColumn = sourceTable.getColumns().stream()
+//                        .peek(c -> log.debug("{} {}", c.columnName(), entry.getValue()))
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getValue().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, sourceColumn, targetColumn));
+            }
+        }
+        if (config.expressionToColumn() != null) {
+            for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
+                Column column = targetTable.getColumns().stream()
+//                        .peek(c -> log.debug("{} {}", c.columnName(), entry.getValue()))
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getValue().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(entry.getKey(), column, column));
+            }
+        }
+//        logColumn2Column(column2Column);
+        return column2Column;
+    }
+
+    @Override
+    public String buildStartEndOfChunk(Config config, String chunkTable) {
+        return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
+                "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
+                (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause());
+
+    }
+
+/*
     @Override
     public String buildStartEndOfChunk(List<Config> configs, String chunkTable) {
         List<String> taskAndWhere = new ArrayList<>();
         configs.forEach(sqlStatement -> {
-            String tmp = sqlStatement.fromTaskWhereClause() == null ? "'" : "' and " + sqlStatement.fromTaskWhereClause();
-            taskAndWhere.add(sqlStatement.fromTaskName() + tmp);
+            String tmp = sqlStatement.fromTaskWhereClause() == null ? " " : " and " + sqlStatement.fromTaskWhereClause();
+            taskAndWhere.add(tmp);
         });
         String part1 = """
                 select rownum, chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from (
                 \tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from (
                 """;
         String tmpPart2 = "\t\tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from user_parallel_execute_chunks where " +
-                "status <> 'PROCESSED' " + " and task_name = '";
+                "status <> 'PROCESSED' " + " and task_name = '$taskName' ";
         String part2 = tmpPart2 + String.join(" and rownum <= 1000 union all \n" + tmpPart2, taskAndWhere);
         String part3 = "\n\t) order by ora_hash(concat(task_name,start_rowid)) \n) order by 1";
         return  part1 + part2 + part3;
     }
+*/
 
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-        return buildFetchStatement(config);
-    }
-
-    @Override
-    public String buildFetchStatement(Config config) {
-        List<String> strings = new ArrayList<>();
-        Map<String, String> columnToColumnMap = config.columnToColumn();
-        Map<String, String> expressionToColumnMap = config.expressionToColumn();
-//        Map<String, EncryptedColumn> encryptedEntityMap = config.expressionToCrypto();
-//        Map<String, String> cryptoToColumnMap = config.cryptoToColumn();
-        if (columnToColumnMap != null) {
-            strings.addAll(columnToColumnMap.keySet());
-        }
-        if (expressionToColumnMap != null) {
-            strings.addAll(expressionToColumnMap.keySet());
-        }
-/*
-        if (encryptedEntityMap != null) {
-            strings.addAll(encryptedEntityMap.keySet());
-        }
-        if (cryptoToColumnMap != null) {
-            strings.addAll(cryptoToColumnMap.keySet());
-        }
-*/
+        List<String> strings = t2t.column2Columns()
+                .stream()
+                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
+                .toList();
         String columnToColumn = String.join(", ", strings);
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +
@@ -284,6 +320,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     @Override
     public void enrichTable(Table<S> targetTable) throws SQLException {
-        targetTable.enrichTable(getSession());
+        S session = getPoolConnection();
+        targetTable.enrichTable(session);
+        session.close();
     }
 }

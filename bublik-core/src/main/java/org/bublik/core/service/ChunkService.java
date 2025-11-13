@@ -2,7 +2,6 @@ package org.bublik.core.service;
 
 import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.model.Chunk;
-import org.bublik.core.model.LogMessage;
 import org.bublik.core.storage.Storage;
 
 import java.sql.SQLException;

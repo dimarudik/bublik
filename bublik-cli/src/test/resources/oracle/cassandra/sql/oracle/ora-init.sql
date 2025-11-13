@@ -50,3 +50,8 @@ insert into test.likes (id, user_id, item_id)
     where user_id <> item_id;
 commit;
 
+--begin
+--    DBMS_STATS.GATHER_TABLE_STATS(ownname => 'TEST', tabname  => 'ITEMS');
+--end;
+--/
+--

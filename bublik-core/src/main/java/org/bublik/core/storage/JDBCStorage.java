@@ -139,7 +139,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                                 try {
                                     return chunk.allStages(false, tableName);
                                 } catch (Exception e) {
-                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                                     try {
                                         ///  тут исправлял
                                         if ((chunk.getSourceSession()).isValid(0)) {
@@ -240,7 +240,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             try {
                 chunk.allStages(true, tableName);
             } catch (Exception e) {
-                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                 throw new RuntimeException(e);
             }
         });

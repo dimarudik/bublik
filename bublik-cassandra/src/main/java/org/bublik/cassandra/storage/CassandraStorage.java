@@ -119,17 +119,11 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
-        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
-        CSTable<?> targetTable = (CSTable<?>) chunk.getTargetTable();
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
         for (Row row : resultSet) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     row,
-                    sourceTable.getPartitionKey(),
-                    sourceTable.getColumns(),
-                    targetTable.getPartitionKey(),
-                    targetTable.getColumns(),
-//                    csObject.getCassandraColumnMap(),
+                    chunk.getT2t(),
                     csObject.getTokenRangeSet());
             Arrays.stream(entry.getValue()).forEach(System.out::println);
             System.out.println(csObject.getPreparedStatement().getQuery());
@@ -301,112 +295,110 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 
     private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(Row row,
-                                                                  List<Column> sourcePartKeys,
-                                                                  List<Column> sourceColumns,
-                                                                  List<Column> targetPartKeys,
-                                                                  List<Column> targetColumns,
-//                                                                  Map<Integer, CSPartitionKey> partitionKeyMap,
-//                                                                  Map<String, Column> stringCassandraColumnMap,
+                                                                  Table2Table<S> t2t,
                                                                   Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
+        CSTable<?> targetTable = (CSTable<?>) t2t.targetTable();
+        List<Column> targetPartKeys = targetTable.getPartitionKey();
+        Map<Column, Column> column2Column = new HashMap<>();
+        t2t.column2Columns().forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
 //        for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
-        for (Column entry : targetColumns) {
+        for (Map.Entry<Column, Column> entry: column2Column.entrySet()) {
 //            String sourceColumn = entry.getKey().replaceAll("\"", "");
 //            String targetType = entry.getValue().columnType();
-//            String targetColumn = entry.columnName().replaceAll("\"", "");
-            String sourceColumn = entry.columnName().replaceAll("\"", "");
-            String targetType = entry.columnType();
-            // надо сопоставить имя колонки источника и приемника
+            String targetType = entry.getValue().columnType();
+            String sClmName = entry.getKey().columnName();
+            String tClmName = entry.getValue().columnName();
             switch (targetType) {
                 case "tinyint" : {
-                    byte v = row.getByte(sourceColumn);
+                    byte v = row.getByte(sClmName);
                     targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), byteToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "smallint" : {
-                    short v = row.getShort(sourceColumn);
+                    short v = row.getShort(sClmName);
                     targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), smallIntToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "int" : {
-                    int v = row.getInt(sourceColumn);
+                    int v = row.getInt(sClmName);
                     targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), intToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "bigint": {
-                    long v = row.getLong(sourceColumn);
+                    long v = row.getLong(sClmName);
                     targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), longToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "text": {
-                    String v = row.getString(sourceColumn);
+                    String v = row.getString(sClmName);
 //                    Integer ttl = row.get("ttl(" + sourceColumn + ")", Integer.class);
                     targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), stringToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "date": {
-                    LocalDate date = row.getLocalDate(sourceColumn);
+                    LocalDate date = row.getLocalDate(sClmName);
                     objectList.add(date);
                     break;
                 }
                 case "timestamp": {
-                    Instant v = row.getInstant(sourceColumn);
+                    Instant v = row.getInstant(sClmName);
                     targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), timestampToBytes(v)));
                     objectList.add(v);
                     break;
                 }
                 case "boolean": {
-                    objectList.add(row.getBoolean(sourceColumn));
+                    objectList.add(row.getBoolean(sClmName));
                     break;
                 }
                 case "blob": {
-                    ByteBuffer buffer = row.getByteBuffer(sourceColumn);
+                    ByteBuffer buffer = row.getByteBuffer(sClmName);
                     objectList.add(buffer);
                     break;
                 }
                 case "float": {
-                    objectList.add(row.getFloat(sourceColumn));
+                    objectList.add(row.getFloat(sClmName));
                     break;
                 }
                 case "decimal": {
-                    objectList.add(row.getBigDecimal(sourceColumn));
+                    objectList.add(row.getBigDecimal(sClmName));
                     break;
                 }
                 case "uuid": {
-                    UUID uuid = row.getUuid(sourceColumn);
+                    UUID uuid = row.getUuid(sClmName);
                     int position = targetPartKeys
                             .stream()
-                            .filter(e -> e.columnName().equals(entry.columnName()))
+                            .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .map(Column::columnPosition)
                             .orElseThrow();

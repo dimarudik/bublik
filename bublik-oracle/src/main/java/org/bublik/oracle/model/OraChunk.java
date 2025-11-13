@@ -1,10 +1,7 @@
 package org.bublik.oracle.model;
 
 import org.bublik.core.constants.ChunkStatus;
-import org.bublik.core.model.Chunk;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.LogMessage;
-import org.bublik.core.model.Table;
+import org.bublik.core.model.*;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,9 +14,9 @@ import static org.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID
 public class OraChunk<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
 
-    public OraChunk(K id, T start, T end, Config config, Table sourceTable,
+    public OraChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
                     ChunkStatus status, String fetchQuery, Storage sourceStorage, Storage targetStorage) {
-        super(id, start, end, config, sourceTable, status, fetchQuery, sourceStorage, targetStorage);
+        super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage);
     }
 
     @Override

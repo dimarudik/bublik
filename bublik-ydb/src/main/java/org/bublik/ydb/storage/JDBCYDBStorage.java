@@ -29,19 +29,21 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs, String chunkTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTable) {
         return "";
     }
 
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-        return buildFetchStatement(config);
+        return "";
     }
 
+/*
     @Override
     public String buildFetchStatement(Config config) {
         return "";
     }
+*/
 
     @Override
     public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
@@ -100,22 +102,12 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
-        Connection connectionFrom = (Connection) chunk.getSourceSession();
-//        Connection connectionFrom = chunk.getSourceConnection();
+        Connection connectionFrom = chunk.getSourceSession();
         if (fetchResultSet.next()) {
-/*
-            Connection connectionTo;
-            try {
-                connectionTo = getPoolConnection();
-            } catch (SQLTransientConnectionException t) {
-                throw new TargetSQLException(getStackTrace(t));
-            }
-            chunk.setTargetConnection(connectionTo);
-*/
             Connection connectionTo = chunk.getTargetSession();
-            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-            if (table.exists(connectionTo)) {
-                chunk.setTargetTable(table);
+//            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+//            if (table.exists(connectionTo)) {
+//                chunk.setTargetTable(table);
                 try {
                     LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                     connectionTo.close();
@@ -132,6 +124,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
                 } finally {
                     ;
                 }
+/*
             } else {
                 log.error("The Target Table: {}.{} does not exist.", chunk.getConfig().toSchemaName(),
                         chunk.getConfig().toTableName());
@@ -139,6 +132,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
                         + chunk.getConfig().toSchemaName() + "/"
                         + chunk.getConfig().toTableName() + " does not exist.");
             }
+*/
         } else {
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "NO ROWS FETCH");
         }
@@ -291,8 +285,8 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
                     null,
-                    chunk.getTargetTable().getSchemaName().toLowerCase(),
-                    chunk.getTargetTable().getFinalTableName(false),
+                    chunk.getT2t().targetTable().getSchemaName().toLowerCase(),
+                    chunk.getT2t().targetTable().getFinalTableName(false),
                     null);
             Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
             Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();

@@ -23,9 +23,6 @@ public class OraTable<S extends Connection> extends Table<S> {
 
     @Override
     public boolean exists(Connection connection) throws SQLException {
-        if (tableExistsCache().contains(this.getTableName())) {
-            return true;
-        }
         ResultSet tablesUpCase = connection.getMetaData().getTables(
                 null,
                 this.getSchemaName().toUpperCase(),
@@ -36,7 +33,7 @@ public class OraTable<S extends Connection> extends Table<S> {
             return false;
         }
         tablesUpCase.close();
-        tableExistsCache().add(this.getTableName());
+//        tableExistsCache().add(this.getTableName());
         return true;
     }
 
@@ -70,7 +67,7 @@ public class OraTable<S extends Connection> extends Table<S> {
             String columnType = rs.getString("TYPE_NAME");
             Integer dataType = rs.getInt("DATA_TYPE");
             int nullable = rs.getInt("NULLABLE");
-            String columnDefault = rs.getString("COLUMN_DEF");
+//            String columnDefault = rs.getString("COLUMN_DEF");
             String isAutoIncrement = rs.getString("IS_AUTOINCREMENT");
             String isGenerated = rs.getString("IS_GENERATEDCOLUMN");
             int decimalDigits = rs.getInt("DECIMAL_DIGITS");
@@ -78,11 +75,12 @@ public class OraTable<S extends Connection> extends Table<S> {
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
             columns.add(new Column(
                     ordinalPosition,
-                    columnName,
+                    isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
                     columnType,
                     dataType,
                     nullable,
-                    columnDefault,
+                    null,
+//                    columnDefault,
                     isAutoIncrement,
                     isGenerated,
                     decimalDigits,
@@ -168,6 +166,11 @@ public class OraTable<S extends Connection> extends Table<S> {
 
     @Override
     public boolean enrichTable(S session) throws SQLException {
+        if (exists(session)) {
+            setColumns(getAllColumns(session));
+            setPkColumns(getPrimaryKeyColumns(session));
+            return true;
+        }
         return false;
     }
 }

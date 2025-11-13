@@ -83,7 +83,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void notNullFailure() throws IOException {
+    void notNullFailure() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/notNullFailure.json",

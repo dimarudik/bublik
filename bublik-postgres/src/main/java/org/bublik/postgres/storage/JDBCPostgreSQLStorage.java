@@ -35,6 +35,7 @@ import java.sql.Date;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 import static org.bublik.core.util.ColumnUtil.*;
@@ -52,19 +53,18 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     @Override
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
-        String sql = buildStartEndOfChunk(configs, chunkTableName);
-        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         for (Config config : configs) {
             Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
-//            sourceTable.getColumns().forEach(c -> log.info("Source column: {} {}", c.columnName(), c.columnType()));
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
             String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: \n{}", fetchQuery);
             S sourceSession = this.getPoolConnection();
+            String sql = buildStartEndOfChunk(config, chunkTableName);
+            log.debug("SQL to fetch metadata of chunks: \n{}", sql);
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
@@ -76,13 +76,13 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         (T) (Long) rs.getLong("start_page"),
                         (T) (Long) rs.getLong("end_page"),
                         config,
-                        sourceTable,
+                        t2t,
                         ChunkStatus.valueOf(status),
                         fetchQuery,
                         this,
                         targetStorage);
                 chunks.add(chunk);
-                chunk.setTargetTable(targetTable);
+//                chunk.setTargetTable(targetTable);
             }
             rs.close();
             preparedStatement.close();
@@ -91,23 +91,31 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return chunks;
     }
 
+    private void logColumn2Column(List<Column2Column> column2Column) {
+        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
+                c2c.sourceExpression(),
+                c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
+                c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
+    }
+
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
             sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(null, c, c)));
-            return column2Column;
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getKey().replaceAll("\"", "")))
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
                                 sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
-                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(null, sourceColumn, targetColumn));
             }
@@ -115,44 +123,36 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         if (config.expressionToColumn() != null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
-                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(entry.getKey(), column, column));
             }
         }
-/*
-        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
-                c2c.sourceExpression(),
-                c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
-                c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
-*/
+//        logColumn2Column(column2Column);
         return column2Column;
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
-        List<String> taskNames = new ArrayList<>();
-        configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
-        return "select row_number() over (order by chunk_id) as rownum, chunk_id, uuid, start_page, end_page, task_name, status from " +
-                chunkTableName + " where task_name in ('" +
-                String.join("', '", taskNames) + "') " +
-                " and schema_name = ? and table_name = ? " +
+    public String buildStartEndOfChunk(Config config, String chunkTableName) {
+        return "select chunk_id, uuid, start_page, end_page, task_name, status from " +
+                chunkTableName + " where " +
+                "schema_name = ? and table_name = ? " +
                 " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
-                + " limit 1000 "
-                ;
+                + " limit 1000 ";
     }
 
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
             SourceSQLException, TargetSQLException {
-        ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
-        Connection connectionFrom = (Connection) chunk.getSourceSession();
+        ResultSet fetchResultSet = chunk.getResultSet();
+        Connection connectionFrom = chunk.getSourceSession();
         if (fetchResultSet.next()) {
-            Connection connectionTo = (Connection) chunk.getTargetSession();
-            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-            chunk.setTargetTable(table);
+            Connection connectionTo = chunk.getTargetSession();
+//            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
+//            chunk.setTargetTable(table);
             try {
                 LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                 connectionTo.close();
@@ -183,7 +183,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                     String tableName) throws SQLException, BinaryWriteFailedException, SourceSQLException{
         int recordCount = 0;
         Connection connectionTo = (Connection) chunk.getTargetSession();
-//        Connection connectionTo = chunk.getTargetConnection();
 
         try {
             insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
@@ -194,11 +193,13 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
         }
 
-        Map<String, Column> columnToColumnMap = readTargetColumnsAndTypes(connectionTo, chunk);
+//        Map<String, Column> columnToColumnMap = readTargetColumnsAndTypes(connectionTo, chunk);
+        Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
+                .stream()
+                .collect(Collectors.toMap(el -> el.sourceColumn().columnName(), Column2Column::targetColumn));
+
         Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
-
         PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
-
         String[] columnNames = columnToColumnMap
                 .values()
                 .stream()
@@ -207,8 +208,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 .toArray(String[]::new);
         String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
         SimpleRowWriter.Table table =
-                new SimpleRowWriter.Table(chunk.getTargetTable().getSchemaName(),
-                        chunk.getTargetTable().getFinalTableName(true), cNames);
+                new SimpleRowWriter.Table(chunk.getT2t().targetTable().getSchemaName(),
+                        chunk.getT2t().targetTable().getFinalTableName(true), cNames);
 
         SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
         Consumer<SimpleRow> simpleRowConsumer =
@@ -217,7 +218,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     simpleRowConsume(s, columnToColumnMap, neededColumnsFromMany,
                             fetchResultSet, chunk, connectionTo, writer);
                 } catch (BinaryWriteFailedException | SQLException e) {
-                    log.error("{}.{} {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                    log.error("{}.{} {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                 }
             };
 
@@ -258,18 +259,24 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
                     null,
-                    chunk.getTargetTable().getSchemaName().toLowerCase(),
-                    chunk.getTargetTable().getFinalTableName(false),
+                    chunk.getT2t().targetTable().getSchemaName().toLowerCase(),
+                    chunk.getT2t().targetTable().getTableNameWithoutQuotes(),
+//                    chunk.getT2t().targetTable().getFinalTableName(false),
                     null);
             Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
             Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
             Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
+
+            log.info("Target table: {}.{}", chunk.getT2t().targetTable().getSchemaName().toLowerCase(), chunk.getT2t().targetTable().getTableNameWithoutQuotes());
 
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
                 Integer dataType = resultSet.getInt(5);
                 String columnType = resultSet.getString(6);
                 Integer columnPosition = resultSet.getInt(17);
+
+                log.info("columnName: {}, dataType: {}, columnType: {}, columnPosition: {}",
+                       columnName, dataType, columnType, columnPosition);
 
                 if (columnToColumnMap != null) {
                     columnToColumnMap
@@ -283,7 +290,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnType.equals("bigserial") ? "bigint" : columnType,
                                             dataType, null, null, null, null, 0, null, 0, null)));
                 } else if (expressionToColumnMap == null) {
-                    Table<?> sourceTable = chunk.getSourceTable();
+                    Table<?> sourceTable = chunk.getT2t().sourceTable();
                     sourceTable.getColumns().forEach(column -> columnMap.put(column.columnName(), column));
                 }
 
@@ -325,8 +332,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         try {
             ResultSet resultSet = connectionTo.getMetaData().getColumns(
                     null,
-                    chunk.getTargetTable().getSchemaName().toLowerCase(),
-                    chunk.getTargetTable().getFinalTableName(false),
+                    chunk.getT2t().targetTable().getSchemaName().toLowerCase(),
+                    chunk.getT2t().targetTable().getFinalTableName(false),
                     null);
             Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
 
@@ -393,7 +400,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setHstore(targetColumn, hstoreMap);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -407,7 +414,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setVarChar(targetColumn, s.replaceAll("\u0000", ""));
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -422,7 +429,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setVarCharArray(targetColumn, arr);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -437,7 +444,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setTextArray(targetColumn, arr);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -447,7 +454,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setText(targetColumn, string);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "text": {
@@ -467,7 +474,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setText(targetColumn, text.replaceAll("\u0000", ""));
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -501,7 +508,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setJsonb(targetColumn, s);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -516,7 +523,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setShort(targetColumn, aShort);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -531,7 +538,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setInteger(targetColumn, i);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -546,7 +553,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setLong(targetColumn, l);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -560,7 +567,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setNumeric(targetColumn, (Number) o);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -575,7 +582,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setFloat(targetColumn, aFloat);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -590,7 +597,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setDouble(targetColumn, aDouble);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
                         throw e;
                     }
                 }
@@ -607,7 +614,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setValue(targetColumn, DataType.Time, localTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -622,7 +629,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setTimeStamp(targetColumn, localDateTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -643,7 +650,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setTimeStampTz(targetColumn, zonedDateTime);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -657,7 +664,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setDate(targetColumn, date.toLocalDate());
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "tstzrange":
@@ -688,7 +695,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setTsTzRange(targetColumn, localDateTimeRange);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("tstzrange : {}.{} - {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("tstzrange : {}.{} - {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "interval":
@@ -730,7 +737,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setInterval(targetColumn, interval);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "bytea": {
@@ -766,7 +773,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setByteArray(targetColumn, bytes);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -781,7 +788,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setBoolean(targetColumn, b);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 }
@@ -805,7 +812,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         }
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "uuid":
@@ -822,14 +829,14 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                             try {
                                 uuid = UUID.fromString((String) o);
                             } catch (Exception e1) {
-                                log.error("{}.{} : {} {} {}", chunk.getTargetTable().getSchemaName(),
-                                        chunk.getTargetTable().getTableName(), targetColumn, o, getStackTrace(e1));
+                                log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
+                                        chunk.getT2t().targetTable().getTableName(), targetColumn, o, getStackTrace(e1));
                             }
                         }
                         row.setUUID(targetColumn, uuid);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 case "_uuid":
@@ -843,7 +850,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setUUIDArray(targetColumn, arr);
                         break;
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(), getStackTrace(e));
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
                 default:
@@ -863,12 +870,12 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 connectionTo.close();
                             }
                         } else {
-                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(),
+                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),
                                     targetType, targetColumn);
                             throw new RuntimeException("Unsupported type: " + targetType);
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getTargetTable().getSchemaName(), chunk.getTargetTable().getTableName(),
+                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),
                                 targetType, targetColumn, getStackTrace(e));
                         throw e;
                     }
@@ -877,34 +884,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public String buildFetchStatement(Config config) {
-        return buildFetchStatement(config, null);
-    }
-
-    @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-//        List<String> strings = new ArrayList<>();
         List<String> strings = t2t.column2Columns()
                 .stream()
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
-/*
-        Map<String, String> columnToColumnMap = config.columnToColumn();
-        Map<String, String> expressionToColumnMap = config.expressionToColumn();
-        if (t2t.sourceTable() != null && columnToColumnMap == null && expressionToColumnMap == null) {
-            strings.addAll(
-                    t2t.sourceTable().getColumns()
-                            .stream()
-                            .map(Column::columnName)
-                            .toList()
-            );
-        } else if (columnToColumnMap != null) {
-            strings.addAll(columnToColumnMap.keySet());
-        }
-        if (expressionToColumnMap != null) {
-            strings.addAll(expressionToColumnMap.keySet());
-        }
-*/
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +

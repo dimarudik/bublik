@@ -191,8 +191,10 @@ public class PGTable<S extends Connection> extends Table<S> {
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
             columns.add(new Column(
                     ordinalPosition,
-//                    isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
-                    isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
+                    isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
+//                    isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
+//                    isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
+//                    columnName,
                     columnType.equals("bigserial") ? "bigint" : columnType,
                     dataType,
                     nullable,

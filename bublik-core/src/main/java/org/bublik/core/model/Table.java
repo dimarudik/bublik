@@ -113,4 +113,8 @@ public abstract class Table<S extends AutoCloseable> implements TableService<S>,
     public String getTableFullName() {
         return getSchemaName() + "." + getTableName();
     }
+
+    public String getTableNameWithoutQuotes() {
+        return getWordWithoutQuotes(tableName);
+    }
 }

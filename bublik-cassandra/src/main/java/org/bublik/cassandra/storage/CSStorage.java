@@ -86,7 +86,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                                 try {
                                     return chunk.allStages(false, tName);
                                 } catch (Exception e) {
-                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getSourceTable().getSchemaName(), chunk.getSourceTable().getTableName(), getStackTrace(e));
+                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                                     chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e), tName);
                                     throw e;
                                 }
@@ -282,13 +282,10 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildStartEndOfChunk(List<Config> configs, String chunkTableName) {
-        List<String> taskNames = new ArrayList<>();
-        configs.forEach(sqlStatement -> taskNames.add(sqlStatement.fromTaskName()));
+    public String buildStartEndOfChunk(Config config, String chunkTableName) {
         return "select chunk_id, start_page, end_page, task_name, schema_name, table_name, status from " +
-                chunkTableName + " where task_name in ('" +
-                String.join("', '", taskNames) +
-                "') and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
+                chunkTableName + " where " +
+                "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " and schema_name = ? and table_name = ? " +
                 " per partition limit 1000 allow filtering ";
     }
@@ -296,29 +293,25 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     @Override
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
-        String sql = buildStartEndOfChunk(configs, getChunkTableName(chunkTableName));
-        log.debug("SQL to fetch metadata of chunks: \n{}", sql);
         CqlSession sourceSession = getSession();
-        S targetSession = targetStorage.getSession();
         configs.forEach(config -> {
             Table<S> sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
             Table<S> targetTable = configToTable(config.toSchemaName(), config.toTableName());
             try {
-                sourceTable.enrichTable((S)sourceSession);
-                targetTable.enrichTable(targetSession);
+                this.enrichTable(sourceTable);
+                targetStorage.enrichTable(sourceTable, targetTable);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-//            Table<S> sourceTable = getTable(new PseudoTable<>(config.fromSchemaName(), config.fromTableName()), sourceSession);
-//            Table<S> targetTable = getTable(new PseudoTable<>(config.toSchemaName(), config.toTableName()), targetSession);
-            List<Column2Column> c2c = new ArrayList<>();
+            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
+            String sql = buildStartEndOfChunk(config, getChunkTableName(chunkTableName));
+            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
-            log.info("Fetch query: \n{}", fetchQuery);
-
+            log.info("Fetch query: {}", fetchQuery);
             PreparedStatement ps = sourceSession.prepare(sql);
             BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName());
-            com.datastax.oss.driver.api.core.cql.ResultSet rs = sourceSession.execute(bs);
+            ResultSet rs = sourceSession.execute(bs);
             for (Row row : rs) {
                 String status = row.getString("status");
                 Chunk<K, T, S, R> chunk =
@@ -327,29 +320,51 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                                 (T)(Long)row.getLong("start_page"),
                                 (T)(Long)row.getLong("end_page"),
                                 config,
-                                sourceTable,
+                                t2t,
                                 ChunkStatus.valueOf(status),
                                 fetchQuery,
                                 this,
                                 targetStorage
                         );
                 chunks.add(chunk);
-                chunk.setTargetTable(targetTable);
             }
         });
         return chunks;
     }
 
-/*
-    public Table<S> getTable(PseudoTable<?> pseudoTable, CqlSession session) {
-        List<Column> partitionKey = CSTableService.getKey(session, pseudoTable, "partition_key");
-        List<Column> clusteringKey = CSTableService.getKey(session, pseudoTable, "clustering");
-        CSTable<S> table = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
-        List<Column> columns = table.getAllColumns(session);
-        table.setColumns(columns);
-        return table;
+    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+        List<Column2Column> column2Column = new ArrayList<>();
+        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(null, c, c)));
+            return column2Column;
+        }
+        if (config.columnToColumn() != null) {
+            for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
+                Column sourceColumn = sourceTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getKey().replaceAll("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, sourceColumn, targetColumn));
+            }
+        }
+        if (config.expressionToColumn() != null) {
+            for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
+                Column column = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(entry.getKey(), column, column));
+            }
+        }
+        return column2Column;
     }
-*/
 
     @Override
     public void closeStorage() {
@@ -413,24 +428,15 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-//        CSTable<?> sourceTable = (CSTable<?>) chunk.getSourceTable();
         CSTable<?> sourceTable = (CSTable<?>) t2t.sourceTable();
         List<Column> pkColumns = new ArrayList<>(sourceTable.getPartitionKey());
         List<Column> ckColumns = new ArrayList<>(sourceTable.getClusteringKey());
         Collections.sort(pkColumns);
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());
-        List<String> columns = new ArrayList<>();
-        Map<String, String> columnToColumnMap = config.columnToColumn();
-        if (columnToColumnMap == null) {
-            columns.addAll(
-                    sourceTable.getColumns()
-                            .stream()
-                            .map(Column::columnName)
-                            .toList()
-            );
-        } else {
-            columns.addAll(columnToColumnMap.keySet());
-        }
+        List<String> columns = new ArrayList<>(t2t.column2Columns()
+                .stream()
+                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
+                .toList());
         List<String> ttlColumns = columns
                 .stream()
                 .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
@@ -438,10 +444,6 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 .map(s -> "ttl(" + s + ")")
                 .toList();
         columns.addAll(ttlColumns);
-        Map<String, String> expressionToColumnMap = config.expressionToColumn();
-        if (expressionToColumnMap != null) {
-            columns.addAll(expressionToColumnMap.keySet());
-        }
         String columnToColumn = String.join(", ", columns);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
@@ -458,10 +460,12 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 ") < ?";
     }
 
+/*
     @Override
     public String buildFetchStatement(Config config) {
         return buildFetchStatement(config, null);
     }
+*/
 
     @Override
     public void setSession(S session) {
