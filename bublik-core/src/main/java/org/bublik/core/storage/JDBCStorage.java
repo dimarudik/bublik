@@ -2,7 +2,6 @@ package org.bublik.core.storage;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.model.Chunk;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
@@ -78,7 +77,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
-        hikariConfig.setConnectionTimeout(20000);
+        hikariConfig.setConnectionTimeout(3000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
     }
@@ -132,7 +131,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
-            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
+            List<Future<Chunk<K, T, S, R>>> futures = new ArrayList<>();
             chunks.forEach(chunk -> futures.add(
                     service
                             .submit(() -> {
@@ -140,15 +139,23 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                                     return chunk.allStages(false, tableName);
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
+/*
                                     try {
                                         ///  тут исправлял
                                         if ((chunk.getSourceSession()).isValid(0)) {
+//                                            (chunk.getSourceSession()).rollback();
+                                            log.warn("Saving info about error to database");
                                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
                                             (chunk.getSourceSession()).close();
+                                        }
+                                        if (targetStorage instanceof  JDBCStorage &&  (chunk.getTargetSession()).isValid(0)) {
+//                                            (chunk.getTargetSession()).rollback();
+                                            (chunk.getTargetSession()).close();
                                         }
                                     } catch (SQLException exception) {
                                         log.error("{}", getStackTrace(exception));
                                     }
+*/
                                     throw e;
                                 }
                             })
@@ -156,27 +163,30 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             );
 
             int timeoutCounter = 0;
-            int adminCommandCounter = 0;
+            int errorCounter = 0;
             for (Future<?> future : futures) {
-//                Chunk<?, ?, ?> c;
+//                Chunk<K, T, S, R> c = null;
                 try {
-                    Chunk<?, ?, ?, ?> c = (Chunk<?, ?, ?, ?>) future.get();
+//                    Chunk<K, T, S, R> c = (Chunk<K, T, S, R>) future.get();
+                    future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
                     if ((
                                 e.getMessage().contains("terminating connection due to administrator command") ||
                                 e.getMessage().contains("Database connection failed when ending copy") ||
                                 e.getMessage().contains("Write to copy failed") ||
-                                e.getMessage().contains("Connection is closed")
-                        ) && adminCommandCounter / threadCount < 4) {
-                        adminCommandCounter++;
-                        log.error("{}", getStackTrace(e));
+                                e.getMessage().contains("An I/O error occurred while sending to the backend")
+                        ) && errorCounter / threadCount < 20) {
+                        errorCounter++;
+                        log.error("REPEATABLE ISSUE: {}", e.getMessage());
+//                        service.shutdownNow();
+//                        break;
                     } else if ((
                             e.getMessage().contains("Query timed out after PT2S") ||
                             e.getMessage().contains("Cassandra timeout during BATCH"))
                             && timeoutCounter / threadCount < 20) {
                         try {
-                            Thread.sleep(1_000);
+                            Thread.sleep(3_000);
                         } catch (InterruptedException ex) {
                             throw new RuntimeException(ex);
                         }
@@ -240,7 +250,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             try {
                 chunk.allStages(true, tableName);
             } catch (Exception e) {
-                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
+//                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                 throw new RuntimeException(e);
             }
         });

@@ -18,7 +18,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Disabled
 public class PgToPgEnvSwitchoverTest {
-    private static int rows = 50000;
+    private static int rows = 30000;
     private static boolean sync = false;
     private static String etcdHostName1 = "etcd1";
     private static String etcdHostName2 = "etcd2";
@@ -54,6 +57,8 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName1))
             .withNetwork(network)
+            .withNetworkAliases(etcdHostName1)
+            .withExposedPorts(2380, 2379)
             .withCommand("etcd --name " + etcdHostName1 + " --initial-advertise-peer-urls http://" + etcdHostName1 +":2380");
 
     private static GenericContainer<?> etcd2 = new GenericContainer<>("dimarudik/patroni")
@@ -65,6 +70,8 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName2))
             .withNetwork(network)
+            .withNetworkAliases(etcdHostName2)
+            .withExposedPorts(2380, 2379)
             .withCommand("etcd --name " + etcdHostName2 + " --initial-advertise-peer-urls http://" + etcdHostName2 +":2380");
 
     private static GenericContainer<?> etcd3 = new GenericContainer<>("dimarudik/patroni")
@@ -76,13 +83,15 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("ETCD_UNSUPPORTED_ARCH", "arm64")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(etcdHostName3))
             .withNetwork(network)
+            .withNetworkAliases(etcdHostName3)
+            .withExposedPorts(2380, 2379)
             .withCommand("etcd --name " + etcdHostName3 + " --initial-advertise-peer-urls http://" + etcdHostName3 +":2380");
 
     private static GenericContainer<?> patroni1 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
             .withEnv("PATRONI_RESTAPI_PASSWORD", "admin")
-            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgresql")
-            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgresql")
+            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgres")
+            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgres")
             .withEnv("PATRONI_REPLICATION_USERNAME", "replicator")
             .withEnv("PATRONI_REPLICATION_PASSWORD", "replicate")
             .withEnv("PATRONI_admin_PASSWORD", "admin")
@@ -92,13 +101,16 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni1")
             .withNetwork(network)
+            .withNetworkAliases("patroni1")
+            .withExposedPorts(8008, 5432)
+            .dependsOn(etcd1, etcd2, etcd3)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni1"));
 
     private static GenericContainer<?> patroni2 = new GenericContainer<>("dimarudik/patroni")
             .withEnv("PATRONI_RESTAPI_USERNAME", "admin")
             .withEnv("PATRONI_RESTAPI_PASSWORD", "admin")
-            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgresql")
-            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgresql")
+            .withEnv("PATRONI_SUPERUSER_USERNAME", "postgres")
+            .withEnv("PATRONI_SUPERUSER_PASSWORD", "postgres")
             .withEnv("PATRONI_REPLICATION_USERNAME", "replicator")
             .withEnv("PATRONI_REPLICATION_PASSWORD", "replicate")
             .withEnv("PATRONI_admin_PASSWORD", "admin")
@@ -108,16 +120,47 @@ public class PgToPgEnvSwitchoverTest {
             .withEnv("PATRONI_SCOPE", "demo")
             .withEnv("PATRONI_NAME", "patroni2")
             .withNetwork(network)
+            .withNetworkAliases("patroni2")
+            .withExposedPorts(8008, 5432)
+            .dependsOn(etcd1, etcd2, etcd3)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("patroni2"));
 
     private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
-            .withDatabaseName("postgresql")
+            .withDatabaseName("postgres")
             .withNetwork(network)
             .withInitScript("./pg2pg/composev2/sql/init-target.sql")
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName("target"));
 
     @BeforeAll
     static void setUp() throws InterruptedException {
+/*
+        HostPortWaitStrategy etcdWs = new HostPortWaitStrategy();
+        etcdWs.forPorts(2380);
+        etcd1.setPortBindings(singletonList("2379:2379"));
+        etcd1.waitingFor(etcdWs);
+        etcd1.start();
+        etcd2.waitingFor(etcdWs);
+        etcd2.start();
+        etcd3.waitingFor(etcdWs);
+        etcd3.start();
+        List<String> ports = new ArrayList<>();
+        ports.add(patroni1PortBinding1);
+        patroni1.setPortBindings(ports);
+        patroni2.setPortBindings(singletonList(patroni2PortBinding1));
+        target.setPortBindings(singletonList(targetPortBinding1));
+
+        HostPortWaitStrategy ws = new HostPortWaitStrategy();
+        ws.forPorts(8008, 5432);
+        patroni1.waitingFor(ws);
+        patroni1.start();
+        patroni2.waitingFor(ws);
+        patroni2.start();
+        target.start();
+        Thread.sleep(10_000);
+        setSynchronousMode();
+        Thread.sleep(10_000);
+*/
+
         etcd1.setPortBindings(singletonList("2379:2379"));
         etcd1.start();
         etcd2.start();
@@ -216,9 +259,15 @@ public class PgToPgEnvSwitchoverTest {
             }
         });
 
+        Thread.sleep(1_000);
+        System.out.println("#############################################################");
+        System.out.println("##  Switchover started                                      #");
+        System.out.println("#############################################################");
         switchover();
 
         TestResult result = future.get();
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
@@ -226,12 +275,11 @@ public class PgToPgEnvSwitchoverTest {
 // curl --user admin:admin -s http://localhost:8008/switchover -POST -d '{"leader":"patroni1"}'
     @Test
     public void switchover() throws InterruptedException {
-        Thread.sleep(5_000);
         RestAssured.baseURI = "http://" + patroni1.getHost() + ":8008";
         RestAssuredConfig config = RestAssured.config()
                 .httpClient(HttpClientConfig.httpClientConfig()
-                        .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000)
-                        .setParam(CoreConnectionPNames.SO_TIMEOUT, 3000));
+                        .setParam(CoreConnectionPNames.CONNECTION_TIMEOUT, 10_000)
+                        .setParam(CoreConnectionPNames.SO_TIMEOUT, 10_000));
         Response response =
                 given()
                         .when()
@@ -247,7 +295,8 @@ public class PgToPgEnvSwitchoverTest {
                 .when()
                 .post("/switchover")
                 .then()
-                .log().body()
+                .log()
+                .body()
                 .assertThat()
                 .statusCode(200);
     }
@@ -262,7 +311,7 @@ public class PgToPgEnvSwitchoverTest {
                         .append(",")
         );
         sb.deleteCharAt(sb.length() - 1);
-        sb.append("/postgresql");
+        sb.append("/postgres");
         Properties properties = new Properties();
         properties.setProperty("url", sb.toString());
         properties.setProperty("user", dbs[0].getEnvMap().get("PATRONI_SUPERUSER_USERNAME"));
@@ -274,17 +323,17 @@ public class PgToPgEnvSwitchoverTest {
         try (Connection connection =
                      DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate("create table public.switchover (id bigint, name varchar(512))");
+            createTable.executeUpdate("create table public.s_switchover (id bigint, name varchar(512))");
             createTable.close();
             Statement insertData = connection.createStatement();
             insertData.executeUpdate(
-                    "insert into public.switchover (id, name) " +
+                    "insert into public.s_switchover (id, name) " +
                     "select num as id, 'Name ' || substr(md5(random()::text), 1, 512) as name " +
-                    "from generate_series(1, 19000000) as num"
+                    "from generate_series(1, 5000000) as num"
             );
             insertData.close();
             Statement analyzeTable = connection.createStatement();
-            analyzeTable.executeUpdate("analyze public.switchover");
+            analyzeTable.executeUpdate("analyze public.s_switchover");
             analyzeTable.close();
             System.out.println("Source prepared");
         }

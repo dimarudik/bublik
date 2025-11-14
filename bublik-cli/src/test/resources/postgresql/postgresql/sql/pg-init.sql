@@ -4,6 +4,14 @@ create schema if not exists test;
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
 
+create table public.empty_table (id int primary key,name varchar(256));
+insert into public.empty_table (id, name)
+    select n as id, 'PostgreSQL ' || n as name
+        from generate_series(1, 350000) as n;
+analyze public.empty_table;
+delete from public.empty_table where id between 40000 and 310000;
+create table test.empty_table (id int,name varchar(256));
+
 create table test.table1 (
     id bigint,
     create_at timestamp(6) with time zone,

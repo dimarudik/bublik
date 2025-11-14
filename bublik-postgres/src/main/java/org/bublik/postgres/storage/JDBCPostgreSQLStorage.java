@@ -61,10 +61,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
             String fetchQuery = buildFetchStatement(config, t2t);
-            log.info("Fetch query: \n{}", fetchQuery);
-            S sourceSession = this.getPoolConnection();
             String sql = buildStartEndOfChunk(config, chunkTableName);
-            log.debug("SQL to fetch metadata of chunks: \n{}", sql);
+            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
+            log.info("Fetch query: {}", fetchQuery);
+            S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
@@ -151,8 +151,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         Connection connectionFrom = chunk.getSourceSession();
         if (fetchResultSet.next()) {
             Connection connectionTo = chunk.getTargetSession();
-//            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-//            chunk.setTargetTable(table);
             try {
                 LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                 connectionTo.close();
@@ -245,11 +243,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL COPY");
     }
 
-    private boolean hasNext(ResultSet resultSet) throws SourceSQLException {
+    private boolean hasNext(ResultSet resultSet) {
         try {
             return resultSet.next();
-        } catch (SQLException e) {
-            throw new SourceSQLException(getStackTrace(e));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

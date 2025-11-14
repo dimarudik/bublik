@@ -193,7 +193,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     @Override
     public String toString() {
         String toTableName = t2t.targetTable() == null ? "" : " -> " + t2t.targetTable().getTableName();
-        return  t2t.targetTable().getTableName() +
+        return  t2t.sourceTable().getTableName() +
                 toTableName +
                 " of " + rows +
                 " rows (start:" + getStart() +

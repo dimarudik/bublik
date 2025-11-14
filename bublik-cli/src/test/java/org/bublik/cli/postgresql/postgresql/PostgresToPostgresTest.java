@@ -127,4 +127,18 @@ public class PostgresToPostgresTest {
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
+
+    @Test
+    void emptySourceTable() throws IOException, InterruptedException {
+        TestResult result = getResult(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "postgresql/postgresql/json/emptySourceTable.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
 }
