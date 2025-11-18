@@ -119,10 +119,10 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
 
-        Storage<K, T, S, R> sourceStorage = this;
+//        Storage<K, T, S, R> sourceStorage = this;
         if (rows > 0) {
             dropChunkTable(false, tableName);
-            createChunks(configs, false, rows, tableName);
+            fulfillChunks(configs, false, rows, tableName);
             targetStorage.dropOutboxTable(false, tableName);
             targetStorage.createOutbox(tableName);
         }
@@ -223,7 +223,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
         Storage sourceStorage = this;
         if (rows > 0) {
-            createChunks(configs, true, rows, tableName);
+            fulfillChunks(configs, true, rows, tableName);
             targetStorage.createOutbox(tableName);
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);

@@ -47,11 +47,12 @@ insert into public.items (id, item_name, description)
            'Description ' || substr(md5(random()::text), 1, 30) as description
     from generate_series(1, 100000) as num;
 
-insert into public.likes (id, user_id, item_id, r)
+insert into public.likes (id, user_id, item_id, r, last_update)
     select num as id,
        floor(random() * 100000 + 1)::int as user_id,
        floor(random() * 100000 + 1)::int as item_id,
-       rpad('Bublik is the best tool for migration ',50,'*') as r
+       rpad('Bublik is the best tool for migration ',50,'*') as r,
+       now() - random() * (timestamp '2025-01-31 00:00:00' - timestamp '2025-01-01 23:59:59') as last_update
     from generate_series(1, 500000) as num
 on conflict (user_id, item_id) do nothing;
 

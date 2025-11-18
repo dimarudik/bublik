@@ -14,6 +14,7 @@ import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.Chunk;
 import org.bublik.core.model.Column;
 import org.bublik.core.model.Config;
+import org.bublik.core.model.Table2Table;
 
 import java.util.*;
 
@@ -116,6 +117,7 @@ public class CSObject {
 
     public CSObject query(Chunk<?, ?, ?, ?> chunk) {
         String q = buildInsertStatement(chunk, getCassandraColumnMap());
+//        System.out.println(q);
         setQuery(q);
         return this;
     }
@@ -168,13 +170,13 @@ public class CSObject {
                 columnToColumnMap.entrySet()
                         .stream()
                         .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName().toString()))
-                        .forEach(v -> columnMap.put(v.getKey(), new Column(0, v.getValue(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null)));
+                        .forEach(v -> columnMap.put(v.getKey(), new Column(0, v.getValue(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null, c.isStatic())));
             }
             if (chunk.getConfig().expressionToColumn() != null) {
                 expressionToColumnMap.entrySet()
                         .stream()
                         .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName().toString()))
-                        .forEach(v -> columnMap.put(c.getName().toString(), new Column(0, c.getName().toString(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null)));
+                        .forEach(v -> columnMap.put(c.getName().toString(), new Column(0, c.getName().toString(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null, c.isStatic())));
             }
         }
         return columnMap;
@@ -182,14 +184,29 @@ public class CSObject {
 
     private String buildInsertStatement(Chunk<? ,?, ?, ?> chunk, Map<String, Column> stringCassandraColumnMap) {
         List<String> targetColumns = stringCassandraColumnMap.values().stream().map(Column::columnName).toList();
+        Table2Table<?> t2t = chunk.getT2t();
+        StringBuilder usingClause = new StringBuilder();
+        if (t2t.ttlColumn() != null || t2t.timestampColumn() != null) {
+            usingClause.append(" using ");
+        }
+        if (t2t.ttlColumn() != null && t2t.timestampColumn() != null) {
+            usingClause.append(" ttl ").append(" :ttl and ");
+        } else if (t2t.ttlColumn() != null) {
+            usingClause.append(" ttl ").append(" :ttl ");
+        }
+        if (t2t.timestampColumn() != null) {
+            usingClause.append(" timestamp ").append(" :timestamp ");
+        }
+//        String usingClause = (t2t.ttlColumn() == null ? "" : " using ttl :ttl" );
         return PGKeywords.INSERT + " " + PGKeywords.INTO + " " +
                 chunk.getConfig().toSchemaName() + "." +
                 chunk.getConfig().toTableName() + " (" +
                 String.join(", ", targetColumns) + ") " +
                 PGKeywords.VALUES + " (" + " :" +
                 String.join(", :", targetColumns) +
-//                targetColumns.stream().map(c -> "?").collect(Collectors.joining(",")) +
-                ");";
+                ")" +
+                usingClause +
+                ";";
     }
 
     public static CSObject createCSObject(CSPool csPool, Chunk<?, ?, ?, ?> chunk) {

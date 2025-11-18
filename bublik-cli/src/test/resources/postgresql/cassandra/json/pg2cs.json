@@ -13,8 +13,10 @@
       "u.user_name as user_name"      : "user_name",
       "u.email as email"              : "email",
       "i.item_name as item_name"      : "item_name",
-      "i.description as description"  : "description"
-    }
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "86400 * 365 - ((extract(epoch from now()))::int - (extract(epoch from l.last_update))::int)"
   },
   {
     "fromSchemaName" : "public",
@@ -30,7 +32,29 @@
       "i.item_name as item_name"      : "item_name",
       "i.description as description"  : "description",
       "u.user_name as user_name"      : "user_name",
-      "u.email as email"              : "email"
-    }
+      "u.email as email"              : "email",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "floor(random() * (9999999 - 9000000 + 1) + 9000000)::int"
+  },
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "user2",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "NULL",
+    "timestamp" : "(extract(epoch from l.last_update) * 1000000)::bigint"
   }
 ]

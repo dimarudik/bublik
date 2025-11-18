@@ -8,6 +8,7 @@ create table test.user (
     email varchar static,
     item_name varchar,
     description text,
+    last_update timestamp,
     primary key (user_id, item_id));
 create table test.item (
     item_id int,
@@ -16,6 +17,7 @@ create table test.item (
     description text static,
     user_name varchar,
     email varchar,
+    last_update timestamp,
     primary key (item_id, user_id));
 create table test.user2 (
     user_id int,
@@ -24,4 +26,5 @@ create table test.user2 (
     email varchar,
     item_name varchar,
     description text,
+    last_update timestamp,
     primary key ((user_id, item_id)));

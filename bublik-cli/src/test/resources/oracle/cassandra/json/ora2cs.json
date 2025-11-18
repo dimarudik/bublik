@@ -13,8 +13,11 @@
       "u.user_name as user_name"      : "user_name",
       "u.email as email"              : "email",
       "i.item_name as item_name"      : "item_name",
-      "i.description as description"  : "description"
-    }
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "86400 * 365 - trunc((EXTRACT (DAY FROM SYSTIMESTAMP) * 24 * 60 * 60) + (EXTRACT (HOUR FROM SYSTIMESTAMP) * 60 * 60) + (EXTRACT (MINUTE FROM SYSTIMESTAMP) * 60) + EXTRACT (SECOND FROM SYSTIMESTAMP))   -   trunc((EXTRACT (DAY FROM l.last_update) * 24 * 60 * 60) + (EXTRACT (HOUR FROM l.last_update) * 60 * 60) + (EXTRACT (MINUTE FROM l.last_update) * 60) + EXTRACT (SECOND FROM l.last_update))",
+    "timestamp" : "1762352865634052"
   },
   {
     "fromSchemaName" : "test",
@@ -30,7 +33,9 @@
       "i.item_name as item_name"      : "item_name",
       "i.description as description"  : "description",
       "u.user_name as user_name"      : "user_name",
-      "u.email as email"              : "email"
-    }
+      "u.email as email"              : "email",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "round(DBMS_RANDOM.VALUE(9000000, 9999999))"
   }
 ]

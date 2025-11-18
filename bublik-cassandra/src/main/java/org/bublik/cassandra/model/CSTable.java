@@ -79,7 +79,7 @@ public class CSTable<S extends CqlSession> extends Table<S> {
         columnMetadata.forEach(c -> {
             String columnName = c.getName().toString();
             String columnType = c.getType().toString().toLowerCase();
-            columns.add(new Column(0, columnName, columnType, null, null, null, null, null, 0, null, 0, null));
+            columns.add(new Column(0, columnName, columnType, null, null, null, null, null, 0, null, 0, null, c.isStatic()));
         });
         return columns;
     }
@@ -146,11 +146,11 @@ public class CSTable<S extends CqlSession> extends Table<S> {
 
     @Override
     public boolean enrichTable(S session) {
+        setColumns(getAllColumns(session));
         List<Column> partitionKey = CSTableService.getKey(session, this, "partition_key");
         List<Column> clusteringKey = CSTableService.getKey(session, this, "clustering");
         setClusteringKey(clusteringKey);
         setPartitionKey(partitionKey);
-        setColumns(getAllColumns(session));
         return true;
     }
 }

@@ -5,7 +5,7 @@ import org.bublik.core.service.NameSyntaxService;
 public record Column(Integer columnPosition, String columnName, String columnType, Integer dataType, Integer isNullable,
                      String defaultValue, String isAutoIncrement, String isGenerated, int decimalDigits,
                      String columnComment, int charOctetLength,
-                     String ascOrDesc) implements NameSyntaxService, Comparable<Column> {
+                     String ascOrDesc, boolean isStatic) implements NameSyntaxService, Comparable<Column> {
 
     @Override
     public int compareTo(Column column) {

@@ -62,6 +62,7 @@ public class PostgresToCassandraTest {
     }
 
     @Test
+    // select item_id, ttl(user_name), ttl(email), ttl(item_name), ttl(description) from test.item;
     public void postgresToCassandra() throws InterruptedException, IOException {
         Properties sourceProperties = getJdbcProperties(source);
         Properties targetProperties = getJdbcPropertiesOfCassandra(target);
@@ -73,6 +74,7 @@ public class PostgresToCassandraTest {
                 sourceProperties,
                 targetProperties);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+//        Thread.sleep(240_000);
         assertEquals(result.sourceCount(), result.targetCount());
     }
 

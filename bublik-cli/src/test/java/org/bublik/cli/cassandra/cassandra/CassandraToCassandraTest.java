@@ -56,6 +56,7 @@ public class CassandraToCassandraTest {
     }
 
     @Test
+    // select id, uid, v1, v2, v3, ttl(v1), ttl(v2), ttl(v3),  writetime(v1), writetime(v2), writetime(v3)  from test.t;
     public void cassandraToCassandra() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("9042");
         Properties targetProperties = getPropertiesOfCassandra("9043");
@@ -66,7 +67,7 @@ public class CassandraToCassandraTest {
                 sync,
                 sourceProperties,
                 targetProperties);
-//        Thread.sleep(30_000);
+//        Thread.sleep(60_000);
 //        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
 //        assertEquals(result.sourceCount(), result.targetCount());
     }

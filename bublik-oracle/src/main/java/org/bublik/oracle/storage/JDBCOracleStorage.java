@@ -54,7 +54,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public void createChunks(List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
+    public void fulfillChunks(List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
         Connection connection = getConnection();
         for (Config config : configs) {
             try {
@@ -128,7 +128,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
+            Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
 
             S sourceSession = this.getPoolConnection();
             String sql = buildStartEndOfChunk(config, chunkTable);
@@ -156,14 +156,46 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
             ps.close();
             sourceSession.close();
         }
-/*
-        try {
-            Thread.sleep(180_000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-*/
         return chunkHashList;
+    }
+
+    private Table2Table<S> getTable2Table(Table<S> sourceTable,
+                                          Table<S> targetTable,
+                                          List<Column2Column> c2c,
+                                          Config config) {
+        Column ttlColumn = null;
+        Column timestampColumn = null;
+        if (config.withTTL() != null) {
+            ttlColumn = new Column(-1,
+                    "_ttl",
+                    "int",
+                    null,
+                    null,
+                    config.withTTL(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    0,
+                    null,
+                    false);
+        }
+        if (config.timestamp() != null) {
+            timestampColumn = new Column(-1,
+                    "_timestamp",
+                    "int",
+                    null,
+                    null,
+                    config.timestamp(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    0,
+                    null,
+                    false);
+        }
+        return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
     private void logColumn2Column(List<Column2Column> column2Column) {
@@ -176,7 +208,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(null, c, c)));
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -193,7 +225,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(null, sourceColumn, targetColumn));
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
             }
         }
         if (config.expressionToColumn() != null) {
@@ -205,7 +237,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(entry.getKey(), column, column));
+                column2Column.add(new Column2Column(column, column, entry.getKey()));
             }
         }
 //        logColumn2Column(column2Column);
@@ -250,6 +282,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +
                 columnToColumn + " " +
+                (t2t.ttlColumn() == null ? "" : ( ", " + t2t.ttlColumn().defaultValue() + " as \"" + t2t.ttlColumn().columnName() + "\" ")) +
+                (t2t.timestampColumn() == null ? "" : ( ", " + t2t.timestampColumn().defaultValue() + " as \"" + t2t.timestampColumn().columnName() + "\" ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +

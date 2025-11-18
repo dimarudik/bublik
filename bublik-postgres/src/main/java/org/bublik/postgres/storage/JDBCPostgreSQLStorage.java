@@ -59,10 +59,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table<S> t2t = new Table2Table<>(sourceTable, targetTable, c2c);
-            String fetchQuery = buildFetchStatement(config, t2t);
+            Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, chunkTableName);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
+            String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: {}", fetchQuery);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
@@ -91,6 +91,45 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return chunks;
     }
 
+    private Table2Table<S> getTable2Table(Table<S> sourceTable,
+                                          Table<S> targetTable,
+                                          List<Column2Column> c2c,
+                                          Config config) {
+        Column ttlColumn = null;
+        Column timestampColumn = null;
+        if (config.withTTL() != null) {
+            ttlColumn = new Column(-1,
+                    "_ttl",
+                    "int",
+                    null,
+                    null,
+                    config.withTTL(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    0,
+                    null,
+                    false);
+        }
+        if (config.timestamp() != null) {
+            timestampColumn = new Column(-1,
+                    "_timestamp",
+                    "int",
+                    null,
+                    null,
+                    config.timestamp(),
+                    null,
+                    null,
+                    0,
+                    null,
+                    0,
+                    null,
+                    false);
+        }
+        return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
+    }
+
     private void logColumn2Column(List<Column2Column> column2Column) {
         column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
                 c2c.sourceExpression(),
@@ -101,7 +140,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(null, c, c)));
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -117,7 +156,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(null, sourceColumn, targetColumn));
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
             }
         }
         if (config.expressionToColumn() != null) {
@@ -128,7 +167,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(entry.getKey(), column, column));
+                column2Column.add(new Column2Column(column, column, entry.getKey()));
             }
         }
 //        logColumn2Column(column2Column);
@@ -251,6 +290,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
+    @Deprecated
     @Override
     public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         Map<String, Column> columnMap = new HashMap<>();
@@ -286,7 +326,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0, null, 0, null)));
+                                            dataType, null, null, null, null, 0, null, 0, null, false)));
                 } else if (expressionToColumnMap == null) {
                     Table<?> sourceTable = chunk.getT2t().sourceTable();
                     sourceTable.getColumns().forEach(column -> columnMap.put(column.columnName(), column));
@@ -302,7 +342,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null)));
+                                            dataType, null, null, null, null, 0 , null, 0, null, false)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -315,7 +355,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null)));
+                                            dataType, null, null, null, null, 0 , null, 0, null, false)));
                 }
             }
             resultSet.close();
@@ -351,7 +391,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null)));
+                                            dataType, null, null, null, null, 0 , null, 0, null, false)));
                 }
             }
             resultSet.close();
@@ -712,12 +752,12 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 // INTERVALYM
                                 case -103:
                                     Serializable intervalym = (Serializable) fetchResultSet.getObject(sourceColumn);
-                                    interval = ColumnUtil.byteArrayYMToInterval(jdbcSourceStorage.intervalYM2Interval(intervalym));
+                                    interval = byteArrayYMToInterval(jdbcSourceStorage.intervalYM2Interval(intervalym));
                                     break;
                                 // INTERVALDS
                                 case -104:
                                     Serializable intervalds = (Serializable) fetchResultSet.getObject(sourceColumn);
-                                    interval = ColumnUtil.byteArrayDSToInterval(jdbcSourceStorage.intervalDS2Interval(intervalds));
+                                    interval = byteArrayDSToInterval(jdbcSourceStorage.intervalDS2Interval(intervalds));
                                     break;
                                 default:
                                     break;
@@ -890,6 +930,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         String columnToColumn = String.join(", ", strings);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
+                (t2t.ttlColumn() == null ? "" : ( ", " + t2t.ttlColumn().defaultValue() + " as " + t2t.ttlColumn().columnName() + " ")) +
+                (t2t.timestampColumn() == null ? "" : ( ", " + t2t.timestampColumn().defaultValue() + " as " + t2t.timestampColumn().columnName() + " ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +
@@ -1038,10 +1080,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public void createChunks(List<Config> configs,
-                             boolean sync,
-                             int required,
-                             String tableName) throws SQLException {
+    public void fulfillChunks(List<Config> configs,
+                              boolean sync,
+                              int required,
+                              String tableName) throws SQLException {
         Connection connection = getConnection();
         createChunkTable(connection, sync, tableName);
         for (Config config : configs) {

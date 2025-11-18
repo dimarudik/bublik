@@ -89,7 +89,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         0, // decimalDigits is not used here
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
-                        null // ascOrDesc is not used here
+                        null,
+                        false// ascOrDesc is not used here
                 ));
                 existingForeignKey.getFkColumns().add(new Column(
                         (int) ordinalPosition,
@@ -103,7 +104,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         0, // decimalDigits is not used here
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
-                        null // ascOrDesc is not used here
+                        null,
+                        false// ascOrDesc is not used here
                 ));
             } else {
                 Table fkTable = new PGTable(fkSchemaName, fkTableName);
@@ -124,7 +126,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                                         0, // decimalDigits is not used here
                                         null, // columnComment is not used here
                                         0, // charOctetLength is not used here
-                                        null // ascOrDesc is not used here
+                                        null,
+                                        false// ascOrDesc is not used here
                                 ));
                             }},
                             pkTable,
@@ -141,7 +144,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                                         0, // decimalDigits is not used here
                                         null, // columnComment is not used here
                                         0, // charOctetLength is not used here
-                                        null // ascOrDesc is not used here
+                                        null,
+                                        false// ascOrDesc is not used here
                                 ));
                             }},
                             pkName,
@@ -204,7 +208,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                     decimalDigits,
                     remark,
                     charOctetLength,
-                    null
+                    null,
+                    false
             ));
 /*
             log.info("Position: {} Column: {}, Type: {}, Data Type: {}, Nullable: {}, Default: {}, " +
@@ -238,7 +243,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                     0,
                     null,
                     0,
-                    null)
+                    null,
+                    false)
             );
         }
         rs.close();
@@ -285,7 +291,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         0, // decimalDigits is not used here
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
-                        null // ascOrDesc is not used here
+                        null,
+                        false// ascOrDesc is not used here
                 ));
             } else {
                 uniqueConstraintMap.put(constraintName, new UniqueConstraint(
@@ -303,7 +310,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                                     0, // decimalDigits is not used here
                                     null, // columnComment is not used here
                                     0, // charOctetLength is not used here
-                                    null // ascOrDesc is not used here
+                                    null,
+                                    false// ascOrDesc is not used here
                             ));
                         }},
                         nullsNotDistinct));
@@ -365,7 +373,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         0, // decimalDigits is not used here
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
-                        ascOrDesc
+                        ascOrDesc,
+                        false
                 );
                 if (indexes.containsKey(id)) {
                     Index existingIndex = indexes.get(id);

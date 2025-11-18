@@ -39,10 +39,15 @@ public interface CSTableService {
                     0,
                     null,
                     0,
-                    null
+                    null,
+                    false
             ));
         }
         return key;
+    }
+
+    static List<Column> getNonStaticColumns(Table<?> table) {
+        return table.getColumns().stream().filter(column -> !column.isStatic()).toList();
     }
 
     static String countRowsInTableQuery(CSTable<?> table) {

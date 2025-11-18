@@ -9,10 +9,10 @@ import com.datastax.oss.driver.api.core.cql.BatchableStatement;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.cassandra.model.CSTable;
-import org.bublik.cassandra.service.CSTableService;
 import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
 import org.bublik.cassandra.storage.cassandraaddons.CSObject;
 import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
+import org.bublik.cassandra.storage.cassandraaddons.CSRecord;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
@@ -68,13 +68,16 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
+//        log.info("{}", csObject.getQuery());
+        Table2Table<?> t2t = chunk.getT2t();
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
         while (resultSet.next()) {
             Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
                     resultSet,
                     csObject.getPartitionKeyMap(),
                     csObject.getCassandraColumnMap(),
-                    csObject.getTokenRangeSet());
+                    csObject.getTokenRangeSet(),
+                    t2t);
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
             BatchableStatement<?> statement = csObject.getPreparedStatement().bind(entry.getValue());
@@ -120,19 +123,28 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
+
+        log.info("{}", csObject.getPreparedStatement().getQuery());
+        tokenRangeBatchEntityMap.forEach((k, v) -> log.info("{}: {}",
+                k, v.getBatchStatementBuilder().toString() + v.getCounter()));
+
         for (Row row : resultSet) {
-            Map.Entry<TokenRange, Object[]> entry = getTokenRangedObjects(
+            CSRecord csRecord = getCSRecord(
                     row,
                     chunk.getT2t(),
                     csObject.getTokenRangeSet());
-            Arrays.stream(entry.getValue()).forEach(System.out::println);
+
+            Arrays.stream(csRecord.values()).forEach(System.out::println);
             System.out.println(csObject.getPreparedStatement().getQuery());
-            BatchEntity batchEntity = tokenRangeBatchEntityMap.get(entry.getKey());
+
+            BatchEntity batchEntity = tokenRangeBatchEntityMap.get(csRecord.tokenRange());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
-            BatchableStatement<?> statement = csObject.getPreparedStatement().bind(entry.getValue());
+
+            BatchableStatement<?> statement = csObject.getPreparedStatement().bind(csRecord.values());
             batchStatementBuilder.addStatement(statement);
             batchEntity.increaseCounter();
             recordCount++;
+
             // batch_size_fail_threshold_in_kb: 50
             if (batchEntity.getCounter() == batchSize) {
                 batchApply(batchStatementBuilder, cqlSession);
@@ -154,7 +166,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,
                                                                   Map<Integer, CSPartitionKey> partitionKeyMap,
                                                                   Map<String, Column> stringCassandraColumnMap,
-                                                                  Set<TokenRange> tokenRangeSet) throws SQLException {
+                                                                  Set<TokenRange> tokenRangeSet,
+                                                                  Table2Table<?> t2t) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
         for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
@@ -265,15 +278,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     } catch (ClassCastException e) {
                         uuid = UUID.fromString((String) v);
                     }
-/*
-                    int position = partitionKeyList
-                            .stream()
-                            .filter(e -> e.columnName().equals(entry.getValue().columnName()))
-                            .findFirst()
-                            .map(Column::columnPosition)
-                            .orElseThrow();
-                    mapBytes.put(position, uuidToBytes(uuid));
-*/
                     Map.Entry<Integer, CSPartitionKey> keyEntry = partitionKeyMap
                             .entrySet()
                             .stream()
@@ -288,15 +292,21 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
             }
         }
+        if (t2t.ttlColumn() != null) {
+            int ttl = resultSet.getInt(t2t.ttlColumn().columnName());
+            objectList.add(ttl);
+        }
+        if (t2t.timestampColumn() != null) {
+            long timestamp = resultSet.getLong(t2t.timestampColumn().columnName());
+            objectList.add(timestamp);
+        }
         byte[][] bytes = new byte[mapBytes.size()][];
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
 
-    private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(Row row,
-                                                                  Table2Table<S> t2t,
-                                                                  Set<TokenRange> tokenRangeSet) throws SQLException {
+    private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet) throws SQLException {
         List<Object> objectList = new ArrayList<>();
         CSTable<?> targetTable = (CSTable<?>) t2t.targetTable();
         List<Column> targetPartKeys = targetTable.getPartitionKey();
@@ -413,6 +423,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         byte[][] bytes = new byte[mapBytes.size()][];
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
-        return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
+        return new CSRecord(tokenRange, objectList.toArray());
+//        return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
 }

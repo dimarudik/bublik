@@ -74,6 +74,7 @@ public class OracleToCassandraTest {
                 sourceProperties,
                 targetProperties);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+//        Thread.sleep(240_000);
         assertEquals(result.sourceCount(), result.targetCount());
     }
 
@@ -98,7 +99,8 @@ public class OracleToCassandraTest {
 
         App.runProcess(cp, configs, rows, sync, chunkTableName);
 
-        String fromQuery = "SELECT count(1) * 2 FROM test.likes l join users u on u.id = l.user_id join items i on i.id = l.item_id";
+//        String fromQuery = "SELECT count(1) * 2 FROM test.likes l join users u on u.id = l.user_id join items i on i.id = l.item_id";
+        String fromQuery = "SELECT count(1) * 2 FROM test.likes l left join users u on u.id = l.user_id left join items i on i.id = l.item_id";
         Long sourceCount = countRows(sourceProperties, fromQuery);
         Long targetCount = countCassandra();
         return new TestResult(sourceCount, targetCount);

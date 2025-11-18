@@ -86,7 +86,8 @@ public class OraTable<S extends Connection> extends Table<S> {
                     decimalDigits,
                     remark,
                     charOctetLength,
-                    null
+                    null,
+                    false
             ));
         }
         columns.sort(Column::compareTo);
