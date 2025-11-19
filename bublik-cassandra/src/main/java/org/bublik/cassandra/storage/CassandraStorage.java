@@ -3,22 +3,17 @@ package org.bublik.cassandra.storage;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.DriverException;
-import com.datastax.oss.driver.api.core.cql.BatchStatement;
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
-import com.datastax.oss.driver.api.core.cql.BatchableStatement;
-import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.bublik.cassandra.model.CSTable;
-import org.bublik.cassandra.storage.cassandraaddons.BatchEntity;
-import org.bublik.cassandra.storage.cassandraaddons.CSObject;
-import org.bublik.cassandra.storage.cassandraaddons.CSPartitionKey;
-import org.bublik.cassandra.storage.cassandraaddons.CSRecord;
+import org.bublik.cassandra.storage.cassandraaddons.*;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -124,23 +119,25 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
 
-        log.info("{}", csObject.getPreparedStatement().getQuery());
-        tokenRangeBatchEntityMap.forEach((k, v) -> log.info("{}: {}",
-                k, v.getBatchStatementBuilder().toString() + v.getCounter()));
-
+        // избавиться от csObject
         for (Row row : resultSet) {
             CSRecord csRecord = getCSRecord(
                     row,
                     chunk.getT2t(),
                     csObject.getTokenRangeSet());
 
-            Arrays.stream(csRecord.values()).forEach(System.out::println);
-            System.out.println(csObject.getPreparedStatement().getQuery());
-
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(csRecord.tokenRange());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
 
-            BatchableStatement<?> statement = csObject.getPreparedStatement().bind(csRecord.values());
+            String insertQuery = csRecord.buildInsertStatement(chunk);
+
+            System.out.println(insertQuery);
+            csRecord.values().forEach(v -> System.out.println(v.column().columnName() + " : " + v.value()));
+
+            Object[] values = csRecord.values().stream().map(CSValue::value).toArray();
+            PreparedStatement ps = cqlSession.prepare(insertQuery);
+            BatchableStatement<?> statement = ps.bind(values);
+
             batchStatementBuilder.addStatement(statement);
             batchEntity.increaseCounter();
             recordCount++;
@@ -152,6 +149,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 batchCount++;
             }
         }
+
         for (Map.Entry<TokenRange, BatchEntity> entry : csObject.getMm3Batch().getTokenRangeMap().entrySet()) {
             if (entry.getValue().getCounter() > 0) {
                 batchApply(entry.getValue().getBatchStatementBuilder(), cqlSession);
@@ -307,7 +305,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 
     private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet) throws SQLException {
-        List<Object> objectList = new ArrayList<>();
+        List<CSValue> objectList = new ArrayList<>();
         CSTable<?> targetTable = (CSTable<?>) t2t.targetTable();
         List<Column> targetPartKeys = targetTable.getPartitionKey();
         Map<Column, Column> column2Column = new HashMap<>();
@@ -328,7 +326,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), byteToBytes(v)));
-                    objectList.add(v);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "smallint" : {
@@ -338,7 +336,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), smallIntToBytes(v)));
-                    objectList.add(v);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "int" : {
@@ -348,7 +346,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), intToBytes(v)));
-                    objectList.add(v);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "bigint": {
@@ -358,7 +356,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), longToBytes(v)));
-                    objectList.add(v);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "text": {
@@ -369,12 +367,12 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), stringToBytes(v)));
-                    objectList.add(v);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "date": {
-                    LocalDate date = row.getLocalDate(sClmName);
-                    objectList.add(date);
+                    LocalDate v = row.getLocalDate(sClmName);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "timestamp": {
@@ -384,36 +382,39 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), timestampToBytes(v)));
-                    objectList.add(v);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "boolean": {
-                    objectList.add(row.getBoolean(sClmName));
+                    Boolean v = row.getBoolean(sClmName);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "blob": {
-                    ByteBuffer buffer = row.getByteBuffer(sClmName);
-                    objectList.add(buffer);
+                    ByteBuffer v = row.getByteBuffer(sClmName);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "float": {
-                    objectList.add(row.getFloat(sClmName));
+                    Float v = row.getFloat(sClmName);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "decimal": {
-                    objectList.add(row.getBigDecimal(sClmName));
+                    BigDecimal v = row.getBigDecimal(sClmName);
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 case "uuid": {
-                    UUID uuid = row.getUuid(sClmName);
+                    UUID v = row.getUuid(sClmName);
                     int position = targetPartKeys
                             .stream()
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .map(Column::columnPosition)
                             .orElseThrow();
-                    mapBytes.put(position, uuidToBytes(uuid));
-                    objectList.add(uuid);
+                    mapBytes.put(position, uuidToBytes(v));
+                    objectList.add(new CSValue(entry.getValue(), v));
                     break;
                 }
                 default:
@@ -423,7 +424,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         byte[][] bytes = new byte[mapBytes.size()][];
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
-        return new CSRecord(tokenRange, objectList.toArray());
+        return new CSRecord(tokenRange, objectList);
 //        return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
 }

@@ -142,6 +142,7 @@ public class OracleToCassandraTest {
         Properties properties = new Properties();
         properties.setProperty("class", "org.bublik.cassandra.storage.CSPoolStorage");
         properties.setProperty("keyspace", "test");
+        properties.setProperty("hosts", "localhost");
         properties.setProperty("user", "test");
         properties.setProperty("password", "test");
         properties.setProperty("datacenter", "datacenter1");

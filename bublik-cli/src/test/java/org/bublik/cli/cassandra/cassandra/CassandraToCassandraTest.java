@@ -1,6 +1,7 @@
 package org.bublik.cli.cassandra.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import org.bublik.cassandra.storage.CSPool;
 import org.bublik.cli.App;
 import org.bublik.cli.TestResult;
 import org.bublik.cli.TestUtils;
@@ -13,11 +14,12 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Properties;
 
 import static org.bublik.cli.App.getConfigs;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CassandraToCassandraTest {
     private static int rows = 50000;
@@ -67,9 +69,9 @@ public class CassandraToCassandraTest {
                 sync,
                 sourceProperties,
                 targetProperties);
-//        Thread.sleep(60_000);
-//        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-//        assertEquals(result.sourceCount(), result.targetCount());
+//        Thread.sleep(240_000);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
     public static TestResult getResult(String connectionPropertyFile,
@@ -94,15 +96,28 @@ public class CassandraToCassandraTest {
         App.runProcess(cp, configs, rows, sync, chunkTableName);
 
 //        String fromQuery = "SELECT count(1) * 2 FROM public.likes l left join users u on u.id = l.user_id left join items i on i.id = l.item_id";
-//        Long sourceCount = countRows(sourceProperties, fromQuery);
-//        Long targetCount = countCassandra();
-        return new TestResult(0, 0);
+        Long sourceCount = countCassandra(sourceProperties);
+        Long targetCount = countCassandra(targetProperties);
+        return new TestResult(sourceCount, targetCount);
+    }
+
+    private static Long countCassandra(Properties properties) {
+        CSPool csPool = new CSPool(properties, 2);
+        CqlSession cqlSession = csPool.getCqlSession();
+        com.datastax.oss.driver.api.core.cql.ResultSet resultSet = cqlSession.execute("SELECT id FROM test.t");
+        long rowCount = 0;
+        for (com.datastax.oss.driver.api.core.cql.Row row : resultSet) {
+            rowCount++;
+        }
+        csPool.closeCqlSession();
+        return rowCount;
     }
 
     private Properties getPropertiesOfCassandra(String port) {
         Properties properties = new Properties();
         properties.setProperty("class", "org.bublik.cassandra.storage.CassandraStorage");
         properties.setProperty("keyspace", "test");
+        properties.setProperty("hosts", "localhost");
         properties.setProperty("user", "test");
         properties.setProperty("password", "test");
         properties.setProperty("datacenter", "datacenter1");
