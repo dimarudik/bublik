@@ -1,11 +1,8 @@
 package org.bublik.cassandra.model;
 
-import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.metadata.Metadata;
-import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
-import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
-import org.bublik.cassandra.service.CSTableService;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -16,6 +13,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static org.bublik.cassandra.constants.SQLConstants.SQL_ALL_COLUMNS;
 
 public class CSTable<S extends CqlSession> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(CSTable.class);
@@ -67,20 +66,32 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     @Override
     public List<Column> getAllColumns(CqlSession cqlSession) {
         List<Column> columns = new ArrayList<>();
-        Metadata metadata = cqlSession.getMetadata();
-        KeyspaceMetadata keyspaceMetadata = metadata
-                .getKeyspace(getSchemaName())
-                .orElseThrow();
-        Map<CqlIdentifier, ColumnMetadata> mapColumnMetaData = keyspaceMetadata
-                .getTable(getTableName())
-                .orElseThrow()
-                .getColumns();
-        List<ColumnMetadata> columnMetadata = mapColumnMetaData.values().stream().toList();
-        columnMetadata.forEach(c -> {
-            String columnName = c.getName().toString();
-            String columnType = c.getType().toString().toLowerCase();
-            columns.add(new Column(0, columnName, columnType, null, null, null, null, null, 0, null, 0, null, c.isStatic()));
-        });
+        ResultSet resultSet = cqlSession.execute(
+                SQL_ALL_COLUMNS,
+                getSchemaName(),
+                getTableName()
+        );
+        for (Row row : resultSet) {
+            String kind = row.getString("kind");
+            assert kind != null;
+            columns.add(new Column(
+                    row.getInt("position"),
+                    row.getString("column_name"),
+                    row.getString("type"),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    0,
+                    null,
+                    0,
+                    row.getString("clustering_order"),
+                    kind.equals("static"),
+                    kind.equals("partition_key"),
+                    kind.equals("clustering")
+            ));
+        }
         return columns;
     }
 
@@ -146,11 +157,10 @@ public class CSTable<S extends CqlSession> extends Table<S> {
 
     @Override
     public boolean enrichTable(S session) {
-        setColumns(getAllColumns(session));
-        List<Column> partitionKey = CSTableService.getKey(session, this, "partition_key");
-        List<Column> clusteringKey = CSTableService.getKey(session, this, "clustering");
-        setClusteringKey(clusteringKey);
-        setPartitionKey(partitionKey);
+        List<Column> allColumns = getAllColumns(session);
+        setColumns(allColumns);
+        setClusteringKey(allColumns.stream().filter(Column::isClusteringKey).toList());
+        setPartitionKey(allColumns.stream().filter(Column::isPartitionKey).toList());
         return true;
     }
 }

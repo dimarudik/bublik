@@ -1,15 +1,16 @@
 [
   {
     "fromSchemaName" : "test",
-    "fromTableName" : "t",
+    "fromTableName" : "t1",
     "toSchemaName" : "test",
-    "toTableName" : "t",
+    "toTableName" : "t1",
     "columnToColumn" : {
       "id"    : "id",
       "uid"   : "uid",
       "v1"    : "v1",
       "v2"    : "v2",
-      "v3"    : "v3"
+      "v3"    : "v3",
+      "v4"    : "v4"
     }
   }
 ]

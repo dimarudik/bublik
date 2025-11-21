@@ -178,6 +178,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false);
         }
         if (config.timestamp() != null) {
@@ -193,6 +195,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false);
         }
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);

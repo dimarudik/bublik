@@ -305,7 +305,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null, 0 , null, 0, null, false)));
+                                            null, null, null, null, null, 0 , null, 0, null, false, false, false)));
                 }
 
                 if (expressionToColumnMap != null) {
@@ -318,7 +318,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null, 0 , null, 0, null, false)));
+                                            null, null, null, null, null, 0 , null, 0, null, false, false, false)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -331,7 +331,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            null, null, null, null, null, 0 , null, 0, null, false)));
+                                            null, null, null, null, null, 0 , null, 0, null, false, false, false)));
                 }
             }
             resultSet.close();

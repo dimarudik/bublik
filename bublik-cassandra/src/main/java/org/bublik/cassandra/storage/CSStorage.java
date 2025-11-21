@@ -133,7 +133,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
     @Override
     public void fulfillChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
-        CqlSession cqlSession = csPool.getCqlSession();
+        S cqlSession = (S) csPool.getCqlSession();
         Set<TokenRange> trs = new HashSet<>(csPool.getTokenRanges());
         // добавляются хвостики сверху и снизу ренджа
         TokenRange defaultToken = MM3.defaultTokenRange();
@@ -146,10 +146,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         trs.add(ceil);
 
         for (Config c : configs) {
-            Table<?> pseudoTable = new PseudoTable<>(c.fromSchemaName(), c.fromTableName());
-            List<Column> partitionKey = CSTableService.getKey(cqlSession, pseudoTable, "partition_key");
-            List<Column> clusteringKey = CSTableService.getKey(cqlSession, pseudoTable, "clustering");
-            CSTable<?> sourceTable = new CSTable<>(pseudoTable.getSchemaName(), pseudoTable.getTableName(), partitionKey, clusteringKey);
+            CSTable<S> sourceTable = new CSTable<>(c.fromSchemaName(), c.fromTableName(), null, null);
+            sourceTable.enrichTable(cqlSession);
             trs.forEach(tr -> {
                 long startValue = ((Murmur3Token) tr.getStart()).getValue();
                 long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
@@ -352,6 +350,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false);
         }
         if (config.timestamp() != null) {
@@ -367,6 +367,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false);
         }
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
@@ -498,6 +500,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         String columnToColumn = String.join(", ", columns);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
+                (t2t.ttlColumn() == null ? "" : ( ", (int)(" + t2t.ttlColumn().defaultValue() + ") as \"" + t2t.ttlColumn().columnName() + "\" ")) +
+                (t2t.timestampColumn() == null ? "" : ( ", (bigint)(" + t2t.timestampColumn().defaultValue() + ") as \"" + t2t.timestampColumn().columnName() + "\" ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +

@@ -42,4 +42,7 @@ public abstract class SQLConstants {
     public static final String SQL_KEY_BY_TYPE =
             "select column_name, type, position from system_schema.columns " +
                     "where keyspace_name = ? and table_name = ? and kind = ? allow filtering";
+    public static final String SQL_ALL_COLUMNS =
+            "select column_name, type, position, kind, clustering_order from system_schema.columns " +
+                    "where keyspace_name = ? and table_name = ?";
 }

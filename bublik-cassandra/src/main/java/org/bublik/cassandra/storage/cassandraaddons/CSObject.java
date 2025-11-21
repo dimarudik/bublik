@@ -170,13 +170,13 @@ public class CSObject {
                 columnToColumnMap.entrySet()
                         .stream()
                         .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName().toString()))
-                        .forEach(v -> columnMap.put(v.getKey(), new Column(0, v.getValue(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null, c.isStatic())));
+                        .forEach(v -> columnMap.put(v.getKey(), new Column(0, v.getValue(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null, c.isStatic(), false, false)));
             }
             if (chunk.getConfig().expressionToColumn() != null) {
                 expressionToColumnMap.entrySet()
                         .stream()
                         .filter(s -> s.getValue().replaceAll("\"", "").equalsIgnoreCase(c.getName().toString()))
-                        .forEach(v -> columnMap.put(c.getName().toString(), new Column(0, c.getName().toString(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null, c.isStatic())));
+                        .forEach(v -> columnMap.put(c.getName().toString(), new Column(0, c.getName().toString(), c.getType().toString().toLowerCase(),null, null, null,null, null, 0, null, 0, null, c.isStatic(), false, false)));
             }
         }
         return columnMap;

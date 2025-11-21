@@ -9,32 +9,45 @@ import org.bublik.core.model.Table2Table;
 import java.util.List;
 
 public record CSRecord (TokenRange tokenRange,
-                        List<CSValue> values) {
+                        List<CSValue> values,
+                        CSValueAttribute attribute) {
 
     public String buildInsertStatement(Chunk<? ,?, ?, ?> chunk) {
         Table2Table<?> t2t = chunk.getT2t();
-//        List<Column> columns = values.stream().map(CSValue::column).toList();
-        List<String> columnNames = values.stream().map(CSValue::column).map(Column::columnName).toList();
+        List<String> columnNames = values
+                .stream()
+//                .filter(CSValue::isNotEmpty)
+                .map(CSValue::column)
+                .map(Column::columnName)
+                .toList();
         StringBuilder usingClause = new StringBuilder();
-        if (t2t.ttlColumn() != null || t2t.timestampColumn() != null) {
+        if (attribute.ttl() != null || attribute.timestamp() != null) {
             usingClause.append(" using ");
         }
-        if (t2t.ttlColumn() != null && t2t.timestampColumn() != null) {
+        if (attribute.ttl() != null && attribute.timestamp() != null) {
             usingClause.append(" ttl ").append(" :ttl and ");
-        } else if (t2t.ttlColumn() != null) {
+        } else if (attribute.ttl() != null) {
             usingClause.append(" ttl ").append(" :ttl ");
         }
-        if (t2t.timestampColumn() != null) {
+        if (attribute.timestamp() != null) {
             usingClause.append(" timestamp ").append(" :timestamp ");
         }
         return PGKeywords.INSERT + " " + PGKeywords.INTO + " " +
-                chunk.getConfig().toSchemaName() + "." +
-                chunk.getConfig().toTableName() + " (" +
+                t2t.targetTable().getSchemaName() + "." +
+                t2t.targetTable().getTableName() + " (" +
                 String.join(", ",  columnNames) + ") " +
                 PGKeywords.VALUES + " (" + " :" +
                 String.join(", :", columnNames) +
                 ")" +
                 usingClause +
                 ";";
+    }
+
+    @Override
+    public String toString() {
+        return "{" + //tokenRange + ", " +
+                values +
+                ", " + attribute +
+                '}';
     }
 }

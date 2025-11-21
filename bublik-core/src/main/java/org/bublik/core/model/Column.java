@@ -2,10 +2,21 @@ package org.bublik.core.model;
 
 import org.bublik.core.service.NameSyntaxService;
 
-public record Column(Integer columnPosition, String columnName, String columnType, Integer dataType, Integer isNullable,
-                     String defaultValue, String isAutoIncrement, String isGenerated, int decimalDigits,
-                     String columnComment, int charOctetLength,
-                     String ascOrDesc, boolean isStatic) implements NameSyntaxService, Comparable<Column> {
+public record Column(Integer columnPosition,
+                     String columnName,
+                     String columnType,
+                     Integer dataType,
+                     Integer isNullable,
+                     String defaultValue,
+                     String isAutoIncrement,
+                     String isGenerated,
+                     int decimalDigits,
+                     String columnComment,
+                     int charOctetLength,
+                     String ascOrDesc,
+                     boolean isStatic,
+                     boolean isPartitionKey,
+                     boolean isClusteringKey) implements NameSyntaxService, Comparable<Column> {
 
     @Override
     public int compareTo(Column column) {

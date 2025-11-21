@@ -1,0 +1,33 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t2",
+    "toSchemaName" : "test",
+    "toTableName" : "t2",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "withTTL"   : "9999",
+    "timestamp" : "9999"
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t3",
+    "toSchemaName" : "test",
+    "toTableName" : "t3",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "withTTL"   : "NULL"
+  }
+]

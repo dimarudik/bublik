@@ -110,6 +110,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false);
         }
         if (config.timestamp() != null) {
@@ -125,6 +127,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false);
         }
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
@@ -326,7 +330,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0, null, 0, null, false)));
+                                            dataType, null, null, null, null, 0, null, 0, null, false, false, false)));
                 } else if (expressionToColumnMap == null) {
                     Table<?> sourceTable = chunk.getT2t().sourceTable();
                     sourceTable.getColumns().forEach(column -> columnMap.put(column.columnName(), column));
@@ -342,7 +346,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getValue(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null, false)));
+                                            dataType, null, null, null, null, 0 , null, 0, null, false, false, false)));
                 }
 
                 if (columnFromManyMap != null) {
@@ -355,7 +359,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null, false)));
+                                            dataType, null, null, null, null, 0 , null, 0, null, false, false, false)));
                 }
             }
             resultSet.close();
@@ -391,7 +395,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                             columnPosition,
                                             i.getKey(),
                                             columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null, false)));
+                                            dataType, null, null, null, null, 0 , null, 0, null, false, false, false)));
                 }
             }
             resultSet.close();

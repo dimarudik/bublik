@@ -90,6 +90,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
                         null,
+                        false,
+                        false,
                         false// ascOrDesc is not used here
                 ));
                 existingForeignKey.getFkColumns().add(new Column(
@@ -105,6 +107,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
                         null,
+                        false,
+                        false,
                         false// ascOrDesc is not used here
                 ));
             } else {
@@ -127,6 +131,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                                         null, // columnComment is not used here
                                         0, // charOctetLength is not used here
                                         null,
+                                        false,
+                                        false,
                                         false// ascOrDesc is not used here
                                 ));
                             }},
@@ -145,6 +151,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                                         null, // columnComment is not used here
                                         0, // charOctetLength is not used here
                                         null,
+                                        false,
+                                        false,
                                         false// ascOrDesc is not used here
                                 ));
                             }},
@@ -209,6 +217,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                     remark,
                     charOctetLength,
                     null,
+                    false,
+                    false,
                     false
             ));
 /*
@@ -244,6 +254,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false)
             );
         }
@@ -292,6 +304,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
                         null,
+                        false,
+                        false,
                         false// ascOrDesc is not used here
                 ));
             } else {
@@ -311,6 +325,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                                     null, // columnComment is not used here
                                     0, // charOctetLength is not used here
                                     null,
+                                    false,
+                                    false,
                                     false// ascOrDesc is not used here
                             ));
                         }},
@@ -374,6 +390,8 @@ public class PGTable<S extends Connection> extends Table<S> {
                         null, // columnComment is not used here
                         0, // charOctetLength is not used here
                         ascOrDesc,
+                        false,
+                        false,
                         false
                 );
                 if (indexes.containsKey(id)) {

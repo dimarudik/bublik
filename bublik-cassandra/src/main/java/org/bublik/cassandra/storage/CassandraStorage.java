@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
 
@@ -40,7 +41,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         if (chunk.getSourceStorage() instanceof CSStorage) {
             com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
-            return rangedBatch(chunk, resultSet);
+            return rangedByTokenRangeAndTtlAntTimestampBatch(chunk, resultSet);
 //            return null;
         } else if (chunk.getSourceStorage() instanceof JDBCStorage) {
 /*
@@ -50,14 +51,14 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
 */
             ResultSet resultSet = (ResultSet) chunk.getResultSet();
-            LogMessage logMessage = rangedBatch(chunk, resultSet);
+            LogMessage logMessage = rangedByTokenRangeBatch(chunk, resultSet);
 //        insertProcessedChunkInfo(cqlSession, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             return logMessage;
         }
         return null;
     }
 
-    public LogMessage rangedBatch(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
+    public LogMessage rangedByTokenRangeBatch(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
@@ -111,32 +112,78 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
     }
 
-    public LogMessage rangedBatch(Chunk<K, T, S, R> chunk, com.datastax.oss.driver.api.core.cql.ResultSet resultSet) throws SQLException {
+    public LogMessage rangedByTokenRangeAndTtlAntTimestampBatch(Chunk<K, T, S, R> chunk,
+                                                                com.datastax.oss.driver.api.core.cql.ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
-        CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
-        Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
+        Set<TokenRange> tokenRangeSet = getCsPool().tokenRanges();
+        MM3Batch mm3Batch = MM3Batch.createMM3Batch();
+        mm3Batch.initMM3Batch(tokenRangeSet);
+        Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = mm3Batch.getTokenRangeMap();
 
-        // избавиться от csObject
         for (Row row : resultSet) {
-            CSRecord csRecord = getCSRecord(
-                    row,
-                    chunk.getT2t(),
-                    csObject.getTokenRangeSet());
+            CSRecord csRecord = getCSRecord(row, chunk.getT2t(), tokenRangeSet);
 
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(csRecord.tokenRange());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
 
+            System.out.println("------------------------------------------------------------");
+            Map<CSValueAttribute, List<CSValue>> map = csRecord.values()
+                    .stream()
+                    .filter(CSValue::isRegular)
+                    .collect(Collectors.groupingBy(CSValue::groupByAttribute));
+
+            for (Map.Entry<CSValueAttribute, List<CSValue>> entry : map.entrySet()) {
+                List<CSValue> csValues = new ArrayList<>(entry.getValue());
+                csValues.addAll(csRecord.values()
+                        .stream()
+                        .filter(CSValue::isNonRegular)
+                        .toList()
+                );
+                Integer ttl = entry.getKey().ttl();
+                Long timestamp = entry.getKey().timestamp();
+                CSRecord record = new CSRecord(csRecord.tokenRange(), csValues, new CSValueAttribute(ttl, timestamp));
+                String insertQuery = record.buildInsertStatement(chunk);
+                List<Object> objects = new ArrayList<>(record.values().stream().map(CSValue::value).toList());
+                if (ttl != null) {
+                    objects.add(ttl);
+                }
+                if (timestamp != null) {
+                    objects.add(timestamp);
+                }
+                System.out.println(insertQuery);
+//                System.out.println(record);
+                System.out.println(objects);
+
+                PreparedStatement ps = cqlSession.prepare(insertQuery);
+                BatchableStatement<?> statement = ps.bind(objects.toArray());
+
+                batchStatementBuilder.addStatement(statement);
+                batchEntity.increaseCounter();
+                recordCount++;
+
+                // batch_size_fail_threshold_in_kb: 50
+                if (batchEntity.getCounter() == batchSize) {
+                    batchApply(batchStatementBuilder, cqlSession);
+                    batchEntity.resetCounter();
+                    batchCount++;
+                }
+
+            }
+
+/*
             String insertQuery = csRecord.buildInsertStatement(chunk);
-
-            System.out.println(insertQuery);
-            csRecord.values().forEach(v -> System.out.println(v.column().columnName() + " : " + v.value()));
-
-            Object[] values = csRecord.values().stream().map(CSValue::value).toArray();
+            List<Object> values = new ArrayList<>(csRecord.values().stream().map(CSValue::value).toList());
+            if (csRecord.attribute().ttl() != null) {
+                values.add(csRecord.attribute().ttl());
+            }
+            if (csRecord.attribute().timestamp() != null) {
+                values.add(csRecord.attribute().timestamp());
+            }
             PreparedStatement ps = cqlSession.prepare(insertQuery);
-            BatchableStatement<?> statement = ps.bind(values);
+            BatchableStatement<?> statement = ps.bind(values.toArray());
 
             batchStatementBuilder.addStatement(statement);
             batchEntity.increaseCounter();
@@ -148,14 +195,17 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 batchEntity.resetCounter();
                 batchCount++;
             }
+*/
+
         }
 
-        for (Map.Entry<TokenRange, BatchEntity> entry : csObject.getMm3Batch().getTokenRangeMap().entrySet()) {
+        for (Map.Entry<TokenRange, BatchEntity> entry : mm3Batch.getTokenRangeMap().entrySet()) {
             if (entry.getValue().getCounter() > 0) {
                 batchApply(entry.getValue().getBatchStatementBuilder(), cqlSession);
                 batchCount++;
             }
         }
+
         long stop = System.currentTimeMillis();
         chunk.setRows(recordCount);
         return new LogMessage(start, stop, "BATCH APPLY (batches: " + batchCount + ")");
@@ -311,10 +361,16 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         Map<Column, Column> column2Column = new HashMap<>();
         t2t.column2Columns().forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
-//        for (Map.Entry<String, Column> entry : stringCassandraColumnMap.entrySet()) {
+        Integer recordTtl = null;
+        Long recordTimestamp = null;
+        if (t2t.ttlColumn() != null) {
+            recordTtl = row.getInt(t2t.ttlColumn().columnName());
+        }
+        if (t2t.timestampColumn() != null) {
+            recordTimestamp = row.getLong(t2t.timestampColumn().columnName());
+        }
         for (Map.Entry<Column, Column> entry: column2Column.entrySet()) {
-//            String sourceColumn = entry.getKey().replaceAll("\"", "");
-//            String targetType = entry.getValue().columnType();
+            Column sourceColumn = entry.getKey();
             String targetType = entry.getValue().columnType();
             String sClmName = entry.getKey().columnName();
             String tClmName = entry.getValue().columnName();
@@ -326,7 +382,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), byteToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "smallint" : {
@@ -336,7 +392,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), smallIntToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "int" : {
@@ -346,7 +402,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), intToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "bigint": {
@@ -356,23 +412,22 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), longToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "text": {
                     String v = row.getString(sClmName);
-//                    Integer ttl = row.get("ttl(" + sourceColumn + ")", Integer.class);
                     targetPartKeys
                             .stream()
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), stringToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "date": {
                     LocalDate v = row.getLocalDate(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "timestamp": {
@@ -382,27 +437,27 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .filter(e -> e.columnName().equals(tClmName))
                             .findFirst()
                             .ifPresent(e -> mapBytes.put(e.columnPosition(), timestampToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "boolean": {
                     Boolean v = row.getBoolean(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "blob": {
                     ByteBuffer v = row.getByteBuffer(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "float": {
                     Float v = row.getFloat(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "decimal": {
                     BigDecimal v = row.getBigDecimal(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 case "uuid": {
@@ -414,7 +469,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             .map(Column::columnPosition)
                             .orElseThrow();
                     mapBytes.put(position, uuidToBytes(v));
-                    objectList.add(new CSValue(entry.getValue(), v));
+                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
                     break;
                 }
                 default:
@@ -424,7 +479,27 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         byte[][] bytes = new byte[mapBytes.size()][];
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
-        return new CSRecord(tokenRange, objectList);
-//        return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
+        return new CSRecord(tokenRange, objectList, new CSValueAttribute(recordTtl, recordTimestamp));
+    }
+
+    public CSValue getCSValue(Integer recordTtl,
+                              Long recordTimestamp,
+                              Row row,
+                              Column sourceColumn,
+                              Column targetColumn,
+                              Object value) {
+        Integer ttl = null;
+        Long timestamp = null;
+        if (recordTtl == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
+            ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
+        } else {
+            ttl = recordTtl;
+        }
+        if (recordTimestamp == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
+            timestamp = row.getLong("writetime(" + sourceColumn.columnName() + ")");
+        } else {
+            timestamp = recordTimestamp;
+        }
+        return new CSValue(targetColumn, value, new CSValueAttribute(ttl, timestamp));
     }
 }

@@ -12,6 +12,7 @@
     <version>${project.parent.version}</version>
     <packaging>jar</packaging>
     <properties>
+<!--        <testcontainers.version>2.0.2</testcontainers.version>-->
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 

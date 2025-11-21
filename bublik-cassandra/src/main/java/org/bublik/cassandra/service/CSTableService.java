@@ -18,6 +18,7 @@ import static org.bublik.cassandra.constants.SQLConstants.SQL_KEY_BY_TYPE;
 public interface CSTableService {
     Logger log = LoggerFactory.getLogger(CSTableService.class);
 
+    @Deprecated
     static List<Column> getKey(CqlSession cqlSession, Table<?> table, String keyType) {
         ResultSet resultSet = cqlSession.execute(
                 SQL_KEY_BY_TYPE,
@@ -40,6 +41,8 @@ public interface CSTableService {
                     null,
                     0,
                     null,
+                    false,
+                    false,
                     false
             ));
         }
@@ -51,8 +54,9 @@ public interface CSTableService {
     }
 
     static String countRowsInTableQuery(CSTable<?> table) {
-        List<Column> pkColumns = table.getPartitionKey();
-        Collections.sort(pkColumns);
+        List<Column> pkCol = table.getPartitionKey();
+//        Collections.sort(pkColumns);
+        List<Column> pkColumns = pkCol.stream().sorted().toList();
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());
         return "select " +
                 pkColumnsJoined +

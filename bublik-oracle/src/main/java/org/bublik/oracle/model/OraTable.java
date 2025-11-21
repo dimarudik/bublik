@@ -87,6 +87,8 @@ public class OraTable<S extends Connection> extends Table<S> {
                     remark,
                     charOctetLength,
                     null,
+                    false,
+                    false,
                     false
             ));
         }
