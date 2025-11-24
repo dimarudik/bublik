@@ -1,0 +1,45 @@
+version: '3.8'
+
+networks:
+  cassandra:
+
+services:
+  cassandra1:
+    image: cassandra:4.1.10
+    container_name: cassandra1
+    hostname: cassandra1
+    networks:
+      - cassandra
+    ports:
+      - "9042:9042"
+    environment: &environment
+      CASSANDRA_SEEDS: "cassandra1,cassandra2"
+      CASSANDRA_CLUSTER_NAME: MyTestCluster
+      CASSANDRA_DC: DC1
+      CASSANDRA_RACK: RACK1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_NUM_TOKENS: 128
+  cassandra2:
+    image: cassandra:4.1.10
+    container_name: cassandra2
+    hostname: cassandra2
+    networks:
+      - cassandra
+    ports:
+      - "9043:9042"
+    environment: *environment
+    depends_on:
+      cassandra1:
+        condition: service_started
+  cassandra3:
+    image: cassandra:4.1.10
+    container_name: cassandra3
+    hostname: cassandra3
+    networks:
+      - cassandra
+    ports:
+      - "9044:9042"
+    environment: *environment
+    depends_on:
+      cassandra2:
+        condition: service_started
