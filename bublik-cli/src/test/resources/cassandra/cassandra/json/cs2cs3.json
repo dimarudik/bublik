@@ -1,9 +1,9 @@
 [
   {
     "fromSchemaName" : "test",
-    "fromTableName" : "t2",
+    "fromTableName" : "t3",
     "toSchemaName" : "test",
-    "toTableName" : "t2",
+    "toTableName" : "t3",
     "columnToColumn" : {
       "id"    : "id",
       "uid"   : "uid",
@@ -12,7 +12,6 @@
       "v3"    : "v3",
       "v4"    : "v4"
     },
-    "withTTL"   : "9999",
-    "timestamp" : "9999"
+    "withTTL"   : "NULL"
   }
 ]

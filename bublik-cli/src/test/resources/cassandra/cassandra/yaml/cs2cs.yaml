@@ -8,7 +8,7 @@ fromProperties:
   keyspace: test
   user: test
   password: test
-  batchSize: 128
+  batchSize: 256
 toProperties:
   class: org.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
@@ -17,4 +17,4 @@ toProperties:
   keyspace: test
   user: test
   password: test
-  batchSize: 128
+  batchSize: 256

@@ -10,16 +10,11 @@ create table test.t1 (
     v4 varchar,
     primary key (id, uid));
 insert into test.t1 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a');
-
 insert into test.t1 (id, uid, v1            ) values (1, 1, 11             ) using ttl 1000;
 insert into test.t1 (id, uid,     v2, v3, v4) values (1, 1,     21, 31, 'a') using ttl 2000;
-
 insert into test.t1 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a');
-
 insert into test.t1 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a') using timestamp 1000000000000001;
-
 insert into test.t1 (id, uid, v1, v2, v3, v4) values (2, 2, 11, 21, 37, 'a') using timestamp 1000000000000002;
-
 insert into test.t1 (id, uid, v1            ) values (2, 0, 11             ) using ttl 3000 and timestamp 1000000000000003;
 insert into test.t1 (id, uid,     v2        ) values (2, 0,     21         ) using ttl 4000 and timestamp 1000000000000004;
 insert into test.t1 (id, uid,             v4) values (2, 0,             'a') using ttl 5000 and timestamp 1000000000000005;
@@ -54,3 +49,56 @@ insert into test.t3 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a') usi
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (2, 0, 11, 21, 35, 'a');
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a');
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (2, 2, 11, 21, 37, 'a');
+
+create table test.t4 (
+    id int,
+    uid int,
+    v1 int,
+    v2 int,
+    v3 int static,
+    v4 varchar,
+    primary key (id, uid));
+
+create table test.t5 (
+    id int,
+    uid int,
+    v1 int,
+    v2 tinyint,
+    v3 smallint,
+    v4 bigint,
+    v5 text,
+    v6 date,
+    v7 timestamp,
+    v8 boolean,
+    v9 blob,
+    v10 float,
+    v11 decimal,
+    v12 uuid,
+    primary key (id, uid));
+
+insert into test.t5 (id, uid, v1) values (1, 0, 1) using ttl 1000 and timestamp 10;
+insert into test.t5 (id, uid, v2) values (1, 0, 2) using ttl 2000 and timestamp 20;
+insert into test.t5 (id, uid, v3) values (1, 0, 3) using ttl 3000 and timestamp 30;
+insert into test.t5 (id, uid, v4) values (1, 0, 4) using ttl 4000 and timestamp 40;
+insert into test.t5 (id, uid, v5) values (1, 0, 'a') using ttl 5000 and timestamp 50;
+insert into test.t5 (id, uid, v6) values (1, 0, toDate(now())) using ttl 6000 and timestamp 60;
+insert into test.t5 (id, uid, v7) values (1, 0, toTimestamp(now())) using ttl 7000 and timestamp 70;
+insert into test.t5 (id, uid, v8) values (1, 0, true) using ttl 8000 and timestamp 80;
+insert into test.t5 (id, uid, v10) values (1, 0, 3.14) using ttl 10000 and timestamp 100;
+insert into test.t5 (id, uid, v11) values (1, 0, 5.45) using ttl 11000 and timestamp 110;
+insert into test.t5 (id, uid, v12) values (1, 0, ed584e99-80f7-4b13-9a90-9dc5571e6821) using ttl 12000 and timestamp 120;
+
+create table test.t6 (id tinyint,    v1 int, primary key (id));
+insert into test.t6  (id, v1) values (1, 1) using ttl 1000 and timestamp 10;
+create table test.t7 (id smallint,   v1 int, primary key (id));
+insert into test.t7  (id, v1) values (1, 1) using ttl 1000 and timestamp 10;
+create table test.t8 (id int,        v1 int, primary key (id));
+insert into test.t8  (id, v1) values (1, 1) using ttl 1000 and timestamp 10;
+create table test.t9 (id bigint,     v1 int, primary key (id));
+insert into test.t9  (id, v1) values (1, 1) using ttl 1000 and timestamp 10;
+create table test.t10 (id text,      v1 int, primary key (id));
+insert into test.t10  (id, v1) values ('a', 1) using ttl 1000 and timestamp 10;
+create table test.t11 (id timestamp, v1 int, primary key (id));
+insert into test.t11  (id, v1) values (toTimestamp(now()), 1) using ttl 1000 and timestamp 10;
+create table test.t12 (id uuid,      v1 int, primary key (id));
+insert into test.t12  (id, v1) values (ed584e99-80f7-4b13-9a90-9dc5571e6821, 1) using ttl 1000 and timestamp 10;

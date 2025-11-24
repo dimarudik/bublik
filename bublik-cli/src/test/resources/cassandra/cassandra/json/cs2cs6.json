@@ -1,0 +1,72 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t6",
+    "toSchemaName" : "test",
+    "toTableName" : "t6",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t7",
+    "toSchemaName" : "test",
+    "toTableName" : "t7",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t8",
+    "toSchemaName" : "test",
+    "toTableName" : "t8",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t9",
+    "toSchemaName" : "test",
+    "toTableName" : "t9",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t10",
+    "toSchemaName" : "test",
+    "toTableName" : "t10",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t11",
+    "toSchemaName" : "test",
+    "toTableName" : "t11",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t12",
+    "toSchemaName" : "test",
+    "toTableName" : "t12",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  }
+]

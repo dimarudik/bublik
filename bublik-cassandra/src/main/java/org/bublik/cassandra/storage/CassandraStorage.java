@@ -115,6 +115,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     public LogMessage rangedByTokenRangeAndTtlAntTimestampBatch(Chunk<K, T, S, R> chunk,
                                                                 com.datastax.oss.driver.api.core.cql.ResultSet resultSet) throws SQLException {
         int recordCount = 0;
+        int batchRecordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
@@ -129,7 +130,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(csRecord.tokenRange());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
 
-            System.out.println("------------------------------------------------------------");
+//            System.out.println("------------------------------------------------------------");
             Map<CSValueAttribute, List<CSValue>> map = csRecord.values()
                     .stream()
                     .filter(CSValue::isRegular)
@@ -153,16 +154,16 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 if (timestamp != null) {
                     objects.add(timestamp);
                 }
-                System.out.println(insertQuery);
-//                System.out.println(record);
-                System.out.println(objects);
+//                System.out.println(insertQuery);
+//                System.out.println(objects);
 
                 PreparedStatement ps = cqlSession.prepare(insertQuery);
                 BatchableStatement<?> statement = ps.bind(objects.toArray());
 
                 batchStatementBuilder.addStatement(statement);
                 batchEntity.increaseCounter();
-                recordCount++;
+//                System.out.println("recordCount = " + batchRecordCount);
+                batchRecordCount++;
 
                 // batch_size_fail_threshold_in_kb: 50
                 if (batchEntity.getCounter() == batchSize) {
@@ -172,31 +173,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 }
 
             }
-
-/*
-            String insertQuery = csRecord.buildInsertStatement(chunk);
-            List<Object> values = new ArrayList<>(csRecord.values().stream().map(CSValue::value).toList());
-            if (csRecord.attribute().ttl() != null) {
-                values.add(csRecord.attribute().ttl());
-            }
-            if (csRecord.attribute().timestamp() != null) {
-                values.add(csRecord.attribute().timestamp());
-            }
-            PreparedStatement ps = cqlSession.prepare(insertQuery);
-            BatchableStatement<?> statement = ps.bind(values.toArray());
-
-            batchStatementBuilder.addStatement(statement);
-            batchEntity.increaseCounter();
             recordCount++;
-
-            // batch_size_fail_threshold_in_kb: 50
-            if (batchEntity.getCounter() == batchSize) {
-                batchApply(batchStatementBuilder, cqlSession);
-                batchEntity.resetCounter();
-                batchCount++;
-            }
-*/
-
         }
 
         for (Map.Entry<TokenRange, BatchEntity> entry : mm3Batch.getTokenRangeMap().entrySet()) {
@@ -371,105 +348,90 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
         for (Map.Entry<Column, Column> entry: column2Column.entrySet()) {
             Column sourceColumn = entry.getKey();
+            Column targetColumn = entry.getValue();
             String targetType = entry.getValue().columnType();
             String sClmName = entry.getKey().columnName();
             String tClmName = entry.getValue().columnName();
             switch (targetType) {
                 case "tinyint" : {
                     byte v = row.getByte(sClmName);
-                    targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.columnPosition(), byteToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), byteToBytes(v));
+                    }
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "smallint" : {
                     short v = row.getShort(sClmName);
-                    targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.columnPosition(), smallIntToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), smallIntToBytes(v));
+                    }
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "int" : {
                     int v = row.getInt(sClmName);
-                    targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.columnPosition(), intToBytes(v)));
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), intToBytes(v));
+                    }
                     objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "bigint": {
                     long v = row.getLong(sClmName);
-                    targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.columnPosition(), longToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), longToBytes(v));
+                    }
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "text": {
                     String v = row.getString(sClmName);
-                    targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.columnPosition(), stringToBytes(v)));
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        mapBytes.put(targetColumn.columnPosition(), stringToBytes(v));
+                    }
                     objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "date": {
                     LocalDate v = row.getLocalDate(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "timestamp": {
                     Instant v = row.getInstant(sClmName);
-                    targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .ifPresent(e -> mapBytes.put(e.columnPosition(), timestampToBytes(v)));
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        mapBytes.put(targetColumn.columnPosition(), timestampToBytes(v));
+                    }
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "boolean": {
                     Boolean v = row.getBoolean(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "blob": {
                     ByteBuffer v = row.getByteBuffer(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "float": {
                     Float v = row.getFloat(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "decimal": {
                     BigDecimal v = row.getBigDecimal(sClmName);
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 case "uuid": {
                     UUID v = row.getUuid(sClmName);
-                    int position = targetPartKeys
-                            .stream()
-                            .filter(e -> e.columnName().equals(tClmName))
-                            .findFirst()
-                            .map(Column::columnPosition)
-                            .orElseThrow();
-                    mapBytes.put(position, uuidToBytes(v));
-                    objectList.add(new CSValue(entry.getValue(), v, new CSValueAttribute(null, null)));
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        mapBytes.put(targetColumn.columnPosition(), uuidToBytes(v));
+                    }
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
                 }
                 default:
@@ -488,8 +450,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                               Column sourceColumn,
                               Column targetColumn,
                               Object value) {
-        Integer ttl = null;
-        Long timestamp = null;
+        Integer ttl;
+        Long timestamp;
         if (recordTtl == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
             ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
         } else {

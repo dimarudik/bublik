@@ -27,3 +27,37 @@ create table test.t3 (
     v3 int static,
     v4 varchar,
     primary key (id, uid));
+
+create table test.t4 (
+    id int,
+    uid int,
+    v1 int,
+    v2 int,
+    v3 int static,
+    v4 varchar,
+    primary key (id, uid));
+
+create table test.t5 (
+    id int,
+    uid int,
+    v1 int,
+    v2 tinyint,
+    v3 smallint,
+    v4 bigint,
+    v5 text,
+    v6 date,
+    v7 timestamp,
+    v8 boolean,
+    v9 blob,
+    v10 float,
+    v11 decimal,
+    v12 uuid,
+    primary key (id, uid));
+
+create table test.t6 (id tinyint,    v1 int, primary key (id));
+create table test.t7 (id smallint,   v1 int, primary key (id));
+create table test.t8 (id int,        v1 int, primary key (id));
+create table test.t9 (id bigint,     v1 int, primary key (id));
+create table test.t10 (id text,      v1 int, primary key (id));
+create table test.t11 (id timestamp, v1 int, primary key (id));
+create table test.t12 (id uuid,      v1 int, primary key (id));
