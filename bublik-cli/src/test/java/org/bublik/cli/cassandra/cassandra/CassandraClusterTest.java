@@ -16,41 +16,51 @@ import static java.util.Collections.singletonList;
 
 //@Disabled
 public class CassandraClusterTest {
-    private static Network network = Network.newNetwork();
-    private static String dockerImage = "cassandra:4.1.10";
-    private static String sourceHost1 = "cassandra1";
-    private static String sourceHost2 = "cassandra2";
-    private static String sourceHost3 = "cassandra3";
-    private static Integer[] sourcePorts = {7000, 7199, 9042};
-    private static Map<String, String> sourceEnv = new HashMap<>();
-    static {
-        sourceEnv.put("CASSANDRA_SEEDS", "cassandra1,cassandra2,cassandra3");
-        sourceEnv.put("CASSANDRA_CLUSTER_NAME", "test");
-        sourceEnv.put("CASSANDRA_DC", "DC1");
-        sourceEnv.put("CASSANDRA_RACK", "RACK1");
-        sourceEnv.put("CASSANDRA_ENDPOINT_SNITCH", "GossipingPropertyFileSnitch");
-        sourceEnv.put("CASSANDRA_NUM_TOKENS", "128");
-    }
-    private static Cluster sourceCluster = new Cluster(network, dockerImage,
-            List.of(sourceHost1, sourceHost2, sourceHost3), sourcePorts, sourceEnv);
-    private static List<GenericContainer<?>> containers = sourceCluster.initCLuster();
+    private static final Network network = Network.newNetwork();
+    private static final String dockerImage = "cassandra:4.1.10";
+    private static final String sourceHost1 = "source1";
+    private static final String sourceHost2 = "source2";
+    private static final String sourceHost3 = "source3";
+    private static final String targetHost1 = "target1";
+    private static final String targetHost2 = "target2";
+    private static final String targetHost3 = "target3";
+    private static final Integer[] ports = {7000, 7199, 9042};
+    private static final Map<String, String> sourceEnv = envMap(sourceHost1, sourceHost2, sourceHost3);
+    private static final Map<String, String> targetEnv = envMap(targetHost1, targetHost2, targetHost3);
+    private static final Cluster sourceCluster = new Cluster(network, dockerImage,
+            List.of(sourceHost1, sourceHost2, sourceHost3), ports, sourceEnv);
+    private static final Cluster targetCluster = new Cluster(network, dockerImage,
+            List.of(targetHost1, targetHost2, targetHost3), ports, targetEnv);
+    private static final List<GenericContainer<?>> sourceContainers = sourceCluster.initCLuster();
+    private static final List<GenericContainer<?>> targetContainers = targetCluster.initCLuster();
 
     @BeforeAll
     static void setUp() throws InterruptedException {
-        HostPortWaitStrategy csWaitStrategy = new HostPortWaitStrategy();
-        csWaitStrategy.forPorts(9042);
+//        HostPortWaitStrategy sourceStrategy = new HostPortWaitStrategy();
+//        sourceStrategy.forPorts(9042);
+//        HostPortWaitStrategy targetStrategy = new HostPortWaitStrategy();
+//        targetStrategy.forPorts(9042);
         final int[] port = {9042};
-        containers.forEach(container -> {
+        sourceContainers.forEach(container -> {
             container.setPortBindings(singletonList(port[0] + ":9042"));
             port[0]++;
-            container.waitingFor(csWaitStrategy);
+//            container.waitingFor(sourceStrategy);
             container.start();
         });
+/*
+        targetContainers.forEach(container -> {
+            container.setPortBindings(singletonList(port[0] + ":9042"));
+            port[0]++;
+            container.waitingFor(targetStrategy);
+            container.start();
+        });
+*/
+
     }
 
     @AfterAll
     static void tearDown() {
-        containers.forEach(container -> {
+        sourceContainers.forEach(container -> {
                     try {
                         container.stop();
                     } catch (Exception e) {
@@ -62,5 +72,17 @@ public class CassandraClusterTest {
     @Test
     public void start() throws InterruptedException {
         Thread.sleep(3_000);
+    }
+
+    public static Map<String, String> envMap(String... hosts) {
+        Map<String, String> srcEnv = new HashMap<>();
+        String seeds = String.join(",", hosts);
+        srcEnv.put("CASSANDRA_SEEDS", seeds);
+        srcEnv.put("CASSANDRA_CLUSTER_NAME", "test");
+        srcEnv.put("CASSANDRA_DC", "DC1");
+        srcEnv.put("CASSANDRA_RACK", "RACK1");
+        srcEnv.put("CASSANDRA_ENDPOINT_SNITCH", "GossipingPropertyFileSnitch");
+        srcEnv.put("CASSANDRA_NUM_TOKENS", "128");
+        return srcEnv;
     }
 }
