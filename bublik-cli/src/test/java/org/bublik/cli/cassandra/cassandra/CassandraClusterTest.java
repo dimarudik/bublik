@@ -9,11 +9,12 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static java.util.Collections.singletonList;
 
-@Disabled
+//@Disabled
 public class CassandraClusterTest {
     private static Network network = Network.newNetwork();
     private static String dockerImage = "cassandra:4.1.10";
@@ -30,58 +31,36 @@ public class CassandraClusterTest {
         sourceEnv.put("CASSANDRA_ENDPOINT_SNITCH", "GossipingPropertyFileSnitch");
         sourceEnv.put("CASSANDRA_NUM_TOKENS", "128");
     }
-
-    private static GenericContainer<?> sourceNode1 = new GenericContainer<>(dockerImage)
-            .withEnv(sourceEnv)
-            .withExposedPorts(sourcePorts)
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName(sourceHost1))
-            .withNetwork(network)
-            .withNetworkAliases(sourceHost1);
-    private static GenericContainer<?> sourceNode2 = new GenericContainer<>(dockerImage)
-            .withEnv(sourceEnv)
-            .withExposedPorts(sourcePorts)
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName(sourceHost2))
-            .withNetwork(network)
-            .withNetworkAliases(sourceHost2);
-    private static GenericContainer<?> sourceNode3 = new GenericContainer<>(dockerImage)
-            .withEnv(sourceEnv)
-            .withExposedPorts(sourcePorts)
-            .withCreateContainerCmdModifier(cmd -> cmd.withHostName(sourceHost3))
-            .withNetwork(network)
-            .withNetworkAliases(sourceHost3);
+    private static Cluster sourceCluster = new Cluster(network, dockerImage,
+            List.of(sourceHost1, sourceHost2, sourceHost3), sourcePorts, sourceEnv);
+    private static List<GenericContainer<?>> containers = sourceCluster.initCLuster();
 
     @BeforeAll
     static void setUp() throws InterruptedException {
         HostPortWaitStrategy csWaitStrategy = new HostPortWaitStrategy();
         csWaitStrategy.forPorts(9042);
-        sourceNode1.setPortBindings(singletonList("9042:9042"));
-        sourceNode1.waitingFor(csWaitStrategy);
-        sourceNode1.start();
-        sourceNode2.setPortBindings(singletonList("9043:9042"));
-        sourceNode2.waitingFor(csWaitStrategy);
-        sourceNode2.start();
-        sourceNode3.setPortBindings(singletonList("9044:9042"));
-        sourceNode3.waitingFor(csWaitStrategy);
-        sourceNode3.start();
+        final int[] port = {9042};
+        containers.forEach(container -> {
+            container.setPortBindings(singletonList(port[0] + ":9042"));
+            port[0]++;
+            container.waitingFor(csWaitStrategy);
+            container.start();
+        });
     }
 
     @AfterAll
     static void tearDown() {
-        sourceNode1.stop();
-        sourceNode2.stop();
-        sourceNode3.stop();
-        while (sourceNode1.isRunning() || sourceNode2.isRunning() || sourceNode3.isRunning()) {
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        containers.forEach(container -> {
+                    try {
+                        container.stop();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     @Test
     public void start() throws InterruptedException {
         Thread.sleep(3_000);
     }
-
 }
