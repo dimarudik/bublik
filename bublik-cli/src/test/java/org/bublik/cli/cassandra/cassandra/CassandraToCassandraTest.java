@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class CassandraToCassandraTest {
     private static int rows = 50000;
     private static boolean sync = false;
+
     private static CassandraContainer source = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
             .withInitScript("./cassandra/cassandra/sql/cs-init.cql");

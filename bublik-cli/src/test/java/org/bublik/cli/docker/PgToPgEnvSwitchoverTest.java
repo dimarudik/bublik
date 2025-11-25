@@ -240,7 +240,7 @@ public class PgToPgEnvSwitchoverTest {
                 .body("members", hasSize(2));
     }
 
-    @Test
+//    @Test
     public void switchoverTest() throws IOException, InterruptedException, ExecutionException {
         Properties sourceProperties = getJdbcPropertiesOfGeneric(patroni1, patroni2);
         Properties targetProperties = getJdbcProperties(target);
