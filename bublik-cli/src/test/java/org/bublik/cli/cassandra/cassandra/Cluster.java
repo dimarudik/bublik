@@ -1,4 +1,30 @@
 package org.bublik.cli.cassandra.cassandra;
 
-public class Cluster {
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public record Cluster (Network network,
+                       String dockerImage,
+                       List<String> hosts,
+                       Integer[] ports,
+                       Map<String, String> env
+                       ){
+
+    public List<GenericContainer<?>> initCLuster() {
+        List<GenericContainer<?>> containers = new ArrayList<>();
+        hosts.forEach(host -> {
+            GenericContainer<?> container = new GenericContainer<>(dockerImage)
+                    .withEnv(env)
+                    .withExposedPorts(ports)
+                    .withCreateContainerCmdModifier(cmd -> cmd.withHostName(host))
+                    .withNetwork(network)
+                    .withNetworkAliases(host);
+            containers.add(container);
+        });
+        return containers;
+    }
 }

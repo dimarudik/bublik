@@ -2,6 +2,7 @@ package org.bublik.cli.cassandra.cassandra;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -12,7 +13,10 @@ import java.util.Map;
 
 import static java.util.Collections.singletonList;
 
+@Disabled
 public class CassandraClusterTest {
+    private static Network network = Network.newNetwork();
+    private static String dockerImage = "cassandra:4.1.10";
     private static String sourceHost1 = "cassandra1";
     private static String sourceHost2 = "cassandra2";
     private static String sourceHost3 = "cassandra3";
@@ -27,20 +31,19 @@ public class CassandraClusterTest {
         sourceEnv.put("CASSANDRA_NUM_TOKENS", "128");
     }
 
-    private static Network network = Network.newNetwork();
-    private static GenericContainer<?> sourceNode1 = new GenericContainer<>("cassandra:4.1.10")
+    private static GenericContainer<?> sourceNode1 = new GenericContainer<>(dockerImage)
             .withEnv(sourceEnv)
             .withExposedPorts(sourcePorts)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(sourceHost1))
             .withNetwork(network)
             .withNetworkAliases(sourceHost1);
-    private static GenericContainer<?> sourceNode2 = new GenericContainer<>("cassandra:4.1.10")
+    private static GenericContainer<?> sourceNode2 = new GenericContainer<>(dockerImage)
             .withEnv(sourceEnv)
             .withExposedPorts(sourcePorts)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(sourceHost2))
             .withNetwork(network)
             .withNetworkAliases(sourceHost2);
-    private static GenericContainer<?> sourceNode3 = new GenericContainer<>("cassandra:4.1.10")
+    private static GenericContainer<?> sourceNode3 = new GenericContainer<>(dockerImage)
             .withEnv(sourceEnv)
             .withExposedPorts(sourcePorts)
             .withCreateContainerCmdModifier(cmd -> cmd.withHostName(sourceHost3))

@@ -36,7 +36,7 @@ import static org.bublik.cli.TestUtils.getResult;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+//@Disabled
 public class PgToPgEnvSwitchoverTest {
     private static int rows = 30000;
     private static boolean sync = false;
