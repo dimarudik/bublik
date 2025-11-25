@@ -13,6 +13,7 @@ public record Cluster (Network network,
                        String dockerImage,
                        List<String> hosts,
                        Integer[] ports,
+                       int[] listenPorts,
                        Map<String, String> env
                        ){
 
@@ -22,7 +23,7 @@ public record Cluster (Network network,
             GenericContainer<?> container = new GenericContainer<>(dockerImage)
                     .withEnv(env)
                     .withExposedPorts(ports)
-                    .waitingFor(Wait.forListeningPorts(9042))
+                    .waitingFor(Wait.forListeningPorts(listenPorts))
                     .withStartupTimeout(Duration.ofSeconds(180))
                     .withCreateContainerCmdModifier(cmd -> cmd.withHostName(host))
                     .withNetwork(network)
