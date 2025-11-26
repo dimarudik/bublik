@@ -19,7 +19,6 @@ import static java.util.Collections.singletonList;
 //@Disabled
 public class CassandraClusterTest {
     private static final Network network = Network.newNetwork();
-//    private static final Network targetNetwork = Network.newNetwork();
     private static final String dockerImage = "cassandra:4.1.10";
     private static final String sourceHost1 = "source1";
     private static final String sourceHost2 = "source2";
@@ -43,7 +42,7 @@ public class CassandraClusterTest {
     @BeforeAll
     static void setUp() throws InterruptedException {
         MountableFile sourceInit = MountableFile.forClasspathResource("./cassandra/cassandra/sql/cs-init-rf3.cql");
-        MountableFile jvmOptions = MountableFile.forClasspathResource("./cassandra/cassandra/sql/jvm-server.options");
+//        MountableFile jvmOptions = MountableFile.forClasspathResource("./cassandra/cassandra/sql/jvm-server.options");
         MountableFile targetInit = MountableFile.forClasspathResource("./cassandra/cassandra/sql/cs-init-empty-rf3.cql");
         GenericContainer<?> sourceLeader = sourceContainers.getFirst();
         GenericContainer<?> targetLeader = targetContainers.getFirst();
@@ -51,7 +50,7 @@ public class CassandraClusterTest {
         sourceContainers.forEach(container -> {
             container.setPortBindings(singletonList(port[0] + ":9042"));
             port[0]++;
-            container.addFileSystemBind(jvmOptions.getResolvedPath(), "/etc/cassandra/jvm-server.options", BindMode.READ_WRITE);
+//            container.addFileSystemBind(jvmOptions.getResolvedPath(), "/etc/cassandra/jvm-server.options", BindMode.READ_WRITE);
             container.start();
         });
         do {
@@ -67,7 +66,7 @@ public class CassandraClusterTest {
         targetContainers.forEach(container -> {
             container.setPortBindings(singletonList(port[0] + ":9042"));
             port[0]++;
-            container.addFileSystemBind(jvmOptions.getResolvedPath(), "/etc/cassandra/jvm-server.options", BindMode.READ_WRITE);
+//            container.addFileSystemBind(jvmOptions.getResolvedPath(), "/etc/cassandra/jvm-server.options", BindMode.READ_WRITE);
             container.start();
         });
         do {
@@ -102,6 +101,7 @@ public class CassandraClusterTest {
     public static Map<String, String> envMap(String clusterName, String dataCenter, String rack, String... hosts) {
         Map<String, String> srcEnv = new HashMap<>();
         String seeds = String.join(",", hosts);
+        srcEnv.put("JVM_OPTS", "-Xms384M -Xmx384M");
         srcEnv.put("CASSANDRA_SEEDS", seeds);
         srcEnv.put("CASSANDRA_CLUSTER_NAME", clusterName);
         srcEnv.put("CASSANDRA_DC", dataCenter);
