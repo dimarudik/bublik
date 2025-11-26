@@ -79,7 +79,7 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
-//        Thread.sleep(180_000);
+        Thread.sleep(200_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
