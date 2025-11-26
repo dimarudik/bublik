@@ -37,6 +37,11 @@ create table test.t4 (
     v4 varchar,
     primary key (id, uid));
 
+create type test.encrypted_data (
+    secret_data text,
+    vector text
+);
+
 create table test.t5 (
     id int,
     uid int,
@@ -52,6 +57,14 @@ create table test.t5 (
     v10 float,
     v11 decimal,
     v12 uuid,
+    v13 set<text>,
+    v14 frozen<set<int>>,
+    v15 list<text>,
+    v16 frozen<list<int>>,
+    v17 map<text, text>,
+    v18 frozen<map<int, int>>,
+    v19 frozen<encrypted_data>,
+    v20 frozen<map<text, text>>,
     primary key (id, uid));
 
 create table test.t6 (id tinyint,    v1 int, primary key (id));

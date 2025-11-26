@@ -5,6 +5,7 @@ import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.DriverException;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
 import org.bublik.cassandra.model.CSTable;
 import org.bublik.cassandra.storage.cassandraaddons.*;
 import org.bublik.core.model.*;
@@ -435,6 +436,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 default:
+                    Object v = row.getObject(sClmName);
+                    objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), v));
                     break;
             }
         }
@@ -453,12 +456,21 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         Integer ttl;
         Long timestamp;
         if (recordTtl == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-            ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
+//            System.out.println(sourceColumn.columnName() + " : " + value + " ttl : " + row.getInt("ttl(" + sourceColumn.columnName() + ")"));
+            try {
+                ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
+            } catch (CodecNotFoundException e) {
+                ttl = null;
+            }
         } else {
             ttl = recordTtl;
         }
         if (recordTimestamp == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-            timestamp = row.getLong("writetime(" + sourceColumn.columnName() + ")");
+            try {
+                timestamp = row.getLong("writetime(" + sourceColumn.columnName() + ")");
+            } catch (CodecNotFoundException e) {
+                timestamp = null;
+            }
         } else {
             timestamp = recordTimestamp;
         }

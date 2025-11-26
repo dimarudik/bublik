@@ -42,7 +42,6 @@ public class CassandraClusterTest {
     @BeforeAll
     static void setUp() throws InterruptedException {
         MountableFile sourceInit = MountableFile.forClasspathResource("./cassandra/cassandra/sql/cs-init-rf3.cql");
-//        MountableFile jvmOptions = MountableFile.forClasspathResource("./cassandra/cassandra/sql/jvm-server.options");
         MountableFile targetInit = MountableFile.forClasspathResource("./cassandra/cassandra/sql/cs-init-empty-rf3.cql");
         GenericContainer<?> sourceLeader = sourceContainers.getFirst();
         GenericContainer<?> targetLeader = targetContainers.getFirst();
@@ -50,7 +49,6 @@ public class CassandraClusterTest {
         sourceContainers.forEach(container -> {
             container.setPortBindings(singletonList(port[0] + ":9042"));
             port[0]++;
-//            container.addFileSystemBind(jvmOptions.getResolvedPath(), "/etc/cassandra/jvm-server.options", BindMode.READ_WRITE);
             container.start();
         });
         do {
@@ -66,7 +64,6 @@ public class CassandraClusterTest {
         targetContainers.forEach(container -> {
             container.setPortBindings(singletonList(port[0] + ":9042"));
             port[0]++;
-//            container.addFileSystemBind(jvmOptions.getResolvedPath(), "/etc/cassandra/jvm-server.options", BindMode.READ_WRITE);
             container.start();
         });
         do {
@@ -76,7 +73,6 @@ public class CassandraClusterTest {
                 (new CassandraDatabaseDelegate(targetLeader)).execute(null, "/init.cql", -1, false, false);
                 break;
             } else {
-//                System.out.println("target not running with port:" + port[0]);
                 Thread.sleep(200);
             }
         } while (true);
