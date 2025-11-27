@@ -4,7 +4,6 @@ fromProperties:
   class: org.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
-  port: 9042
   keyspace: test
   user: test
   password: test
@@ -12,8 +11,7 @@ fromProperties:
 toProperties:
   class: org.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
-  hosts: localhost
-  port: 9043
+  hosts: localhost:9043
   keyspace: test
   user: test
   password: test

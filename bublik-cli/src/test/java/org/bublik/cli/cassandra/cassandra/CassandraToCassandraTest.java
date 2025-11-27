@@ -67,8 +67,8 @@ public class CassandraToCassandraTest {
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void allTypes() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("9042");
-        Properties targetProperties = getPropertiesOfCassandra("9043");
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         TestResult result = getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
                 "./cassandra/cassandra/json/cs2cs5.json",
@@ -79,7 +79,7 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
-        Thread.sleep(60_000);
+//        Thread.sleep(60_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
@@ -87,8 +87,8 @@ public class CassandraToCassandraTest {
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void partitionKeys() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("9042");
-        Properties targetProperties = getPropertiesOfCassandra("9043");
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         TestResult result = getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
                 "./cassandra/cassandra/json/cs2cs6.json",
@@ -107,8 +107,8 @@ public class CassandraToCassandraTest {
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void dataOnly() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("9042");
-        Properties targetProperties = getPropertiesOfCassandra("9043");
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         TestResult result = getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
                 "./cassandra/cassandra/json/cs2cs1.json",
@@ -127,8 +127,8 @@ public class CassandraToCassandraTest {
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void withTtlOrTimestamp() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("9042");
-        Properties targetProperties = getPropertiesOfCassandra("9043");
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         Predicate<Row> targetPredicate = i -> (i.getLong("writetime(v1)") == 9999 &&
                 i.getLong("writetime(v2)") == 9999 &&
                 i.getLong("writetime(v3)") == 9999 &&
@@ -151,8 +151,8 @@ public class CassandraToCassandraTest {
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void withoutTTL() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("9042");
-        Properties targetProperties = getPropertiesOfCassandra("9043");
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         Predicate<Row> targetPredicate = i -> (i.getInt("ttl(v1)") == 0 &&
                 i.getInt("ttl(v2)") == 0 &&
                 i.getInt("ttl(v3)") == 0 &&
@@ -175,8 +175,8 @@ public class CassandraToCassandraTest {
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void recordCount() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("9042");
-        Properties targetProperties = getPropertiesOfCassandra("9043");
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         initSourceData(sourceProperties, 256);
         initTargetData(targetProperties);
         TestResult result256 = getResult(
@@ -271,15 +271,14 @@ public class CassandraToCassandraTest {
         return rowCount;
     }
 
-    private Properties getPropertiesOfCassandra(String port) {
+    private Properties getPropertiesOfCassandra(String hosts) {
         Properties properties = new Properties();
         properties.setProperty("class", "org.bublik.cassandra.storage.CassandraStorage");
         properties.setProperty("keyspace", "test");
-        properties.setProperty("hosts", "localhost");
+        properties.setProperty("hosts", hosts);
         properties.setProperty("user", "test");
         properties.setProperty("password", "test");
         properties.setProperty("datacenter", "datacenter1");
-        properties.setProperty("port", port);
         properties.setProperty("batchSize", "256");
         return properties;
     }

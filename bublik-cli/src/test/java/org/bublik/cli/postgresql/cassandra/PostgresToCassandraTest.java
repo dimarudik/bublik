@@ -155,7 +155,6 @@ public class PostgresToCassandraTest {
         properties.setProperty("user", "test");
         properties.setProperty("password", "test");
         properties.setProperty("datacenter", "datacenter1");
-        properties.setProperty("port", "9042");
         properties.setProperty("batchSize", "256");
         return properties;
     }

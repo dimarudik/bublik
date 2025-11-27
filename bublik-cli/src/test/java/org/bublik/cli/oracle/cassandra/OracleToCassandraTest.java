@@ -9,7 +9,6 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -146,7 +145,6 @@ public class OracleToCassandraTest {
         properties.setProperty("user", "test");
         properties.setProperty("password", "test");
         properties.setProperty("datacenter", "datacenter1");
-        properties.setProperty("port", "9042");
         properties.setProperty("batchSize", "256");
         return properties;
     }
