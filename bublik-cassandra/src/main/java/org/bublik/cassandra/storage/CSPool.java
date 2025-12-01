@@ -58,13 +58,6 @@ public class CSPool {
                 .map(h -> new InetSocketAddress(h.split(":")[0],
                         (h.split(":").length == 1 ? 9042 : Integer.parseInt(h.split(":")[1])) ))
                 .toList();
-
-/*
-        return hosts
-                .stream()
-                .map(h -> new InetSocketAddress(h, Integer.parseInt(properties.getProperty("port"))))
-                .toList();
-*/
     }
 
     public DriverConfigLoader getConfigLoader(Properties properties) {

@@ -17,8 +17,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.UUID;
 
-import static org.bublik.cassandra.constants.SQLConstants.DML_DELETE_CHUNK_BY_ID;
-import static org.bublik.cassandra.constants.SQLConstants.DML_INSERT_CHUNK_TABLE;
+import static org.bublik.cassandra.constants.SQLConstants.*;
 
 public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
@@ -32,13 +31,23 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                        String errMsg, String chunkTableName) throws SQLException {
         CqlSession cqlSession = getSourceSession();
+/*
+        PreparedStatement psDelete = cqlSession.prepare(DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
+        BoundStatement bsUpdate = psDelete.boundStatementBuilder()
+                .setString("new_status", newStatus.toString())
+                .setUuid("chunk_id", getId())
+                .setString("old_status", getChunkStatus().toString())
+                .setString("schema_name", getT2t().sourceTable().getSchemaName())
+                .setString("table_name", getT2t().sourceTable().getTableName())
+                .build();
+        cqlSession.execute(bsUpdate);
+*/
         boolean applied;
         try {
             PreparedStatement psDelete = cqlSession.prepare(DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
-            BoundStatement bsDelete = psDelete.bind(getId(), getChunkStatus().toString());
+            BoundStatement bsDelete = psDelete.bind(getId(), getChunkStatus().toString(), getConfig().fromSchemaName(), getConfig().fromTableName());
             applied = cqlSession.execute(bsDelete).wasApplied();
         } catch (Exception e) {
-//            log.error("Error deleting old chunk status: {} for chunk: {} with errMsg: {}", getChunkStatus(), getId(), getStackTrace(e));
             throw new SQLException(e);
         }
         setChunkStatus(newStatus);
@@ -56,7 +65,6 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                                 errMsg);
                 cqlSession.execute(bsInsert);
             } catch (Exception e) {
-//                log.error("Error inserting new chunk status: {} for chunk: {} with errMsg: {}", newStatus, getId(), errMsg, e);
                 throw new SQLException(e);
             }
         } else {

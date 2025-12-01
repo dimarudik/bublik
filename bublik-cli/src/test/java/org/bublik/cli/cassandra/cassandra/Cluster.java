@@ -27,6 +27,7 @@ public record Cluster (Network network,
                     .withStartupTimeout(Duration.ofSeconds(180))
                     .withCreateContainerCmdModifier(cmd -> cmd.withHostName(host))
                     .withNetwork(network)
+                    .withCommand()
                     .withNetworkAliases(host);
             containers.add(container);
         });

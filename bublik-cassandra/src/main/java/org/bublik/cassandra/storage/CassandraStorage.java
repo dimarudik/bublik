@@ -96,7 +96,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
         long stop = System.currentTimeMillis();
         chunk.setRows(recordCount);
-        return new LogMessage(start, stop, "BATCH APPLY (batches: " + batchCount + ")");
+        return new LogMessage(start, stop, "(batches: " + batchCount + ")");
     }
 
     private void batchApply(BatchStatementBuilder batchStatementBuilder, CqlSession cqlSession) throws SQLException {
@@ -186,7 +186,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
 
         long stop = System.currentTimeMillis();
         chunk.setRows(recordCount);
-        return new LogMessage(start, stop, "BATCH APPLY (batches: " + batchCount + ")");
+        return new LogMessage(start, stop, "(batches: " + batchCount + ")");
     }
 
     private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,

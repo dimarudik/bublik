@@ -1,7 +1,8 @@
---CREATE ROLE test WITH PASSWORD = 'test' AND SUPERUSER = true AND LOGIN = true;
+--CREATE USER test WITH PASSWORD 'test' SUPERUSER;
 CREATE KEYSPACE IF NOT EXISTS test WITH REPLICATION = {'class': 'NetworkTopologyStrategy', 'DC2': '3'}  AND durable_writes = true;
+--GRANT ALL PERMISSIONS ON KEYSPACE TEST to TEST;
 
-create table test.t1 (
+create table test.t4 (
     id int,
     uid int,
     v1 int,

@@ -124,8 +124,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 break;
             }
         } while (true);
+        dropChunkTable(sync, tableName);
 
-//        dropChunkTable(sync, tableName);
         service.shutdown();
         service.close();
     }
@@ -144,54 +144,44 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         TokenRange ceil = factory.range(lastToken.getEnd(), defaultToken.getEnd());
         trs.add(floor);
         trs.add(ceil);
+//        log.info("floor: {} ceil: {}", floor, ceil);
+//        trs.forEach(t -> log.info("{} {}", t.getStart(), t.getEnd()));
 
         for (Config c : configs) {
             CSTable<S> sourceTable = new CSTable<>(c.fromSchemaName(), c.fromTableName(), null, null);
             sourceTable.enrichTable(cqlSession);
-            trs.forEach(tr -> {
-                long startValue = ((Murmur3Token) tr.getStart()).getValue();
-                long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
-                if (stopValue > startValue) {
-                    double estimatedRowsInRange = (long) getEstimatedRowsInRange(cqlSession, sourceTable, tr);
-                    PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
-                    if (estimatedRowsInRange == 0) {
-                        insertChunk(cqlSession, ps, startValue, stopValue, sourceTable, c.fromTaskName());
-                        return;
-                    }
-/*
-                if (estimatedRowsInRange < rows) {
-                    log.info("Estimated rows in range: {} - {} = {}, less than rows {}, skip chunk creation",
-                            startValue, stopValue, estimatedRowsInRange, rows);
-                    return;
-                }
-*/
-                    long chunkCount = (long) Math.ceil(estimatedRowsInRange / rows);
-                    long shift = (stopValue - startValue) / chunkCount;
-                    long i = startValue;
-                    while ((i = i + shift) < stopValue) {
-                        insertChunk(cqlSession, ps, i - shift, i, sourceTable, c.fromTaskName());
-                    }
-                    insertChunk(cqlSession, ps, i - shift, stopValue, sourceTable, c.fromTaskName());
-                }
-            });
+            ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            trs
+                    .stream()
+                    .filter(tr -> ((Murmur3Token) tr.getEnd()).getValue() > ((Murmur3Token) tr.getStart()).getValue())
+                    .forEach(tr -> service.execute(() -> {
+                        long startValue = ((Murmur3Token) tr.getStart()).getValue();
+                        long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
+                        long estimatedRowsInRange = getEstimatedRowsInRange(cqlSession, sourceTable, tr);
+                        log.info("{} {} {}", startValue, stopValue, estimatedRowsInRange);
+                        PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
+                        if (estimatedRowsInRange == 0) {
+                            insertChunk(cqlSession, ps, startValue, stopValue, sourceTable, c.fromTaskName());
+                            return;
+                        }
+                        long chunkCount = (long) Math.ceil((double) estimatedRowsInRange / rows);
+                        long shift = (stopValue - startValue) / chunkCount;
+                        long i = startValue;
+                        while ((i + shift) < stopValue) {
+//                            log.info("start:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, i + shift, shift, chunkCount, estimatedRowsInRange);
+                            log.info("start:{} stop:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, stopValue, i + shift, shift, chunkCount, estimatedRowsInRange);
+                            insertChunk(cqlSession, ps, i, i + shift, sourceTable, c.fromTaskName());
+                            i += shift;
+                        }
+                        insertChunk(cqlSession, ps, i, stopValue, sourceTable, c.fromTaskName());
+                    }));
+            service.shutdown();
+            service.close();
         }
         log.info("Chunk table fulfilled successfully");
     }
 
-    private void insertChunk(CqlSession cqlSession, PreparedStatement ps, long start, long stop, CSTable<?> sourceTable, String taskName) {
-        UUID chunkId = Uuids.timeBased();
-        BoundStatement bs = ps.bind(
-                chunkId,
-                start,
-                stop,
-                sourceTable.getSchemaName(),
-                sourceTable.getTableName(),
-                "UNASSIGNED",
-                taskName);
-        cqlSession.execute(bs);
-    }
-
-    private double getEstimatedRowsInRange(CqlSession cqlSession, CSTable<?> sourceTable, TokenRange tr) {
+    private long getEstimatedRowsInRange(CqlSession cqlSession, CSTable<?> sourceTable, TokenRange tr) {
         String queryCount = CSTableService.countRowsInTableQuery(sourceTable);
         PreparedStatement ps = cqlSession.prepare(queryCount);
         long startValue = ((Murmur3Token) tr.getStart()).getValue();
@@ -210,7 +200,22 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             subRange += g;
             rowsInSubRange += rCount;
         }
-        return (double) Math.round((double) (stopValue - startValue) / subRange * rowsInSubRange);
+        if (subRange == 0 || rowsInSubRange == 0)
+            return 0;
+        return (stopValue - startValue) / subRange * rowsInSubRange;
+    }
+
+    private void insertChunk(CqlSession cqlSession, PreparedStatement ps, long start, long stop, CSTable<?> sourceTable, String taskName) {
+        UUID chunkId = Uuids.timeBased();
+        BoundStatement bs = ps.bind(
+                chunkId,
+                start,
+                stop,
+                sourceTable.getSchemaName(),
+                sourceTable.getTableName(),
+                "UNASSIGNED",
+                taskName);
+        cqlSession.execute(bs);
     }
 
     @Override
@@ -286,7 +291,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 chunkTableName + " where " +
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " and schema_name = ? and table_name = ? " +
-                " per partition limit 1000 allow filtering ";
+                " per partition limit 1000 ";
+//                " per partition limit 1000 allow filtering ";
     }
 
     @Override

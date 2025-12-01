@@ -15,17 +15,19 @@ public abstract class SQLConstants {
                     "start_ts timestamp, " +
                     "end_ts timestamp, " +
                     "err_msg text, " +
-                    "primary key (status, chunk_id))";
+                    "primary key ((status, schema_name, table_name), chunk_id))";
     public static final String DML_INSERT_CHUNK_TABLE =
             "INSERT INTO $tableName (chunk_id, start_page, end_page, schema_name, table_name, status, task_name, err_msg) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String DML_INSERT_CHUNK_TABLE_WITH_ERR =
             "INSERT INTO $tableName (chunk_id, start_page, end_page, schema_name, table_name, status, task_name, err_msg) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String DML_DELETE_CHUNK_BY_ID =
-            "delete from $tableName where chunk_id = ? and status = ?";
-//    public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
-//            "update $tableName set status = ?, err_msg = null where chunk_id = ? and status = 'UNASSIGNED'";
+            "delete from $tableName where chunk_id = ? and status = ? and schema_name = ? and table_name = ?";
+/*
+    public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
+            "update $tableName set status = :new_status where chunk_id = :chunk_id and status = :old_status and schema_name = :schema_name and table_name = :table_name ";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
-            "update $tableName set status = ?, err_msg = ? where chunk_id = ? and status = 'UNASSIGNED'";
+            "update $tableName set status = ?, err_msg = ? where chunk_id = ? and status = ? and schema_name = ? and table_name = ? ";
+*/
     public static final String DDL_CREATE_OUTBOX_TABLE =
             "create table $tableName (" +
                 "chunk_id int, " +
@@ -33,7 +35,7 @@ public abstract class SQLConstants {
                 "rows int, " +
                 "primary key (chunk_id))";
     public static final String DDL_DROP_TABLE =
-            "drop table $tableName";
+            "drop table if exists $tableName";
     public static final String DML_INSERT_OUTBOX_TABLE =
             "insert into $tableName (chunk_id, task_name, rows) " +
                     "values (?, ?, ?)";
