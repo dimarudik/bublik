@@ -179,7 +179,7 @@ public class CassandraClusterTest {
     public static Map<String, String> envMap(String clusterName, String dataCenter, String rack, String... hosts) {
         Map<String, String> srcEnv = new HashMap<>();
         String seeds = String.join(",", hosts);
-        srcEnv.put("JVM_OPTS", "-Xms384M -Xmx384M");
+        srcEnv.put("JVM_OPTS", "-Xms1024M -Xmx1024M");
         srcEnv.put("CASSANDRA_SEEDS", seeds);
         srcEnv.put("CASSANDRA_CLUSTER_NAME", clusterName);
         srcEnv.put("CASSANDRA_DC", dataCenter);

@@ -145,6 +145,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         trs.add(floor);
         trs.add(ceil);
 //        log.info("floor: {} ceil: {}", floor, ceil);
+        log.info("Token range size: {}", trs.size());
 //        trs.forEach(t -> log.info("{} {}", t.getStart(), t.getEnd()));
 
         for (Config c : configs) {
@@ -158,7 +159,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                         long startValue = ((Murmur3Token) tr.getStart()).getValue();
                         long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
                         long estimatedRowsInRange = getEstimatedRowsInRange(cqlSession, sourceTable, tr);
-                        log.info("{} {} {}", startValue, stopValue, estimatedRowsInRange);
+                        log.info("Token range: {} {} estimatedRowsInRange: {}", startValue, stopValue, estimatedRowsInRange);
                         PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
                         if (estimatedRowsInRange == 0) {
                             insertChunk(cqlSession, ps, startValue, stopValue, sourceTable, c.fromTaskName());
@@ -167,7 +168,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                         long chunkCount = (long) Math.ceil((double) estimatedRowsInRange / rows);
                         long shift = (stopValue - startValue) / chunkCount;
                         long i = startValue;
-                        while ((i + shift) < stopValue) {
+                        while ((i + shift) < stopValue && (i + shift) > 0) {
 //                            log.info("start:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, i + shift, shift, chunkCount, estimatedRowsInRange);
                             log.info("start:{} stop:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, stopValue, i + shift, shift, chunkCount, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, i, i + shift, sourceTable, c.fromTaskName());
@@ -206,16 +207,21 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     private void insertChunk(CqlSession cqlSession, PreparedStatement ps, long start, long stop, CSTable<?> sourceTable, String taskName) {
-        UUID chunkId = Uuids.timeBased();
-        BoundStatement bs = ps.bind(
-                chunkId,
-                start,
-                stop,
-                sourceTable.getSchemaName(),
-                sourceTable.getTableName(),
-                "UNASSIGNED",
-                taskName);
-        cqlSession.execute(bs);
+        try {
+            UUID chunkId = Uuids.timeBased();
+            BoundStatement bs = ps.bind(
+                    chunkId,
+                    start,
+                    stop,
+                    sourceTable.getSchemaName(),
+                    sourceTable.getTableName(),
+                    "UNASSIGNED",
+                    taskName);
+            cqlSession.execute(bs);
+        } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -504,9 +510,10 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         columns.addAll(ttlColumns);
         columns.addAll(timestampColumns);
         String columnToColumn = String.join(", ", columns);
+//        String _tempTtlClause = ( ", cast((int)0 + " + t2t.ttlColumn().defaultValue() + " as int ) as \"" + t2t.ttlColumn().columnName() + "\" ");
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
-                (t2t.ttlColumn() == null ? "" : ( ", (int)(" + t2t.ttlColumn().defaultValue() + ") as \"" + t2t.ttlColumn().columnName() + "\" ")) +
+                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", cast((int)0 + " + t2t.ttlColumn().defaultValue() + " as int ) as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
                 (t2t.timestampColumn() == null ? "" : ( ", (bigint)(" + t2t.timestampColumn().defaultValue() + ") as \"" + t2t.timestampColumn().columnName() + "\" ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +

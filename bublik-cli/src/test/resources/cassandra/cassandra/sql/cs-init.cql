@@ -123,3 +123,13 @@ create table test.t11 (id timestamp, v1 int, primary key (id));
 insert into test.t11  (id, v1) values (toTimestamp(now()), 1) using ttl 1000 and timestamp 10;
 create table test.t12 (id uuid,      v1 int, primary key (id));
 insert into test.t12  (id, v1) values (ed584e99-80f7-4b13-9a90-9dc5571e6821, 1) using ttl 1000 and timestamp 10;
+
+create table test.log_time (
+    id int,
+    uid int,
+    log_time timestamp,
+    primary key (id, uid));
+
+insert into test.log_time (id, uid, log_time) values (1, 1, '2025-12-02T00:00:00.001+0000');
+insert into test.log_time (id, uid, log_time) values (2, 1, '2024-12-02T00:00:00.001+0000');
+insert into test.log_time (id, uid, log_time) values (3, 1, '2024-10-02T00:00:00.001+0000');
