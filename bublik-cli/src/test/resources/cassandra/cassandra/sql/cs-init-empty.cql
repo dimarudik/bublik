@@ -110,3 +110,17 @@ create table test2.log_time (
     uid int,
     log_time timestamp,
     primary key (id, uid));
+
+create table test.no_columns (
+    id int,
+    uid int,
+    v1 int,
+    primary key (id, uid));
+
+create table test.expression (
+    acc int,
+    year_month text,
+    op_id int,
+    log_date timestamp,
+    v1 int,
+    primary key ((acc, year_month), op_id));

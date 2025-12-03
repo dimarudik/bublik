@@ -389,8 +389,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+//            sourceTable.getColumns().forEach(column -> log.info("Column: {}", column.columnName()));
             sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null)));
-            return column2Column;
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {

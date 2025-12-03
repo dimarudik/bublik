@@ -14,9 +14,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private final T end;
     private final Config config;
     private final Table2Table<S> t2t;
-//    private final Table<?> sourceTable;
     private final String fetchQuery;
-//    private Table<?> targetTable;
     private final Storage<K, T, S, R> sourceStorage;
     private long startTime;
     private final Storage<K, T, S, R> targetStorage;

@@ -1,0 +1,17 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "expression",
+    "toSchemaName" : "test",
+    "toTableName" : "expression",
+    "columnToColumn" : {
+      "acc"         : "acc",
+      "op_id"       : "op_id",
+      "log_date"    : "log_date",
+      "v1"          : "v1"
+    },
+    "expressionToColumn" : {
+      "concat(extract_year(log_date), extract_month(log_date)) as year_month" : "year_month"
+    }
+  }
+]

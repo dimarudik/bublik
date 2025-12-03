@@ -133,3 +133,30 @@ create table test.log_time (
 insert into test.log_time (id, uid, log_time) values (1, 1, '2025-12-02T00:00:00.001+0000');
 insert into test.log_time (id, uid, log_time) values (2, 1, '2024-12-02T00:00:00.001+0000');
 insert into test.log_time (id, uid, log_time) values (3, 1, '2024-10-02T00:00:00.001+0000');
+
+create table test.no_columns (
+    id int,
+    uid int,
+    v1 int,
+    primary key (id, uid));
+insert into test.no_columns (id, uid, v1) values (1, 1, 1);
+insert into test.no_columns (id, uid, v1) values (2, 2, 2);
+
+create table test.expression (
+    acc int,
+    year text,
+    op_id int,
+    log_date timestamp,
+    v1 int,
+    primary key ((acc, year), op_id));
+insert into test.expression (acc, year, op_id, log_date, v1) values (1, '2025', 1, '2025-02-02T00:00:00.001+0000', 1);
+
+CREATE OR REPLACE FUNCTION test.extract_month (input TIMESTAMP)
+     RETURNS NULL ON NULL INPUT RETURNS TEXT
+     LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int month = calendar.get(Calendar.MONTH) + 1; return month < 10 ? "0" + month : String.valueOf(month);';
+CREATE OR REPLACE FUNCTION test.extract_year (input TIMESTAMP)
+     RETURNS NULL ON NULL INPUT RETURNS TEXT
+     LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int year = calendar.get(Calendar.YEAR); return year + "";';
+CREATE OR REPLACE FUNCTION test.concat (s1 TEXT, s2 TEXT)
+     RETURNS NULL ON NULL INPUT RETURNS TEXT
+     LANGUAGE java AS 'return s1 + s2;';

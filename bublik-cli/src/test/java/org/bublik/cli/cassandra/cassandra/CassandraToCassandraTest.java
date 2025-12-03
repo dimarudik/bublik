@@ -30,6 +30,7 @@ public class CassandraToCassandraTest {
 
     private static CassandraContainer source = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
+            .withConfigurationOverride("./cassandra/cassandra/conf")
             .withInitScript("./cassandra/cassandra/sql/cs-init.cql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
@@ -80,6 +81,45 @@ public class CassandraToCassandraTest {
                 null,
                 null);
 //        Thread.sleep(60_000);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
+    public void expressionToColumn() throws InterruptedException, IOException {
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
+        TestResult result = getResult(
+                "./cassandra/cassandra/yaml/cs2cs.yaml",
+                "./cassandra/cassandra/json/cs2cs10.json",
+                rows,
+                sync,
+                sourceProperties,
+                targetProperties,
+                "SELECT acc, v1 FROM ",
+                null,
+                null);
+//        тут https://stackoverflow.com/questions/31290815/cassandra-extract-month-from-timestamp
+//        Thread.sleep(120_000);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
+    public void onlyTableName() throws InterruptedException, IOException {
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
+        TestResult result = getResult(
+                "./cassandra/cassandra/yaml/cs2cs.yaml",
+                "./cassandra/cassandra/json/cs2cs9.json",
+                rows,
+                sync,
+                sourceProperties,
+                targetProperties,
+                "SELECT id, uid, ttl(v1) FROM ",
+                null,
+                null);
+//        Thread.sleep(120_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
@@ -290,7 +330,10 @@ public class CassandraToCassandraTest {
         long targetCount = 0;
         for (Config config : configs) {
             sourceCount += countCassandra(sourceProperties, query,config.fromSchemaName() + "." + config.fromTableName(), sourcePredicate);
-            targetCount += countCassandra(targetProperties, query, config.toSchemaName() + "." + config.toTableName(), targetPredicate);
+            targetCount += countCassandra(targetProperties, query,
+                    (config.toSchemaName() == null ? config.fromSchemaName() : config.toSchemaName()) + "." +
+                            (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
+                    targetPredicate);
         }
         return new TestResult(sourceCount, targetCount);
     }

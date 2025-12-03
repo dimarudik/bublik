@@ -1,23 +1,13 @@
 [
   {
     "fromSchemaName" : "test",
-    "fromTableName" : "t6",
-    "toSchemaName" : "test",
-    "toTableName" : "t6",
-    "columnToColumn" : {
-      "id"    : "id",
-      "v1"    : "v1"
-    }
+    "fromTableName" : "t6"
   },
   {
     "fromSchemaName" : "test",
     "fromTableName" : "t7",
     "toSchemaName" : "test",
-    "toTableName" : "t7",
-    "columnToColumn" : {
-      "id"    : "id",
-      "v1"    : "v1"
-    }
+    "toTableName" : "t7"
   },
   {
     "fromSchemaName" : "test",
