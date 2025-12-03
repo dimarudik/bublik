@@ -13,6 +13,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
+import org.testcontainers.containers.BindMode;
+import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -30,7 +32,8 @@ public class CassandraToCassandraTest {
 
     private static CassandraContainer source = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
-            .withConfigurationOverride("./cassandra/cassandra/conf")
+            .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
+//            .withConfigurationOverride("./cassandra/cassandra/conf")
             .withInitScript("./cassandra/cassandra/sql/cs-init.cql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
@@ -38,6 +41,8 @@ public class CassandraToCassandraTest {
 
     @BeforeAll
     static void setUp() throws SQLException {
+        MountableFile mf = MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh");
+        source.addFileSystemBind(mf.getResolvedPath(), "/usr/local/bin/docker-entrypoint.sh", BindMode.READ_ONLY);
         source.setPortBindings(Collections.singletonList("9042:9042"));
         source.start();
         target.setPortBindings(Collections.singletonList("9043:9042"));
@@ -66,6 +71,26 @@ public class CassandraToCassandraTest {
     }
 
     @Test
+    public void expressionToColumn() throws InterruptedException, IOException {
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
+        TestResult result = getResult(
+                "./cassandra/cassandra/yaml/cs2cs.yaml",
+                "./cassandra/cassandra/json/cs2cs10.json",
+                rows,
+                sync,
+                sourceProperties,
+                targetProperties,
+                "SELECT acc, v1 FROM ",
+                null,
+                null);
+//        тут https://stackoverflow.com/questions/31290815/cassandra-extract-month-from-timestamp
+//        Thread.sleep(60_000);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void allTypes() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
@@ -81,26 +106,6 @@ public class CassandraToCassandraTest {
                 null,
                 null);
 //        Thread.sleep(60_000);
-        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-        assertEquals(result.sourceCount(), result.targetCount());
-    }
-
-    @Test
-    public void expressionToColumn() throws InterruptedException, IOException {
-        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
-        Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
-        TestResult result = getResult(
-                "./cassandra/cassandra/yaml/cs2cs.yaml",
-                "./cassandra/cassandra/json/cs2cs10.json",
-                rows,
-                sync,
-                sourceProperties,
-                targetProperties,
-                "SELECT acc, v1 FROM ",
-                null,
-                null);
-//        тут https://stackoverflow.com/questions/31290815/cassandra-extract-month-from-timestamp
-//        Thread.sleep(120_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
