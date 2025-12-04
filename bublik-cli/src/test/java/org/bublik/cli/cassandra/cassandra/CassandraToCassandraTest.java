@@ -33,7 +33,6 @@ public class CassandraToCassandraTest {
     private static CassandraContainer source = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
-            .withConfigurationOverride("./cassandra/cassandra/conf")
             .withInitScript("./cassandra/cassandra/sql/cs-init.cql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
@@ -70,7 +69,7 @@ public class CassandraToCassandraTest {
         }
     }
 
-    
+
 //    @Test
     public void expressionToColumn() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
