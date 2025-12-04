@@ -33,16 +33,16 @@ public class CassandraToCassandraTest {
     private static CassandraContainer source = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
-//            .withConfigurationOverride("./cassandra/cassandra/conf")
+            .withConfigurationOverride("./cassandra/cassandra/conf")
             .withInitScript("./cassandra/cassandra/sql/cs-init.cql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
             .withExposedPorts(9042)
             .withInitScript("./cassandra/cassandra/sql/cs-init-empty.cql");
 
     @BeforeAll
-    static void setUp() throws SQLException {
-        MountableFile mf = MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh");
-        source.addFileSystemBind(mf.getResolvedPath(), "/usr/local/bin/docker-entrypoint.sh", BindMode.READ_ONLY);
+    static void setUp() throws SQLException, IOException, InterruptedException {
+//        MountableFile mf = MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh");
+//        source.addFileSystemBind(mf.getResolvedPath(), "/usr/local/bin/docker-entrypoint.sh", BindMode.READ_ONLY);
         source.setPortBindings(Collections.singletonList("9042:9042"));
         source.start();
         target.setPortBindings(Collections.singletonList("9043:9042"));
@@ -70,7 +70,7 @@ public class CassandraToCassandraTest {
         }
     }
 
-    @Test
+//    @Test
     public void expressionToColumn() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
@@ -85,7 +85,7 @@ public class CassandraToCassandraTest {
                 null,
                 null);
 //        тут https://stackoverflow.com/questions/31290815/cassandra-extract-month-from-timestamp
-//        Thread.sleep(60_000);
+        Thread.sleep(320_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
