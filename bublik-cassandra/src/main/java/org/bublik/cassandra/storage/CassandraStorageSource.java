@@ -95,7 +95,7 @@ public class CassandraStorageSource<K extends UUID, T extends Long, S extends Cq
             }
         }
         long stop = System.currentTimeMillis();
-        chunk.setRows(recordCount);
+        chunk.setCopied(recordCount);
         return new LogMessage(start, stop, "BATCH APPLY (batches: " + batchCount + ")");
     }
 

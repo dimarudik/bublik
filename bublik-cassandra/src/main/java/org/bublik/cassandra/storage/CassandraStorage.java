@@ -95,7 +95,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             }
         }
         long stop = System.currentTimeMillis();
-        chunk.setRows(recordCount);
+        chunk.setCopied(recordCount);
         return new LogMessage(start, stop, "(batches: " + batchCount + ")");
     }
 
@@ -185,7 +185,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
 
         long stop = System.currentTimeMillis();
-        chunk.setRows(recordCount);
+        chunk.setCopied(recordCount);
         return new LogMessage(start, stop, "(batches: " + batchCount + ")");
     }
 

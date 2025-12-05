@@ -22,7 +22,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private S targetSession;
     private LogMessage logMessage;
     private R resultSet;
-    private int rows;
+    private int copied;
     private String batchInsertQuery;
     private int upserted;
     private ChunkStatus chunkStatus;
@@ -39,21 +39,6 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.sourceStorage = sourceStorage;
         this.targetStorage = targetStorage;
     }
-
-/*
-    public Chunk(K id, T start, T end, Config config, Table<?> sourceTable, ChunkStatus status,
-                 String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
-        this.id = id;
-        this.start = start;
-        this.end = end;
-        this.config = config;
-        this.sourceTable = sourceTable;
-        this.chunkStatus = status;
-        this.fetchQuery = fetchQuery;
-        this.sourceStorage = sourceStorage;
-        this.targetStorage = targetStorage;
-    }
-*/
 
     public K getId() {
         return id;
@@ -75,25 +60,9 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         return t2t;
     }
 
-/*
-    public Table getSourceTable() {
-        return sourceTable;
-    }
-
-    public Table getTargetTable() {
-        return targetTable;
-    }
-*/
-
     public Storage<K, T, S, R> getSourceStorage() {
         return sourceStorage;
     }
-
-/*
-    public void setTargetTable(Table table) {
-        this.targetTable = table;
-    }
-*/
 
     public long getStartTime() {
         return startTime;
@@ -123,22 +92,16 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.resultSet = resultSet;
     }
 
-/*
-    public void setTargetStorage(Storage<K, T, S, R> targetStorage) {
-        this.targetStorage = targetStorage;
-    }
-*/
-
     public String getFetchQuery() {
         return fetchQuery;
     }
 
-    public int getRows() {
-        return rows;
+    public int getCopied() {
+        return copied;
     }
 
-    public void setRows(int rows) {
-        this.rows = rows;
+    public void setCopied(int copied) {
+        this.copied = copied;
     }
 
     public String getBatchInsertQuery() {
@@ -193,7 +156,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         String toTableName = t2t.targetTable() == null ? "" : " -> " + t2t.targetTable().getTableName();
         return  t2t.sourceTable().getTableName() +
                 toTableName +
-                " of " + rows +
+                " of " + copied +
                 " rows (start:" + getStart() +
                 ", end:" + getEnd() +
                 ") chunk_id:" + getId();

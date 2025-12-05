@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 import static org.bublik.cassandra.constants.SQLConstants.*;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
@@ -31,17 +32,6 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                        String errMsg, String chunkTableName) throws SQLException {
         CqlSession cqlSession = getSourceSession();
-/*
-        PreparedStatement psDelete = cqlSession.prepare(DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
-        BoundStatement bsUpdate = psDelete.boundStatementBuilder()
-                .setString("new_status", newStatus.toString())
-                .setUuid("chunk_id", getId())
-                .setString("old_status", getChunkStatus().toString())
-                .setString("schema_name", getT2t().sourceTable().getSchemaName())
-                .setString("table_name", getT2t().sourceTable().getTableName())
-                .build();
-        cqlSession.execute(bsUpdate);
-*/
         boolean applied;
         try {
             PreparedStatement psDelete = cqlSession.prepare(DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
@@ -54,15 +44,17 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         if (applied) {
             try {
                 PreparedStatement psInsert = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", chunkTableName));
-                BoundStatement bsInsert = psInsert.bind(
-                                getId(),
-                                getStart(),
-                                getEnd(),
-                                getT2t().sourceTable().getSchemaName(),
-                                getT2t().sourceTable().getTableName(),
-                                newStatus.toString(),
-                                getConfig().fromTaskName(),
-                                errMsg);
+                BoundStatement bsInsert = psInsert.boundStatementBuilder()
+                        .setUuid("chunk_id", getId())
+                        .setLong("start_page", getStart())
+                        .setLong("end_page", getStart())
+                        .setString("schema_name", getT2t().sourceTable().getSchemaName())
+                        .setString("table_name", getT2t().sourceTable().getTableName())
+                        .setString("status", newStatus.toString())
+                        .setString("task_name", getConfig().fromTaskName())
+                        .setString("err_msg", errMsg)
+                        .setInt("copied", getCopied())
+                        .build();
                 cqlSession.execute(bsInsert);
             } catch (Exception e) {
                 throw new SQLException(e);
@@ -75,6 +67,22 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
 
     @Override
     public Chunk<K, T, S, R> interStageSaveChunkRows(int rows, boolean sync, String chunkTableName) {
+        CqlSession cqlSession = getSourceSession();
+        try {
+            PreparedStatement ps = cqlSession.prepare(DML_UPDATE_ROWS_CHUNK_TABLE.replace("$tableName", chunkTableName));
+            BoundStatement bsUpdate = ps.boundStatementBuilder()
+                    .setInt("copied", rows)
+                    .setUuid("chunk_id", getId())
+                    .setString("status", getChunkStatus().toString())
+                    .setString("schema_name", getT2t().sourceTable().getSchemaName())
+                    .setString("table_name", getT2t().sourceTable().getTableName())
+                    .build();
+            cqlSession.execute(bsUpdate);
+        } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
+            throw new RuntimeException(e);
+        }
+//        log.info("Chunk with id: {} and status: {} updated with rows: {}", getId(), getChunkStatus(), rows);
         return this;
     }
 
@@ -124,7 +132,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                 .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
                 .secondStageGetSourceResultSet()
                 .mainStageTransfer(tableName)
-                .interStageSaveChunkRows(getRows(), sync, tableName)
+                .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName);
 //                .closeChunkSourceSession(sync);
 //        LogMessage logMessage = getLogMessage();

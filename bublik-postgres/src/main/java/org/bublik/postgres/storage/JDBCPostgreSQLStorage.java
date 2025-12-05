@@ -17,7 +17,6 @@ import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.bublik.postgres.model.PGChunk;
 import org.bublik.postgres.model.PGTable;
-import org.bublik.postgres.util.ColumnUtil;
 import org.postgresql.PGConnection;
 import org.postgresql.replication.LogSequenceNumber;
 import org.postgresql.util.PGInterval;
@@ -279,7 +278,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             throw b;
         }
 
-        chunk.setRows(recordCount);
+        chunk.setCopied(recordCount);
         insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
         connectionTo.commit();
 

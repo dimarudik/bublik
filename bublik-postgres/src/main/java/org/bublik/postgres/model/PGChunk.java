@@ -98,7 +98,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
                 .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
                 .secondStageGetSourceResultSet()
                 .mainStageTransfer(tableName)
-                .interStageSaveChunkRows(getRows(), sync, tableName)
+                .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();

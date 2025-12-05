@@ -2,7 +2,6 @@ package org.bublik.ydb.storage;
 
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.exception.SourceSQLException;
-import org.bublik.core.exception.TableNotExistsException;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
@@ -197,7 +196,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         }
 */
 
-        chunk.setRows(recordCount);
+        chunk.setCopied(recordCount);
         return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "YDB Batch Insert ");
     }
 

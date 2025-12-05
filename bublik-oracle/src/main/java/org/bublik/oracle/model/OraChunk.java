@@ -51,14 +51,6 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
         String q = getFetchQuery();
-/*
-        String q;
-        if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
-            q = getSourceStorage().buildFetchStatement(getConfig(), this);
-        } else {
-            q = getSourceStorage().buildFetchStatement(getConfig());
-        }
-*/
         ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);
         return this;
@@ -87,7 +79,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
                 .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
                 .secondStageGetSourceResultSet()
                 .mainStageTransfer(tableName)
-                .interStageSaveChunkRows(getRows(), sync, tableName)
+                .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
                 .lastStageCloseSourceSession(sync);
         LogMessage logMessage = getLogMessage();
