@@ -38,8 +38,6 @@ public class CassandraToCassandraTest {
 
     @BeforeAll
     static void setUp() throws SQLException, IOException, InterruptedException {
-//        MountableFile mf = MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh");
-//        source.addFileSystemBind(mf.getResolvedPath(), "/usr/local/bin/docker-entrypoint.sh", BindMode.READ_ONLY);
         source.setPortBindings(Collections.singletonList("9042:9042"));
         source.start();
         target.setPortBindings(Collections.singletonList("9043:9042"));
@@ -67,23 +65,22 @@ public class CassandraToCassandraTest {
         }
     }
 
-
-//    @Test
-    public void expressionToColumn() throws InterruptedException, IOException {
+    @Test
+// select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
+    public void filter() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         TestResult result = getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
-                "./cassandra/cassandra/json/cs2cs10.json",
+                "./cassandra/cassandra/json/cs2cs11.json",
                 rows,
                 sync,
                 sourceProperties,
                 targetProperties,
-                "SELECT acc, v1 FROM ",
+                "SELECT id, uid, v1, v2, v3, v4 FROM ",
                 null,
                 null);
-//        тут https://stackoverflow.com/questions/31290815/cassandra-extract-month-from-timestamp
-        Thread.sleep(320_000);
+//        Thread.sleep(30_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
@@ -149,7 +146,7 @@ public class CassandraToCassandraTest {
 
     @Test
 // select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
-    public void partitionKeys() throws InterruptedException, IOException {
+    public void allTypesAsPartitionKeys() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
         TestResult result = getResult(
@@ -332,19 +329,21 @@ public class CassandraToCassandraTest {
         long sourceCount = 0;
         long targetCount = 0;
         for (Config config : configs) {
-            sourceCount += countCassandra(sourceProperties, query,config.fromSchemaName() + "." + config.fromTableName(), sourcePredicate);
+            sourceCount += countCassandra(sourceProperties, query,config.fromSchemaName() + "." + config.fromTableName(), sourcePredicate, config.fetchWhereClause());
             targetCount += countCassandra(targetProperties, query,
                     (config.toSchemaName() == null ? config.fromSchemaName() : config.toSchemaName()) + "." +
                             (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
-                    targetPredicate);
+                    targetPredicate, null);
         }
         return new TestResult(sourceCount, targetCount);
     }
 
-    private static long countCassandra(Properties properties, String query, String tableName, Predicate<Row> p) {
+    private static long countCassandra(Properties properties, String query, String tableName, Predicate<Row> p, String where) {
         CSPool csPool = new CSPool(properties, 2);
         CqlSession cqlSession = csPool.getCqlSession();
-        ResultSet resultSet = cqlSession.execute(query + tableName);
+        String q = query + tableName + ((where == null || where.isEmpty()) ? "" : " WHERE " + where);
+        System.out.println(q);
+        ResultSet resultSet = cqlSession.execute(q);
         long rowCount = 0;
         for (Row row : resultSet) {
             if (p == null) {

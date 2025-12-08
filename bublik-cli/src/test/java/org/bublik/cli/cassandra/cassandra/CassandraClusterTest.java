@@ -107,13 +107,13 @@ public class CassandraClusterTest {
                 });
     }
 
-
     @Test
     public void recordCount() throws InterruptedException, IOException {
         long sourceCount = 0;
         long targetCount = 0;
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042,localhost:9043,localhost:9044", "DC1");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9045,localhost:9046,localhost:9047", "DC2");
+
         initSourceData(sourceProperties, 256);
         initTargetData(targetProperties);
         TestResult result256 = getResult(
@@ -128,6 +128,8 @@ public class CassandraClusterTest {
                 null);
         sourceCount += result256.sourceCount();
         targetCount += result256.targetCount();
+        System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
+
         initSourceData(sourceProperties, 260);
         initTargetData(targetProperties);
         TestResult result260 = getResult(
@@ -142,6 +144,8 @@ public class CassandraClusterTest {
                 null);
         sourceCount += result260.sourceCount();
         targetCount += result260.targetCount();
+        System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
+
         initSourceData(sourceProperties, 1030);
         initTargetData(targetProperties);
         TestResult result1030 = getResult(
@@ -156,6 +160,8 @@ public class CassandraClusterTest {
                 null);
         sourceCount += result1030.sourceCount();
         targetCount += result1030.targetCount();
+        System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
+
         initSourceData(sourceProperties, 1048590);
         initTargetData(targetProperties);
         TestResult result1048590 = getResult(
@@ -171,7 +177,8 @@ public class CassandraClusterTest {
         sourceCount += result1048590.sourceCount();
         targetCount += result1048590.targetCount();
         System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
-//        Thread.sleep(300_000);
+
+//        Thread.sleep(1200_000);
         assertEquals(sourceCount, targetCount);
     }
 

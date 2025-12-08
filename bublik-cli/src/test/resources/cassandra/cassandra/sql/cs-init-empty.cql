@@ -117,10 +117,11 @@ create table test.no_columns (
     v1 int,
     primary key (id, uid));
 
-create table test.expression (
-    acc int,
-    year_month text,
-    op_id int,
-    log_date timestamp,
+create table test.filter1 (
+    id int,
+    uid int,
     v1 int,
-    primary key ((acc, year_month), op_id));
+    v2 int,
+    v3 int static,
+    v4 varchar,
+    primary key (id, uid));

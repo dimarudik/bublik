@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.bublik.cassandra.constants.SQLConstants.*;
+import static org.bublik.core.constants.CLassConstants.DEFAULT_FETCH_WHERE_CLAUSE;
 import static org.bublik.core.util.Utils.getStackTrace;
 
 public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Storage<K, T, S, R> implements Source {
@@ -151,7 +152,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         for (Config c : configs) {
             CSTable<S> sourceTable = new CSTable<>(c.fromSchemaName(), c.fromTableName(), null, null);
             sourceTable.enrichTable(cqlSession);
-            ExecutorService service = Executors.newFixedThreadPool(threadCount);
+            ExecutorService service = Executors.newFixedThreadPool(Math.min(threadCount, 4));
             trs
                     .stream()
                     .filter(tr -> ((Murmur3Token) tr.getEnd()).getValue() > ((Murmur3Token) tr.getStart()).getValue())
@@ -161,21 +162,25 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                         long estimatedRowsInRange = getEstimatedRowsInRange(cqlSession, sourceTable, tr);
                         log.info("Token range: {} {} estimatedRowsInRange: {}", startValue, stopValue, estimatedRowsInRange);
                         PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getChunkTableName(tableName)));
-                        if (estimatedRowsInRange == 0) {
+                        if (estimatedRowsInRange <= rows) {
+                            log.info("(estimatedRowsInRange <= rows) start:{} stop:{} estimated:{}", startValue, stopValue, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, startValue, stopValue, sourceTable, c.fromTaskName(), estimatedRowsInRange);
                             return;
                         }
                         long chunkCount = (long) Math.ceil((double) estimatedRowsInRange / rows);
-                        // тут может быть ошибка при работе с long
                         long shift = (stopValue - startValue) / chunkCount;
                         long i = startValue;
-                        while ((i + shift) < stopValue && (i + shift) > 0) {
-//                            log.info("start:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, i + shift, shift, chunkCount, estimatedRowsInRange);
-//                            log.info("start:{} stop:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, stopValue, i + shift, shift, chunkCount, estimatedRowsInRange);
+                        while ((i + shift) < stopValue) {
+                            // проверка на переход по кругу long
+                            if ((i + shift) < 0 && i > 0) {
+                                break;
+                            }
+                            log.info("start:{} stop:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, stopValue, i + shift, shift, chunkCount, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, i, i + shift, sourceTable, c.fromTaskName(), rows);
                             i += shift;
                         }
-                        if (i < stopValue) {
+                        if (i < stopValue && i > startValue) {
+                            log.info("last chunk start:{} stop:{} estimated:{}", startValue, stopValue, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, i, stopValue, sourceTable, c.fromTaskName(), rows);
                         }
                     }));
@@ -222,6 +227,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                     .setString("status", "UNASSIGNED")
                     .setString("task_name", taskName)
                     .setInt("required", (int) shift )
+                    .setString("thread", Thread.currentThread().getName())
                     .build();
 
 /*
@@ -538,6 +544,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 config.fromTableName() + " " +
                 (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
                 PGKeywords.WHERE + " " +
+                (config.fetchWhereClause().equals(DEFAULT_FETCH_WHERE_CLAUSE) ? "" : config.fetchWhereClause() + " and ") + " " +
                 "token(" +
                 pkColumnsJoined +
                 ") >= ? and token(" +

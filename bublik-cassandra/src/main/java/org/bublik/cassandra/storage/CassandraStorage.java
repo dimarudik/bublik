@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
+import static org.bublik.core.util.Utils.getStackTrace;
 
 public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
         extends CSStorage<K, T, S, R> {
@@ -99,7 +100,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return new LogMessage(start, stop, "(batches: " + batchCount + ")");
     }
 
-    private void batchApply(BatchStatementBuilder batchStatementBuilder, CqlSession cqlSession) throws SQLException {
+    private void batchApply(BatchStatementBuilder batchStatementBuilder, CqlSession cqlSession) {
         try {
             BatchStatement batchStatement = batchStatementBuilder
                     .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
@@ -108,8 +109,9 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             cqlSession.execute(batchStatement);
             batchStatementBuilder.clearStatements();
             batchStatement.clear();
-        } catch (DriverException e) {
-            throw new SQLException(e);
+        } catch (Exception e) {
+            log.error("{}", getStackTrace(e));
+            throw new RuntimeException(e);
         }
     }
 
@@ -177,6 +179,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             recordCount++;
         }
 
+        // тут должно быть другое условие
         for (Map.Entry<TokenRange, BatchEntity> entry : mm3Batch.getTokenRangeMap().entrySet()) {
             if (entry.getValue().getCounter() > 0) {
                 batchApply(entry.getValue().getBatchStatementBuilder(), cqlSession);

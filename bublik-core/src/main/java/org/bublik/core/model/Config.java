@@ -3,6 +3,8 @@ package org.bublik.core.model;
 import java.util.List;
 import java.util.Map;
 
+import static org.bublik.core.constants.CLassConstants.DEFAULT_FETCH_WHERE_CLAUSE;
+
 public record Config(
         String numberColumn,
         String fromSchemaName,
@@ -33,7 +35,7 @@ public record Config(
                 this.toSchemaName == null ? this.fromSchemaName : this.toSchemaName,
                 this.toTableName == null ? this.fromTableName : this.toTableName,
                 this.fetchHintClause,
-                this.fetchWhereClause == null ? "1 = 1" : this.fetchWhereClause,
+                this.fetchWhereClause == null ? DEFAULT_FETCH_WHERE_CLAUSE : this.fetchWhereClause,
                 this.fromTaskName == null ? this.fromSchemaName.replaceAll("^\"|\"$", "") + "_" +
                         this.fromTableName.replaceAll("^\"|\"$", "") + "_" +
                         (this.toTableName == null ? null : this.toTableName.replaceAll("^\"|\"$", "")) + "_task": this.fromTaskName,

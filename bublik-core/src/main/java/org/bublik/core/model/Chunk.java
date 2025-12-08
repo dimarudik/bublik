@@ -6,6 +6,9 @@ import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
+
+
 public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkService<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(Chunk.class);
 
@@ -26,6 +29,8 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private String batchInsertQuery;
     private int upserted;
     private ChunkStatus chunkStatus;
+    private Instant startTs;
+    private Instant endTs;
 
     public Chunk(K id, T start, T end, Config config, Table2Table<S> t2t, ChunkStatus status,
                  String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
@@ -142,6 +147,22 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
 
     public void setTargetSession(S targetSession) {
         this.targetSession = targetSession;
+    }
+
+    public Instant getStartTs() {
+        return startTs;
+    }
+
+    public void setStartTs(Instant startTs) {
+        this.startTs = startTs;
+    }
+
+    public Instant getEndTs() {
+        return endTs;
+    }
+
+    public void setEndTs(Instant endTs) {
+        this.endTs = endTs;
     }
 
     public void logChunkInfo() {

@@ -5,6 +5,7 @@ import org.bublik.core.model.Chunk;
 import org.bublik.core.storage.Storage;
 
 import java.sql.SQLException;
+import java.time.Instant;
 
 public interface ChunkService<K, T, S extends AutoCloseable, R> {
     R getData(String query) throws SQLException;
@@ -26,6 +27,7 @@ public interface ChunkService<K, T, S extends AutoCloseable, R> {
         Storage<K, T, S, R> storage = chunk.getTargetStorage();
         S targetSession = storage.getPoolConnection();
         chunk.setTargetSession(targetSession);
+        chunk.setStartTs(Instant.now());
         return chunk;
     }
 }

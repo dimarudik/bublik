@@ -1,0 +1,17 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "filter1",
+    "toSchemaName" : "test",
+    "toTableName" : "filter1",
+    "fetchWhereClause" : "id = 1 and uid >= 0",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    }
+  }
+]

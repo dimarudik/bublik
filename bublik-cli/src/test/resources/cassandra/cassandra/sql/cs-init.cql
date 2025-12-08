@@ -142,21 +142,15 @@ create table test.no_columns (
 insert into test.no_columns (id, uid, v1) values (1, 1, 1);
 insert into test.no_columns (id, uid, v1) values (2, 2, 2);
 
-create table test.expression (
-    acc int,
-    year text,
-    op_id int,
-    log_date timestamp,
+create table test.filter1 (
+    id int,
+    uid int,
     v1 int,
-    primary key ((acc, year), op_id));
-insert into test.expression (acc, year, op_id, log_date, v1) values (1, '2025', 1, '2025-02-02T00:00:00.001+0000', 1);
-
---CREATE OR REPLACE FUNCTION test.extract_month (input TIMESTAMP)
---     RETURNS NULL ON NULL INPUT RETURNS TEXT
---     LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int month = calendar.get(Calendar.MONTH) + 1; return month < 10 ? "0" + month : String.valueOf(month);';
---CREATE OR REPLACE FUNCTION test.extract_year (input TIMESTAMP)
---     RETURNS NULL ON NULL INPUT RETURNS TEXT
---     LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int year = calendar.get(Calendar.YEAR); return year + "";';
---CREATE OR REPLACE FUNCTION test.concat (s1 TEXT, s2 TEXT)
---     RETURNS NULL ON NULL INPUT RETURNS TEXT
---     LANGUAGE java AS 'return s1 + s2;';
+    v2 int,
+    v3 int static,
+    v4 varchar,
+    primary key (id, uid));
+insert into test.filter1 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a');
+insert into test.filter1 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a');
+insert into test.filter1 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a');
+insert into test.filter1 (id, uid, v1, v2, v3, v4) values (2, 2, 11, 21, 37, 'a');

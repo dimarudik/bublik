@@ -15,6 +15,10 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Calendar;
 import java.util.UUID;
 
 import static org.bublik.cassandra.constants.SQLConstants.*;
@@ -47,13 +51,16 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                 BoundStatement bsInsert = psInsert.boundStatementBuilder()
                         .setUuid("chunk_id", getId())
                         .setLong("start_page", getStart())
-                        .setLong("end_page", getStart())
+                        .setLong("end_page", getEnd())
                         .setString("schema_name", getT2t().sourceTable().getSchemaName())
                         .setString("table_name", getT2t().sourceTable().getTableName())
                         .setString("status", newStatus.toString())
                         .setString("task_name", getConfig().fromTaskName())
                         .setString("err_msg", errMsg)
                         .setInt("copied", getCopied())
+                        .setString("thread", Thread.currentThread().getName())
+                        .setInstant("start_ts", getStartTs())
+                        .setInstant("end_ts", getEndTs())
                         .build();
                 cqlSession.execute(bsInsert);
             } catch (Exception e) {
@@ -72,6 +79,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
             PreparedStatement ps = cqlSession.prepare(DML_UPDATE_ROWS_CHUNK_TABLE.replace("$tableName", chunkTableName));
             BoundStatement bsUpdate = ps.boundStatementBuilder()
                     .setInt("copied", rows)
+                    .setInstant("end_ts", LocalDateTime.now().toInstant(ZoneOffset.of("+0")))
+//                    .setInstant("end_ts", Instant.now())
                     .setUuid("chunk_id", getId())
                     .setString("status", getChunkStatus().toString())
                     .setString("schema_name", getT2t().sourceTable().getSchemaName())
@@ -120,7 +129,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
         LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
 //        LogMessage logMessage = transfer(this, tableName);
-        this.setLogMessage(logMessage);
+        setEndTs(LocalDateTime.now().toInstant(ZoneOffset.of("+0")));
+        setLogMessage(logMessage);
         return this;
     }
 
