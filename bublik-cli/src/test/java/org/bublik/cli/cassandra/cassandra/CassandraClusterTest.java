@@ -19,10 +19,7 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.function.Predicate;
 
 import static java.util.Collections.singletonList;
@@ -177,6 +174,27 @@ public class CassandraClusterTest {
         sourceCount += result1048590.sourceCount();
         targetCount += result1048590.targetCount();
         System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
+
+/*
+        Random r = new Random();
+        int low = 4_000_000;
+        int high = 10_000_000;
+        initSourceData(sourceProperties, r.nextInt(high-low) + low);
+        initTargetData(targetProperties);
+        TestResult resultRandom = getResult(
+                "./cassandra/cassandra/yaml/cs2cs-rf3.yaml",
+                "./cassandra/cassandra/json/cs2cs4.json",
+                rows,
+                sync,
+                sourceProperties,
+                targetProperties,
+                "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
+                null,
+                null);
+        sourceCount += resultRandom.sourceCount();
+        targetCount += resultRandom.targetCount();
+        System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
+*/
 
 //        Thread.sleep(1200_000);
         assertEquals(sourceCount, targetCount);

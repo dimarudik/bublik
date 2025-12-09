@@ -35,7 +35,6 @@ import static org.bublik.core.util.Utils.getStackTrace;
 
 public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Storage<K, T, S, R> implements Source {
     private static final Logger log = LoggerFactory.getLogger(CSStorage.class);
-//    private final int batchSize;
     private final CSPool csPool;
     protected final int threadCount;
     private final ConnectionProperty connectionProperty;
@@ -44,7 +43,6 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         super(storageClass, connectionProperty);
         this.connectionProperty = connectionProperty;
         this.threadCount = connectionProperty.getThreadCount();
-//        this.batchSize = getBatchSize(connectionProperty);
         this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
     }
 
@@ -175,12 +173,12 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                             if ((i + shift) < 0 && i > 0) {
                                 break;
                             }
-                            log.info("start:{} stop:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, stopValue, i + shift, shift, chunkCount, estimatedRowsInRange);
+//                            log.info("start:{} stop:{} start+shift:{} shift:{} chunkCount:{} estimated:{}", i, stopValue, i + shift, shift, chunkCount, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, i, i + shift, sourceTable, c.fromTaskName(), rows);
                             i += shift;
                         }
                         if (i < stopValue && i > startValue) {
-                            log.info("last chunk start:{} stop:{} estimated:{}", startValue, stopValue, estimatedRowsInRange);
+//                            log.info("last chunk start:{} stop:{} estimated:{}", startValue, stopValue, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, i, stopValue, sourceTable, c.fromTaskName(), rows);
                         }
                     }));
@@ -229,17 +227,6 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                     .setInt("required", (int) shift )
                     .setString("thread", Thread.currentThread().getName())
                     .build();
-
-/*
-            BoundStatement bs = ps.bind(
-                    chunkId,
-                    start,
-                    stop,
-                    sourceTable.getSchemaName(),
-                    sourceTable.getTableName(),
-                    "UNASSIGNED",
-                    taskName);
-*/
             cqlSession.execute(bsInsert);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
@@ -321,7 +308,6 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " and schema_name = ? and table_name = ? " +
                 " per partition limit 1000 ";
-//                " per partition limit 1000 allow filtering ";
     }
 
     @Override
@@ -551,13 +537,6 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 pkColumnsJoined +
                 ") < ?";
     }
-
-/*
-    @Override
-    public String buildFetchStatement(Config config) {
-        return buildFetchStatement(config, null);
-    }
-*/
 
     @Override
     public void setSession(S session) {
