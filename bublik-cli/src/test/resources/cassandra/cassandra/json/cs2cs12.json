@@ -1,0 +1,12 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t1",
+    "toSchemaName" : "test",
+    "toTableName" : "t1",
+    "columnToColumn" : {
+      "id"    : "id",
+      "v1"    : "v1"
+    }
+  }
+]
