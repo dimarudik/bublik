@@ -30,19 +30,25 @@ public abstract class SQLConstants {
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
             "update $tableName set status = ?, err_msg = ? where chunk_id = ? and status = ? and schema_name = ? and table_name = ? ";
 */
-    public static final String DDL_CREATE_OUTBOX_TABLE =
+    public static final String DDL_CREATE_GLOBAL_OUTBOX_TABLE =
             "create table $tableName (" +
                 "chunk_id int, " +
                 "task_name varchar, " +
-                "rows int, " +
+                "copied int, " +
                 "primary key (chunk_id))";
+    public static final String DDL_CREATE_LOCAL_OUTBOX_TABLE =
+            "create table $tableName (" +
+                    "chunk_id TIMEUUID, " +
+                    "task_name varchar, " +
+                    "copied int, " +
+                    "primary key (chunk_id))";
     public static final String DDL_DROP_TABLE =
             "drop table if exists $tableName";
     public static final String DML_INSERT_OUTBOX_TABLE =
-            "insert into $tableName (chunk_id, task_name, rows) " +
-                    "values (?, ?, ?)";
+            "insert into $tableName (chunk_id, task_name, copied) " +
+                    "values (:chunk_id, :task_name, :copied)";
     public static final String DML_SELECT_OUTBOX_TABLE =
-            "select chunk_id, task_name, rows from $tableName where chunk_id = ?";
+            "select chunk_id, task_name, copied from $tableName where chunk_id = ?";
     public static final String SQL_KEY_BY_TYPE =
             "select column_name, type, position from system_schema.columns " +
                     "where keyspace_name = ? and table_name = ? and kind = ? allow filtering";

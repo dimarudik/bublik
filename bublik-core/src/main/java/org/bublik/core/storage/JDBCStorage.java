@@ -124,7 +124,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             dropChunkTable(false, tableName);
             fulfillChunks(configs, false, rows, tableName);
             targetStorage.dropOutboxTable(false, tableName);
-            targetStorage.createOutbox(tableName);
+            targetStorage.createGlobalOutbox(tableName);
         }
         sourceConnection.close();
 
@@ -216,6 +216,19 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         targetStorage.dropOutboxTable(false, tableName);
     }
 
+    @Override
+    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) {
+        return false;
+    }
+
+    @Override
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
+    }
+
+    @Override
+    public void createLocalOutbox(String tableName) throws SQLException {
+    }
+
     private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
@@ -224,7 +237,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         Storage sourceStorage = this;
         if (rows > 0) {
             fulfillChunks(configs, true, rows, tableName);
-            targetStorage.createOutbox(tableName);
+            targetStorage.createGlobalOutbox(tableName);
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);

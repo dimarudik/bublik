@@ -104,7 +104,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public void createOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox(String tableName) throws SQLException {
 
     }
 

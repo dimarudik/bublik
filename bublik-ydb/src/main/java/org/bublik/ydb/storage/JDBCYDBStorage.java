@@ -60,7 +60,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public void createOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox(String tableName) throws SQLException {
         String[] t = tableName.split("\\.");
         String tName;
         if (t.length == 1) {

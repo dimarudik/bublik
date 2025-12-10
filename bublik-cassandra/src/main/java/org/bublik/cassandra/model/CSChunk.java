@@ -1,5 +1,6 @@
 package org.bublik.cassandra.model;
 
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
@@ -99,12 +100,11 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     public void lastStageCloseSourceSession(boolean sync) {
     }
 
-
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
 //        String q = getSourceStorage().buildFetchStatement(getConfig(), this);
-        String q = this.getFetchQuery();
+        String q = getFetchQuery();
         ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);
         return this;
@@ -117,7 +117,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
             PreparedStatement statement = cqlSession.prepare(query);
             BoundStatement boundStatement = statement.bind(getStart(), getEnd())
                     .setPageSize(1_000)
-                    .setTimeout(Duration.ofSeconds(1));
+                    .setTimeout(Duration.ofSeconds(1))
+                    .setConsistencyLevel(ConsistencyLevel.QUORUM);
             ResultSet resultSet = cqlSession.execute(boundStatement);
             return (R) resultSet;
         } catch (Exception e) {

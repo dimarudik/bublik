@@ -22,7 +22,10 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
     void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException;
-    void createOutbox(String tableName) throws SQLException;
+    void createGlobalOutbox(String tableName) throws SQLException;
+    void createLocalOutbox(String tableName) throws SQLException;
+    void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk, String tableName) throws SQLException;
+    boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
     List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException;
@@ -92,9 +95,13 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
         log.info("Bublik starting...");
         log.info("THREADS: {}", property.getThreadCount());
-        log.info("SOURCE: {}", property.getFromProperty().getProperty("url"));
+        String sourceUrl = property.getFromProperty().getProperty("url");
+        String sourceHosts = property.getFromProperty().getProperty("hosts");
+        log.info("SOURCE: {}", sourceUrl == null ? sourceHosts : sourceUrl);
         log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
-        log.info("TARGET: {}", property.getToProperty().getProperty("url"));
+        String targetUrl = property.getToProperty().getProperty("url");
+        String targetHosts = property.getToProperty().getProperty("hosts");
+        log.info("TARGET: {}", targetUrl == null ? targetHosts : targetUrl);
         log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());

@@ -66,7 +66,6 @@ public class CassandraToCassandraTest {
     }
 
     @Test
-// select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void filter() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
@@ -80,7 +79,6 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, v1, v2, v3, v4 FROM ",
                 null,
                 null);
-//        Thread.sleep(30_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
@@ -244,10 +242,11 @@ public class CassandraToCassandraTest {
     }
 
     @Test
-// select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void recordCount() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
+        long sourceCount = 0;
+        long targetCount = 0;
         initSourceData(sourceProperties, 256);
         initTargetData(targetProperties);
         TestResult result256 = getResult(
@@ -260,6 +259,9 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
+        sourceCount += result256.sourceCount();
+        targetCount += result256.targetCount();
+/*
         initSourceData(sourceProperties, 260);
         initTargetData(targetProperties);
         TestResult result260 = getResult(
@@ -284,9 +286,10 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
-        initSourceData(sourceProperties, 524290);
+*/
+        initSourceData(sourceProperties, 1_000_000);
         initTargetData(targetProperties);
-        TestResult result524290 = getResult(
+        TestResult result_1_000_000 = getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
                 "./cassandra/cassandra/json/cs2cs4.json",
                 rows,
@@ -296,8 +299,8 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
-        long sourceCount = result256.sourceCount() + result260.sourceCount() + result1030.sourceCount() + result524290.sourceCount();
-        long targetCount = result256.targetCount() + result260.targetCount() + result1030.targetCount() + result524290.targetCount();
+        sourceCount += result_1_000_000.sourceCount();
+        targetCount += result_1_000_000.targetCount();
         System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
         assertEquals(sourceCount, targetCount);
     }

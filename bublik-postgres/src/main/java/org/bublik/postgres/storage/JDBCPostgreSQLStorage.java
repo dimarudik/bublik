@@ -1134,7 +1134,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public void createOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox(String tableName) throws SQLException {
         Connection connection = getPoolConnection();
         try {
             Statement createTable = connection.createStatement();

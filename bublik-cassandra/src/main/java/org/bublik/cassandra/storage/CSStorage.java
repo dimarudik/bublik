@@ -72,6 +72,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             dropChunkTable(sync, tableName);
             createChunkTable(sync, tableName);
             fulfillChunks(configs, sync, rows, tableName);
+            targetStorage.createLocalOutbox(tableName);
         }
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
@@ -124,6 +125,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             }
         } while (true);
         dropChunkTable(sync, tableName);
+        targetStorage.dropOutboxTable(false, tableName);
 
         service.shutdown();
         service.close();
@@ -256,7 +258,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         return kSpace + "." + "\"" + tmpName + "\"";
     }
 
-    private String getOutboxTableName(String tableName) {
+    public String getOutboxTableName(String tName) {
+        String tableName = tName.replace("\"", "");
         String[] t = tableName.split("\\.");
         String tmpName;
         if (t.length == 1) {
@@ -269,21 +272,25 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public void createOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox(String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        cqlSession.execute(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName)));
-        log.info("Outbox table created successfully");
+        cqlSession.execute(DDL_CREATE_GLOBAL_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName)));
+        log.info("Global outbox table created successfully");
     }
 
-    public boolean isChunkProcessed(CqlSession cqlSession, int chunkId, String taskName, String tableName) throws SQLException {
+    @Override
+    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) {
+        CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
         String selectCQL = DML_SELECT_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName));
-        com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(selectCQL, chunkId);
+        com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(selectCQL, chunk.getId());
         return rs.one() != null;
     }
 
-    public void insertProcessedChunkInfo(CqlSession cqlSession, int chunkId, int rows, String taskName, String tableName) throws SQLException {
+    @Override
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
+        CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
         String insertCQL = DML_INSERT_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName));
-        cqlSession.execute(insertCQL, chunkId, taskName, rows);
+        cqlSession.execute(insertCQL, chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied());
     }
 
     @Override

@@ -9,6 +9,7 @@ import org.bublik.cassandra.model.CSTable;
 import org.bublik.cassandra.storage.cassandraaddons.*;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
+import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.bublik.cassandra.constants.SQLConstants.DDL_CREATE_LOCAL_OUTBOX_TABLE;
 import static org.bublik.cassandra.storage.cassandraaddons.MM3.*;
 import static org.bublik.core.util.Utils.getStackTrace;
 
@@ -39,25 +41,34 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 
     @Override
+    public void createLocalOutbox(String tableName) throws SQLException {
+        CqlSession cqlSession = getSession();
+        cqlSession.execute(DDL_CREATE_LOCAL_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName)));
+        log.info("Local outbox table created successfully");
+    }
+
+    @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        if (chunk.getSourceStorage() instanceof CSStorage) {
-            com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
-            return rangedByTokenRangeAndTtlAntTimestampBatch(chunk, resultSet);
-//            return null;
-        } else if (chunk.getSourceStorage() instanceof JDBCStorage) {
+        Storage<K, T, S, R> sourceStorage = chunk.getSourceStorage();
 /*
-        if (isChunkProcessed(cqlSession, (Integer) chunk.getId(), chunk.getConfig().fromTaskName(), tableName)) {
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(),
-                    "Chunk id = " + chunk.getId() + " already processed, skip it");
+        if (isChunkProcessed(chunk, tableName)) {
+            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
         }
 */
+        if (sourceStorage instanceof CSStorage) {
+            com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
+            LogMessage logMessage = rangedByTokenRangeAndTtlAntTimestampBatch(chunk, resultSet);
+            insertProcessedChunkInfo(chunk, tableName);
+            return logMessage;
+        } else if (sourceStorage instanceof JDBCStorage) {
             ResultSet resultSet = (ResultSet) chunk.getResultSet();
             LogMessage logMessage = rangedByTokenRangeBatch(chunk, resultSet);
-//        insertProcessedChunkInfo(cqlSession, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+            insertProcessedChunkInfo(chunk, tableName);
             return logMessage;
         }
         return null;
     }
+
 
     public LogMessage rangedByTokenRangeBatch(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
         int recordCount = 0;
