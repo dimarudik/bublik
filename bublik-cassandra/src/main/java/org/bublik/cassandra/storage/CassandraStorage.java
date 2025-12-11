@@ -58,12 +58,12 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         if (sourceStorage instanceof CSStorage) {
             com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
             LogMessage logMessage = rangedByTokenRangeAndTtlAntTimestampBatch(chunk, resultSet);
-            insertProcessedChunkInfo(chunk, tableName);
+//            insertProcessedChunkInfo(chunk, tableName);
             return logMessage;
         } else if (sourceStorage instanceof JDBCStorage) {
             ResultSet resultSet = (ResultSet) chunk.getResultSet();
             LogMessage logMessage = rangedByTokenRangeBatch(chunk, resultSet);
-            insertProcessedChunkInfo(chunk, tableName);
+//            insertProcessedChunkInfo(chunk, tableName);
             return logMessage;
         }
         return null;
