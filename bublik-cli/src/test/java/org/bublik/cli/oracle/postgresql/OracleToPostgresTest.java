@@ -58,7 +58,6 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(120_000);
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
@@ -73,7 +72,6 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(60_000);
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());

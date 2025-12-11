@@ -533,7 +533,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                             switch (columnType) {
                                 // CLOB
                                 case 2005:
-//                                    тут проверить
                                     s = convertClobToString(fetchResultSet, sourceColumn).replaceAll("\u0000", "");
                                     break;
                                 // NCLOB
