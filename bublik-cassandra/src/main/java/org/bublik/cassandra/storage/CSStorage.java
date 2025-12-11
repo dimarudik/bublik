@@ -72,7 +72,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             dropChunkTable(sync, tableName);
             createChunkTable(sync, tableName);
             fulfillChunks(configs, sync, rows, tableName);
-            targetStorage.createLocalOutbox(tableName);
+//            targetStorage.createLocalOutbox(tableName);
         }
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
@@ -125,7 +125,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             }
         } while (true);
         dropChunkTable(sync, tableName);
-        targetStorage.dropOutboxTable(false, tableName);
+//        targetStorage.dropOutboxTable(false, tableName);
 
         service.shutdown();
         service.close();
