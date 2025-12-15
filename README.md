@@ -12,17 +12,17 @@
 | PostgreSQL   | PostgreSQL |
 | PostgreSQL   | YDB        |
 
-This tool facilitates the efficient transfer of data between databases.<br>
-The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
-In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). 
-As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
-If you are using Cassandra, you can split the data into chunks based on Token Ranges.
+This tool facilitates the efficient transfer of data between databases.
+* The quickest method for extracting data from <strong>Oracle</strong> is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
+* In case of <strong>PostgreSQL</strong>, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
+* If you are using <strong>Cassandra</strong>, you can split the data into chunks based on Token Ranges.
+
 
 * [Build](#Build)
 * [Cassandra To Cassandra](#cassandra-to-cassandra)
     * [Prepare Cassandra To Cassandra environment](#prepare-cassandra-to-cassandra-environment)
     * [Prepare Cassandra To Cassandra Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
-    * [Prepare Cassandra To Cassandra Mapping File](#prepare-cassandra-to-cassandra-mapping-file)
+    * [Prepare Cassandra To Cassandra Mapping Files](#prepare-cassandra-to-cassandra-mapping-files)
     * [Cassandra To Cassandra Run](#cassandra-to-cassandra-run)
 * [Oracle To Cassandra](#oracle-to-cassandra)
     * [Prepare Oracle To Cassandra environment](#prepare-oracle-to-cassandra-environment)
@@ -75,7 +75,7 @@ mvn clean install
 ## Cassandra To Cassandra
 ![Cassandra To Cassandra](./bublik-cli/src/test/resources/images/cs2cs.png)
 
-The objective is to migrate data from Cassandra to Cassandra database with keyspace.
+The objective is to migrate data from Cassandra to Cassandra database.
 To split data into chunks we use Token Ranges ring of Cassandra. 
 Such method helps to minimize the workload on the source database and improves the performance of the data transfer to taget database.
 
@@ -132,7 +132,7 @@ cqlsh localhost 9043 -f ./bublik-cli/src/test/resources/cassandra/cassandra/sql/
 
 ### Prepare Cassandra To Cassandra Connection Settings
 
-You can run the tool by using yaml file `./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml` with connection settings:
+Cassandra connection settings `./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml`:
 
 ```yaml
 threadCount: 10
@@ -158,12 +158,35 @@ toProperties:
 ### Prepare Cassandra To Cassandra Mapping Files
 
 You can run the tool by using json files in folder `./bublik-cli/src/test/resources/cassandra/cassandra/json`.<br>
-You can define the behavior for values of TTL and TIMESTAMP Cassandra internal columns in the mapping file.<br>
+Moreover you can define the behavior for values of TTL and TIMESTAMP Cassandra internal columns in the mapping file.
 
 > [!IMPORTANT]
 > By default, the tool will use the values of TTL and TIMESTAMP from the source values of columns.
 
 Let's consider most interesting cases:
+
+[cs2cs1.json](bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs1.json)
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t1",
+    "toSchemaName" : "test",
+    "toTableName" : "t1",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    }
+  }
+]
+```
+
+> [!NOTE]
+> In this example, the tool will use the values of TTL and TIMESTAMP from the source values of columns.
 
 [cs2cs2.json](./bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs2.json):
 ```json
@@ -262,13 +285,13 @@ Let's consider most interesting cases:
 
 > [!NOTE]
 > If you need to change structure of the target table, you can use "expressionToColumn" to define new columns.
-> In the example above Partition Key "year_month" is calculated from the source column "log_date".
+> In the example above target partition key "year_month" is calculated from the source column "log_date".
 > At the target table "year_month" is defined as concatenation of year and month from the source column "log_date",
 > instead of just YEAR at the source.
 
-To achieve this you have to create User Defined Functions (UDF) in the target Cassandra database, like:
+To achieve this you have to create user-defined functions (UDF) in the target Cassandra database, like:
 
-```sql
+```yaml
 CREATE OR REPLACE FUNCTION test.extract_month (input TIMESTAMP)
      RETURNS NULL ON NULL INPUT RETURNS TEXT
      LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int month = calendar.get(Calendar.MONTH) + 1; return month < 10 ? "0" + month : String.valueOf(month);';
@@ -304,11 +327,13 @@ CREATE OR REPLACE FUNCTION test.concat (s1 TEXT, s2 TEXT)
 > [!NOTE]
 > If you need to filter data from the source table, you can use "fetchWhereClause" to define the filter.
 
+> [!IMPORTANT]
+> For filtering use only columns that are part of the primary key.
+
+
 ### Cassandra To Cassandra Run
 
-If you are about do the transfer without downtime, you should parallel the payload to the source and target database.<br>
-You must save the data to the source database ahead of target database,<br>
-so that Bublik can not overwrite the data in the target database as per TIMESTAMP value.<br>
+If you are about do the transfer without downtime, you should parallel the payload to the source and target database. You must save the data to the source database ahead of target database, so that Bublik can not overwrite the data in the target database as per TIMESTAMP value.
 
 ```shell
 java -jar ./bublik-cli/target/bublik-cli-<version>.jar \

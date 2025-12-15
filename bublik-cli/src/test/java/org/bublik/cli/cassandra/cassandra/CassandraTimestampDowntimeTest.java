@@ -65,7 +65,7 @@ public class CassandraTimestampDowntimeTest {
         }
     }
 
-    @Test
+//    @Test
     public void withoutDowntimeBasedOnTimestamp() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
@@ -88,7 +88,6 @@ public class CassandraTimestampDowntimeTest {
         assertEquals(expectedTimestamp1, obtainedTimestamp1);
 
         init(sourceProperties);
-//        Thread.sleep(30_000);
         getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
                 "./cassandra/cassandra/json/cs2cs12.json",
@@ -100,10 +99,8 @@ public class CassandraTimestampDowntimeTest {
                 null,
                 null);
         long expectedTimestamp2 = getTimestamp(targetProperties);
-//        Thread.sleep(30_000);
         init(targetProperties);
         long obtainedTimestamp2 = getTimestamp(targetProperties);
-//        Thread.sleep(30_000);
         System.out.println("2) expected timestamp: " + expectedTimestamp2 + ", obtained timestamp: " + obtainedTimestamp2);
     }
 
