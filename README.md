@@ -91,8 +91,8 @@ Or you can run test case in docker containers manually:
 #### Prepare Cassandra Source environment
 
 ```shell
-docker run --name cassandra \
-        -h cassandra \
+docker run --name cassandra1 \
+        -h cassandra1 \
         -p 9042:9042 \
         -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
         -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
@@ -106,8 +106,223 @@ docker run --name cassandra \
 To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
 
 ```shell
-cqlsh -f ./bublik-cli/src/test/resources/oracle/cassandra/sql/cs-init.cql
+cqlsh -f ./bublik-cli/src/test/resources/cassandra/cassandra/sql/cs-init.cql
 ```
+
+#### Prepare Cassandra Target environment
+
+```shell
+docker run --name cassandra2 \
+        -h cassandra2 \
+        -p 9043:9042 \
+        -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
+        -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
+        -e HEAP_NEWSIZE=128M \
+        -e MAX_HEAP_SIZE=1024M \
+        -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
+        -e CASSANDRA_DC=datacenter1 \
+        -d cassandra
+```
+
+To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
+
+```shell
+cqlsh localhost 9043 -f ./bublik-cli/src/test/resources/cassandra/cassandra/sql/cs-init-empty.cql
+```
+
+### Prepare Cassandra To Cassandra Connection Settings
+
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml` with connection settings:
+
+```yaml
+threadCount: 10
+
+fromProperties:
+  class: org.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 256
+toProperties:
+  class: org.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost:9043
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 256
+```
+
+### Prepare Cassandra To Cassandra Mapping Files
+
+You can run the tool by using json files in folder `./bublik-cli/src/test/resources/cassandra/cassandra/json`.<br>
+You can define the behavior for values of TTL and TIMESTAMP Cassandra internal columns in the mapping file.<br>
+
+> [!IMPORTANT]
+> By default, the tool will use the values of TTL and TIMESTAMP from the source values of columns.
+
+Let's consider most interesting cases:
+
+[cs2cs2.json](./bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs2.json):
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t2",
+    "toSchemaName" : "test",
+    "toTableName" : "t2",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "withTTL"   : "9999",
+    "timestamp" : "9999"
+  }
+]
+```
+
+> [!NOTE]
+> "withTTL" - defines the TTL value for each row. In the example above TTL value defined as a constant.
+
+> [!NOTE]
+> "timestamp" - defines the timestamp value for each row. In the example above TIMESTAMP value defined as a constant.
+
+[cs2cs3.json](bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs3.json):
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t3",
+    "toSchemaName" : "test",
+    "toTableName" : "t3",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "withTTL"   : "NULL"
+  }
+]
+```
+
+> [!NOTE]
+> If you need to forget source TTL value during data transfer, you can set "withTTL" as "NULL".
+
+[cs2cs8.json](bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs8.json):
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "log_time",
+    "toSchemaName" : "test2",
+    "toTableName" : "log_time",
+    "columnToColumn" : {
+      "id"        : "id",
+      "uid"       : "uid",
+      "log_time"  : "log_time"
+    },
+    "withTTL" : "60*60*24*365*5 - (toUnixTimestamp(now())/1000 - toUnixTimestamp(log_time)/1000)"
+  }
+]
+```
+
+> [!NOTE]
+> "withTTL" - defines the TTL value for each row and can be based on the source column value as shown above.
+> In the example above TTL value is calculated as five-year period from the log_time date.
+
+[cs2cs10.json](bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs10.json):
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "expression",
+    "toSchemaName" : "test",
+    "toTableName" : "expression",
+    "columnToColumn" : {
+      "acc"         : "acc",
+      "op_id"       : "op_id",
+      "log_date"    : "log_date",
+      "v1"          : "v1"
+    },
+    "expressionToColumn" : {
+      "concat(extract_year(log_date), extract_month(log_date)) as year_month" : "year_month"
+    }
+  }
+]
+```
+
+> [!NOTE]
+> If you need to change structure of the target table, you can use "expressionToColumn" to define new columns.
+> In the example above Partition Key "year_month" is calculated from the source column "log_date".
+> At the target table "year_month" is defined as concatenation of year and month from the source column "log_date",
+> instead of just YEAR at the source.
+
+To achieve this you have to create User Defined Functions (UDF) in the target Cassandra database, like:
+
+```sql
+CREATE OR REPLACE FUNCTION test.extract_month (input TIMESTAMP)
+     RETURNS NULL ON NULL INPUT RETURNS TEXT
+     LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int month = calendar.get(Calendar.MONTH) + 1; return month < 10 ? "0" + month : String.valueOf(month);';
+CREATE OR REPLACE FUNCTION test.extract_year (input TIMESTAMP)
+     RETURNS NULL ON NULL INPUT RETURNS TEXT
+     LANGUAGE java AS 'Calendar calendar = Calendar.getInstance(); calendar.setTime(input); int year = calendar.get(Calendar.YEAR); return year + "";';
+CREATE OR REPLACE FUNCTION test.concat (s1 TEXT, s2 TEXT)
+     RETURNS NULL ON NULL INPUT RETURNS TEXT
+     LANGUAGE java AS 'return s1 + s2;';
+```
+
+[cs2cs11.json](bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs11.json):
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "filter1",
+    "toSchemaName" : "test",
+    "toTableName" : "filter1",
+    "fetchWhereClause" : "id = 1 and uid >= 0",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    }
+  }
+]
+```
+
+> [!NOTE]
+> If you need to filter data from the source table, you can use "fetchWhereClause" to define the filter.
+
+### Cassandra To Cassandra Run
+
+If you are about do the transfer without downtime, you should parallel the payload to the source and target database.<br>
+You must save the data to the source database ahead of target database,<br>
+so that Bublik can not overwrite the data in the target database as per TIMESTAMP value.<br>
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml \
+    -m ./bublik-cli/src/test/resources/cassandra/cassandra/json/<json-file>.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
+
 
 
 ## Oracle To Cassandra
