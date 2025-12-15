@@ -2,14 +2,15 @@
 # Tool for Data Transfer between databases
 
 
-| SOURCE     | TARGET     |
-|:-----------|:-----------|
-| Oracle     | Cassandra  |
-| Oracle     | PostgreSQL |
-| Oracle     | YDB        |
-| PostgreSQL | Cassandra  |
-| PostgreSQL | PostgreSQL |
-| PostgreSQL | YDB        |
+| SOURCE       | TARGET     |
+|:-------------|:-----------|
+| Cassandra    | Cassandra  |
+| Oracle       | Cassandra  |
+| Oracle       | PostgreSQL |
+| Oracle       | YDB        |
+| PostgreSQL   | Cassandra  |
+| PostgreSQL   | PostgreSQL |
+| PostgreSQL   | YDB        |
 
 This tool facilitates the efficient transfer of data between databases.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
@@ -18,6 +19,11 @@ As you know, the fastest way to input data into PostgreSQL is through the `COPY`
 If you are using Cassandra, you can split the data into chunks based on Token Ranges.
 
 * [Build](#Build)
+* [Cassandra To Cassandra](#cassandra-to-cassandra)
+    * [Prepare Cassandra To Cassandra environment](#prepare-cassandra-to-cassandra-environment)
+    * [Prepare Cassandra To Cassandra Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
+    * [Prepare Cassandra To Cassandra Mapping File](#prepare-cassandra-to-cassandra-mapping-file)
+    * [Cassandra To Cassandra Run](#cassandra-to-cassandra-run)
 * [Oracle To Cassandra](#oracle-to-cassandra)
     * [Prepare Oracle To Cassandra environment](#prepare-oracle-to-cassandra-environment)
     * [Prepare Oracle To Cassandra Connection Settings](#prepare-oracle-to-cassandra-connection-settings)
@@ -65,6 +71,44 @@ Build and install all dependencies to local maven repository
 ```
 mvn clean install
 ```
+
+## Cassandra To Cassandra
+![Cassandra To Cassandra](./bublik-cli/src/test/resources/images/cs2cs.png)
+
+The objective is to migrate data from Cassandra to Cassandra database with keyspace.
+To split data into chunks we use Token Ranges ring of Cassandra. 
+Such method helps to minimize the workload on the source database and improves the performance of the data transfer to taget database.
+
+### Prepare Cassandra To Cassandra environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn -f ./bublik-cli/pom.xml test -Dtest="CassandraToCassandraTest,CassandraTimestampDowntimeTest,CassandraClusterTest"
+```
+Or you can run test case in docker containers manually:
+
+#### Prepare Cassandra Source environment
+
+```shell
+docker run --name cassandra \
+        -h cassandra \
+        -p 9042:9042 \
+        -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
+        -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
+        -e HEAP_NEWSIZE=128M \
+        -e MAX_HEAP_SIZE=1024M \
+        -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
+        -e CASSANDRA_DC=datacenter1 \
+        -d cassandra
+```
+
+To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
+
+```shell
+cqlsh -f ./bublik-cli/src/test/resources/oracle/cassandra/sql/cs-init.cql
+```
+
 
 ## Oracle To Cassandra
 ![Oracle To Cassandra](./bublik-cli/src/test/resources/images/ora2cs.png)

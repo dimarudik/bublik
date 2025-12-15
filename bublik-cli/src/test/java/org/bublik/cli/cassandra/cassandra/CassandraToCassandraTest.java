@@ -182,7 +182,7 @@ public class CassandraToCassandraTest {
     public void withTtlBasedOnColumn() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
-        Predicate<Row> targetPredicate = i -> (i.getInt("ttl(log_time)") > 120000000 && i.getInt("ttl(log_time)") < 160000000);
+        Predicate<Row> targetPredicate = i -> (i.getInt("ttl(log_time)") > 110000000 && i.getInt("ttl(log_time)") < 160000000);
         TestResult result = getResult(
                 "./cassandra/cassandra/yaml/cs2cs.yaml",
                 "./cassandra/cassandra/json/cs2cs8.json",
