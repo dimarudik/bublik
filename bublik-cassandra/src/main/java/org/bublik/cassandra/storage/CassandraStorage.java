@@ -50,23 +50,16 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         Storage<K, T, S, R> sourceStorage = chunk.getSourceStorage();
-/*
-        if (isChunkProcessed(chunk, tableName)) {
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
-        }
-*/
         if (sourceStorage instanceof CSStorage) {
             com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
-            LogMessage logMessage = rangedByTokenRangeAndTtlAntTimestampBatch(chunk, resultSet);
 //            insertProcessedChunkInfo(chunk, tableName);
-            return logMessage;
+            return rangedByTokenRangeAndTtlAntTimestampBatch(chunk, resultSet);
         } else if (sourceStorage instanceof JDBCStorage) {
             ResultSet resultSet = (ResultSet) chunk.getResultSet();
-            LogMessage logMessage = rangedByTokenRangeBatch(chunk, resultSet);
 //            insertProcessedChunkInfo(chunk, tableName);
-            return logMessage;
+            return rangedByTokenRangeBatch(chunk, resultSet);
         }
-        return null;
+        throw new RuntimeException("Unknown storage type");
     }
 
 

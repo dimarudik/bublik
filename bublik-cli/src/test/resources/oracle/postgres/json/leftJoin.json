@@ -18,7 +18,8 @@
       "doc"               : "doc",
       "uuid"              : "uuid",
       "clobjsonb"         : "clobjsonb",
-      "current_mood"      : "current_mood"
+      "current_mood"      : "current_mood",
+      "json_like"         : "json_like"
     },
     "expressionToColumn" : {
       "t.id as id" : "id",

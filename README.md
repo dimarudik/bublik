@@ -15,6 +15,7 @@ This tool facilitates the efficient transfer of data between databases.<br>
 The quickest method for extracting data from Oracle is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
 In case of PostgreSQL, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). 
 As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
+If you are using Cassandra, you can split the data into chunks based on Token Ranges.
 
 * [Build](#Build)
 * [Oracle To Cassandra](#oracle-to-cassandra)
@@ -162,8 +163,11 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
       "u.user_name as user_name"      : "user_name",
       "u.email as email"              : "email",
       "i.item_name as item_name"      : "item_name",
-      "i.description as description"  : "description"
-    }
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "86400 * 365 - trunc((EXTRACT (DAY FROM SYSTIMESTAMP) * 24 * 60 * 60) + (EXTRACT (HOUR FROM SYSTIMESTAMP) * 60 * 60) + (EXTRACT (MINUTE FROM SYSTIMESTAMP) * 60) + EXTRACT (SECOND FROM SYSTIMESTAMP))   -   trunc((EXTRACT (DAY FROM l.last_update) * 24 * 60 * 60) + (EXTRACT (HOUR FROM l.last_update) * 60 * 60) + (EXTRACT (MINUTE FROM l.last_update) * 60) + EXTRACT (SECOND FROM l.last_update))",
+    "timestamp" : "1762352865634052"
   },
   {
     "fromSchemaName" : "test",
@@ -179,12 +183,23 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
       "i.item_name as item_name"      : "item_name",
       "i.description as description"  : "description",
       "u.user_name as user_name"      : "user_name",
-      "u.email as email"              : "email"
-    }
+      "u.email as email"              : "email",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "round(DBMS_RANDOM.VALUE(9000000, 9999999))"
   }
 ]
 ```
 
+You can define the behavior for values of TTL and TIMESTAMP Cassandra internal columns in the mapping file.
+
+> [!NOTE] 
+> "withTTL" - defines the TTL value for each row and can be based on the source column value as shown above.
+> In the example above TTL value is calculated as one-year period from the last update date.
+
+> [!NOTE]
+> "timestamp" - defines the timestamp value for each row and can be based on the source column value as shown above.
+> In the example above TIMESTAMP value defined as a constant.
 
 ### Oracle To Cassandra Run
 
@@ -668,8 +683,10 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
       "u.user_name as user_name"      : "user_name",
       "u.email as email"              : "email",
       "i.item_name as item_name"      : "item_name",
-      "i.description as description"  : "description"
-    }
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "86400 * 365 - ((extract(epoch from now()))::int - (extract(epoch from l.last_update))::int)"
   },
   {
     "fromSchemaName" : "public",
@@ -685,11 +702,42 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
       "i.item_name as item_name"      : "item_name",
       "i.description as description"  : "description",
       "u.user_name as user_name"      : "user_name",
-      "u.email as email"              : "email"
-    }
+      "u.email as email"              : "email",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "floor(random() * (9999999 - 9000000 + 1) + 9000000)::int"
+  },
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "likes",
+    "fromTableAlias" : "l",
+    "fromTableAdds" : "left join users u on u.id = l.user_id left join items i on i.id = l.item_id",
+    "toSchemaName" : "test",
+    "toTableName" : "user2",
+    "fetchWhereClause" : "1 = 1",
+    "expressionToColumn" : {
+      "l.user_id as user_id"          : "user_id",
+      "l.item_id as item_id"          : "item_id",
+      "u.user_name as user_name"      : "user_name",
+      "u.email as email"              : "email",
+      "i.item_name as item_name"      : "item_name",
+      "i.description as description"  : "description",
+      "l.last_update as last_update"  : "last_update"
+    },
+    "withTTL" : "NULL",
+    "timestamp" : "(extract(epoch from l.last_update) * 1000000)::bigint"
   }
 ]
 ```
+
+You can define the behavior for values of TTL and TIMESTAMP Cassandra internal columns in the mapping file.
+
+> [!NOTE]
+> "withTTL" - defines the TTL value for each row and can be based on the source column value as shown above.
+> In the example above TTL value is calculated as one-year period from the last update date.
+
+> [!NOTE]
+> "timestamp" - defines the timestamp value for each row and can be based on the source column value as shown above.
 
 ### PostgreSQL To Cassandra Run
 

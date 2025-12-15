@@ -17,6 +17,7 @@ create table test.table1 (
     doc jsonb,
     uuid uuid,
     clobjsonb jsonb,
+    json_like jsonb,
     current_mood mood,
     currency_name varchar(256)
 );

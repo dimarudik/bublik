@@ -75,6 +75,7 @@ public class OracleToPostgresTest {
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
+        Thread.sleep(120_000);
     }
 
     @Test
