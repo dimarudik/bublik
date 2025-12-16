@@ -2,6 +2,7 @@ package org.bublik.oracle.model;
 
 import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.model.*;
+import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,10 +83,13 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
                 .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
                 .lastStageCloseSourceSession(sync);
-        LogMessage logMessage = getLogMessage();
+//        LogMessage logMessage = getLogMessage();
         logChunkInfo();
         if (getSourceSession().isValid(0)) {
             getSourceSession().close();
+        }
+        if (getTargetStorage() instanceof JDBCStorage && getTargetSession().isValid(0)) {
+            getTargetSession().close();
         }
         return this;
     }

@@ -2,6 +2,7 @@ package org.bublik.core.storage;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.model.Chunk;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
@@ -77,7 +78,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
-        hikariConfig.setConnectionTimeout(3000);
+        hikariConfig.setConnectionTimeout(3_000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
     }
@@ -139,23 +140,18 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                                     return chunk.allStages(false, tableName);
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-/*
                                     try {
-                                        ///  тут исправлял
                                         if ((chunk.getSourceSession()).isValid(0)) {
-//                                            (chunk.getSourceSession()).rollback();
                                             log.warn("Saving info about error to database");
                                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
                                             (chunk.getSourceSession()).close();
                                         }
                                         if (targetStorage instanceof  JDBCStorage &&  (chunk.getTargetSession()).isValid(0)) {
-//                                            (chunk.getTargetSession()).rollback();
                                             (chunk.getTargetSession()).close();
                                         }
                                     } catch (SQLException exception) {
                                         log.error("{}", getStackTrace(exception));
                                     }
-*/
                                     throw e;
                                 }
                             })
