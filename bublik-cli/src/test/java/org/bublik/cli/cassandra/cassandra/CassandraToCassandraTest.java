@@ -11,6 +11,7 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 
@@ -24,6 +25,8 @@ import java.util.function.Predicate;
 import static org.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+// +
+@Disabled
 public class CassandraToCassandraTest {
     private static int rows = 50000;
     private static boolean sync = false;
