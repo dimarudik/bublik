@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>bublik</groupId>
+        <groupId>dev.bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.56</version>
+        <version>25.1.57</version>
     </parent>
     <artifactId>bublik-cassandra</artifactId>
     <version>${project.parent.version}</version>
@@ -18,7 +18,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>bublik</groupId>
+            <groupId>dev.bublik</groupId>
             <artifactId>bublik-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>

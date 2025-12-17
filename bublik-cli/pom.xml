@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>bublik</groupId>
+        <groupId>dev.bublik</groupId>
         <artifactId>bublik-parent</artifactId>
-        <version>25.1.56</version>
+        <version>25.1.57</version>
     </parent>
     <artifactId>bublik-cli</artifactId>
     <version>${project.parent.version}</version>
@@ -48,7 +48,7 @@
 
         <!--        bublik -->
         <dependency>
-            <groupId>bublik</groupId>
+            <groupId>dev.bublik</groupId>
             <artifactId>bublik-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
@@ -101,22 +101,22 @@
             </activation>
             <dependencies>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-cassandra</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-postgres</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-ydb</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-oracle</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
@@ -126,7 +126,7 @@
             <id>postgres</id>
             <dependencies>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-postgres</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
@@ -136,7 +136,7 @@
             <id>cassandra</id>
             <dependencies>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-cassandra</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
@@ -146,7 +146,7 @@
             <id>oracle</id>
             <dependencies>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-oracle</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
@@ -156,7 +156,7 @@
             <id>ydb</id>
             <dependencies>
                 <dependency>
-                    <groupId>bublik</groupId>
+                    <groupId>dev.bublik</groupId>
                     <artifactId>bublik-ydb</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
