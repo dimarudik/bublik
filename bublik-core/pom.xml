@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>  
     <parent>
       <groupId>dev.bublik</groupId>
-      <artifactId>bublik-parent</artifactId>
-      <version>25.1.57</version>
+      <artifactId>bublik</artifactId>
+      <version>25.1.58</version>
     </parent>
     <artifactId>bublik-core</artifactId>
-    <version>25.1.57</version>
+    <version>25.1.58</version>
     <packaging>jar</packaging>
 
 
