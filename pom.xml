@@ -6,8 +6,34 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>25.1.58</version>
+    <version>25.1.59</version>
     <packaging>pom</packaging>
+
+    <developers>
+        <developer>
+            <name>Dmitrii Rudik</name>
+            <email>dima.rudik@gmail.com</email>
+            <organization>Bublik</organization>
+            <organizationUrl>http://www.bublik.dev</organizationUrl>
+        </developer>
+    </developers>
+
+    <name>bublik</name>
+    <description>Bublik parent module</description>
+    <url>https://github.com/dimarudik/bublik/tree/stable</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/dimarudik/bublik.git</connection>
+        <developerConnection>scm:git:ssh://github.com:dimarudik/bublik.git</developerConnection>
+        <url>https://github.com/dimarudik/bublik/tree/stable</url>
+    </scm>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -18,6 +44,8 @@
         <lombok.version>1.18.38</lombok.version>
     </properties>
 
+
+<!--
     <distributionManagement>
         <repository>
           <id>${env.MVN_HOSTED_NAME}</id>
@@ -25,10 +53,10 @@
           <url>${env.MVN_HOSTED_URL}</url>
         </repository>
     </distributionManagement>
+-->
 
     <dependencyManagement>
         <dependencies>
-            <!-- jackson -->
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
@@ -39,8 +67,6 @@
                 <artifactId>jackson-datatype-jsr310</artifactId>
                 <version>${jackson.version}</version>
             </dependency>
-
-            <!-- logging -->
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-slf4j-impl</artifactId>
@@ -62,4 +88,59 @@
         <module>bublik-cassandra</module>
         <module>bublik-cli</module>
     </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.9.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.8</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>

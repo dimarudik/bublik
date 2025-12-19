@@ -6,26 +6,49 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>25.1.58</version>
+        <version>25.1.59</version>
     </parent>
+
     <artifactId>bublik-cli</artifactId>
     <version>${project.parent.version}</version>
-    <packaging>jar</packaging>
+<!--    <packaging>jar</packaging>-->
+
+    <developers>
+        <developer>
+            <name>Dmitrii Rudik</name>
+            <email>dima.rudik@gmail.com</email>
+            <organization>Bublik</organization>
+            <organizationUrl>http://www.bublik.dev</organizationUrl>
+        </developer>
+    </developers>
+
+    <name>bublik-cli</name>
+    <description>Bublik cli module</description>
+    <url>https://github.com/dimarudik/bublik/tree/stable</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/dimarudik/bublik.git</connection>
+        <developerConnection>scm:git:ssh://github.com:dimarudik/bublik.git</developerConnection>
+        <url>https://github.com/dimarudik/bublik/tree/stable</url>
+    </scm>
+
     <properties>
-<!--        <testcontainers.version>2.0.2</testcontainers.version>-->
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
-
     <dependencies>
-        <!-- apache commons -->
         <dependency>
             <groupId>commons-cli</groupId>
             <artifactId>commons-cli</artifactId>
             <version>1.6.0</version>
         </dependency>
-
-        <!-- jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
@@ -34,8 +57,6 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
-
-        <!-- logging -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
@@ -45,14 +66,11 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
-
-        <!--        bublik -->
         <dependency>
             <groupId>dev.bublik</groupId>
             <artifactId>bublik-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -90,9 +108,7 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <modules>
 
-    </modules>
     <profiles>
         <profile>
             <id>all</id>
@@ -163,6 +179,104 @@
             </dependencies>
         </profile>
     </profiles>
+
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.9.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.8</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>2.8</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>
+                                ${project.build.directory}/lib
+                            </outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <mainClass>dev.bublik.cli.App</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+<!--
     <build>
         <resources>
             <resource>
@@ -199,11 +313,12 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.bublik.cli.App</mainClass>
+                            <mainClass>dev.bublik.cli.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
             </plugin>
+&lt;!&ndash;
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -218,7 +333,7 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <manifestEntries>
-                                        <Main-Class>org.bublik.cli.App</Main-Class>
+                                        <Main-Class>dev.bublik.cli.App</Main-Class>
                                         <Multi-Release>true</Multi-Release>
                                     </manifestEntries>
                                 </transformer>
@@ -239,7 +354,9 @@
                     </execution>
                 </executions>
             </plugin>
+&ndash;&gt;
         </plugins>
     </build>
+-->
 
 </project>
