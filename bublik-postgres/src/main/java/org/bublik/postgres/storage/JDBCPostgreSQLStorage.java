@@ -224,65 +224,70 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         int recordCount = 0;
         Connection connectionTo = (Connection) chunk.getTargetSession();
 
+/*
         try {
             insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
             connectionTo.rollback();
         } catch (PSQLException p) {
-//            log.error("{}", getStackTrace(p));
             connectionTo.rollback();
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
         }
+*/
 
-//        Map<String, Column> columnToColumnMap = readTargetColumnsAndTypes(connectionTo, chunk);
-        Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
-                .stream()
-                .collect(Collectors.toMap(el -> el.sourceColumn().columnName(), Column2Column::targetColumn));
+        if (!isChunkProcessed(chunk, tableName)) {
+            Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
+                    .stream()
+                    .collect(Collectors.toMap(el -> el.sourceColumn().columnName(), Column2Column::targetColumn));
 
-        Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
-        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
-        String[] columnNames = columnToColumnMap
-                .values()
-                .stream()
-                .map(Column::columnName)
-                .toList()
-                .toArray(String[]::new);
-        String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
-        SimpleRowWriter.Table table =
-                new SimpleRowWriter.Table(chunk.getT2t().targetTable().getSchemaName(),
-                        chunk.getT2t().targetTable().getFinalTableName(true), cNames);
+            Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
+            PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
+            String[] columnNames = columnToColumnMap
+                    .values()
+                    .stream()
+                    .map(Column::columnName)
+                    .toList()
+                    .toArray(String[]::new);
+            String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
+            SimpleRowWriter.Table table =
+                    new SimpleRowWriter.Table(chunk.getT2t().targetTable().getSchemaName(),
+                            chunk.getT2t().targetTable().getFinalTableName(true), cNames);
 
-        SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
-        Consumer<SimpleRow> simpleRowConsumer =
-            s -> {
+            SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
+            Consumer<SimpleRow> simpleRowConsumer =
+                    s -> {
+                        try {
+                            simpleRowConsume(s, columnToColumnMap, neededColumnsFromMany,
+                                    fetchResultSet, chunk, connectionTo, writer);
+                        } catch (BinaryWriteFailedException | SQLException e) {
+                            log.error("{}.{} {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
+                        }
+                    };
+
+            do {
                 try {
-                    simpleRowConsume(s, columnToColumnMap, neededColumnsFromMany,
-                            fetchResultSet, chunk, connectionTo, writer);
-                } catch (BinaryWriteFailedException | SQLException e) {
-                    log.error("{}.{} {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                }
-            };
-
-        do {
-            try {
-                writer.startRow(simpleRowConsumer);
-            } catch (BinaryWriteFailedException e) {
+                    writer.startRow(simpleRowConsumer);
+                } catch (BinaryWriteFailedException e) {
 //                LOGGER.error("BinaryWriteFailedException caught by writer.startRow() {}", getStackTrace(e));
-                throw e;
+                    throw e;
+                }
+                recordCount++;
+            } while (hasNext(fetchResultSet));
+
+            try {
+                writer.close();
+            } catch (BinaryWriteFailedException b) {
+                throw b;
             }
-            recordCount++;
-        } while (hasNext(fetchResultSet));
 
-        try {
-            writer.close();
-        } catch (BinaryWriteFailedException b) {
-            throw b;
+            chunk.setCopied(recordCount);
+//            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+            insertProcessedChunkInfo(chunk, tableName);
+            connectionTo.commit();
+
+            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL COPY");
+        } else {
+            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
         }
-
-        chunk.setCopied(recordCount);
-        insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
-        connectionTo.commit();
-
-        return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL COPY");
     }
 
     private boolean hasNext(ResultSet resultSet) {
@@ -1203,15 +1208,35 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
-        PreparedStatement chunkInsert = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tableName));
-        chunkInsert.setLong(1, chunkId);
-        chunkInsert.setString(2, taskName);
-        chunkInsert.setLong(3, rows);
-        long r = chunkInsert.executeUpdate();
-        chunkInsert.close();
+    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) {
+        try {
+            Connection connectionTo = (Connection) chunk.getTargetSession();
+            PreparedStatement ps = connectionTo.prepareStatement(DML_SELECT_OUTBOX_TABLE.replace("$tableName", tableName));
+            ps.setInt(1, (int) chunk.getId());
+            ResultSet rs = ps.executeQuery();
+            boolean result = rs.next();
+            rs.close();
+            ps.close();
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
+    @Override
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
+        try {
+            Connection connection = (Connection) chunk.getTargetSession();
+            PreparedStatement ps = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tableName));
+            ps.setInt(1, (int) chunk.getId());
+            ps.setString(2, chunk.getConfig().fromTaskName());
+            ps.setLong(3, chunk.getCopied());
+            long r = ps.executeUpdate();
+            ps.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Override
     public Table<S> configToTable(String schemaName, String tableName) {

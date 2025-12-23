@@ -108,10 +108,12 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     }
 
+/*
     @Override
     public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
 
     }
+*/
 
     @Override
     public void dropOutboxTable(boolean sync, String tableName) throws SQLException {

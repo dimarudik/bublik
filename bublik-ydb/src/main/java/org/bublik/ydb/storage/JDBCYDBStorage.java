@@ -144,7 +144,8 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         Connection connectionTo = (Connection) chunk.getTargetSession();
 
         try {
-            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+//            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+            insertProcessedChunkInfo(chunk, tableName);
             connectionTo.rollback();
         } catch (SQLException e) {
 //            log.error("Error insert into BUBLIK_OUTBOX for chunk {}, start {}, end {}, rows {}, task {}: {}",
@@ -175,7 +176,8 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         }
 
         try {
-            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+//            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
+            insertProcessedChunkInfo(chunk, tableName);
             connectionTo.commit();
         } catch (SQLException e) {
             log.error("ON COMMIT chunkId = {} {}", chunk.getId(), getStackTrace(e));
@@ -445,6 +447,29 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
+        try {
+            String[] t = tableName.split("\\.");
+            String tName;
+            if (t.length == 1) {
+                tName = t[0];
+            } else {
+                tName = t[1];
+            }
+            Connection connection = (Connection) chunk.getTargetSession();
+            PreparedStatement ps = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tName));
+            ps.setInt(1, (int) chunk.getId());
+            ps.setString(2, chunk.getConfig().fromTaskName());
+            ps.setLong(3, chunk.getCopied());
+            long r = ps.executeUpdate();
+            ps.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+/*
+    @Override
     public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
         String[] t = tableName.split("\\.");
         String tName;
@@ -460,6 +485,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         long r = chunkInsert.executeUpdate();
         chunkInsert.close();
     }
+*/
 
     @Override
     public void enrichTable(Table<S> targetTable) throws SQLException {

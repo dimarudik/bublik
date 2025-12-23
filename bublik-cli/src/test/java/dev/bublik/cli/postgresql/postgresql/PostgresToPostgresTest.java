@@ -64,7 +64,6 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(30_000);
         assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
     }
 

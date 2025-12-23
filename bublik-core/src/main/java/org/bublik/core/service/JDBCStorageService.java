@@ -18,7 +18,7 @@ public interface JDBCStorageService<K, T, S extends AutoCloseable, R> extends St
     void enrichTargetTables();
     <W extends Serializable> byte[] intervalYM2Interval(W intervalym);
     <W extends Serializable> byte[] intervalDS2Interval(W intervalds);
-    void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException;
+//    void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException;
     Connection getConnection() throws SQLException;
     void setConnection(Connection connection) throws SQLException;
 }

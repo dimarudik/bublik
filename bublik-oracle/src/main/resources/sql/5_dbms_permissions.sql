@@ -1,0 +1,2 @@
+create public synonym DBMS_PARALLEL_EXECUTE_BUBLIK for sys.DBMS_PARALLEL_EXECUTE_BUBLIK;
+grant execute on DBMS_PARALLEL_EXECUTE_BUBLIK to siebel;

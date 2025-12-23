@@ -11,6 +11,8 @@ import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.utility.MountableFile;
@@ -25,6 +27,8 @@ import java.util.function.Predicate;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+// +
+@Disabled
 public class CassandraExpressionTest {
     private static int rows = 50000;
     private static boolean sync = false;
@@ -69,7 +73,7 @@ public class CassandraExpressionTest {
     }
 
 
-//    @Test
+    @Test
     public void expressionToColumn() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
