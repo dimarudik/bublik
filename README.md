@@ -17,6 +17,7 @@ This tool facilitates the efficient transfer of data between databases.
 * In case of <strong>PostgreSQL</strong>, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 * If you are using <strong>Cassandra</strong>, you can split the data into chunks based on Token Ranges.
 
+You can find more details and examples below.
 
 * [Build](#Build)
 * [Cassandra To Cassandra](#cassandra-to-cassandra)
@@ -54,6 +55,7 @@ This tool facilitates the efficient transfer of data between databases.
   * [Prepare PostgreSQL To YDB Connection Settings](#prepare-postgresql-to-ydb-connection-settings)
   * [Prepare PostgreSQL To YDB Mapping File](#prepare-postgresql-to-ydb-mapping-file)
   * [PostgreSQL To YDB Run](#postgresql-to-ydb-run)
+* [For Developers](#for-developers)
 
 ## Build
 
@@ -1315,3 +1317,53 @@ Chunks will be created automatically with parameter -k at startup
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
 
+
+## For Developers
+
+You can use Bublik's libs in your own projects by adding the following dependency to your pom.xml:
+
+```xml
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-core</artifactId>
+        <version>${version}</version>
+    </dependency>
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-cassandra</artifactId>
+        <version>${version}</version>
+    </dependency>
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-postgres</artifactId>
+        <version>${version}</version>
+    </dependency>
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-ydb</artifactId>
+        <version>${version}</version>
+    </dependency>
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-oracle</artifactId>
+        <version>${version}</version>
+    </dependency>
+```
+
+The list of dependencies are based on types of source and target databases. Core library is required for all types of databases. Possible flows:
+
+| SOURCE       | TARGET     |
+|:-------------|:-----------|
+| Cassandra    | Cassandra  |
+| Oracle       | Cassandra  |
+| Oracle       | PostgreSQL |
+| Oracle       | YDB        |
+| PostgreSQL   | Cassandra  |
+| PostgreSQL   | PostgreSQL |
+| PostgreSQL   | YDB        |
+
+Just run method:
+
+```java
+StorageService.init(...);
+```
