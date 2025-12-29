@@ -68,10 +68,10 @@ cd bublik/
 
 [Install mvn](https://maven.apache.org/install.html)
 
-Build and install all dependencies to local maven repository
+Build and package all dependencies
 
 ```
-mvn clean install
+mvn clean package
 ```
 
 ## Cassandra To Cassandra

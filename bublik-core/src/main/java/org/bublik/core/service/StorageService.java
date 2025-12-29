@@ -5,7 +5,9 @@ import org.bublik.core.storage.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -92,8 +94,10 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
         }
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException {
+    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException, IOException {
         log.info("Bublik starting...");
+        log.info("version : {}", getVersion());
+        log.info("hostname: {}", InetAddress.getLocalHost().getHostName());
         log.info("THREADS: {}", property.getThreadCount());
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");
@@ -114,5 +118,11 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static String getVersion() throws IOException {
+        final Properties properties = new Properties();
+        properties.load(StorageService.class.getClassLoader().getResourceAsStream("project.properties"));
+        return properties.getProperty("version");
     }
 }

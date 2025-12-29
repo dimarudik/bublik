@@ -2,7 +2,7 @@ package org.bublik.ydb.constants;
 
 public abstract class SQLConstants {
     public static final String DDL_DROP_OUTBOX_TABLE =
-            "drop table $tableName_outbox";
+            "drop table if exists $tableName_outbox";
     public static final String DDL_CREATE_OUTBOX_TABLE =
             "create table $tableName_outbox (" +
                     "chunk_id Uint32, " +

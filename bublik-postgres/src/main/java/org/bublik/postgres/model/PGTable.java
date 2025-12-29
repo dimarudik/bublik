@@ -204,9 +204,6 @@ public class PGTable<S extends Connection> extends Table<S> {
             columns.add(new Column(
                     ordinalPosition,
                     isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
-//                    isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
-//                    isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName.toLowerCase(),
-//                    columnName,
                     columnType.equals("bigserial") ? "bigint" : columnType,
                     dataType,
                     nullable,
@@ -221,12 +218,6 @@ public class PGTable<S extends Connection> extends Table<S> {
                     false,
                     false
             ));
-/*
-            log.info("Position: {} Column: {}, Type: {}, Data Type: {}, Nullable: {}, Default: {}, " +
-                            "Auto Increment: {}, Generated: {}, Decimal Digits: {}, Remark: {}, Char Octet Length: {}",
-                    ordinalPosition, columnName, columnType, dataType, nullable, columnDefault,
-                    isAutoIncrement, isGenerated, decimalDigits, remark, charOctetLength);
-*/
         }
         columns.sort(Column::compareTo);
         return columns;
