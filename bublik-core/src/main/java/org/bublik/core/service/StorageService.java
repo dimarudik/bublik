@@ -121,8 +121,12 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     }
 
     static String getVersion() throws IOException {
-        final Properties properties = new Properties();
-        properties.load(StorageService.class.getClassLoader().getResourceAsStream("project.properties"));
-        return properties.getProperty("version");
+        try {
+            final Properties properties = new Properties();
+            properties.load(StorageService.class.getClassLoader().getResourceAsStream("project.properties"));
+            return properties.getProperty("version");
+        } catch (NullPointerException npe) {
+            return "unknown";
+        }
     }
 }
