@@ -6,7 +6,6 @@
     "toTableName" : "intervals",
     "fetchHintClause" : "/*+ no_index(INTERVALS) */",
     "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "INTERVALS_TASK",
     "columnToColumn" : {
       "id"            : "id",
       "time_period_1" : "time_period_1",

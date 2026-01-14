@@ -6,7 +6,6 @@
     "toTableName" : "parted1",
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
-    "fromTaskName" : "PARTED_TASK1",
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)))",
     "columnToColumn" : {
       "id"        : "id",
@@ -21,7 +20,6 @@
     "toTableName" : "parted2",
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2019-01-01','YYYY-MM-DD') and create_at <= to_date('2020-12-31','YYYY-MM-DD')",
-    "fromTaskName" : "PARTED_TASK2",
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20190101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20200101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20190101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20200101', 'YYYYMMDD')) where rownum = 1)))",
     "columnToColumn" : {
       "id"        : "id",
@@ -36,7 +34,6 @@
     "toTableName" : "parted3",
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2020-01-01','YYYY-MM-DD') and create_at <= to_date('2021-12-31','YYYY-MM-DD')",
-    "fromTaskName" : "PARTED_TASK3",
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20200101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20210101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20200101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20210101', 'YYYYMMDD')) where rownum = 1)))",
     "columnToColumn" : {
       "id"        : "id",

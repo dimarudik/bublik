@@ -617,7 +617,6 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
     "toSchemaName" : "PUBLIC",
     "toTableName" : "\"TABLE2\"",
     "fetchHintClause" : "/*+ no_index(TABLE2) */",
-    "fromTaskName" : "TABLE2_TASK",
     "columnToColumn" : {
       "id"          : "id",
       "\"LEVEL\""   : "level",
@@ -638,7 +637,6 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
     "toTableName" : "intervals",
     "fetchHintClause" : "/*+ no_index(INTERVALS) */",
     "fetchWhereClause" : "1 = 1",
-    "fromTaskName" : "INTERVALS_TASK",
     "columnToColumn" : {
       "id"            : "id",
       "time_period_1" : "time_period_1",
@@ -681,7 +679,6 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
     "toTableName" : "PARTED",
     "fetchHintClause" : "/*+ no_index(PARTED) */",
     "fetchWhereClause" : "create_at >= to_date('2022-01-01','YYYY-MM-DD') and create_at <= to_date('2023-12-31','YYYY-MM-DD')",
-    "fromTaskName" : "PARTED_TASK",
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1), (select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)) OR DBMS_ROWID.ROWID_OBJECT(END_ROWID) IN ((select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20220101', 'YYYYMMDD')) where rownum = 1),(select DBMS_ROWID.ROWID_OBJECT(rowid) object_id from test.parted partition for (to_date('20230101', 'YYYYMMDD')) where rownum = 1)))",
     "columnToColumn" : {
       "id"        : "id",
@@ -1118,7 +1115,6 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
     "toSchemaName": "public",
     "toTableName": "p_trg_202510",
     "fetchWhereClause": "0 = 0",
-    "fromTaskName": "p_src_202510_task"
   },
   {
     "fromSchemaName": "public",
@@ -1126,7 +1122,6 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
     "toSchemaName": "public",
     "toTableName": "p_trg_202511",
     "fetchWhereClause": "1 = 1",
-    "fromTaskName": "p_src_202511_task",
     "columnToColumn": {
       "id" : "id",
       "created" : "created",
@@ -1143,7 +1138,6 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
     "toSchemaName": "public",
     "toTableName": "p_trg_202512",
     "fetchWhereClause": "1 = 1",
-    "fromTaskName": "p_src_202512_task",
     "expressionToColumn" : {
       "id" : "id",
       "created" : "created",

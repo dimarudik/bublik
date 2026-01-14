@@ -5,7 +5,6 @@
     "toSchemaName" : "PUBLIC",
     "toTableName" : "\"TABLE2\"",
     "fetchHintClause" : "/*+ no_index(TABLE2) */",
-    "fromTaskName" : "TABLE2_TASK",
     "columnToColumn" : {
       "id"          : "id",
       "\"LEVEL\""   : "level",
