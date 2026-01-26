@@ -16,7 +16,6 @@ public record CSRecord (TokenRange tokenRange,
         Table2Table<?> t2t = chunk.getT2t();
         List<String> columnNames = values
                 .stream()
-//                .filter(CSValue::isNotEmpty)
                 .map(CSValue::column)
                 .map(Column::columnName)
                 .toList();

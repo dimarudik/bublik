@@ -18,6 +18,7 @@ import org.bublik.core.model.Table2Table;
 
 import java.util.*;
 
+@Deprecated
 public class CSObject {
     private final CqlSession cqlSession;
     private Metadata metadata;

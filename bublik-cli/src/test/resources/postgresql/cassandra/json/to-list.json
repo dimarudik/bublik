@@ -1,0 +1,15 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "to_list",
+    "toSchemaName" : "test",
+    "toTableName" : "to_list",
+    "columnToColumn" : {
+      "id" : "id"
+    },
+    "asList" : {
+      "attrs1" : ["user_name", "email", "concatenate(concatenate(v1, ' '), v2)"],
+      "attrs2" : ["id", "parent_id + id"]
+    }
+  }
+]

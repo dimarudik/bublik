@@ -220,6 +220,7 @@ public class PgToPgEnvSwitchoverTest {
                 .assertThat()
                 .statusCode(200)
                 .body("members", hasSize(3));
+//        Thread.sleep(120_000);
     }
 
     @Test

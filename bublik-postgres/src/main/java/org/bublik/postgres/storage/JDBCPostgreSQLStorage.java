@@ -133,17 +133,19 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
+/*
     private void logColumn2Column(List<Column2Column> column2Column) {
         column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
                 c2c.sourceExpression(),
                 c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
                 c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
     }
+*/
 
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
-        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null)));
+        if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null, null, null, null)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -159,7 +161,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null, null, null, null));
             }
         }
         if (config.expressionToColumn() != null) {
@@ -170,11 +172,87 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(column, column, entry.getKey()));
+                column2Column.add(new Column2Column(column, column, entry.getKey(), null, null, null));
+            }
+        }
+        if (config.asList() != null) {
+            for (Map.Entry<String,List<String>> entry : config.asList().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<String> sourceColumns = new ArrayList<>();
+                int i = 0;
+                for (String column : entry.getValue()) {
+                    if (isColumnNameWithAsConstruction(column)) {
+                        sourceColumns.add(column);
+                    } else {
+                        sourceColumns.add(column + " as " + targetColumnName + i++);
+                    }
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, sourceColumns, null, null));
+            }
+        }
+        if (config.asSet() != null) {
+            for (Map.Entry<String,List<String>> entry : config.asSet().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<String> sourceColumns = new ArrayList<>();
+                int i = 0;
+                for (String column : entry.getValue()) {
+                    if (isColumnNameWithAsConstruction(column)) {
+                        sourceColumns.add(column);
+                    } else {
+                        sourceColumns.add(column + " as " + targetColumnName + i++);
+                    }
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, sourceColumns, null));
+            }
+        }
+        if (config.asMap() != null) {
+            for (Map.Entry<String, List<KV>> entry : config.asMap().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<KV> sourceColumns = new ArrayList<>();
+                int k = 0;
+                int v = 0;
+                for (KV kv : entry.getValue()) {
+                    String key;
+                    if (isColumnNameWithAsConstruction(kv.key())) {
+                        key = kv.key();
+                    } else {
+                        key = kv.key() + " as _K_" + targetColumnName + k++;
+                    }
+                    String value;
+                    if (isColumnNameWithAsConstruction(kv.value())) {
+                        value = kv.value();
+                    } else {
+                        value = kv.value() + " as _V_" + targetColumnName + v++;
+                    }
+                    sourceColumns.add(new KV(key, value));
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, null, sourceColumns));
             }
         }
 //        logColumn2Column(column2Column);
         return column2Column;
+    }
+
+    public boolean isColumnNameWithAsConstruction(String columnName) {
+        return columnName.toLowerCase().lastIndexOf(" as ") != -1;
     }
 
     @Override
@@ -931,11 +1009,40 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
 
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-        List<String> strings = t2t.column2Columns()
+        List<String> asColumns = t2t.column2Columns()
                 .stream()
+                .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
-        String columnToColumn = String.join(", ", strings);
+        List<String> asList = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asList)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
+        List<String> asSet = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asSet)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
+        List<KV> asMap = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asMap)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
+//        asMap.forEach(kv -> log.info("asMap: {} -> {}", kv.key(), kv.value()));
+        Set<String> set = new HashSet<>(asColumns);
+        set.addAll(asList);
+        set.addAll(asSet);
+        set.addAll(asMap.stream().map(KV::key).toList());
+        set.addAll(asMap.stream().map(KV::value).toList());
+        List<String> finalList = set.stream().toList();
+        String columnToColumn = String.join(", ", finalList);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
                 (t2t.ttlColumn() == null ? "" : ( ", " + t2t.ttlColumn().defaultValue() + " as " + t2t.ttlColumn().columnName() + " ")) +

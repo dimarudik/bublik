@@ -5,7 +5,6 @@ import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
-import org.bublik.cassandra.model.CSTable;
 import org.bublik.cassandra.storage.cassandraaddons.*;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
@@ -62,14 +61,13 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         throw new RuntimeException("Unknown storage type");
     }
 
-
+/*
     public LogMessage rangedByTokenRangeBatch(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
         CSObject csObject = CSObject.createCSObject(getCsPool(), chunk);
-//        log.info("{}", csObject.getQuery());
         Table2Table<?> t2t = chunk.getT2t();
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = csObject.getMm3Batch().getTokenRangeMap();
         while (resultSet.next()) {
@@ -93,6 +91,60 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             }
         }
         for (Map.Entry<TokenRange, BatchEntity> entry : csObject.getMm3Batch().getTokenRangeMap().entrySet()) {
+            if (entry.getValue().getCounter() > 0) {
+                batchApply(entry.getValue().getBatchStatementBuilder(), cqlSession);
+                batchCount++;
+            }
+        }
+        long stop = System.currentTimeMillis();
+        chunk.setCopied(recordCount);
+        return new LogMessage(start, stop, "(batches: " + batchCount + ")");
+    }
+*/
+
+    public LogMessage rangedByTokenRangeBatch(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
+        int recordCount = 0;
+        int batchCount = 0;
+        long start = System.currentTimeMillis();
+        CqlSession cqlSession = chunk.getTargetSession();
+
+        Set<TokenRange> tokenRangeSet = getCsPool().tokenRanges();
+        MM3Batch mm3Batch = MM3Batch.createMM3Batch();
+        mm3Batch.initMM3Batch(tokenRangeSet);
+        Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = mm3Batch.getTokenRangeMap();
+
+        while (resultSet.next()) {
+            CSRecord csRecord = getCSRecord(
+                    resultSet,
+                    chunk.getT2t(),
+                    tokenRangeSet);
+            BatchEntity batchEntity = tokenRangeBatchEntityMap.get(csRecord.tokenRange());
+            BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
+
+            List<Object> objects = new ArrayList<>(csRecord.values().stream().map(CSValue::value).toList());
+            Integer ttl = csRecord.attribute().ttl();
+            Long timestamp = csRecord.attribute().timestamp();
+            if (ttl != null) {
+                objects.add(ttl);
+            }
+            if (timestamp != null) {
+                objects.add(timestamp);
+            }
+            String insertQuery = csRecord.buildInsertStatement(chunk);
+            PreparedStatement ps = cqlSession.prepare(insertQuery);
+            BatchableStatement<?> statement = ps.bind(objects.toArray());
+            batchStatementBuilder.addStatement(statement);
+            batchEntity.increaseCounter();
+            recordCount++;
+            // batch_size_fail_threshold_in_kb: 50
+            if (batchEntity.getCounter() == batchSize) {
+                batchApply(batchStatementBuilder, cqlSession);
+                batchEntity.resetCounter();
+                batchCount++;
+            }
+        }
+
+        for (Map.Entry<TokenRange, BatchEntity> entry : mm3Batch.getTokenRangeMap().entrySet()) {
             if (entry.getValue().getCounter() > 0) {
                 batchApply(entry.getValue().getBatchStatementBuilder(), cqlSession);
                 batchCount++;
@@ -195,6 +247,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return new LogMessage(start, stop, "(batches: " + batchCount + ")");
     }
 
+/*
     private Map.Entry<TokenRange, Object[]> getTokenRangedObjects(ResultSet resultSet,
                                                                   Map<Integer, CSPartitionKey> partitionKeyMap,
                                                                   Map<String, Column> stringCassandraColumnMap,
@@ -337,11 +390,195 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
         return new AbstractMap.SimpleEntry<>(tokenRange, objectList.toArray());
     }
+*/
+
+    private CSRecord getCSRecord(ResultSet resultSet,
+                                 Table2Table<?> t2t,
+                                 Set<TokenRange> tokenRangeSet) throws SQLException {
+        List<CSValue> objectList = new ArrayList<>();
+        Map<Column, Column> column2Column = new HashMap<>();
+        t2t.column2Columns()
+                .stream()
+                .filter(e -> e.sourceColumn() != null)
+                .forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
+        Map<Integer, byte[]> mapBytes = new TreeMap<>();
+        Integer ttl = null;
+        Long timestamp = null;
+        if (t2t.ttlColumn() != null) {
+            ttl = resultSet.getInt(t2t.ttlColumn().columnName());
+        }
+        if (t2t.timestampColumn() != null) {
+            timestamp = resultSet.getLong(t2t.timestampColumn().columnName());
+        }
+        for (Map.Entry<Column, Column> entry: column2Column.entrySet()) {
+            Column sourceColumn = entry.getKey();
+            Column targetColumn = entry.getValue();
+            String targetType = targetColumn.columnType();
+            String sClmName = sourceColumn.columnName();
+            switch (targetType) {
+                case "tinyint" : {
+                    byte v = (byte) resultSet.getInt(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), byteToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "smallint" : {
+                    short v = resultSet.getShort(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), smallIntToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "int" : {
+                    int v = resultSet.getInt(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), intToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "bigint": {
+                    long v = resultSet.getLong(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        mapBytes.put(targetColumn.columnPosition(), longToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "text": {
+                    String v = resultSet.getString(sClmName);
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        mapBytes.put(targetColumn.columnPosition(), stringToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "date": {
+                    Timestamp t = resultSet.getTimestamp(sClmName);
+                    long l = t.getTime();
+                    LocalDate v = Instant.ofEpochMilli(l)
+                            .atZone(ZoneId.systemDefault()).toLocalDate();
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "timestamp": {
+                    Instant v = resultSet.getTimestamp(sClmName).toInstant();
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        mapBytes.put(targetColumn.columnPosition(), timestampToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "boolean": {
+                    boolean v = resultSet.getBoolean(sClmName);
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "blob": {
+                    byte[] bytes = resultSet.getBytes(sClmName);
+                    if (bytes != null) {
+                        ByteBuffer v = ByteBuffer.wrap(bytes);
+                        objectList.add(new CSValue(targetColumn, v, null));
+                    } else {
+                        objectList.add(null);
+                    }
+                    break;
+                }
+                case "float": {
+                    float v = resultSet.getFloat(sClmName);
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "decimal": {
+                    BigDecimal v = resultSet.getBigDecimal(sClmName);
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                case "uuid": {
+                    Object tmp = resultSet.getObject(sClmName);
+                    UUID v;
+                    try {
+                        v = (UUID) tmp;
+                    } catch (ClassCastException e) {
+                        v = UUID.fromString((String) tmp);
+                    }
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        mapBytes.put(targetColumn.columnPosition(), uuidToBytes(v));
+                    }
+                    objectList.add(new CSValue(targetColumn, v, null));
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        byte[][] bytes = new byte[mapBytes.size()][];
+        mapBytes.forEach((k, v) -> bytes[k] = v);
+        TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
+
+        Map<List<String>, Column> columns2List = new HashMap<>();
+        t2t.column2Columns()
+                .stream()
+                .filter(e -> e.sourceColumn() == null && e.asList() != null)
+                .forEach((c) -> columns2List.put(c.asList(), c.targetColumn()));
+
+        for (Map.Entry<List<String>, Column> entry: columns2List.entrySet()) {
+            List<String> sourceExprs = entry.getKey();
+            Column targetColumn = entry.getValue();
+            List<Object> v = new ArrayList<>();
+            for (String sourceExpr: sourceExprs) {
+                String rsColName = sourceExpr.substring(sourceExpr.toLowerCase().lastIndexOf(" as ") + 4);
+                v.add(resultSet.getObject(rsColName));
+            }
+            objectList.add(new CSValue(targetColumn, v, null));
+        }
+
+        Map<List<String>, Column> columns2Set = new HashMap<>();
+        t2t.column2Columns()
+                .stream()
+                .filter(e -> e.sourceColumn() == null && e.asSet() != null)
+                .forEach((c) -> columns2Set.put(c.asSet(), c.targetColumn()));
+
+        for (Map.Entry<List<String>, Column> entry: columns2Set.entrySet()) {
+            List<String> sourceExprs = entry.getKey();
+            Column targetColumn = entry.getValue();
+            Set<Object> v = new HashSet<>();
+            for (String sourceExpr: sourceExprs) {
+                String rsColName = sourceExpr.substring(sourceExpr.toLowerCase().lastIndexOf(" as ") + 4);
+                v.add(resultSet.getObject(rsColName));
+            }
+            objectList.add(new CSValue(targetColumn, v, null));
+        }
+
+        Map<List<KV>, Column> columns2Map = new HashMap<>();
+        t2t.column2Columns()
+                .stream()
+                .filter(e -> e.sourceColumn() == null && e.asMap() != null)
+                .forEach((c) -> columns2Map.put(c.asMap(), c.targetColumn()));
+
+        for (Map.Entry<List<KV>, Column> entry: columns2Map.entrySet()) {
+            List<KV> sourceExprs = entry.getKey();
+            Column targetColumn = entry.getValue();
+            Map<Object, Object> v = new HashMap<>();
+            for (KV sourceExpr: sourceExprs) {
+                String rsColNameKey = sourceExpr.key().substring(sourceExpr.key().toLowerCase().lastIndexOf(" as ") + 4);
+                String rsColNameValue = sourceExpr.value().substring(sourceExpr.value().toLowerCase().lastIndexOf(" as ") + 4);
+                Object key = resultSet.getObject(rsColNameKey);
+                Object value = resultSet.getObject(rsColNameValue);
+//                log.info("targetColumn: {}, rsColNameKey: {} - {}, rsColNameValue: {} - {}", targetColumn.columnName(), rsColNameKey, key, rsColNameValue, value);
+                v.put(key, value);
+            }
+            objectList.add(new CSValue(targetColumn, v, null));
+        }
+
+        return new CSRecord(tokenRange, objectList, new CSValueAttribute(ttl, timestamp));
+    }
 
     private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet) throws SQLException {
         List<CSValue> objectList = new ArrayList<>();
-        CSTable<?> targetTable = (CSTable<?>) t2t.targetTable();
-        List<Column> targetPartKeys = targetTable.getPartitionKey();
         Map<Column, Column> column2Column = new HashMap<>();
         t2t.column2Columns().forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
@@ -358,7 +595,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             Column targetColumn = entry.getValue();
             String targetType = entry.getValue().columnType();
             String sClmName = entry.getKey().columnName();
-            String tClmName = entry.getValue().columnName();
             switch (targetType) {
                 case "tinyint" : {
                     byte v = row.getByte(sClmName);
@@ -462,7 +698,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         Integer ttl;
         Long timestamp;
         if (recordTtl == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-//            System.out.println(sourceColumn.columnName() + " : " + value + " ttl : " + row.getInt("ttl(" + sourceColumn.columnName() + ")"));
             try {
                 ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
             } catch (CodecNotFoundException e) {

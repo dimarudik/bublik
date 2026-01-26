@@ -406,7 +406,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
 //            sourceTable.getColumns().forEach(column -> log.info("Column: {}", column.columnName()));
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null)));
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null, null, null, null)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -420,7 +420,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null, null, null, null));
             }
         }
         if (config.expressionToColumn() != null) {
@@ -430,7 +430,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(column, column, entry.getKey()));
+                column2Column.add(new Column2Column(column, column, entry.getKey(), null, null, null));
             }
         }
         return column2Column;

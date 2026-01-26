@@ -1,0 +1,20 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "to_list",
+    "toSchemaName" : "test",
+    "toTableName" : "to_list",
+    "columnToColumn" : {
+      "id" : "id"
+    },
+    "asMap" : {
+      "kv1" : [
+        { "key" : "id", "value" : "last_update::text" },
+        { "key" : "parent_id + id", "value" : "user_name" }
+      ],
+      "kv2" : [
+        { "key" : "user_name", "value" : "concatenate(email, v1)" }
+      ]
+    }
+  }
+]

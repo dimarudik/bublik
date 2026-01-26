@@ -1,5 +1,6 @@
 package org.bublik.cassandra.storage.cassandraaddons;
 
+@Deprecated
 public class CSPartitionKey {
     private final String type;
     private final String columnName;

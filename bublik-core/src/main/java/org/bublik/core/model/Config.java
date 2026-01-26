@@ -22,7 +22,10 @@ public record Config(
         List<String> tryCharIfAny,
         Map<String, String> columnToColumn,
         Map<String, String> expressionToColumn,
-        Map<String, List<String>> columnFromMany
+        Map<String, List<String>> columnFromMany,
+        Map<String, List<String>> asList,
+        Map<String, List<String>> asSet,
+        Map<String, List<KV>> asMap
 ) {
 
     public Config copy() {
@@ -45,7 +48,10 @@ public record Config(
                 this.tryCharIfAny == null ? null : List.copyOf(this.tryCharIfAny),
                 this.columnToColumn == null ? null : Map.copyOf(this.columnToColumn),
                 this.expressionToColumn == null ? null : Map.copyOf(this.expressionToColumn),
-                this.columnFromMany == null ? null : Map.copyOf(this.columnFromMany)
+                this.columnFromMany == null ? null : Map.copyOf(this.columnFromMany),
+                this.asList,
+                this.asSet,
+                this.asMap
         );
     }
 }
