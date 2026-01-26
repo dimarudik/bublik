@@ -1,6 +1,6 @@
 alter session set container = freepdb1;
 create table test.users (
-    id int,
+    id smallint,
     user_name varchar(256),
     email varchar(256),
     touch_count int default 0,
@@ -23,7 +23,7 @@ create table test.likes (
     last_update timestamp,
     primary key (id));
 
-insert into test.users (id, user_name, email)
+insert into test.users (id, user_name, email, last_update)
     select id, user_name,
         user_name || '@' ||
                (case floor(dbms_random.value(0,4))
@@ -31,9 +31,11 @@ insert into test.users (id, user_name, email)
                    when 1 then 'hotmail'
                    when 2 then 'yahoo'
                    when 3 then 'yandex'
-               end) || '.com' as email
+               end) || '.com' as email,
+               last_update
     from (
-        select rownum as id, dbms_random.string('x',10) as user_name
+        select rownum as id, dbms_random.string('x',10) as user_name,
+               TO_DATE(TRUNC(DBMS_RANDOM.VALUE(TO_CHAR(DATE '2025-10-10','J'),TO_CHAR(DATE '2030-12-31','J'))),'J') as last_update
         from dual connect by level <= 100000
         );
 commit;

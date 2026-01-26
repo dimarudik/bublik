@@ -1,0 +1,29 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "users",
+    "toSchemaName" : "test",
+    "toTableName" : "users",
+    "fetchWhereClause" : "email is not null",
+    "columnToColumn" : {
+      "id" : "id"
+    },
+    "asList" : {
+      "attrs1" : ["user_name", "email", "user_name || ' ' || email"],
+      "attrs2" : ["id", "id + 10"]
+    },
+    "asSet" : {
+      "s1" : ["email", "to_char(last_update)", "to_char(id)", "to_char(id)"],
+      "s2" : ["user_name", "email || ' ' || user_name", "email"]
+    },
+    "asMap" : {
+      "kv1" : [
+        { "key" : "id", "value" : "to_char(last_update)" },
+        { "key" : "id + 100", "value" : "user_name" }
+      ],
+      "kv2" : [
+        { "key" : "user_name", "value" : "email || user_name" }
+      ]
+    }
+  }
+]

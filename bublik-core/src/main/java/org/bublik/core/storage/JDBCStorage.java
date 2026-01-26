@@ -352,4 +352,8 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     public void close() throws Exception {
         closeStorage();
     }
+
+    public boolean isColumnNameWithAsConstruction(String columnName) {
+        return columnName.toLowerCase().lastIndexOf(" as ") != -1;
+    }
 }

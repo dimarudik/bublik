@@ -251,10 +251,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return column2Column;
     }
 
-    public boolean isColumnNameWithAsConstruction(String columnName) {
-        return columnName.toLowerCase().lastIndexOf(" as ") != -1;
-    }
-
     @Override
     public String buildStartEndOfChunk(Config config, String chunkTableName) {
         return "select chunk_id, uuid, start_page, end_page, task_name, status from " +

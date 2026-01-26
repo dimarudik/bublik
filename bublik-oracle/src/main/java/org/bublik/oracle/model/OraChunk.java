@@ -38,7 +38,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
                 callableStatement.setString(1, this.getConfig().fromTaskName());
                 callableStatement.setInt(2, this.getId());
                 callableStatement.setInt(3, newStatus.ordinal());
-                callableStatement.setString(4, errMsg);
+                callableStatement.setString(4, errMsg.substring(0, 3999));
                 callableStatement.execute();
                 callableStatement.close();
             }

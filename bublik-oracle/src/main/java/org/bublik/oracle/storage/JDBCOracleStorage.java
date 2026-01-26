@@ -15,9 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.bublik.core.util.Utils.getStackTrace;
 import static org.bublik.oracle.constants.SQLConstants.*;
@@ -204,22 +202,23 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
+/*
     private void logColumn2Column(List<Column2Column> column2Column) {
         column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
                 c2c.sourceExpression(),
                 c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
                 c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
     }
+*/
 
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
-        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+        if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
             sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null, null, null, null)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
-//                        .peek(c -> log.debug("{} {}", c.columnName(), entry.getValue()))
                         .filter(c -> c.getColumnNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
                         .findFirst()
@@ -237,13 +236,84 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         if (config.expressionToColumn() != null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
-//                        .peek(c -> log.debug("{} {}", c.columnName(), entry.getValue()))
                         .filter(c -> c.getColumnNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(column, column, entry.getKey(), null, null, null));
+            }
+        }
+        if (config.asList() != null) {
+            for (Map.Entry<String,List<String>> entry : config.asList().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<String> sourceColumns = new ArrayList<>();
+                int i = 0;
+                for (String column : entry.getValue()) {
+                    if (isColumnNameWithAsConstruction(column)) {
+                        sourceColumns.add(column);
+                    } else {
+                        sourceColumns.add(column + " as " + targetColumnName + i++);
+                    }
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, sourceColumns, null, null));
+            }
+        }
+        if (config.asSet() != null) {
+            for (Map.Entry<String,List<String>> entry : config.asSet().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<String> sourceColumns = new ArrayList<>();
+                int i = 0;
+                for (String column : entry.getValue()) {
+                    if (isColumnNameWithAsConstruction(column)) {
+                        sourceColumns.add(column);
+                    } else {
+                        sourceColumns.add(column + " as " + targetColumnName + i++);
+                    }
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, sourceColumns, null));
+            }
+        }
+        if (config.asMap() != null) {
+            for (Map.Entry<String, List<KV>> entry : config.asMap().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<KV> sourceColumns = new ArrayList<>();
+                int k = 0;
+                int v = 0;
+                for (KV kv : entry.getValue()) {
+                    String key;
+                    if (isColumnNameWithAsConstruction(kv.key())) {
+                        key = kv.key();
+                    } else {
+                        key = kv.key() + " as K_" + targetColumnName + k++;
+                    }
+                    String value;
+                    if (isColumnNameWithAsConstruction(kv.value())) {
+                        value = kv.value();
+                    } else {
+                        value = kv.value() + " as V_" + targetColumnName + v++;
+                    }
+                    sourceColumns.add(new KV(key, value));
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, null, sourceColumns));
             }
         }
 //        logColumn2Column(column2Column);
@@ -280,11 +350,39 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-        List<String> strings = t2t.column2Columns()
+        List<String> asColumns = t2t.column2Columns()
                 .stream()
+                .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
-        String columnToColumn = String.join(", ", strings);
+        List<String> asList = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asList)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
+        List<String> asSet = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asSet)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
+        List<KV> asMap = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asMap)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
+        Set<String> set = new HashSet<>(asColumns);
+        set.addAll(asList);
+        set.addAll(asSet);
+        set.addAll(asMap.stream().map(KV::key).toList());
+        set.addAll(asMap.stream().map(KV::value).toList());
+        List<String> finalList = set.stream().toList();
+        String columnToColumn = String.join(", ", finalList);
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +
                 columnToColumn + " " +
