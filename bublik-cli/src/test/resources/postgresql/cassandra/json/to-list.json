@@ -8,7 +8,7 @@
       "id" : "id"
     },
     "asList" : {
-      "attrs1" : ["user_name", "email", "concatenate(concatenate(v1, ' '), v2)"],
+      "attrs1" : ["user_name", "email", "concat(v1, ' ', v2)"],
       "attrs2" : ["id", "parent_id + id"]
     }
   }

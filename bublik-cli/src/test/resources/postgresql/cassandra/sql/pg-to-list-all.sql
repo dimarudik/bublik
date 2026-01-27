@@ -1,9 +1,3 @@
-CREATE FUNCTION public.concatenate(a text, b text) RETURNS text
-    LANGUAGE SQL
-    IMMUTABLE
-    RETURNS NULL ON NULL INPUT
-    RETURN a || b;
-
 create table public.to_list (
     id int,
     parent_id int,

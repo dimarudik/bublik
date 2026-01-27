@@ -13,7 +13,7 @@
         { "key" : "parent_id + id", "value" : "user_name" }
       ],
       "kv2" : [
-        { "key" : "user_name", "value" : "concatenate(email, v1)" }
+        { "key" : "user_name", "value" : "concat(email, v1)" }
       ]
     }
   }

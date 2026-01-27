@@ -8,12 +8,12 @@
       "id" : "id"
     },
     "asList" : {
-      "attrs1" : ["user_name", "email", "concatenate(concatenate(v1, ' '), v2)"],
+      "attrs1" : ["user_name", "email", "concat(v1, ' ', v2)"],
       "attrs2" : ["id", "parent_id + id"]
     },
     "asSet" : {
       "s1" : ["email", "last_update::text", "id::text", "id::text"],
-      "s2" : ["user_name", "concatenate(concatenate(v1, ' '), v2)", "email"]
+      "s2" : ["user_name", "concat(v1, ' ', v2)", "email"]
     },
     "asMap" : {
       "kv1" : [
@@ -21,7 +21,7 @@
         { "key" : "parent_id + id", "value" : "user_name" }
       ],
       "kv2" : [
-        { "key" : "user_name", "value" : "concatenate(email, v1)" }
+        { "key" : "user_name", "value" : "concat(email, v1)" }
       ]
     }
   }

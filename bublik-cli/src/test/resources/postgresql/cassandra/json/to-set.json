@@ -9,7 +9,7 @@
     },
     "asSet" : {
       "s1" : ["email", "last_update::text", "id::text", "id::text"],
-      "s2" : ["user_name", "concatenate(concatenate(v1, ' '), v2)", "email"]
+      "s2" : ["user_name", "concat(v1, ' ', v2)", "email"]
     }
   }
 ]

@@ -5,6 +5,7 @@ import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bublik.cassandra.storage.cassandraaddons.*;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
@@ -13,6 +14,7 @@ import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.ResultSet;
@@ -512,6 +514,43 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 default:
+                    switch (targetType) {
+                        case "list<text>": {
+                            String v = resultSet.getString(sClmName);
+                            ObjectMapper mapper = new ObjectMapper();
+                            try {
+                                List<String> list = mapper.readValue(v, List.class);
+                                objectList.add(new CSValue(targetColumn, list, null));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            break;
+                        }
+                        case "set<text>": {
+                            String v = resultSet.getString(sClmName);
+                            ObjectMapper mapper = new ObjectMapper();
+                            try {
+                                Set<String> set = mapper.readValue(v, Set.class);
+                                objectList.add(new CSValue(targetColumn, set, null));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            break;
+                        }
+                        case "map<text, text>": {
+                            String v = resultSet.getString(sClmName);
+                            ObjectMapper mapper = new ObjectMapper();
+                            try {
+                                Map<String, String> map = mapper.readValue(v, Map.class);
+                                objectList.add(new CSValue(targetColumn, map, null));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
                     break;
             }
         }

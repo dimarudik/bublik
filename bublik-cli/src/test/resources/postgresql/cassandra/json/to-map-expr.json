@@ -1,0 +1,17 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "to_list",
+    "toSchemaName" : "test",
+    "toTableName" : "to_list",
+    "columnToColumn" : {
+      "id" : "id"
+    },
+    "expressionToColumn" : {
+      "'[\"1\", \"2\", \"3\"]' as attrs1" : "attrs1",
+      "'[\"4\", \"5\", \"6\"]' as s1" : "s1",
+      "'{\"1\" : \"2025-01-01 00:00:00\", \"2\" : \"2025-01-01 00:00:00\"}' as kv1" : "kv1",
+      "'{\"user1\" : \"user1@gmail.comv1\"}' as kv2" : "kv2"
+    }
+  }
+]

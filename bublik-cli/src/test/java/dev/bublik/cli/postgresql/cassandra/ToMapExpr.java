@@ -23,14 +23,14 @@ import java.util.Properties;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ToMapTest {
+public class ToMapExpr {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("./postgresql/cassandra/sql/pg-to-map.sql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
-            .withInitScript("./postgresql/cassandra/sql/cs-to-list-all.cql");
+            .withInitScript("./postgresql/cassandra/sql/cs-to-map-expr.cql");
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -61,17 +61,18 @@ public class ToMapTest {
     }
 
     @Test
-    public void toMap() throws InterruptedException, IOException {
+    public void toMapViaExpression() throws InterruptedException, IOException {
         Properties sourceProperties = getJdbcProperties(source);
         Properties targetProperties = getJdbcPropertiesOfCassandra(target);
         boolean result = getResult(
                 "./postgresql/cassandra/yaml/pg2cs-to-list.yaml",
-                "./postgresql/cassandra/json/to-map.json",
+                "./postgresql/cassandra/json/to-map-expr.json",
                 rows,
                 sync,
                 sourceProperties,
                 targetProperties);
         assertTrue(result);
+//        Thread.sleep(180_000);
     }
 
     public static boolean getResult(String connectionPropertyFile,
@@ -103,12 +104,9 @@ public class ToMapTest {
             if (!(row.getInt("id") == 1)) {
                 return false;
             }
-            Map<Integer, String> kv1 = row.getMap("kv1", Integer.class, String.class);
+            Map<String, String> kv1 = row.getMap("kv1", String.class, String.class);
             System.out.println(kv1);
-            if(!kv1.get(1).equals("2025-01-01 00:00:00")) {
-                return false;
-            }
-            if(!kv1.get(2).equals("user1")) {
+            if(!kv1.get("1").equals("2025-01-01 00:00:00")) {
                 return false;
             }
             Map<String, String> kv2 = row.getMap("kv2", String.class, String.class);
