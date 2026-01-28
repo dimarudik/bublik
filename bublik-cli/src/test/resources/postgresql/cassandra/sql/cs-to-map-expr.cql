@@ -6,6 +6,7 @@ create table test.to_list (
     attrs2 list<int>,
     kv1 map<text, text>,
     kv2 map<text, text>,
+    kv3 frozen<map<text, text>>,
     s1 set<text>,
     s2 set<text>,
     primary key (id));

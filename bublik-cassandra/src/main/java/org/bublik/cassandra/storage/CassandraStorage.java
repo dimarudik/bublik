@@ -514,6 +514,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 default:
+//                    log.info(targetType);
                     switch (targetType) {
                         case "list<text>": {
                             String v = resultSet.getString(sClmName);
@@ -532,6 +533,17 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             try {
                                 Set<String> set = mapper.readValue(v, Set.class);
                                 objectList.add(new CSValue(targetColumn, set, null));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            break;
+                        }
+                        case "frozen<map<text, text>>": {
+                            String v = resultSet.getString(sClmName);
+                            ObjectMapper mapper = new ObjectMapper();
+                            try {
+                                Map<String, String> map = mapper.readValue(v, Map.class);
+                                objectList.add(new CSValue(targetColumn, map, null));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }

@@ -114,6 +114,11 @@ public class ToMapExpr {
             if(!kv2.get("user1").equals("user1@gmail.comv1")) {
                 return false;
             }
+            Map<String, String> kv3 = row.getMap("kv3", String.class, String.class);
+            System.out.println(kv3);
+            if(!kv3.get("user2").equals("user2@gmail.comv1")) {
+                return false;
+            }
         }
         cqlSession.close();
         return true;
