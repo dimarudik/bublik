@@ -6,6 +6,7 @@ import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.bublik.cassandra.model.CSComplexType;
 import org.bublik.cassandra.storage.cassandraaddons.*;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.JDBCStorage;
@@ -25,6 +26,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.bublik.cassandra.constants.SQLConstants.DDL_CREATE_LOCAL_OUTBOX_TABLE;
@@ -394,7 +397,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 */
 
-    private CSRecord getCSRecord(ResultSet resultSet,
+    private <C> CSRecord getCSRecord(ResultSet resultSet,
                                  Table2Table<?> t2t,
                                  Set<TokenRange> tokenRangeSet) throws SQLException {
         List<CSValue> objectList = new ArrayList<>();
@@ -514,46 +517,50 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 default:
-//                    log.info(targetType);
-                    switch (targetType) {
-                        case "list<text>": {
+                    String tmp;
+                    Pattern pattern = Pattern.compile("(frozen)<(.*)>>");
+                    Matcher matcher = pattern.matcher(targetType);
+                    if (targetType.contains("frozen") && matcher.find()) {
+                        tmp = targetType.substring(7, targetType.length() - 1);
+                    } else {
+                        tmp = targetType;
+                    }
+                    CSComplexType<?> complexType = CSComplexType.of(tmp);
+                    Class<C> c1 = (Class<C>) complexType.fieldTypes().getFirst();
+                    switch (complexType.typeName()) {
+                        case "list": {
                             String v = resultSet.getString(sClmName);
                             ObjectMapper mapper = new ObjectMapper();
                             try {
-                                List<String> list = mapper.readValue(v, List.class);
+                                List<C> list = getListOf(c1);
+                                list.addAll(mapper.readValue(v, List.class));
+//                                List<String> list = mapper.readValue(v, List.class);
                                 objectList.add(new CSValue(targetColumn, list, null));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
                             break;
                         }
-                        case "set<text>": {
+                        case "set": {
                             String v = resultSet.getString(sClmName);
                             ObjectMapper mapper = new ObjectMapper();
                             try {
-                                Set<String> set = mapper.readValue(v, Set.class);
+                                Set<C> set = getSetOf(c1);
+                                set.addAll(mapper.readValue(v, Set.class));
+//                                Set<String> set = mapper.readValue(v, Set.class);
                                 objectList.add(new CSValue(targetColumn, set, null));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
                             break;
                         }
-                        case "frozen<map<text, text>>": {
+                        case "map": {
                             String v = resultSet.getString(sClmName);
                             ObjectMapper mapper = new ObjectMapper();
                             try {
-                                Map<String, String> map = mapper.readValue(v, Map.class);
-                                objectList.add(new CSValue(targetColumn, map, null));
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                            break;
-                        }
-                        case "map<text, text>": {
-                            String v = resultSet.getString(sClmName);
-                            ObjectMapper mapper = new ObjectMapper();
-                            try {
-                                Map<String, String> map = mapper.readValue(v, Map.class);
+                                Map<C, ?> map = getMapOf(c1, (Class<?>)complexType.fieldTypes().getLast());
+                                map.putAll(mapper.readValue(v, Map.class));
+//                                Map<String, String> map = mapper.readValue(v, Map.class);
                                 objectList.add(new CSValue(targetColumn, map, null));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
@@ -624,8 +631,19 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             }
             objectList.add(new CSValue(targetColumn, v, null));
         }
-
         return new CSRecord(tokenRange, objectList, new CSValueAttribute(ttl, timestamp));
+    }
+
+    public <C> List<C> getListOf(Class<C> c) {
+        return new ArrayList<>();
+    }
+
+    public <C> Set<C> getSetOf(Class<C> c) {
+        return new HashSet<>();
+    }
+
+    public <C1, C2> Map<C1, C2> getMapOf(Class<C1> c, Class<C2> c2) {
+        return new HashMap<>();
     }
 
     private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet) throws SQLException {
