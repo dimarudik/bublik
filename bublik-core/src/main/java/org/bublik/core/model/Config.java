@@ -6,7 +6,6 @@ import java.util.Map;
 import static org.bublik.core.constants.CLassConstants.DEFAULT_FETCH_WHERE_CLAUSE;
 
 public record Config(
-        String numberColumn,
         String fromSchemaName,
         String fromTableName,
         String fromTableAlias,
@@ -28,9 +27,12 @@ public record Config(
         Map<String, List<KV>> asMap
 ) {
 
+    public Config(String fromSchemaName, String fromTableName, String fromTableAlias, String fromTableAdds, String toSchemaName, String toTableName, String fetchHintClause, String fetchWhereClause, String fromTaskName, String fromTaskWhereClause, String timestamp, String withTTL, List<String> tryCharIfAny, Map<String, String> columnToColumn, Map<String, String> expressionToColumn, Map<String, List<String>> columnFromMany) {
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause, fetchWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany, null, null, null);
+    }
+
     public Config copy() {
         return new Config(
-                this.numberColumn,
                 this.fromSchemaName,
                 this.fromTableName,
                 this.fromTableAlias,

@@ -8,6 +8,7 @@ import dev.bublik.cli.addons.Utils;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
@@ -72,6 +73,7 @@ public class ToMapExprTest {
                 sourceProperties,
                 targetProperties);
         assertTrue(result);
+//        Thread.sleep(180_00);
     }
 
     public static boolean getResult(String connectionPropertyFile,
@@ -105,16 +107,14 @@ public class ToMapExprTest {
             }
             Map<String, String> kv1 = row.getMap("kv1", String.class, String.class);
             System.out.println(kv1);
-            if(!kv1.get("1").equals("2025-01-01 00:00:00")) {
+            if(kv1 == null || !kv1.get("1").equals("2025-01-01 00:00:00")) {
                 return false;
             }
-/*
             Map<Integer, String> kv2 = row.getMap("kv2", Integer.class, String.class);
             System.out.println(kv2);
             if(!kv2.get(1).equals("user1@gmail.comv1")) {
                 return false;
             }
-*/
             Map<String, String> kv3 = row.getMap("kv3", String.class, String.class);
             System.out.println(kv3);
             if(!kv3.get("user2").equals("user2@gmail.comv1")) {

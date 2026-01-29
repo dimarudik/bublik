@@ -1114,7 +1114,7 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
     "fromTableName": "p_src_202510",
     "toSchemaName": "public",
     "toTableName": "p_trg_202510",
-    "fetchWhereClause": "0 = 0",
+    "fetchWhereClause": "0 = 0"
   },
   {
     "fromSchemaName": "public",

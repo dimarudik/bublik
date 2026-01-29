@@ -5,6 +5,8 @@ import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bublik.cassandra.model.CSComplexType;
 import org.bublik.cassandra.storage.cassandraaddons.*;
@@ -397,9 +399,9 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 */
 
-    private <C> CSRecord getCSRecord(ResultSet resultSet,
-                                 Table2Table<?> t2t,
-                                 Set<TokenRange> tokenRangeSet) throws SQLException {
+    private <C1, C2> CSRecord getCSRecord(ResultSet resultSet,
+                                      Table2Table<?> t2t,
+                                      Set<TokenRange> tokenRangeSet) throws SQLException {
         List<CSValue> objectList = new ArrayList<>();
         Map<Column, Column> column2Column = new HashMap<>();
         t2t.column2Columns()
@@ -526,15 +528,16 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         tmp = targetType;
                     }
                     CSComplexType<?> complexType = CSComplexType.of(tmp);
-                    Class<C> c1 = (Class<C>) complexType.fieldTypes().getFirst();
+                    Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                    Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
+                    ObjectMapper mapper = new ObjectMapper();
+                    mapper.enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES);
                     switch (complexType.typeName()) {
                         case "list": {
                             String v = resultSet.getString(sClmName);
-                            ObjectMapper mapper = new ObjectMapper();
                             try {
-                                List<C> list = getListOf(c1);
+                                List<C1> list = getListOf(c1);
                                 list.addAll(mapper.readValue(v, List.class));
-//                                List<String> list = mapper.readValue(v, List.class);
                                 objectList.add(new CSValue(targetColumn, list, null));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
@@ -543,11 +546,9 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         }
                         case "set": {
                             String v = resultSet.getString(sClmName);
-                            ObjectMapper mapper = new ObjectMapper();
                             try {
-                                Set<C> set = getSetOf(c1);
+                                Set<C1> set = getSetOf(c1);
                                 set.addAll(mapper.readValue(v, Set.class));
-//                                Set<String> set = mapper.readValue(v, Set.class);
                                 objectList.add(new CSValue(targetColumn, set, null));
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
@@ -556,12 +557,20 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         }
                         case "map": {
                             String v = resultSet.getString(sClmName);
-                            ObjectMapper mapper = new ObjectMapper();
                             try {
-                                Map<C, ?> map = getMapOf(c1, (Class<?>)complexType.fieldTypes().getLast());
-                                map.putAll(mapper.readValue(v, Map.class));
-//                                Map<String, String> map = mapper.readValue(v, Map.class);
-                                objectList.add(new CSValue(targetColumn, map, null));
+                                if (c1 == Integer.class && c2 == String.class) {
+                                    Map<Integer, String> map = mapper.readValue(v, new TypeReference<HashMap<Integer, String>>() {});
+                                    objectList.add(new CSValue(targetColumn, map, null));
+                                } else if (c1 == String.class && c2 == String.class){
+                                    Map<String, String> map = mapper.readValue(v, new TypeReference<HashMap<String, String>>() {});
+                                    objectList.add(new CSValue(targetColumn, map, null));
+                                } else if (c1 == String.class && c2 == Integer.class) {
+                                    Map<String, Integer> map = mapper.readValue(v, new TypeReference<HashMap<String, Integer>>() {});
+                                    objectList.add(new CSValue(targetColumn, map, null));
+                                } else if (c1 == Integer.class && c2 == Integer.class) {
+                                    Map<Integer, Integer> map = mapper.readValue(v, new TypeReference<HashMap<Integer, Integer>>() {});
+                                    objectList.add(new CSValue(targetColumn, map, null));
+                                }
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
                             }
