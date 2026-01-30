@@ -27,6 +27,10 @@ public record Config(
         Map<String, List<KV>> asMap
 ) {
 
+    public Config(String fromSchemaName, String fromTableName, String fromTableAlias, String fromTableAdds, String toSchemaName, String toTableName, String fetchWhereClause, List<String> tryCharIfAny, Map<String, String> columnToColumn, Map<String, String> expressionToColumn) {
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null, fetchWhereClause, null, null, null, null, tryCharIfAny, columnToColumn, expressionToColumn, null, null, null, null);
+    }
+
     public Config(String fromSchemaName, String fromTableName, String fromTableAlias, String fromTableAdds, String toSchemaName, String toTableName, String fetchHintClause, String fetchWhereClause, String fromTaskName, String fromTaskWhereClause, String timestamp, String withTTL, List<String> tryCharIfAny, Map<String, String> columnToColumn, Map<String, String> expressionToColumn, Map<String, List<String>> columnFromMany) {
         this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause, fetchWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany, null, null, null);
     }

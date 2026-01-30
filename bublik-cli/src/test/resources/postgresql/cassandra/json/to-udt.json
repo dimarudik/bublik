@@ -1,0 +1,14 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "to_list",
+    "toSchemaName" : "test",
+    "toTableName" : "to_list",
+    "columnToColumn" : {
+      "id" : "id"
+    },
+    "expressionToColumn" : {
+      "'[\"id\" : 1, \"user_name\" : \"user1\", \"email\" : \"user1@gmail.com\", \"last_update\" : \"2025-01-01 00:00:00\"]' as body" : "body"
+    }
+  }
+]

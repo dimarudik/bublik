@@ -528,14 +528,14 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         tmp = targetType;
                     }
                     CSComplexType<?> complexType = CSComplexType.of(tmp);
-                    Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
-                    Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
                     ObjectMapper mapper = new ObjectMapper();
                     mapper.enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES);
                     switch (complexType.typeName()) {
                         case "list": {
                             String v = resultSet.getString(sClmName);
                             try {
+                                Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                                Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
                                 List<C1> list = getListOf(c1);
                                 list.addAll(mapper.readValue(v, List.class));
                                 objectList.add(new CSValue(targetColumn, list, null));
@@ -547,6 +547,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         case "set": {
                             String v = resultSet.getString(sClmName);
                             try {
+                                Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                                Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
                                 Set<C1> set = getSetOf(c1);
                                 set.addAll(mapper.readValue(v, Set.class));
                                 objectList.add(new CSValue(targetColumn, set, null));
@@ -558,6 +560,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         case "map": {
                             String v = resultSet.getString(sClmName);
                             try {
+                                Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                                Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
                                 if (c1 == Integer.class && c2 == String.class) {
                                     Map<Integer, String> map = mapper.readValue(v, new TypeReference<HashMap<Integer, String>>() {});
                                     objectList.add(new CSValue(targetColumn, map, null));
@@ -577,6 +581,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                             break;
                         }
                         default:
+//                            Object v = resultSet.getObject(sClmName);
+//                            objectList.add(new CSValue(targetColumn, v, null));
                             break;
                     }
                     break;

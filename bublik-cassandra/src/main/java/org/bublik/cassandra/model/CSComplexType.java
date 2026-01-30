@@ -26,7 +26,8 @@ public record CSComplexType<C>(String typeName,
                     fieldTypesList.add((Class<C>) String.class);
                     break;
                 default:
-                    throw new IllegalArgumentException("Unknown type: " + fullTypeName);
+                    break;
+//                    throw new IllegalArgumentException("Unknown type: " + fullTypeName);
             }
         }
         Pattern pattern1 = Pattern.compile("(.*?)<");
