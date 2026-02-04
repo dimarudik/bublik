@@ -1,6 +1,6 @@
 [
   {
-    "fromSchemaName" : "public",
+    "fromSchemaName" : "test",
     "fromTableName" : "to_list",
     "toSchemaName" : "test",
     "toTableName" : "to_list",

@@ -214,7 +214,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c, null, null, null, null)));
+            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -230,7 +230,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(sourceColumn, targetColumn, null, null, null, null));
+                column2Column.add(new Column2Column(sourceColumn, targetColumn));
             }
         }
         if (config.expressionToColumn() != null) {
@@ -241,7 +241,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(column, column, entry.getKey(), null, null, null));
+                column2Column.add(new Column2Column(column, column, entry.getKey()));
             }
         }
         if (config.asList() != null) {
@@ -262,7 +262,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(null, targetColumn, null, sourceColumns, null, null));
+                column2Column.add(new Column2Column(null, targetColumn, null, sourceColumns, null, null, null));
             }
         }
         if (config.asSet() != null) {
@@ -283,7 +283,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(null, targetColumn, null, null, sourceColumns, null));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, sourceColumns, null, null));
             }
         }
         if (config.asMap() != null) {
@@ -313,7 +313,28 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(null, targetColumn, null, null, null, sourceColumns));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, null, sourceColumns, null));
+            }
+        }
+        if (config.asUDT() != null) {
+            for (Map.Entry<String,List<String>> entry : config.asUDT().entrySet()) {
+                String targetColumnName = entry.getKey();
+                List<String> sourceColumns = new ArrayList<>();
+                int i = 0;
+                for (String column : entry.getValue()) {
+                    if (isColumnNameWithAsConstruction(column)) {
+                        sourceColumns.add(column);
+                    } else {
+                        sourceColumns.add(column + " as " + targetColumnName + i++);
+                    }
+                }
+                Column targetColumn = targetTable.getColumns().stream()
+                        .filter(c -> c.getColumnNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                column2Column.add(new Column2Column(null, targetColumn, null, null, null, null, sourceColumns));
             }
         }
 //        logColumn2Column(column2Column);
@@ -376,11 +397,19 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                 .flatMap(Collection::stream)
                 .distinct()
                 .toList();
+        List<String> asUDT = t2t.column2Columns()
+                .stream()
+                .map(Column2Column::asUDT)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .distinct()
+                .toList();
         Set<String> set = new HashSet<>(asColumns);
         set.addAll(asList);
         set.addAll(asSet);
         set.addAll(asMap.stream().map(KV::key).toList());
         set.addAll(asMap.stream().map(KV::value).toList());
+        set.addAll(asUDT);
         List<String> finalList = set.stream().toList();
         String columnToColumn = String.join(", ", finalList);
         return  PGKeywords.SELECT + " /* bublik */ " +

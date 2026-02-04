@@ -1,8 +1,10 @@
 package org.bublik.cassandra.model;
 
+import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.type.UserDefinedType;
 import org.bublik.core.model.*;
 import org.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -13,6 +15,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.bublik.cassandra.constants.SQLConstants.SQL_ALL_COLUMNS;
 
@@ -20,6 +24,7 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(CSTable.class);
     private List<Column> partitionKey;
     private List<Column> clusteringKey;
+    private List<UDTColumn> udtColumns;
 
     public CSTable(String schemaName, String tableName, List<Column> partitionKey, List<Column> clusteringKey) {
         super(schemaName, tableName);
@@ -41,6 +46,14 @@ public class CSTable<S extends CqlSession> extends Table<S> {
 
     public List<Column> getClusteringKey() {
         return clusteringKey;
+    }
+
+    public List<UDTColumn> getUdtColumns() {
+        return udtColumns;
+    }
+
+    public void setUdtColumns(List<UDTColumn> udtColumns) {
+        this.udtColumns = udtColumns;
     }
 
     @Override
@@ -71,28 +84,70 @@ public class CSTable<S extends CqlSession> extends Table<S> {
                 getSchemaName(),
                 getTableName()
         );
+        List<UDTColumn> udtColumns = new ArrayList<>();
         for (Row row : resultSet) {
             String kind = row.getString("kind");
             assert kind != null;
-            columns.add(new Column(
+            String columnName = row.getString("column_name");
+            String columnType = row.getString("type");
+            assert columnType != null;
+            Column.UdtType udtType = getUdtTypeByTypeName(cqlSession, columnType);
+            Column column = new Column(
                     row.getInt("position"),
-                    row.getString("column_name"),
-                    row.getString("type"),
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    0,
-                    null,
-                    0,
+                    columnName,
+                    columnType,
                     row.getString("clustering_order"),
                     kind.equals("static"),
                     kind.equals("partition_key"),
-                    kind.equals("clustering")
-            ));
+                    kind.equals("clustering"),
+                    udtType
+            );
+            columns.add(column);
+            if (udtType != null) {
+                udtColumns.add(new UDTColumn(column, getUdtType(cqlSession, columnType)));
+            }
         }
+        setUdtColumns(udtColumns);
         return columns;
+    }
+
+    public Column.UdtType getUdtTypeByTypeName(CqlSession cqlSession, String columnType) {
+        try {
+            CSNativeType.valueOf(columnType.toUpperCase());
+            return null;
+        } catch (IllegalArgumentException e) {
+            UserDefinedType udt = getUdtType(cqlSession, columnType);
+            if (udt == null) {
+                return null;
+            }
+            String[] typeFieldNames = udt.getFieldNames().stream().map(CqlIdentifier::toString).toArray(String[]::new);
+            String[] typeFieldTypes = udt.getFieldTypes().stream().map(Object::toString).toArray(String[]::new);
+            List<Column> typeColumns = new ArrayList<>();
+            for (int i = 0; i < typeFieldNames.length; i++) {
+                typeColumns.add( new Column(typeFieldNames[i], typeFieldTypes[i].toLowerCase()));
+            }
+            return new Column.UdtType(columnType, typeColumns);
+        }
+    }
+
+    public UserDefinedType getUdtType(CqlSession cqlSession, String columnType) {
+        String newColumnTypeName;
+        Pattern pattern = Pattern.compile("(frozen)<(.*)>");
+        Matcher matcher = pattern.matcher(columnType);
+        if (columnType.contains("frozen") && matcher.find()) {
+            newColumnTypeName = columnType.substring(7, columnType.length() - 1);
+        } else {
+            newColumnTypeName = columnType;
+        }
+        if (newColumnTypeName.matches("(.*)<(.*)>$")) {
+            return null;
+        }
+        return cqlSession
+                .getMetadata()
+                .getKeyspace(getSchemaName())
+                .get()
+                .getUserDefinedType(newColumnTypeName)
+                .get();
     }
 
     @Override
@@ -163,4 +218,6 @@ public class CSTable<S extends CqlSession> extends Table<S> {
         setPartitionKey(allColumns.stream().filter(Column::isPartitionKey).toList());
         return true;
     }
+
+    public record UDTColumn(Column column, UserDefinedType udt){}
 }

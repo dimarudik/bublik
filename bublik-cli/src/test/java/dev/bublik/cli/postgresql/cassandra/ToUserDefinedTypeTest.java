@@ -2,6 +2,8 @@ package dev.bublik.cli.postgresql.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.data.UdtValue;
+import com.datastax.oss.driver.api.core.type.UserDefinedType;
 import dev.bublik.cli.App;
 import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
@@ -23,7 +25,7 @@ import java.util.Properties;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled
+//@Disabled
 public class ToUserDefinedTypeTest {
     private static int rows = 50000;
     private static boolean sync = false;
@@ -73,7 +75,7 @@ public class ToUserDefinedTypeTest {
                 sourceProperties,
                 targetProperties);
         assertTrue(result);
-//        Thread.sleep(180_00);
+//        Thread.sleep(180_000);
     }
 
     public static boolean getResult(String connectionPropertyFile,
@@ -101,28 +103,31 @@ public class ToUserDefinedTypeTest {
                 .setPageSize(pageSize) // set page size
                 .build();
         com.datastax.oss.driver.api.core.cql.ResultSet resultSet = cqlSession.execute(stmt1);
-/*
+        UserDefinedType udt = cqlSession
+                .getMetadata()
+                .getKeyspace("test")
+                .get()
+                .getUserDefinedType("complex_body")
+                .get();
         for (com.datastax.oss.driver.api.core.cql.Row row : resultSet) {
             if (!(row.getInt("id") == 1)) {
                 return false;
             }
-            Map<String, String> kv1 = row.getMap("kv1", String.class, String.class);
-            System.out.println(kv1);
-            if(kv1 == null || !kv1.get("1").equals("2025-01-01 00:00:00")) {
+            UdtValue udtValue = row.getUdtValue("body");
+            if(udtValue == null || !(udtValue.getInt("parent_id") == 2)) {
+                System.out.println(udtValue.getInt("parent_id"));
                 return false;
             }
-            Map<Integer, String> kv2 = row.getMap("kv2", Integer.class, String.class);
-            System.out.println(kv2);
-            if(!kv2.get(1).equals("user1@gmail.comv1")) {
+            if(!udtValue.getString("user_name").equals("user1user1@gmail.com")) {
                 return false;
             }
-            Map<String, String> kv3 = row.getMap("kv3", String.class, String.class);
-            System.out.println(kv3);
-            if(!kv3.get("user2").equals("user2@gmail.comv1")) {
+            if(!udtValue.getString("email").equals("user1@gmail.com")) {
+                return false;
+            }
+            if(!udtValue.getInstant("last_update").toString().equals("2024-12-31T21:00:00Z")) {
                 return false;
             }
         }
-*/
         cqlSession.close();
         return true;
     }

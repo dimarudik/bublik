@@ -27,7 +27,7 @@ import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // +
-@Disabled
+//@Disabled
 public class CassandraTimestampDowntimeTest {
     private static int rows = 50000;
     private static boolean sync = false;

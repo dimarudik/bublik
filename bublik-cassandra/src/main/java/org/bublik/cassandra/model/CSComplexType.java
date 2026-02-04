@@ -6,7 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public record CSComplexType<C>(String typeName,
-                            List<Class<C>> fieldTypes) {
+                               List<Class<C>> fieldTypes) {
 
     public static <C> CSComplexType<C> of(String fullTypeName) {
         List<Class<C>> fieldTypesList = new ArrayList<>();

@@ -56,8 +56,13 @@ insert into test.likes (id, user_id, item_id, last_update)
     where user_id <> item_id;
 commit;
 
---begin
---    DBMS_STATS.GATHER_TABLE_STATS(ownname => 'TEST', tabname  => 'ITEMS');
---end;
---/
---
+create table test.to_list (
+    id int,
+    parent_id int,
+    user_name varchar2(256),
+    email varchar2(256),
+    last_update timestamp);
+
+insert into test.to_list (id, parent_id, user_name, email, last_update)
+values (1, 1, 'user1', 'user1@gmail.com', to_timestamp('2025-01-01 00:00:00','YYYY-MM-DD HH24:MI:SS'));
+commit;

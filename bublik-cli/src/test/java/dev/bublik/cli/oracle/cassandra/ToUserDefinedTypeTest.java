@@ -2,8 +2,9 @@ package dev.bublik.cli.oracle.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.data.UdtValue;
+import com.datastax.oss.driver.api.core.type.UserDefinedType;
 import dev.bublik.cli.App;
-import dev.bublik.cli.TestResult;
 import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
 import org.bublik.core.model.Config;
@@ -16,24 +17,22 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
 import static dev.bublik.cli.App.getConfigs;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// +
-//@Disabled
-public class ToListAllTest {
+public class ToUserDefinedTypeTest {
     private static int rows = 50000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
             .withInitScript("./oracle/cassandra/sql/oracle/ora-init.sql");
     private static CassandraContainer target = new CassandraContainer("cassandra")
-            .withInitScript("./oracle/cassandra/sql/cs-to-list-all.cql");
+            .withInitScript("./oracle/cassandra/sql/cs-to-udt.cql");
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -64,81 +63,72 @@ public class ToListAllTest {
     }
 
     @Test
-    public void toListAll() throws InterruptedException, IOException {
-//        Thread.sleep(360_000);
+    public void toUDT() throws InterruptedException, IOException {
         Properties sourceProperties = getJdbcProperties(source);
         Properties targetProperties = getJdbcPropertiesOfCassandra(target);
-        TestResult result = getResult(
+        boolean result = getResult(
                 "./oracle/cassandra/yaml/ora2cs-to-list.yaml",
-                "./oracle/cassandra/json/to-list-all.json",
+                "./oracle/cassandra/json/to-udt.json",
                 rows,
                 sync,
                 sourceProperties,
                 targetProperties);
-        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-        assertEquals(result.sourceCount(), result.targetCount());
-//        Thread.sleep(360_000);
+        assertTrue(result);
+//        Thread.sleep(180_000);
     }
 
-    public static TestResult getResult(String connectionPropertyFile,
-                                       String mappingFile,
-                                       int rows,
-                                       boolean sync,
-                                       Properties sourceProperties,
-                                       Properties targetProperties) throws IOException {
-        return getResult(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, null);
-    }
-
-    public static TestResult getResult(String connectionPropertyFile,
-                                       String mappingFile,
-                                       int rows,
-                                       boolean sync,
-                                       Properties sourceProperties,
-                                       Properties targetProperties,
-                                       String chunkTableName) throws IOException {
+    public static boolean getResult(String connectionPropertyFile,
+                                    String mappingFile,
+                                    int rows,
+                                    boolean sync,
+                                    Properties sourceProperties,
+                                    Properties targetProperties) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        App.runProcess(cp, configs, rows, sync, chunkTableName);
+        App.runProcess(cp, configs, rows, sync);
 
-        String fromQuery = "SELECT count(1) FROM test.users";
-        Long sourceCount = countRows(sourceProperties, fromQuery);
-        Long targetCount = countCassandra();
-        return new TestResult(sourceCount, targetCount);
+        return resultCassandra();
     }
 
-    private static Long countCassandra() {
+    private static boolean resultCassandra() {
         int pageSize = 10000;
         CqlSession cqlSession = CqlSession
                 .builder()
                 .addContactPoint(target.getContactPoint())
                 .withLocalDatacenter(target.getLocalDatacenter())
                 .build();
-        SimpleStatement stmt1 = SimpleStatement.builder("SELECT id FROM test.users")
+        SimpleStatement stmt1 = SimpleStatement.builder("SELECT * FROM test.to_list")
                 .setPageSize(pageSize) // set page size
                 .build();
-        long start1 = System.currentTimeMillis();
         com.datastax.oss.driver.api.core.cql.ResultSet resultSet = cqlSession.execute(stmt1);
-        long rowCount = 0;
+        UserDefinedType udt = cqlSession
+                .getMetadata()
+                .getKeyspace("test")
+                .get()
+                .getUserDefinedType("complex_body")
+                .get();
         for (com.datastax.oss.driver.api.core.cql.Row row : resultSet) {
-            rowCount++;
+            if (!(row.getInt("id") == 1)) {
+                return false;
+            }
+            UdtValue udtValue = row.getUdtValue("body");
+            if(udtValue == null || !(udtValue.getInt("parent_id") == 2)) {
+                System.out.println(udtValue.getInt("parent_id"));
+                return false;
+            }
+            if(!udtValue.getString("user_name").equals("user1user1@gmail.com")) {
+                return false;
+            }
+            if(!udtValue.getString("email").equals("user1@gmail.com")) {
+                return false;
+            }
+            if(!udtValue.getInstant("last_update").toString().equals("2024-12-31T21:00:00Z")) {
+                return false;
+            }
         }
-        System.out.println("Time taken to fetch all rows from user: " + (System.currentTimeMillis() - start1) + " ms");
         cqlSession.close();
-        return rowCount;
-    }
-
-    public static Long countRows(Properties p, String query) {
-        try (Connection connection =
-                     DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(query);
-            resultSet.next();
-            return resultSet.getLong(1);
-        }
-        catch (SQLException e){
-            throw new RuntimeException(e);
-        }
+        return true;
     }
 
     private static Properties getJdbcProperties(JdbcDatabaseContainer<?> db) {
