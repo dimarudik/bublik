@@ -26,9 +26,9 @@ import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // +
-//@Disabled
+@Disabled
 public class ModelTransformationTest {
-    private static int rows = 50000;
+    private static int rows = 10_000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")

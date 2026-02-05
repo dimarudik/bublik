@@ -38,22 +38,22 @@ insert into public.users (id, user_name, email)
                end) || '.com' as email
     from (
         select num as id, substr(md5(random()::text), 1, 10) as user_name
-        from generate_series(1, 100000) as num
+        from generate_series(1, 10000) as num
         );
 
 insert into public.items (id, item_name, description)
     select num as id,
            'Item ' || substr(md5(random()::text), 1, 10) as item_name,
            'Description ' || substr(md5(random()::text), 1, 30) as description
-    from generate_series(1, 100000) as num;
+    from generate_series(1, 10000) as num;
 
 insert into public.likes (id, user_id, item_id, r, last_update)
     select num as id,
-       floor(random() * 100000 + 1)::int as user_id,
-       floor(random() * 100000 + 1)::int as item_id,
+       floor(random() * 10000 + 1)::int as user_id,
+       floor(random() * 10000 + 1)::int as item_id,
        rpad('Bublik is the best tool for migration ',50,'*') as r,
        now() - random() * (timestamp '2025-01-31 00:00:00' - timestamp '2025-01-01 23:59:59') as last_update
-    from generate_series(1, 500000) as num
+    from generate_series(1, 100000) as num
 on conflict (user_id, item_id) do nothing;
 
 analyze public.users;

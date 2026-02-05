@@ -7,8 +7,12 @@
     "columnToColumn" : {
       "id" : "id"
     },
+    "expressionToColumn" : {
+      "'{1 : \"user1@gmail.comv1\", 2 : \"user2@gmail.comv1\"}' as m" : "m"
+    },
     "asUDT" : {
-      "body" : ["id + parent_id", "user_name || email", "email", "last_update"]
+      "body" : ["id + parent_id", "user_name || email", "email", "last_update"],
+      "b" : ["id", "NULL", "email", "last_update"]
     }
   }
 ]

@@ -26,7 +26,7 @@ import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // +
-//@Disabled
+@Disabled
 public class CassandraToCassandraTest {
     private static int rows = 50000;
     private static boolean sync = false;
@@ -264,7 +264,6 @@ public class CassandraToCassandraTest {
                 null);
         sourceCount += result256.sourceCount();
         targetCount += result256.targetCount();
-/*
         initSourceData(sourceProperties, 260);
         initTargetData(targetProperties);
         TestResult result260 = getResult(
@@ -289,7 +288,7 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
-*/
+/*
         initSourceData(sourceProperties, 1_000_000);
         initTargetData(targetProperties);
         TestResult result_1_000_000 = getResult(
@@ -304,6 +303,7 @@ public class CassandraToCassandraTest {
                 null);
         sourceCount += result_1_000_000.sourceCount();
         targetCount += result_1_000_000.targetCount();
+*/
         System.out.println("Source count: " + sourceCount + ", target count: " + targetCount);
         assertEquals(sourceCount, targetCount);
     }

@@ -1,4 +1,4 @@
-package org.bublik.cassandra.model;
+package org.bublik.cassandra.constants;
 
 public enum CSNativeType {
     ASCII,

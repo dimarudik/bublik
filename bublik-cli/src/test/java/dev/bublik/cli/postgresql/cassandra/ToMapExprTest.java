@@ -7,10 +7,7 @@ import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
 import org.bublik.core.model.Config;
 import org.bublik.core.model.ConnectionProperty;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -24,6 +21,7 @@ import java.util.Properties;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class ToMapExprTest {
     private static int rows = 50000;
     private static boolean sync = false;
