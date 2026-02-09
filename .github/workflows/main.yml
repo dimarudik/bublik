@@ -2,13 +2,9 @@ name: Java CI with Testcontainers
 on: [push, pull_request]
 
 jobs:
- test:
-  runs-on: ubuntu-latest
-  steps:
-   - uses: actions/checkout@v5
-   - uses: actions/setup-java@v4
-     with:
-      java-version: '21'
-      distribution: 'temurin'
-   - name: Run the Maven verify phase
-     run: mvn clean package
+  test:
+    runs-on: ubuntu-latest
+    steps:
+        with:
+          java-version: '21'
+          distribution: 'temurin'
