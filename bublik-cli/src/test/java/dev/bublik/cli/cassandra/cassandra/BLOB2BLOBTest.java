@@ -28,7 +28,7 @@ import java.util.function.Predicate;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+//@Disabled
 public class BLOB2BLOBTest {
     private static int rows = 50000;
     private static boolean sync = false;

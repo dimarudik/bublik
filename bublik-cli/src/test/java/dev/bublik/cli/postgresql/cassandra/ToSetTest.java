@@ -24,7 +24,7 @@ import java.util.Set;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled
+//@Disabled
 public class ToSetTest {
     private static int rows = 50000;
     private static boolean sync = false;

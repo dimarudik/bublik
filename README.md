@@ -1052,10 +1052,11 @@ The objective is to migrate partitions of table from one PostgreSQL database to 
 
 [E.18.3.1.4. Optimizer](https://www.postgresql.org/docs/14/release-14.html#id-1.11.6.23.5)
 
+
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="org/bublik/cli/postgresql/postgresql/*"
+mvn test -Dtest="dev/bublik/cli/postgresql/postgresql/*" -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
 Or you can run test case in docker containers manually:

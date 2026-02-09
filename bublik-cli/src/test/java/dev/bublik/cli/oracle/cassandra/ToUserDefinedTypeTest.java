@@ -26,7 +26,7 @@ import java.util.Properties;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled
+//@Disabled
 public class ToUserDefinedTypeTest {
     private static int rows = 50000;
     private static boolean sync = false;
