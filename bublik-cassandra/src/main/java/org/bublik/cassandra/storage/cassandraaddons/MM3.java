@@ -21,6 +21,7 @@ public class MM3 {
 
     public static TokenRange getTokenRange(Set<TokenRange> tokenRangeSet, byte[] bytes) {
         long v = getMurmur3Token(bytes).getValue();
+//        System.out.println(v);
         return tokenRangeSet
                 .stream()
                 .filter(tRange ->   v >= ((Murmur3Token)tRange.getStart()).getValue() &&
@@ -82,6 +83,10 @@ public class MM3 {
         ByteBuffer bb = ByteBuffer.allocate(16);
         bb.putLong(uuid.getMostSignificantBits());
         bb.putLong(uuid.getLeastSignificantBits());
+        return bb.array();
+    }
+
+    public static byte[] byteBufferToBytes(ByteBuffer bb) {
         return bb.array();
     }
 

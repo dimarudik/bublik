@@ -627,6 +627,9 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             }
             case "blob": {
                 v = row.getByteBuffer(sClmName);
+                if (targetColumn.isPartitionKey() && v != null) {
+                    bytes = byteBufferToBytes((ByteBuffer) v);
+                }
                 break;
             }
             case "float": {
@@ -679,6 +682,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         byte[][] bytes = new byte[mapBytes.size()][];
         mapBytes.forEach((k, v) -> bytes[k] = v);
         TokenRange tokenRange = getTokenRange(tokenRangeSet, compositeToBytes(bytes));
+//        System.out.println(tokenRange);
         return new CSRecord(tokenRange, objectList, new CSValueAttribute(recordTtl, recordTimestamp));
     }
 
