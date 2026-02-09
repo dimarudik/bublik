@@ -12,6 +12,7 @@
 | PostgreSQL   | PostgreSQL |
 | PostgreSQL   | YDB        |
 
+
 This tool facilitates the efficient transfer of data between databases.
 * The quickest method for extracting data from <strong>Oracle</strong> is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
 * In case of <strong>PostgreSQL</strong>, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
