@@ -14,6 +14,38 @@ public record CSValue(Column column, Object value, CSValueAttribute attribute) {
                 '}';
     }
 
+    public boolean isPrimaryKey() {
+        return column().isPartitionKey() || column().isClusteringKey();
+    }
+
+    public boolean isNonPrimaryKey() {
+        return !isPrimaryKey();
+    }
+
+    public boolean isPartitionKey() {
+        return column().isPartitionKey();
+    }
+
+    public boolean isNonPartitionKey() {
+        return !isPartitionKey();
+    }
+
+    public boolean isClusteringKey() {
+        return column().isClusteringKey();
+    }
+
+    public boolean isNonClusteringKey() {
+        return !isClusteringKey();
+    }
+
+    public boolean isStatic() {
+        return column().isStatic();
+    }
+
+    public boolean isNonStatic() {
+        return !isStatic();
+    }
+
     public boolean isRegular() {
         return column().columnPosition() == -1 && !column().isStatic();
     }

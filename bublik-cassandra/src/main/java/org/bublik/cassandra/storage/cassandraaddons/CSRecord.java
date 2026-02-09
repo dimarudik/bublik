@@ -44,9 +44,8 @@ public record CSRecord (TokenRange tokenRange,
 
     @Override
     public String toString() {
-        return "{" + //tokenRange + ", " +
+        return tokenRange + ", " +
                 values +
-                ", " + attribute +
-                '}';
+                ", " + attribute;
     }
 }

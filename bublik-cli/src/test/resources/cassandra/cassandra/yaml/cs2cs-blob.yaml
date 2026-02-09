@@ -1,0 +1,18 @@
+threadCount: 10
+
+fromProperties:
+  class: org.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: test
+  password: test
+  batchSize: 256
+toProperties:
+  class: org.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost:9042
+  keyspace: test2
+  user: test
+  password: test
+  batchSize: 256
