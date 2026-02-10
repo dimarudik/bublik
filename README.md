@@ -533,7 +533,7 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="OracleToPostgresTest"
+mvn test -Dtest="dev/bublik/cli/oracle/postgresql/*" -Dsurefire.failIfNoSpecifiedTests=false 
 ```
 
 Or you can run test case in docker containers manually:
