@@ -1,5 +1,7 @@
 name: Java CI with Testcontainers
-on: [push, pull_request]
+on:
+  push:
+    branches: [ stable ]
 
 jobs:
  test:

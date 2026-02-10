@@ -19,6 +19,7 @@ import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -34,17 +35,28 @@ public class CassandraExpressionTest {
     private static boolean sync = false;
 
     private static CassandraContainer source = new CassandraContainer("cassandra")
-            .withExposedPorts(9042)
+            .withEnv("CASSANDRA_USER", "cassandra")
+            .withEnv("CASSANDRA_PASSWORD", "cassandra")
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
-            .withInitScript("./cassandra/cassandra/sql/cs-init-expression.cql");
+            .withEnv("CASSANDRA_AUTHENTICATOR", "PasswordAuthenticator")
+            .withEnv("CASSANDRA_NUM_TOKENS", "16")
+            .withCopyToContainer(MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh"), "/usr/local/bin/docker-entrypoint.sh")
+            .withInitScript("./cassandra/cassandra/sql/cs-init-expression.cql")
+            .withExposedPorts(9042);
     private static CassandraContainer target = new CassandraContainer("cassandra")
-            .withExposedPorts(9042)
-            .withInitScript("./cassandra/cassandra/sql/cs-init-empty-expression.cql");
+            .withEnv("CASSANDRA_USER", "cassandra")
+            .withEnv("CASSANDRA_PASSWORD", "cassandra")
+            .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
+            .withEnv("CASSANDRA_AUTHENTICATOR", "PasswordAuthenticator")
+            .withEnv("CASSANDRA_NUM_TOKENS", "16")
+            .withCopyToContainer(MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh"), "/usr/local/bin/docker-entrypoint.sh")
+            .withInitScript("./cassandra/cassandra/sql/cs-init-empty-expression.cql")
+            .withExposedPorts(9042);
 
     @BeforeAll
     static void setUp() throws SQLException, IOException, InterruptedException {
-        MountableFile mf = MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh");
-        source.addFileSystemBind(mf.getResolvedPath(), "/usr/local/bin/docker-entrypoint.sh", BindMode.READ_ONLY);
+//        MountableFile mf = MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh");
+//        source.addFileSystemBind(mf.getResolvedPath(), "/usr/local/bin/docker-entrypoint.sh", BindMode.READ_ONLY);
         source.setPortBindings(Collections.singletonList("9042:9042"));
         source.start();
         target.setPortBindings(Collections.singletonList("9043:9042"));
@@ -140,8 +152,8 @@ public class CassandraExpressionTest {
         properties.setProperty("class", "org.bublik.cassandra.storage.CassandraStorage");
         properties.setProperty("keyspace", "test");
         properties.setProperty("hosts", hosts);
-        properties.setProperty("user", "test");
-        properties.setProperty("password", "test");
+        properties.setProperty("user", "cassandra");
+        properties.setProperty("password", "cassandra");
         properties.setProperty("datacenter", "datacenter1");
         properties.setProperty("batchSize", "256");
         return properties;

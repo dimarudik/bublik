@@ -5,14 +5,14 @@ fromProperties:
   datacenter: datacenter1
   hosts: localhost
   keyspace: test
-  user: test
-  password: test
+  user: cassandra
+  password: cassandra
   batchSize: 256
 toProperties:
   class: org.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
   hosts: localhost:9043
   keyspace: test
-  user: test
-  password: test
+  user: cassandra
+  password: cassandra
   batchSize: 256

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
+import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -32,12 +33,23 @@ public class CassandraToCassandraTest {
     private static boolean sync = false;
 
     private static CassandraContainer source = new CassandraContainer("cassandra")
-            .withExposedPorts(9042)
+            .withEnv("CASSANDRA_USER", "cassandra")
+            .withEnv("CASSANDRA_PASSWORD", "cassandra")
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
-            .withInitScript("./cassandra/cassandra/sql/cs-init.cql");
+            .withEnv("CASSANDRA_AUTHENTICATOR", "PasswordAuthenticator")
+            .withEnv("CASSANDRA_NUM_TOKENS", "16")
+            .withCopyToContainer(MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh"), "/usr/local/bin/docker-entrypoint.sh")
+            .withInitScript("./cassandra/cassandra/sql/cs-init.cql")
+            .withExposedPorts(9042);
     private static CassandraContainer target = new CassandraContainer("cassandra")
-            .withExposedPorts(9042)
-            .withInitScript("./cassandra/cassandra/sql/cs-init-empty.cql");
+            .withEnv("CASSANDRA_USER", "cassandra")
+            .withEnv("CASSANDRA_PASSWORD", "cassandra")
+            .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
+            .withEnv("CASSANDRA_AUTHENTICATOR", "PasswordAuthenticator")
+            .withEnv("CASSANDRA_NUM_TOKENS", "16")
+            .withCopyToContainer(MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh"), "/usr/local/bin/docker-entrypoint.sh")
+            .withInitScript("./cassandra/cassandra/sql/cs-init-empty.cql")
+            .withExposedPorts(9042);
 
     @BeforeAll
     static void setUp() throws SQLException, IOException, InterruptedException {
@@ -358,8 +370,8 @@ public class CassandraToCassandraTest {
         properties.setProperty("class", "org.bublik.cassandra.storage.CassandraStorage");
         properties.setProperty("keyspace", "test");
         properties.setProperty("hosts", hosts);
-        properties.setProperty("user", "test");
-        properties.setProperty("password", "test");
+        properties.setProperty("user", "cassandra");
+        properties.setProperty("password", "cassandra");
         properties.setProperty("datacenter", "datacenter1");
         properties.setProperty("batchSize", "256");
         return properties;

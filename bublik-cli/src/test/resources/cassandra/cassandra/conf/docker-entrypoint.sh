@@ -73,6 +73,7 @@ if [ "$1" = 'cassandra' ]; then
 		rpc_address \
 		start_rpc \
 		user_defined_functions_enabled \
+		authenticator \
 	; do
 		var="CASSANDRA_${yaml^^}"
 		val="${!var}"
