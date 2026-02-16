@@ -17,6 +17,7 @@ import org.bublik.core.constants.ChunkStatus;
 import org.bublik.core.constants.PGKeywords;
 import org.bublik.core.model.*;
 import org.bublik.core.service.Source;
+import org.bublik.core.storage.JDBCStorage;
 import org.bublik.core.storage.Storage;
 import org.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
@@ -72,7 +73,9 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             dropChunkTable(sync, tableName);
             createChunkTable(sync, tableName);
             fulfillChunks(configs, sync, rows, tableName);
-//            targetStorage.createLocalOutbox(tableName);
+            if (targetStorage instanceof JDBCStorage<?, ?, ?, ?>) {
+                targetStorage.createGlobalOutbox(tableName);
+            }
         }
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
@@ -82,16 +85,15 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             String tName = getChunkTableName(tableName);
 
             chunks.forEach(chunk -> futures.add(
-                            service.submit(() -> {
-                                try {
-                                    return chunk.allStages(false, tName);
-                                } catch (Exception e) {
-                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-                                    chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e), tName);
-                                    throw e;
-                                }
-                            })
-                    )
+                    service.submit(() -> {
+                        try {
+                            return chunk.allStages(false, tName);
+                        } catch (Exception e) {
+                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
+                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e), tName);
+                            throw e;
+                        }
+                    }))
             );
 
             int timeoutCounter = 0;
@@ -322,14 +324,15 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
         CqlSession sourceSession = getSession();
         configs.forEach(config -> {
-            Table<S> sourceTable = configToTable(config.fromSchemaName(), config.fromTableName());
-            Table<S> targetTable = configToTable(config.toSchemaName(), config.toTableName());
+            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             try {
                 this.enrichTable(sourceTable);
                 targetStorage.enrichTable(sourceTable, targetTable);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
+//            targetTable.getColumns().forEach(c -> System.out.println(c.columnName() + "." + c.columnType()));
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, getChunkTableName(chunkTableName));
@@ -405,8 +408,15 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
-//            sourceTable.getColumns().forEach(column -> log.info("Column: {}", column.columnName()));
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            if (sourceTable.getClass() == targetTable.getClass()) {
+                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            } else {
+                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c,
+                        targetTable
+                                .getColumns()
+                                .stream()
+                                .filter(c1 -> c1.columnName().equals(c.columnName())).findFirst().orElseThrow())));
+            }
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -418,7 +428,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 Column targetColumn = targetTable.getColumns().stream()
                         .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
                         .findFirst()
-                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(sourceColumn, targetColumn));
             }
@@ -428,13 +438,23 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 Column column = targetTable.getColumns().stream()
                         .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
                         .findFirst()
-                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
+                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(column, column, entry.getKey()));
             }
         }
+//        logColumn2Column(column2Column);
         return column2Column;
     }
+
+/*
+    private void logColumn2Column(List<Column2Column> column2Column) {
+        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
+                c2c.sourceExpression(),
+                c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
+                c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
+    }
+*/
 
     @Override
     public void closeStorage() {
@@ -557,5 +577,19 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     @Override
     public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
         targetTable.enrichTable(getSession());
+    }
+
+    @Override
+    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) {
+    }
+
+    @Override
+    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+
     }
 }

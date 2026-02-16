@@ -25,7 +25,10 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
 
     void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException;
     void createGlobalOutbox(String tableName) throws SQLException;
-    void createLocalOutbox(String tableName) throws SQLException;
+    <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
+    <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+//    void createLocalOutbox(String tableName) throws SQLException;
     void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk, String tableName) throws SQLException;
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;

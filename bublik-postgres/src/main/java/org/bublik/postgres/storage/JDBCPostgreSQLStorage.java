@@ -25,10 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.sql.*;
 import java.sql.Date;
 import java.time.*;
@@ -145,7 +147,15 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            if (sourceTable.getClass() == targetTable.getClass()) {
+                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            } else {
+                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c,
+                        targetTable
+                                .getColumns()
+                                .stream()
+                                .filter(c1 -> c1.columnName().equals(c.columnName())).findFirst().orElseThrow())));
+            }
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
@@ -284,32 +294,36 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, BinaryWriteFailedException,
             SourceSQLException, TargetSQLException {
-        ResultSet fetchResultSet = chunk.getResultSet();
-        Connection connectionFrom = chunk.getSourceSession();
-        if (fetchResultSet.next()) {
-            Connection connectionTo = chunk.getTargetSession();
-            try {
-                LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
-                connectionTo.close();
-                return logMessage;
-            } catch (SQLException e) {
-                connectionTo.rollback();
-                connectionTo.close();
-                throw e;
-            } catch (SourceSQLException s) {
-                connectionFrom.close();
-                log.error("{}", getStackTrace(s));
-                throw s;
-            } catch (BinaryWriteFailedException b) {
-                if (b.getCause() instanceof PSQLException && b.getCause().getCause() == null) {
+        if (chunk.getSourceStorage() instanceof JDBCStorage<K,T,S,R>) {
+            ResultSet fetchResultSet = chunk.getResultSet();
+            Connection connectionFrom = chunk.getSourceSession();
+            if (fetchResultSet.next()) {
+                Connection connectionTo = chunk.getTargetSession();
+                try {
+                    LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                     connectionTo.close();
+                    return logMessage;
+                } catch (SQLException e) {
+                    connectionTo.rollback();
+                    connectionTo.close();
+                    throw e;
+                } catch (SourceSQLException s) {
+                    connectionFrom.close();
+                    log.error("{}", getStackTrace(s));
+                    throw s;
+                } catch (BinaryWriteFailedException b) {
+                    if (b.getCause() instanceof PSQLException && b.getCause().getCause() == null) {
+                        connectionTo.close();
+                    }
+                    throw b;
+                } finally {
+                    ;
                 }
-                throw b;
-            } finally {
-                ;
+            } else {
+                return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "NO ROWS FETCH");
             }
         } else {
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "NO ROWS FETCH");
+            return chunk.getSourceStorage().transfer(chunk, tableName);
         }
     }
 
@@ -318,16 +332,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                     String tableName) throws SQLException, BinaryWriteFailedException, SourceSQLException{
         int recordCount = 0;
         Connection connectionTo = (Connection) chunk.getTargetSession();
-
-/*
-        try {
-            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
-            connectionTo.rollback();
-        } catch (PSQLException p) {
-            connectionTo.rollback();
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
-        }
-*/
 
         if (!isChunkProcessed(chunk, tableName)) {
             Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
@@ -359,20 +363,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     };
 
             do {
-                try {
-                    writer.startRow(simpleRowConsumer);
-                } catch (BinaryWriteFailedException e) {
-//                LOGGER.error("BinaryWriteFailedException caught by writer.startRow() {}", getStackTrace(e));
-                    throw e;
-                }
+                writer.startRow(simpleRowConsumer);
                 recordCount++;
             } while (hasNext(fetchResultSet));
 
-            try {
-                writer.close();
-            } catch (BinaryWriteFailedException b) {
-                throw b;
-            }
+            writer.close();
 
             chunk.setCopied(recordCount);
 //            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
@@ -515,19 +510,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             String sourceColumn = entry.getKey().replaceAll("\"", "");
             String targetColumn = entry.getValue().columnName();
             String targetType = entry.getValue().columnType();
-
-    /*
-                try {
-                    tmpString
-                            .append(targetType)
-                            .append(" : ")
-                            .append(targetColumn)
-                            .append(" : ")
-                            .append(fetchResultSet.getString(sourceColumn)).append("\n");
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-    */
 
             switch (targetType) {
                 case "hstore": {
@@ -698,7 +680,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         throw e;
                     }
                 }
-                case "numeric": {
+                case "numeric", "decimal": {
                     try {
                         Object o = fetchResultSet.getObject(sourceColumn);
                         if (o == null) {
@@ -712,7 +694,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         throw e;
                     }
                 }
-                case "float4": {
+                case "float4" : {
                     try {
                         Object o = fetchResultSet.getObject(sourceColumn);
                         if (o == null) {
@@ -727,7 +709,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         throw e;
                     }
                 }
-                case "float8": {
+                case "float8", "double precision": {
                     try {
                         Object o = fetchResultSet.getObject(sourceColumn);
                         if (o == null) {
@@ -781,11 +763,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                             row.setTimeStamp(targetColumn, null);
                             break;
                         }
-/*
-                        ZonedDateTime zonedDateTime =
-                                ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp.getTime()),
-                                        ZoneOffset.UTC);
-*/
                         ZonedDateTime zonedDateTime =
                                 ZonedDateTime.ofInstant(timestamp.toInstant(), ZoneId.of("UTC"));
                         row.setTimeStampTz(targetColumn, zonedDateTime);
@@ -1393,5 +1370,142 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             targetTable.enrichTable(session);
         }
         session.close();
+    }
+
+    @Override
+    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        Connection connectionTo = chunk.getTargetSession();
+
+        Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
+                .stream()
+                .collect(Collectors.toMap(el -> el.sourceColumn().columnName(), Column2Column::targetColumn));
+
+        PGConnection pgConnection = PostgreSqlUtils.getPGConnection(connectionTo);
+        String[] columnNames = columnToColumnMap
+                .values()
+                .stream()
+                .map(Column::columnName)
+                .toList()
+                .toArray(String[]::new);
+        String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
+        SimpleRowWriter.Table table =
+                new SimpleRowWriter.Table(chunk.getT2t().targetTable().getSchemaName(),
+                        chunk.getT2t().targetTable().getFinalTableName(true), cNames);
+        SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
+        return (W) writer;
+    }
+
+    @Override
+    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                         Chunk<K, T, S, R> chunk,
+                                         W writer) throws SQLException {
+        Consumer<SimpleRow> simpleRowConsumer =
+                s -> consume(s, columnValues);
+
+        ((SimpleRowWriter) writer).startRow(simpleRowConsumer);
+    }
+
+    private <V> void consume(SimpleRow s, List<ColumnValue<V>> columnValues) {
+        for (ColumnValue<V> columnValue : columnValues) {
+            String targetColumnName = columnValue.targetColumn().columnName();
+            String targetType = columnValue.targetColumn().columnType();
+            V value = columnValue.value();
+            switch (targetType) {
+                case "int", "serial", "int4": {
+                    s.setInteger(targetColumnName, (Integer) value);
+                    break;
+                }
+                case "smallserial", "int2": {
+                    if (value instanceof Short) {
+                        s.setShort(targetColumnName, (Short) value);
+                    } else {
+                        s.setShort(targetColumnName, ((Integer) value).shortValue());
+                    }
+                    break;
+                }
+                case "bigint", "int8": {
+                    if (value instanceof Long) {
+                        s.setLong(targetColumnName, (Long) value);
+                    } else {
+                        s.setLong(targetColumnName, ((Number) value).longValue());
+                    }
+                    break;
+                }
+                case "numeric", "decimal": {
+                    s.setNumeric(targetColumnName, (BigDecimal) value);
+                    break;
+                }
+                case "float4": {
+                    s.setFloat(targetColumnName, (Float) value);
+                    break;
+                }
+                case "float8", "double precision": {
+                    if (value instanceof Double) {
+                        s.setDouble(targetColumnName, (Double) value);
+                    } else {
+                        Float f = (Float) value;
+                        s.setDouble(targetColumnName, f.doubleValue());
+                    }
+                    break;
+                }
+                case "json", "varchar": {
+                    s.setVarChar(targetColumnName, (String) value);
+                    break;
+                }
+                case "text", "bpchar": {
+                    s.setText(targetColumnName, (String) value);
+                    break;
+                }
+                case "jsonb": {
+                    s.setJsonb(targetColumnName, (String) value);
+                    break;
+                }
+                case "time": {
+                    s.setTime(targetColumnName, (LocalTime) value);
+                    break;
+                }
+                case "timestamp": {
+                    ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant((Instant) value, ZoneId.of("UTC"));
+                    s.setTimeStamp(targetColumnName, LocalDateTime.ofInstant((Instant) value, zonedDateTime.getZone()));
+                    break;
+                }
+                case "date": {
+                    s.setDate(targetColumnName, (LocalDate) value);
+                    break;
+                }
+                case "bytea": {
+                    ByteBuffer buffer = (ByteBuffer) value;
+                    s.setByteArray(targetColumnName, buffer.array());
+                    break;
+                }
+                case "bool": {
+                    s.setBoolean(targetColumnName, (Boolean) value);
+                    break;
+                }
+                case "inet": {
+                    InetAddress inetAddress = (InetAddress) value;
+                    if (inetAddress instanceof Inet4Address inet4Address) {
+                        s.setInet4Addr(targetColumnName, inet4Address);
+                    } else {
+                        Inet6Address inet6Address = (Inet6Address) inetAddress;
+                        s.setInet6Addr(targetColumnName, inet6Address);
+                    }
+                    break;
+                }
+                case "uuid": {
+                    s.setUUID(targetColumnName, (UUID) value);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+
+    @Override
+    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        Connection connectionTo = chunk.getTargetSession();
+        ((SimpleRowWriter) writer).close();
+        connectionTo.commit();
     }
 }

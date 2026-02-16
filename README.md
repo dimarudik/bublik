@@ -5,6 +5,7 @@
 | SOURCE       | TARGET     |
 |:-------------|:-----------|
 | Cassandra    | Cassandra  |
+| Cassandra    | PostgreSQL |
 | Oracle       | Cassandra  |
 | Oracle       | PostgreSQL |
 | Oracle       | YDB        |
@@ -26,6 +27,11 @@ You can find more details and examples below.
     * [Prepare Cassandra To Cassandra Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
     * [Prepare Cassandra To Cassandra Mapping Files](#prepare-cassandra-to-cassandra-mapping-files)
     * [Cassandra To Cassandra Run](#cassandra-to-cassandra-run)
+* [Cassandra To PostgreSQL](#cassandra-to-postgresql)
+    * [Prepare Cassandra To PostgreSQL environment](#prepare-cassandra-to-postgresql-environment)
+    * [Prepare Cassandra To PostgreSQL Connection Settings](#prepare-cassandra-to-postgresql-connection-settings)
+    * [Prepare Cassandra To PostgreSQL Mapping Files](#prepare-cassandra-to-postgresql-mapping-files)
+    * [Cassandra To PostgreSQL Run](#cassandra-to-postgresql-run)
 * [Oracle To Cassandra](#oracle-to-cassandra)
     * [Prepare Oracle To Cassandra environment](#prepare-oracle-to-cassandra-environment)
     * [Prepare Oracle To Cassandra Connection Settings](#prepare-oracle-to-cassandra-connection-settings)
@@ -80,14 +86,14 @@ mvn clean package
 
 The objective is to migrate data from Cassandra to Cassandra database.
 To split data into chunks we use Token Ranges ring of Cassandra. 
-Such method helps to minimize the workload on the source database and improves the performance of the data transfer to taget database.
+Such method helps to minimize the workload on the source database and improves the performance of the data transfer to target database.
 
 ### Prepare Cassandra To Cassandra environment
 
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="CassandraToCassandraTest,CassandraTimestampDowntimeTest,CassandraClusterTest"
+mvn test -Dtest="dev/bublik/cli/cassandra/cassandra/*" -Dsurefire.failIfNoSpecifiedTests=false 
 ```
 Or you can run test case in docker containers manually:
 
@@ -351,7 +357,146 @@ Chunks will be created automatically with parameter -k at startup
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transfer
 
+## Cassandra To PostgreSQL
+![Cassandra To PostgreSQL](./bublik-cli/src/test/resources/images/cs2pg.png)
 
+The objective is to migrate data from Cassandra to PostgreSQL database.
+To split data into chunks we use Token Ranges ring of Cassandra.
+Such method helps to minimize the workload on the source database and improves the performance of the data transfer to target database.
+
+### Prepare Cassandra To PostgreSQL environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn test -Dtest="dev/bublik/cli/cassandra/postgresql/*" -Dsurefire.failIfNoSpecifiedTests=false 
+```
+Or you can run test case in docker containers manually:
+
+#### Prepare Cassandra Source environment
+
+```shell
+docker run --name cassandra1 \
+        -h cassandra1 \
+        -p 9042:9042 \
+        -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
+        -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
+        -e HEAP_NEWSIZE=128M \
+        -e MAX_HEAP_SIZE=1024M \
+        -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
+        -e CASSANDRA_DC=datacenter1 \
+        -d cassandra
+```
+
+To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
+
+```shell
+cqlsh -f ./bublik-cli/src/test/resources/cassandra/postgresql/sql/cs-init.cql
+```
+
+#### Prepare PostgreSQL Target environment
+
+```
+docker run --name postgres \
+        -h postgres \
+        -e POSTGRES_USER=test \
+        -e POSTGRES_PASSWORD=test \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./bublik-cli/src/test/resources/cassandra/postgresql/sql/pg-init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain"
+```
+
+How to connect to PostgreSQL:
+
+```
+psql postgresql://test:test@localhost/postgres
+```
+
+### Prepare Cassandra To PostgreSQL Connection Settings
+
+Cassandra and PostgreSQL connection settings `./bublik-cli/src/test/resources/cassandra/postgresql/yaml/cs2pg.yaml`:
+
+```yaml
+threadCount: 10
+
+fromProperties:
+  class: org.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: cassandra
+  password: cassandra
+  batchSize: 64
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+```
+
+### Prepare Cassandra To PostgreSQL Mapping Files
+
+You can run the tool by using json file in folder `./bublik-cli/src/test/resources/cassandra/postgresql/json/cs2pg.json`
+
+[cs2pg.json](bublik-cli/src/test/resources/cassandra/postgresql/json/cs2pg.json)
+
+```json
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t1",
+    "toSchemaName": "public",
+    "toTableName": "t1"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t1",
+    "toSchemaName": "public",
+    "toTableName": "t2",
+    "columnToColumn" : {
+      "id" : "id",
+      "a" : "a",
+      "b" : "b",
+      "c" : "c",
+      "d" : "d",
+      "e" : "e",
+      "f" : "f",
+      "g" : "g",
+      "i" : "i",
+      "j" : "j",
+      "k" : "k",
+      "l" : "l",
+      "m" : "m",
+      "n" : "n",
+      "o" : "o",
+      "p" : "p",
+      "q" : "q",
+      "r" : "r",
+      "s" : "s",
+      "t" : "t",
+      "u" : "u"
+    }
+  }
+]
+```
+
+### Cassandra To PostgreSQL Run
+
+If you are about do the transfer without downtime, you should parallel the payload to the source and target database. You must save the data to the source database ahead of target database, so that Bublik can not overwrite the data in the target database as per TIMESTAMP value.
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/cassandra/postgresql/yaml/cs2pg.yaml \
+    -m ./bublik-cli/src/test/resources/cassandra/postgresql/json/cs2pg.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
 
 ## Oracle To Cassandra
 ![Oracle To Cassandra](./bublik-cli/src/test/resources/images/ora2cs.png)
@@ -364,7 +509,7 @@ The data transforms to adjust most optimal Cassandra data modeling.
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="OracleToCassandraTest"
+mvn test -Dtest="dev/bublik/cli/oracle/cassandra/*" -Dsurefire.failIfNoSpecifiedTests=false 
 ```
 
 Or you can run test case in docker containers manually:
@@ -757,7 +902,7 @@ The objective is to migrate table <strong>to_ydb</strong> to table <strong>to_yd
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="OracleToYDBTest"
+mvn test -Dtest="dev/bublik/cli/oracle/ydb/*" -Dsurefire.failIfNoSpecifiedTests=false 
 ```
 
 Or you can run test case in docker containers manually:
@@ -882,7 +1027,7 @@ The data transforms to adjust most optimal Cassandra data modeling.
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="PostgresToCassandraTest"
+mvn test -Dtest="dev/bublik/cli/postgresql/cassandra/*" -Dsurefire.failIfNoSpecifiedTests=false 
 ```
 
 Or you can run test case in docker containers manually:
@@ -1197,7 +1342,7 @@ The objective is to migrate table <strong>likes</strong> to table <strong>likes_
 You can run test in TestContainers environment by executing the command below:
 
 ```shell
-mvn -f ./bublik-cli/pom.xml test -Dtest="PostgresToYDBTest"
+mvn test -Dtest="dev/bublik/cli/postgresql/ydb/*" -Dsurefire.failIfNoSpecifiedTests=false 
 ```
 
 Or you can run test case in docker containers manually:

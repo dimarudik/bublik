@@ -3,10 +3,7 @@ package org.bublik.core.storage;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.bublik.core.constants.ChunkStatus;
-import org.bublik.core.model.Chunk;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.ConnectionProperty;
-import org.bublik.core.model.Table;
+import org.bublik.core.model.*;
 import org.bublik.core.service.JDBCStorageService;
 import org.bublik.core.service.Source;
 import org.bublik.core.service.Target;
@@ -221,10 +218,6 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
     }
 
-    @Override
-    public void createLocalOutbox(String tableName) throws SQLException {
-    }
-
     private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
@@ -355,5 +348,19 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
     public boolean isColumnNameWithAsConstruction(String columnName) {
         return columnName.toLowerCase().lastIndexOf(" as ") != -1;
+    }
+
+    @Override
+    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
+    }
+
+    @Override
+    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+
     }
 }
