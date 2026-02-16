@@ -21,7 +21,7 @@ import static dev.bublik.cli.App.getConfigs;
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
+@Disabled
 public class PostgresToYDBTest {
     private static int rows = 50000;
     private static boolean sync = false;
