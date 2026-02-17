@@ -40,7 +40,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         boolean applied;
         try {
             PreparedStatement psDelete = cqlSession.prepare(DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
-            BoundStatement bsDelete = psDelete.bind(getId(), getChunkStatus().toString(), getConfig().fromSchemaName(), getConfig().fromTableName());
+            BoundStatement bsDelete = psDelete.bind(getId(), getChunkStatus().toString(), getConfig().fromSchemaName(), getConfig().fromTableName())
+                    .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM);
             applied = cqlSession.execute(bsDelete).wasApplied();
         } catch (Exception e) {
             throw new SQLException(e);
@@ -62,6 +63,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                         .setString("thread", Thread.currentThread().getName())
                         .setInstant("start_ts", getStartTs())
                         .setInstant("end_ts", getEndTs())
+                        .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM)
                         .build();
                 cqlSession.execute(bsInsert);
             } catch (Exception e) {
@@ -86,6 +88,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                     .setString("status", getChunkStatus().toString())
                     .setString("schema_name", getT2t().sourceTable().getSchemaName())
                     .setString("table_name", getT2t().sourceTable().getTableName())
+                    .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM)
                     .build();
             cqlSession.execute(bsUpdate);
         } catch (Exception e) {

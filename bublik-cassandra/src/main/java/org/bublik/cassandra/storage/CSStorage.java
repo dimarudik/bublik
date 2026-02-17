@@ -1,5 +1,6 @@
 package org.bublik.cassandra.storage;
 
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
@@ -25,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -292,7 +294,13 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
         CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
         String insertCQL = DML_INSERT_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName));
-        cqlSession.execute(insertCQL, chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied());
+        PreparedStatement statement = cqlSession.prepare(insertCQL);
+        BoundStatement boundStatement = statement.bind(chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied())
+                .setPageSize(1_000)
+                .setTimeout(Duration.ofSeconds(1))
+                .setConsistencyLevel(ConsistencyLevel.QUORUM);
+        cqlSession.execute(boundStatement);
+//        cqlSession.execute(insertCQL, chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied());
     }
 
     @Override
@@ -340,7 +348,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: {}", fetchQuery);
             PreparedStatement ps = sourceSession.prepare(sql);
-            BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName());
+            BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
             ResultSet rs = sourceSession.execute(bs);
             for (Row row : rs) {
                 String status = row.getString("status");

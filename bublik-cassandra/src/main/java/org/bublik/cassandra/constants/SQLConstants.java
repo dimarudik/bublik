@@ -16,7 +16,11 @@ public abstract class SQLConstants {
                     "end_ts timestamp, " +
                     "err_msg text, " +
                     "thread text, " +
-                    "primary key ((status, schema_name, table_name), chunk_id))";
+                    "primary key ((status, schema_name, table_name), chunk_id))" +
+                    "WITH gc_grace_seconds = 60 AND " +
+                    "compaction = " +
+                    "{'class': 'SizeTieredCompactionStrategy', 'max_threshold': '4', 'min_threshold': '2', " +
+                    "'tombstone_threshold': '0.05', 'tombstone_compaction_interval': '60' } ";
     public static final String DML_INSERT_CHUNK_TABLE =
             "INSERT INTO $tableName (chunk_id, start_page, end_page, schema_name, table_name, status, task_name, err_msg, required, copied, thread, start_ts, end_ts) " +
                     "VALUES (:chunk_id, :start_page, :end_page, :schema_name, :table_name, :status, :task_name, :err_msg, :required, :copied, :thread, :start_ts, :end_ts)";
