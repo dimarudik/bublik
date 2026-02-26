@@ -6,7 +6,7 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>26.1.22</version>
+    <version>26.1.23</version>
     <packaging>pom</packaging>
 
     <developers>
@@ -44,17 +44,6 @@
         <lombok.version>1.18.38</lombok.version>
     </properties>
 
-
-<!--
-    <distributionManagement>
-        <repository>
-          <id>${env.MVN_HOSTED_NAME}</id>
-          <name>T Hosted</name>
-          <url>${env.MVN_HOSTED_URL}</url>
-        </repository>
-    </distributionManagement>
--->
-
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -87,6 +76,7 @@
         <module>bublik-ydb</module>
         <module>bublik-cassandra</module>
         <module>bublik-cli</module>
+        <module>bublik-mssql</module>
     </modules>
 
     <build>

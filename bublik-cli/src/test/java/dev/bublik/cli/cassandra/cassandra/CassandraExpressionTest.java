@@ -2,24 +2,21 @@ package dev.bublik.cli.cassandra.cassandra;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.*;
-import org.bublik.cassandra.storage.CSPool;
+import dev.bublik.cassandra.storage.CSPool;
 import dev.bublik.cli.App;
 import dev.bublik.cli.TestResult;
 import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
-import org.testcontainers.containers.BindMode;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;

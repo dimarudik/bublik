@@ -2,8 +2,8 @@ package dev.bublik.cli.addons;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.bublik.core.util.Utils.getStackTrace;
+import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class Utils {
     private static final Logger log = LoggerFactory.getLogger(Utils.class);

@@ -2,10 +2,10 @@ package dev.bublik.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.cli.*;
-import org.bublik.core.constants.ENVProperties;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.ConnectionProperty;
-import org.bublik.core.service.StorageService;
+import dev.bublik.core.constants.ENVProperties;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.service.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +16,7 @@ import java.util.*;
 
 import static dev.bublik.cli.addons.Utils.*;
 import static dev.bublik.cli.constants.StringConstant.HELP_MESSAGE;
-import static org.bublik.core.util.Utils.getStackTrace;
+import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);

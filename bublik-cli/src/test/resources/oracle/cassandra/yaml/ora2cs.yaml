@@ -5,7 +5,7 @@ fromProperties:
   user: test
   password: test
 toProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   keyspace: test

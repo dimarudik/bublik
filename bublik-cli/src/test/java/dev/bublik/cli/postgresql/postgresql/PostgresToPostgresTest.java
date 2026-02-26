@@ -52,14 +52,14 @@ public class PostgresToPostgresTest {
     void allTypes() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
-                "postgresql/postgresql/json/allTypes.json",
+                "./postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         TestResult result2 = getResult(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
-                "postgresql/postgresql/json/allTypes.json",
+                "./postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
@@ -71,7 +71,7 @@ public class PostgresToPostgresTest {
     void targetTableNotExists() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
-                "postgresql/postgresql/json/targetTableNotExists.json",
+                "./postgresql/postgresql/json/targetTableNotExists.json",
                 rows,
                 sync,
                 getJdbcProperties(source),

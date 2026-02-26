@@ -2,8 +2,8 @@ package dev.bublik.cli.postgresql.ydb;
 
 import dev.bublik.cli.*;
 import dev.bublik.cli.addons.Utils;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;

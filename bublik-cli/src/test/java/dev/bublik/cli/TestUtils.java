@@ -2,8 +2,8 @@ package dev.bublik.cli;
 
 import lombok.extern.slf4j.Slf4j;
 import dev.bublik.cli.addons.Utils;
-import org.bublik.core.model.Config;
-import org.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 import java.io.IOException;

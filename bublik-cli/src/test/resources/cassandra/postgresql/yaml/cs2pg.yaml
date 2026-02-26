@@ -1,7 +1,7 @@
 threadCount: 10
 
 fromProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.storage.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   keyspace: test

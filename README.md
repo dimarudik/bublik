@@ -147,7 +147,7 @@ Cassandra connection settings `./bublik-cli/src/test/resources/cassandra/cassand
 threadCount: 10
 
 fromProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   keyspace: test
@@ -155,7 +155,7 @@ fromProperties:
   password: test
   batchSize: 256
 toProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.CassandraStorage
   datacenter: datacenter1
   hosts: localhost:9043
   keyspace: test
@@ -422,7 +422,7 @@ Cassandra and PostgreSQL connection settings `./bublik-cli/src/test/resources/ca
 threadCount: 10
 
 fromProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   keyspace: test
@@ -566,7 +566,7 @@ fromProperties:
   user: test
   password: test
 toProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   keyspace: test
@@ -1083,7 +1083,7 @@ fromProperties:
   user: test
   password: test
 toProperties:
-  class: org.bublik.cassandra.storage.CassandraStorage
+  class: dev.bublik.cassandra.CassandraStorage
   datacenter: datacenter1
   hosts: localhost
   keyspace: test
