@@ -71,6 +71,8 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
                     reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty);
                 case "tech.ydb.jdbc.YdbDriver" ->
                     reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty);
+                case "com.microsoft.sqlserver.jdbc.SQLServerDriver" ->
+                    reflectStorage(MSSQL_STORAGE_CLASS_NAME, properties, connectionProperty);
                 default -> throw new RuntimeException();
             };
         }

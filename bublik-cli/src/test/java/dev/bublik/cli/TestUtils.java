@@ -81,9 +81,12 @@ public class TestUtils {
     }
 
     public static Long countRows(Properties p, String query) {
+/*
         try (Connection connection =
                      DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
-//            System.out.println(p.getProperty("url"));
+*/
+        try (Connection connection =
+                     DriverManager.getConnection(p.getProperty("url"), p)) {
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
             resultSet.next();

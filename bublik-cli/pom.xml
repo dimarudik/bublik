@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.1.24</version>
+        <version>26.1.25</version>
     </parent>
 
     <artifactId>bublik-cli</artifactId>
@@ -42,11 +42,6 @@
     <properties>
         <testcontainers.version>2.0.3</testcontainers.version>
     </properties>
-<!--
-    <properties>
-        <testcontainers.version>1.21.3</testcontainers.version>
-    </properties>
--->
 
     <dependencies>
         <dependency>
@@ -82,14 +77,12 @@
             <version>5.13.4</version>
             <scope>test</scope>
         </dependency>
-<!--
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>${testcontainers.version}</version>
+            <artifactId>testcontainers-mssqlserver</artifactId>
+            <version>2.0.3</version>
             <scope>test</scope>
         </dependency>
--->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-postgresql</artifactId>
@@ -102,34 +95,12 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
-<!--
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>oracle-free</artifactId>
-            <version>${testcontainers.version}</version>
-            <scope>test</scope>
-        </dependency>
--->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-cassandra</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
-<!--
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>cassandra</artifactId>
-            <version>${testcontainers.version}</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
--->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
@@ -163,6 +134,11 @@
                 <dependency>
                     <groupId>dev.bublik</groupId>
                     <artifactId>bublik-oracle</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>dev.bublik</groupId>
+                    <artifactId>bublik-mssql</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
@@ -203,6 +179,16 @@
                 <dependency>
                     <groupId>dev.bublik</groupId>
                     <artifactId>bublik-ydb</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>mssql</id>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.bublik</groupId>
+                    <artifactId>bublik-mssql</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
@@ -304,88 +290,5 @@
 
         </plugins>
     </build>
-
-<!--
-    <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.8</version>
-                <executions>
-                    <execution>
-                        <id>copy-dependencies</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>copy-dependencies</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>
-                                ${project.build.directory}/lib
-                            </outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>dev.bublik.cli.App</mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
-&lt;!&ndash;
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <manifestEntries>
-                                        <Main-Class>dev.bublik.cli.App</Main-Class>
-                                        <Multi-Release>true</Multi-Release>
-                                    </manifestEntries>
-                                </transformer>
-                            </transformers>
-                            <shadedArtifactAttached>true</shadedArtifactAttached>
-                            <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*</artifact>
-                                    <excludes>
-                                        <exclude>META-INF/*.SF</exclude>
-                                        <exclude>META-INF/*.DSA</exclude>
-                                        <exclude>META-INF/*.RSA</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-&ndash;&gt;
-        </plugins>
-    </build>
--->
 
 </project>

@@ -16,7 +16,6 @@ import java.util.Map;
 public class OraTable<S extends Connection> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(OraTable.class);
 
-//    public OraTable(){}
     public OraTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }
@@ -75,7 +74,7 @@ public class OraTable<S extends Connection> extends Table<S> {
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
             columns.add(new Column(
                     ordinalPosition,
-                    isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
+                    isOracleCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
                     columnType,
                     dataType,
                     nullable,

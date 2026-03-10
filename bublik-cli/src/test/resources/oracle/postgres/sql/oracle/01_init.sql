@@ -13,7 +13,7 @@ create table test.table1 (
     rawbytea raw(16),
     json_like varchar2(4000),
     doc varchar2(4000) check (doc is json),
-    uuid char(36),
+    "uuid" char(36),
     clobjsonb clob,
     current_mood varchar2(256),
     currency_id int,

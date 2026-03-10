@@ -1093,6 +1093,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
+/*
     @Override
     public void createTables() {
         Map<Table<S>, Table<S>> tables = getTables();
@@ -1107,6 +1108,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             log.error("{}", getStackTrace(e));
         }
     }
+*/
 
     @Override
     public void createForeignKeys() {
@@ -1124,16 +1126,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public <W extends Serializable> byte[] intervalYM2Interval(W intervalym) {
-        return null;
-    }
-
-    @Override
-    public <W extends Serializable> byte[] intervalDS2Interval(W intervalds) {
-        return null;
-    }
-
-    @Override
     public void createUniqueConstraints() {
         Map<Table<S>, Table<S>> tables = getTables();
         try {
@@ -1148,6 +1140,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
+/*
     @Override
     public void enrichSourceTables(Connection connection) {
         Map<Table<S>, Table<S>> tables = getTables();
@@ -1165,10 +1158,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     sourceTable.setUniqueConstraints(uniqueConstraints);
                 }
 
-/*
                 List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
                 sourceTable.setIndexes(sourceIndexes);
-*/
 
                 List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
                 sourceTable.setForeignKeys(foreignKeys);
@@ -1181,6 +1172,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             log.error("{}", getStackTrace(e));
         }
     }
+*/
 
     @Override
     public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {

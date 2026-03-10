@@ -13,7 +13,6 @@ import static dev.bublik.postgres.constants.SQLConstants.*;
 public class PGTable<S extends Connection> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(PGTable.class);
 
-//    public PGTable(){}
     public PGTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }
@@ -284,7 +283,7 @@ public class PGTable<S extends Connection> extends Table<S> {
                 UniqueConstraint existingConstraint = uniqueConstraintMap.get(constraintName);
                 existingConstraint.getColumns().put((short) ordinalPosition, new Column(
                         ordinalPosition,
-                        columnName,
+                        columnName/*,
                         null, // columnType is not used here
                         null, // dataType is not used here
                         null, // nullable is not used here
@@ -297,7 +296,7 @@ public class PGTable<S extends Connection> extends Table<S> {
                         null,
                         false,
                         false,
-                        false// ascOrDesc is not used here
+                        false// ascOrDesc is not used here*/
                 ));
             } else {
                 uniqueConstraintMap.put(constraintName, new UniqueConstraint(
@@ -305,7 +304,7 @@ public class PGTable<S extends Connection> extends Table<S> {
                         new TreeMap<>() {{
                             put((short) ordinalPosition, new Column(
                                     ordinalPosition,
-                                    columnName,
+                                    columnName/*,
                                     null, // columnType is not used here
                                     null, // dataType is not used here
                                     null, // nullable is not used here
@@ -318,7 +317,7 @@ public class PGTable<S extends Connection> extends Table<S> {
                                     null,
                                     false,
                                     false,
-                                    false// ascOrDesc is not used here
+                                    false// ascOrDesc is not used here*/
                             ));
                         }},
                         nullsNotDistinct));

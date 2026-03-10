@@ -16,7 +16,7 @@
       "\"CaseSensitive\"" : "\"CaseSensitive\"",
       "rawbytea"          : "rawbytea",
       "doc"               : "doc",
-      "uuid"              : "uuid",
+      "\"uuid\""          : "uuid",
       "clobjsonb"         : "clobjsonb",
       "current_mood"      : "current_mood",
       "json_like"         : "json_like"

@@ -106,13 +106,6 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     }
 
-/*
-    @Override
-    public void insertProcessedChunkInfo(Connection connection, int chunkId, int rows, String taskName, String tableName) throws SQLException {
-
-    }
-*/
-
     @Override
     public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
 
@@ -124,7 +117,6 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         for (Config config : configs) {
             Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
-//            log.info("{} {} {} {}", sourceTable.getSchemaName(), sourceTable.getTableName(), targetTable.getSchemaName(), targetTable.getTableName());
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
@@ -454,6 +446,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     }
 
+/*
     @Override
     public void enrichSourceTables(Connection connection) {
         Map<Table<S>, Table<S>> tables = getTables();
@@ -469,11 +462,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
             log.error("{}", getStackTrace(e));
         }
     }
-
-    @Override
-    public void createTables() {
-
-    }
+*/
 
     @Override
     public Table<S> configToTable(String schemaName, String tableName) {

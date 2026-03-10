@@ -1,0 +1,4 @@
+dev/bublik/mssql/model/MSSQLChunk.class
+dev/bublik/mssql/storage/JDBCMSSQLStorage.class
+dev/bublik/mssql/model/MSSQLTable.class
+dev/bublik/mssql/constants/SQLConstants.class

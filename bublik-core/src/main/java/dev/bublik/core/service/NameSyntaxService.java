@@ -14,6 +14,11 @@ public interface NameSyntaxService {
         return bP || (!bU && !bL);
     }
 
+    default boolean isOracleCaseSensitiveWord(String word) {
+        boolean bU = word.toUpperCase().equals(word);
+        return !bU;
+    }
+
     default String getWordWithoutQuotes(String word) {
         return word.replaceAll("^\"|\"$", "");
     }

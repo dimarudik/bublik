@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
@@ -34,6 +35,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         this.threadCount = connectionProperty.getThreadCount();
     }
 
+/*
     @Override
     public String getStorageVersion(Connection connection) throws SQLException {
         return connection.getMetaData().getDatabaseProductVersion();
@@ -43,6 +45,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     public int getMajorStorageVersion(Connection connection) throws SQLException {
         return connection.getMetaData().getDatabaseMajorVersion();
     }
+*/
 
     @Override
     public S getSession() {
@@ -278,6 +281,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         }
     }
 
+/*
     @Override
     public void enrichTargetTables() {
         Map<Table<S>, Table<S>> tables = getTables();
@@ -293,6 +297,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             targetTable.setForeignKeys(sourceTable.getForeignKeys());
         }
     }
+*/
 
     private boolean inList(List<Table<S>> tables, Table<S> table) {
         return tables.contains(table);
@@ -362,5 +367,20 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     @Override
     public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
 
+    }
+
+    @Override
+    public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
+        return null;
+    }
+
+    @Override
+    public <W extends Serializable> byte[] intervalYM2Interval(W intervalym) {
+        return null;
+    }
+
+    @Override
+    public <W extends Serializable> byte[] intervalDS2Interval(W intervalds) {
+        return null;
     }
 }

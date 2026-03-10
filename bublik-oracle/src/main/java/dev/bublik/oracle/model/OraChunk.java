@@ -19,7 +19,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
 
     public OraChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
-                    ChunkStatus status, String fetchQuery, Storage sourceStorage, Storage targetStorage) {
+                    ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage);
     }
 

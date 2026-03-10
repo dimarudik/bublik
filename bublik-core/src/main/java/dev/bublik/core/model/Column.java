@@ -28,6 +28,19 @@ public record Column(Integer columnPosition,
     }
 
     public Column(Integer columnPosition,
+                  String columnName) {
+        this(columnPosition, columnName, null, null, null, null, null, null, 0, null, 0,  null, false, false, false, null);
+    }
+
+    public Column(Integer columnPosition,
+                  String columnName,
+                  String columnType,
+                  int charOctetLength,
+                  String ascOrDesc) {
+        this(columnPosition, columnName, columnType, null, null, null, null, null, 0, null, charOctetLength,  ascOrDesc, false, false, false, null);
+    }
+
+    public Column(Integer columnPosition,
                   String columnName,
                   String columnType,
                   String ascOrDesc,
@@ -67,5 +80,19 @@ public record Column(Integer columnPosition,
 
     public String getColumnNameWithoutQuotes() {
         return getWordWithoutQuotes(columnName);
+    }
+
+    public boolean isDescendingBy_0_1() {
+        return ascOrDesc.equals("1");
+    }
+
+    public String getColumnNameWithType() {
+        return columnName + " " + columnType + " " +
+                (charOctetLength > 0 &&
+                        (columnType.equals("varchar")  ||
+                            columnType.equals("char")  ||
+                            columnType.equals("nchar") ||
+                            columnType.equals("nvarchar"))
+                        ? "(" + charOctetLength + ")" : "");
     }
 }

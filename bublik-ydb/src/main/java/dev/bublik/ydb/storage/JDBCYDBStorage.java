@@ -348,11 +348,6 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public void enrichSourceTables(Connection connection) {
-
-    }
-
-    @Override
     public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
         S session = getPoolConnection();
         targetTable.enrichTable(session);
@@ -385,11 +380,6 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
 
     @Override
     public void createUniqueConstraints() {
-
-    }
-
-    @Override
-    public void createTables() {
 
     }
 
