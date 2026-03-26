@@ -35,17 +35,23 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         this.threadCount = connectionProperty.getThreadCount();
     }
 
-/*
     @Override
-    public String getStorageVersion(Connection connection) throws SQLException {
-        return connection.getMetaData().getDatabaseProductVersion();
+    public String getStorageVersion() {
+        try {
+            return getConnection().getMetaData().getDatabaseProductVersion();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public int getMajorStorageVersion(Connection connection) throws SQLException {
-        return connection.getMetaData().getDatabaseMajorVersion();
+    public int getStorageMajorVersion() {
+        try {
+            return getConnection().getMetaData().getDatabaseMajorVersion();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
-*/
 
     @Override
     public S getSession() {

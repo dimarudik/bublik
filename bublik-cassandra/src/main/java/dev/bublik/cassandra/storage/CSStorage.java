@@ -50,6 +50,16 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
+    public String getStorageVersion() {
+        return "";
+    }
+
+    @Override
+    public int getStorageMajorVersion() {
+        return csPool.getMajorVersion();
+    }
+
+    @Override
     public S getSession() {
         return (S) getCsPool().getCqlSession();
     }
@@ -79,6 +89,9 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 targetStorage.createGlobalOutbox(tableName);
             }
         }
+
+        log.info("SOURCE Cassandra version: {}", getStorageMajorVersion());
+        log.info("TARGET Cassandra version: {}", targetStorage.getStorageMajorVersion());
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
@@ -331,6 +344,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
         List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
         CqlSession sourceSession = getSession();
+//        log.info("Get chunk list from {}", chunkTableName);
         configs.forEach(config -> {
             Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
@@ -380,35 +394,13 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             ttlColumn = new Column(-1,
                     "_ttl",
                     "int",
-                    null,
-                    null,
-                    config.withTTL(),
-                    null,
-                    null,
-                    0,
-                    null,
-                    0,
-                    null,
-                    false,
-                    false,
-                    false);
+                    config.withTTL());
         }
         if (config.timestamp() != null) {
             timestampColumn = new Column(-1,
                     "_timestamp",
                     "int",
-                    null,
-                    null,
-                    config.timestamp(),
-                    null,
-                    null,
-                    0,
-                    null,
-                    0,
-                    null,
-                    false,
-                    false,
-                    false);
+                    config.timestamp());
         }
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
@@ -529,8 +521,10 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         CSTable<?> sourceTable = (CSTable<?>) t2t.sourceTable();
         List<Column> pkColumns = new ArrayList<>(sourceTable.getPartitionKey());
         List<Column> ckColumns = new ArrayList<>(sourceTable.getClusteringKey());
-        List<Column> nonStColumns = CSTableService.getNonStaticColumns(sourceTable);
-//        nonStColumns.forEach((c) -> log.info("Non static column: {}", c.getColumnNameWithoutQuotes()));
+        List<Column> nonStaticColumns = CSTableService.getNonStaticColumns(sourceTable);
+        List<Column> nonFrozenCollectionColumns = getStorageMajorVersion() < 5
+                ? CSTableService.getNonFrozenCollectionColumns(sourceTable) : new ArrayList<>();
+//        System.out.println("nonFrozenCollectionColumns: " + nonFrozenCollectionColumns);
         Collections.sort(pkColumns);
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());
         List<String> columns = new ArrayList<>(t2t.column2Columns()
@@ -541,24 +535,26 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 .stream()
                 .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
                 .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
-                .filter(s -> nonStColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
+                .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
+                .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
                 .map(s -> "ttl(" + s + ")")
                 .toList();
         List<String> timestampColumns = columns
                 .stream()
                 .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
                 .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
-                .filter(s -> nonStColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
+                .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
+                .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
                 .map(s -> "writetime(" + s + ")")
                 .toList();
         columns.addAll(ttlColumns);
         columns.addAll(timestampColumns);
         String columnToColumn = String.join(", ", columns);
-//        String _tempTtlClause = ( ", cast((int)0 + " + t2t.ttlColumn().defaultValue() + " as int ) as \"" + t2t.ttlColumn().columnName() + "\" ");
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
-                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", cast((int)0 + " + t2t.ttlColumn().defaultValue() + " as int ) as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
-                (t2t.timestampColumn() == null ? "" : ( ", (bigint)(" + t2t.timestampColumn().defaultValue() + ") as \"" + t2t.timestampColumn().columnName() + "\" ")) +
+//                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", cast((int)0 + " + t2t.ttlColumn().defaultValue() + " as int ) as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
+                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", (int)" + t2t.ttlColumn().defaultValue() + " as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
+                (t2t.timestampColumn() == null ? "" : ( ", (bigint)" + t2t.timestampColumn().defaultValue() + " as \"" + t2t.timestampColumn().columnName() + "\" ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +
@@ -570,7 +566,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 pkColumnsJoined +
                 ") >= ? and token(" +
                 pkColumnsJoined +
-                ") < ?";
+                ") < ?" +
+                (config.fetchWhereClause().equals(DEFAULT_FETCH_WHERE_CLAUSE) ? "" : " allow filtering ");
     }
 
     @Override

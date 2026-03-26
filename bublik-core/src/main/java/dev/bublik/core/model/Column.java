@@ -19,17 +19,19 @@ public record Column(Integer columnPosition,
                      boolean isStatic,
                      boolean isPartitionKey,
                      boolean isClusteringKey,
-                     UdtType udtType) implements NameSyntaxService, Comparable<Column> {
+                     UdtType udtType,
+                     boolean isFrozen,
+                     boolean isCollection) implements NameSyntaxService, Comparable<Column> {
 
     public record UdtType(String typeName, List<Column> columns) {}
 
     public Column(String columnName, String columnType) {
-        this(0, columnName, columnType, null, null, null, null, null, 0, null, 0,  null, false, false, false, null);
+        this(0, columnName, columnType, null, null, null, null, null, 0, null, 0,  null, false, false, false, null, false, false);
     }
 
     public Column(Integer columnPosition,
                   String columnName) {
-        this(columnPosition, columnName, null, null, null, null, null, null, 0, null, 0,  null, false, false, false, null);
+        this(columnPosition, columnName, null, null, null, null, null, null, 0, null, 0,  null, false, false, false, null, false, false);
     }
 
     public Column(Integer columnPosition,
@@ -37,7 +39,14 @@ public record Column(Integer columnPosition,
                   String columnType,
                   int charOctetLength,
                   String ascOrDesc) {
-        this(columnPosition, columnName, columnType, null, null, null, null, null, 0, null, charOctetLength,  ascOrDesc, false, false, false, null);
+        this(columnPosition, columnName, columnType, null, null, null, null, null, 0, null, charOctetLength,  ascOrDesc, false, false, false, null, false, false);
+    }
+
+    public Column(Integer columnPosition,
+                  String columnName,
+                  String columnType,
+                  String defaultValue) {
+        this(columnPosition, columnName, columnType, null, null, defaultValue, null, null, 0, null, 0,  null, false, false, false, null, false, false);
     }
 
     public Column(Integer columnPosition,
@@ -47,8 +56,10 @@ public record Column(Integer columnPosition,
                   boolean isStatic,
                   boolean isPartitionKey,
                   boolean isClusteringKey,
-                  UdtType udtType) {
-        this(columnPosition, columnName, columnType, null, null, null, null, null, 0, null, 0,  ascOrDesc, isStatic, isPartitionKey, isClusteringKey, udtType);
+                  UdtType udtType,
+                  boolean isFrozen,
+                  boolean isCollection) {
+        this(columnPosition, columnName, columnType, null, null, null, null, null, 0, null, 0,  ascOrDesc, isStatic, isPartitionKey, isClusteringKey, udtType, isFrozen, isCollection);
     }
 
     public Column(Integer columnPosition,
@@ -66,7 +77,7 @@ public record Column(Integer columnPosition,
                   boolean isStatic,
                   boolean isPartitionKey,
                   boolean isClusteringKey) {
-        this(columnPosition, columnName, columnType, dataType, isNullable, defaultValue, isAutoIncrement, isGenerated, decimalDigits, columnComment, charOctetLength, ascOrDesc, isStatic, isPartitionKey, isClusteringKey, null);
+        this(columnPosition, columnName, columnType, dataType, isNullable, defaultValue, isAutoIncrement, isGenerated, decimalDigits, columnComment, charOctetLength, ascOrDesc, isStatic, isPartitionKey, isClusteringKey, null, false, false);
     }
 
     @Override

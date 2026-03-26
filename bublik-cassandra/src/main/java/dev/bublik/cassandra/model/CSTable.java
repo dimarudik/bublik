@@ -20,6 +20,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static dev.bublik.cassandra.constants.SQLConstants.SQL_ALL_COLUMNS;
+import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class CSTable<S extends CqlSession> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(CSTable.class);
@@ -80,33 +81,41 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     @Override
     public List<Column> getAllColumns(CqlSession cqlSession) {
         List<Column> columns = new ArrayList<>();
-        ResultSet resultSet = cqlSession.execute(
-                SQL_ALL_COLUMNS,
-                getSchemaName(),
-                getTableName()
-        );
-        List<UDTColumn> udtColumns = new ArrayList<>();
-        for (Row row : resultSet) {
-            String kind = row.getString("kind");
-            assert kind != null;
-            String columnName = row.getString("column_name");
-            String columnType = row.getString("type");
-            assert columnType != null;
-            Column.UdtType udtType = getUdtTypeByTypeName(cqlSession, columnType);
-            Column column = new Column(
-                    row.getInt("position"),
-                    columnName,
-                    columnType,
-                    row.getString("clustering_order"),
-                    kind.equals("static"),
-                    kind.equals("partition_key"),
-                    kind.equals("clustering"),
-                    udtType
+        try {
+            ResultSet resultSet = cqlSession.execute(
+                    SQL_ALL_COLUMNS,
+                    getSchemaName(),
+                    getTableName()
             );
-            columns.add(column);
-            if (udtType != null) {
-                udtColumns.add(new UDTColumn(column, getUdtType(cqlSession, columnType)));
+            List<UDTColumn> udtColumns = new ArrayList<>();
+            for (Row row : resultSet) {
+                String kind = row.getString("kind");
+                assert kind != null;
+                String columnName = row.getString("column_name");
+                String columnType = row.getString("type");
+                assert columnType != null;
+                Column.UdtType udtType = getUdtTypeByTypeName(cqlSession, columnType);
+                Pattern isFrozen = Pattern.compile("(?i)\\bfrozen\\s*<");
+                Pattern isCollection = Pattern.compile("(?i)\\b(frozen\\s*<\\s*)?(list|set|map)\\s*<");
+                Column column = new Column(
+                        row.getInt("position"),
+                        columnName,
+                        columnType,
+                        row.getString("clustering_order"),
+                        kind.equals("static"),
+                        kind.equals("partition_key"),
+                        kind.equals("clustering"),
+                        udtType,
+                        isFrozen.matcher(columnType).find(),
+                        isCollection.matcher(columnType).find()
+                );
+                columns.add(column);
+                if (udtType != null) {
+                    udtColumns.add(new UDTColumn(column, getUdtType(cqlSession, columnType)));
+                }
             }
+        } catch (Exception e) {
+            log.error("Error while getting all columns for table {}: {}", getTableName(), getStackTrace(e));
         }
         setUdtColumns(udtColumns);
         return columns;

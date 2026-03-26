@@ -52,6 +52,10 @@ public interface CSTableService {
         return table.getColumns().stream().filter(column -> !column.isStatic()).toList();
     }
 
+    static List<Column> getNonFrozenCollectionColumns(Table<?> table) {
+        return table.getColumns().stream().filter(column -> column.isCollection() && !column.isFrozen()).toList();
+    }
+
     static String countRowsInTableQuery(CSTable<?> table) {
         List<Column> pkCol = table.getPartitionKey();
 //        Collections.sort(pkColumns);

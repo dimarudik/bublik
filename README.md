@@ -262,7 +262,7 @@ Let's consider most interesting cases:
       "uid"       : "uid",
       "log_time"  : "log_time"
     },
-    "withTTL" : "60*60*24*365*5 - (toUnixTimestamp(now())/1000 - toUnixTimestamp(log_time)/1000)"
+    "withTTL" : "cast(60*60*24*365*5 - (toUnixTimestamp(now())/1000 - toUnixTimestamp(log_time)/1000) as int)"
   }
 ]
 ```

@@ -48,6 +48,8 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     Table<S> getSourceTableByTargetTable(Table<S> table);
     S getPoolConnection() throws SQLException;
     S getSession();
+    String getStorageVersion();
+    int getStorageMajorVersion();
     void setSession(S session);
     void enrichTable(Table<S> sourceTable) throws SQLException;
     void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException;
@@ -104,8 +106,8 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
 
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException, IOException {
         log.info("Bublik starting...");
-        log.info("version : {}", getVersion());
-        log.info("hostname: {}", InetAddress.getLocalHost().getHostName());
+        log.info("VERSION : {}", getVersion());
+        log.info("WORKSTATION: {}", InetAddress.getLocalHost().getHostName());
         log.info("THREADS: {}", property.getThreadCount());
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");

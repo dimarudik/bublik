@@ -81,7 +81,7 @@ public class BLOB2BLOBTest {
                 "SELECT key, value FROM ",
                 null,
                 null);
-//        Thread.sleep(90_000);
+//        Thread.sleep(360_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }

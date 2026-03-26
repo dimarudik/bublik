@@ -1,25 +1,25 @@
 package dev.bublik.cassandra.storage.cassandraaddons;
 
-import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
-import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
-import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import dev.bublik.cassandra.storage.CSPool;
 import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.model.Chunk;
 import dev.bublik.core.model.Column;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.Table2Table;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 @Deprecated
 public class CSObject {
+/*
     private final CqlSession cqlSession;
     private Metadata metadata;
     private Set<TokenRange> tokenRangeSet;
@@ -110,11 +110,15 @@ public class CSObject {
         return this;
     }
 
+*/
+/*
     public CSObject cassandraColumnMap(Chunk<?, ?, ?, ?> chunk) {
         Map<String, Column> csmap = readTargetColumnsAndTypes(chunk, metadata);
         setCassandraColumnMap(csmap);
         return this;
     }
+*//*
+
 
     public CSObject query(Chunk<?, ?, ?, ?> chunk) {
         String q = buildInsertStatement(chunk, getCassandraColumnMap());
@@ -151,6 +155,8 @@ public class CSObject {
         return map;
     }
 
+*/
+/*
     private Map<String, Column> readTargetColumnsAndTypes(Chunk<?, ?, ?, ?> chunk, Metadata metadata) {
         Map<String, Column> columnMap = new HashMap<>();
         Config config = chunk.getConfig();
@@ -182,6 +188,8 @@ public class CSObject {
         }
         return columnMap;
     }
+*//*
+
 
     private String buildInsertStatement(Chunk<? ,?, ?, ?> chunk, Map<String, Column> stringCassandraColumnMap) {
         List<String> targetColumns = stringCassandraColumnMap.values().stream().map(Column::columnName).toList();
@@ -210,6 +218,8 @@ public class CSObject {
                 ";";
     }
 
+*/
+/*
     public static CSObject createCSObject(CSPool csPool, Chunk<?, ?, ?, ?> chunk) {
         return new CSObject(csPool.getCqlSession())
                 .metadata(csPool.getMetadata())
@@ -220,4 +230,5 @@ public class CSObject {
                 .preparedStatement()
                 .partitionKeyMap(chunk);
     }
+*/
 }

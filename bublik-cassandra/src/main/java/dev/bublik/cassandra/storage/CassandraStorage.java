@@ -60,7 +60,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         Storage<K, T, S, R> sourceStorage = chunk.getSourceStorage();
         if (sourceStorage instanceof CSStorage) {
             if (chunk.getTargetStorage() instanceof JDBCStorage<?, ?, ?, ?>) {
-//                throw new RuntimeException("Not implemented");
                 com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
                 return unRanged(chunk, resultSet, tableName);
             } else {
@@ -277,6 +276,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                              com.datastax.oss.driver.api.core.cql.ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
+        int sourceStorageMajorVersion = chunk.getSourceStorage().getStorageMajorVersion();
         long start = System.currentTimeMillis();
         CqlSession cqlSession = chunk.getTargetSession();
         Set<TokenRange> tokenRangeSet = getCsPool().tokenRanges();
@@ -285,7 +285,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         Map<TokenRange, BatchEntity> tokenRangeBatchEntityMap = mm3Batch.getTokenRangeMap();
 
         for (Row row : resultSet) {
-            CSRecord csRecord = getCSRecord(row, chunk.getT2t(), tokenRangeSet);
+            CSRecord csRecord = getCSRecord(row, chunk.getT2t(), tokenRangeSet, sourceStorageMajorVersion);
 
             BatchEntity batchEntity = tokenRangeBatchEntityMap.get(csRecord.tokenRange());
             BatchStatementBuilder batchStatementBuilder = batchEntity.getBatchStatementBuilder();
@@ -731,7 +731,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return new CSObj(v, bytes);
     }
 
-    private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet) throws SQLException {
+    private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet, int majorVersion) throws SQLException {
         List<CSValue> objectList = new ArrayList<>();
         Map<Column, Column> column2Column = new HashMap<>();
         t2t.column2Columns().forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
@@ -749,7 +749,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             Column targetColumn = entry.getValue();
             String sClmName = entry.getKey().columnName();
             CSObj csObj = getCSObj(row, targetColumn, sClmName);
-            objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), csObj.object()));
+            objectList.add(getCSValue(recordTtl, recordTimestamp, row, sourceColumn, entry.getValue(), csObj.object(), majorVersion));
             if (targetColumn.isPartitionKey() && csObj.object() != null) {
                 mapBytes.put(targetColumn.columnPosition(), csObj.bytes());
             }
@@ -766,22 +766,32 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                               Row row,
                               Column sourceColumn,
                               Column targetColumn,
-                              Object value) {
+                              Object value,
+                              int majorVersion) {
         Integer ttl;
         Long timestamp;
+        boolean b = !(sourceColumn.isCollection() && !sourceColumn.isFrozen() && majorVersion < 5);
         if (recordTtl == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-            try {
-                ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
-            } catch (CodecNotFoundException e) {
+            if (b) {
+                try {
+                    ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
+                } catch (CodecNotFoundException e) {
+                    ttl = null;
+                }
+            } else {
                 ttl = null;
             }
         } else {
             ttl = recordTtl;
         }
         if (recordTimestamp == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-            try {
-                timestamp = row.getLong("writetime(" + sourceColumn.columnName() + ")");
-            } catch (CodecNotFoundException e) {
+            if (b) {
+                try {
+                    timestamp = row.getLong("writetime(" + sourceColumn.columnName() + ")");
+                } catch (CodecNotFoundException e) {
+                    timestamp = null;
+                }
+            } else {
                 timestamp = null;
             }
         } else {

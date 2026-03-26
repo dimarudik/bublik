@@ -10,10 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class CSPool {
     private static final Logger log = LoggerFactory.getLogger(CSPool.class);
@@ -21,12 +18,14 @@ public class CSPool {
     private final int size;
     private final Set<TokenRange> tokenRanges;
     private final Metadata metadata;
+    private final int majorVersion;
 
     public CSPool(Properties properties, int size) {
         this.size = size;
         this.cqlSession = createCqlSession(properties);
         this.tokenRanges = tokenRanges();
         this.metadata = cqlSession.getMetadata();
+        this.majorVersion = Objects.requireNonNull(cqlSession.getMetadata().getNodes().values().iterator().next().getCassandraVersion()).getMajor();
     }
 
     public Metadata getMetadata() {
@@ -77,5 +76,9 @@ public class CSPool {
 
     public Set<TokenRange> tokenRanges() {
         return cqlSession.getMetadata().getTokenMap().orElseThrow().getTokenRanges();
+    }
+
+    public int getMajorVersion() {
+        return majorVersion;
     }
 }

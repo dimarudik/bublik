@@ -104,7 +104,6 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-//        String q = getSourceStorage().buildFetchStatement(getConfig(), this);
         String q = getFetchQuery();
         ResultSet resultSet = getData(q);
         setResultSet((R) resultSet);
@@ -130,7 +129,6 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     @Override
     public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
         LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
-//        LogMessage logMessage = transfer(this, tableName);
         setEndTs(LocalDateTime.now().toInstant(ZoneOffset.of("+0")));
         setLogMessage(logMessage);
         return this;
@@ -146,8 +144,6 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                 .mainStageTransfer(tableName)
                 .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName);
-//                .closeChunkSourceSession(sync);
-//        LogMessage logMessage = getLogMessage();
         logChunkInfo();
         return this;
     }
