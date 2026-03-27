@@ -4,14 +4,18 @@ CREATE OR REPLACE FUNCTION test.newTtlByTimestamp(last_update TIMESTAMP, ttl INT
     RETURNS NULL ON NULL INPUT RETURNS INT
     LANGUAGE java AS $$ return (int)Math.max(0,ttl - ((System.currentTimeMillis() - last_update.getTime())/1000));$$;
 
+CREATE OR REPLACE FUNCTION test.newTtlByDate(last_update DATE, ttl INT)
+    RETURNS NULL ON NULL INPUT RETURNS INT
+    LANGUAGE java AS $$ return (int)Math.max(0,ttl - ((System.currentTimeMillis() - last_update.getMillisSinceEpoch())/1000));$$;
+
 create table test.t1 (
-    id int,
-    uid int,
-    v1 int,
-    v2 int,
-    v3 int static,
-    v4 varchar,
-    primary key (id, uid));
+                         id int,
+                         uid int,
+                         v1 int,
+                         v2 int,
+                         v3 int static,
+                         v4 varchar,
+                         primary key (id, uid));
 insert into test.t1 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a');
 insert into test.t1 (id, uid, v1            ) values (1, 1, 11             ) using ttl 1000;
 insert into test.t1 (id, uid,     v2, v3, v4) values (1, 1,     21, 31, 'a') using ttl 2000;
@@ -24,13 +28,13 @@ insert into test.t1 (id, uid,             v4) values (2, 0,             'a') usi
 insert into test.t1 (id, uid,         v3    ) values (2, 0,         35     ) using ttl 6000 and timestamp 1000000000000006;
 
 create table test.t2 (
-    id int,
-    uid int,
-    v1 int,
-    v2 int,
-    v3 int static,
-    v4 varchar,
-    primary key (id, uid));
+                         id int,
+                         uid int,
+                         v1 int,
+                         v2 int,
+                         v3 int static,
+                         v4 varchar,
+                         primary key (id, uid));
 insert into test.t2 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a');
 insert into test.t2 (id, uid, v1, v2, v3, v4) values (1, 1, 11, 21, 31, 'a') using ttl 1000;
 insert into test.t2 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a') using ttl 1000 and timestamp 10000000000;
@@ -39,13 +43,13 @@ insert into test.t2 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a');
 insert into test.t2 (id, uid, v1, v2, v3, v4) values (2, 2, 11, 21, 37, 'a');
 
 create table test.t3 (
-    id int,
-    uid int,
-    v1 int,
-    v2 int,
-    v3 int static,
-    v4 varchar,
-    primary key (id, uid));
+                         id int,
+                         uid int,
+                         v1 int,
+                         v2 int,
+                         v3 int static,
+                         v4 varchar,
+                         primary key (id, uid));
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a');
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (1, 1, 11, 21, 31, 'a') using ttl 1000;
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a') using ttl 1000 and timestamp 10000000000;
@@ -54,43 +58,43 @@ insert into test.t3 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a');
 insert into test.t3 (id, uid, v1, v2, v3, v4) values (2, 2, 11, 21, 37, 'a');
 
 create table test.t4 (
-    id int,
-    uid int,
-    v1 int,
-    v2 int,
-    v3 int static,
-    v4 varchar,
-    primary key (id, uid));
+                         id int,
+                         uid int,
+                         v1 int,
+                         v2 int,
+                         v3 int static,
+                         v4 varchar,
+                         primary key (id, uid));
 
 create type test.encrypted_data (
-    secret_data text,
-    vector text
-);
+                                    secret_data text,
+                                    vector text
+                                );
 
 create table test.t5 (
-    id int,
-    uid int,
-    v1 int,
-    v2 tinyint,
-    v3 smallint,
-    v4 bigint,
-    v5 text,
-    v6 date,
-    v7 timestamp,
-    v8 boolean,
-    v9 blob,
-    v10 float,
-    v11 decimal,
-    v12 uuid,
-    v13 set<text>,
-    v14 frozen<set<int>>,
-    v15 list<text>,
-    v16 frozen<list<int>>,
-    v17 map<text, text>,
-    v18 frozen<map<int, int>>,
-    v19 frozen<encrypted_data>,
-    v20 frozen<map<text, text>>,
-    primary key (id, uid));
+                         id int,
+                         uid int,
+                         v1 int,
+                         v2 tinyint,
+                         v3 smallint,
+                         v4 bigint,
+                         v5 text,
+                         v6 date,
+                         v7 timestamp,
+                         v8 boolean,
+                         v9 blob,
+                         v10 float,
+                         v11 decimal,
+                         v12 uuid,
+                         v13 set<text>,
+                         v14 frozen<set<int>>,
+                         v15 list<text>,
+                         v16 frozen<list<int>>,
+                         v17 map<text, text>,
+                         v18 frozen<map<int, int>>,
+                         v19 frozen<encrypted_data>,
+                         v20 frozen<map<text, text>>,
+                         primary key (id, uid));
 
 insert into test.t5 (id, uid, v1) values (1, 0, 1) using ttl 1000 and timestamp 10;
 insert into test.t5 (id, uid, v2) values (1, 0, 2) using ttl 2000 and timestamp 20;
@@ -128,32 +132,32 @@ create table test.t12 (id uuid,      v1 int, primary key (id));
 insert into test.t12  (id, v1) values (ed584e99-80f7-4b13-9a90-9dc5571e6821, 1) using ttl 1000 and timestamp 10;
 
 create table test.log_time (
-    id int,
-    uid int,
-    log_time timestamp,
-    log_date date,
-    primary key (id, uid));
+                               id int,
+                               uid int,
+                               log_time timestamp,
+                               log_date date,
+                               primary key (id, uid));
 
 insert into test.log_time (id, uid, log_time, log_date) values (1, 1, '2025-12-02T00:00:00.001+0000', toDate(now()));
 insert into test.log_time (id, uid, log_time, log_date) values (2, 1, '2024-12-02T00:00:00.001+0000', toDate(now()));
 insert into test.log_time (id, uid, log_time, log_date) values (3, 1, '2024-10-02T00:00:00.001+0000', toDate(now()));
 
 create table test.no_columns (
-    id int,
-    uid int,
-    v1 int,
-    primary key (id, uid));
+                                 id int,
+                                 uid int,
+                                 v1 int,
+                                 primary key (id, uid));
 insert into test.no_columns (id, uid, v1) values (1, 1, 1);
 insert into test.no_columns (id, uid, v1) values (2, 2, 2);
 
 create table test.filter1 (
-    id int,
-    uid int,
-    v1 int,
-    v2 int,
-    v3 int static,
-    v4 varchar,
-    primary key (id, uid));
+                              id int,
+                              uid int,
+                              v1 int,
+                              v2 int,
+                              v3 int static,
+                              v4 varchar,
+                              primary key (id, uid));
 insert into test.filter1 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a');
 insert into test.filter1 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a');
 insert into test.filter1 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a');

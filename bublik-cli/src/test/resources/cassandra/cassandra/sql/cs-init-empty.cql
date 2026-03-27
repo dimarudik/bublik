@@ -109,6 +109,7 @@ create table test2.log_time (
     id int,
     uid int,
     log_time timestamp,
+    log_date date,
     primary key (id, uid));
 
 create table test.no_columns (

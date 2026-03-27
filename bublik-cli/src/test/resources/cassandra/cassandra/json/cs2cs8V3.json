@@ -7,8 +7,9 @@
     "columnToColumn" : {
       "id"        : "id",
       "uid"       : "uid",
-      "log_time"  : "log_time"
+      "log_time"  : "log_time",
+      "log_date"  : "log_date"
     },
-    "withTTL" : "157680000"
+    "withTTL" : "test.newTtlByDate(log_date, 157680000)"
   }
 ]

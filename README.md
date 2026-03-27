@@ -213,8 +213,8 @@ Let's consider most interesting cases:
       "v3"    : "v3",
       "v4"    : "v4"
     },
-    "withTTL"   : "9999",
-    "timestamp" : "9999"
+    "withTTL"   : "(int)9999",
+    "timestamp" : "(bigint)9999"
   }
 ]
 ```
