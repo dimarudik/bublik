@@ -78,7 +78,8 @@ create table public."Source" (
     time time,
     j json,
     ip inet,
-    h hstore
+    h hstore,
+    ints _int8
 );
 create table public.token (
     id int,
@@ -108,7 +109,8 @@ select
     time as time,
     j,
     ip,
-    h
+    h,
+    ints
  from public."Source" where 0 = 1;
 alter table public.target add column gender gender;
 create table public.parted (
@@ -132,7 +134,7 @@ create table public.intervals (
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description
-        , image, current_mood, time, j, ip, h)
+        , image, current_mood, time, j, ip, h, ints)
     select gen_random_uuid() as uuid, 'PostgreSQL ' || n as name,
         case when mod(n, 2) = 0 then false else true end as boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
@@ -147,11 +149,12 @@ insert into public."Source" (uuid, "Primary", boolean,
         now() as time,
         '{"key": "value"}' j,
         case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
-        '"a"=>"1","b"=>"2"'::hstore h
+        '"a"=>"1","b"=>"2"'::hstore h,
+        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints
     from generate_series(1, 10000) as n;
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
-        date, timestamp, timestamptz, description, current_mood, time, j, ip, h)
+        date, timestamp, timestamptz, description, current_mood, time, j, ip, h, ints)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
@@ -164,7 +167,8 @@ insert into public."Source" (uuid, "Primary", boolean,
         now() time,
         '{"key": "value"}' j,
         case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
-        'c=>3,d=>3'::hstore h
+        'c=>3,d=>3'::hstore h,
+        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints
     from generate_series(1,300000) as n;
 
 analyze public."Source" ;

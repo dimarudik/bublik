@@ -971,6 +971,21 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
                         throw e;
                     }
+                case "_bigint", "_int8": {
+                    try {
+                        Object o = fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setLong(targetColumn, null);
+                            break;
+                        }
+                        List<Long> l = List.of((Long[]) fetchResultSet.getArray(sourceColumn).getArray());
+                        row.setLongArray(targetColumn, l);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        throw e;
+                    }
+                }
                 default:
                     try {
                         if (chunk.getConfig().tryCharIfAny() != null) {

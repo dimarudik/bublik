@@ -13,3 +13,5 @@ chekist/target
 ca.crt
 ydb_certs/
 ydb_data/
+*./target
+./bublik-mssql/target/*/

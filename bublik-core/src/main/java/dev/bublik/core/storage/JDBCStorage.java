@@ -89,6 +89,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         return hikariConfig;
     }
 
+/*
     public Config findByTaskName(List<Config> configs, String taskName) {
         return configs
                 .stream()
@@ -96,6 +97,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                 .findFirst()
                 .orElseThrow();
     }
+*/
 
     @Override
     public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
@@ -133,6 +135,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             targetStorage.dropOutboxTable(false, tableName);
             targetStorage.createGlobalOutbox(tableName);
         }
+        log.info("SOURCE version: {}", getStorageMajorVersion());
         sourceConnection.close();
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
