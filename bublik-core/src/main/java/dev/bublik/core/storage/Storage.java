@@ -12,6 +12,10 @@ public abstract class Storage<K, T, S extends AutoCloseable, R> implements Stora
     private final ConnectionProperty connectionProperty;
     private Map<Table<S>, Table<S>> tables;
 
+    public Storage(ConnectionProperty connectionProperty) {
+        this.storageClass = null;
+        this.connectionProperty = connectionProperty;
+    }
 
     protected Storage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         this.storageClass = storageClass;

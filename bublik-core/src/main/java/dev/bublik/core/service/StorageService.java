@@ -15,9 +15,7 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 
 import static dev.bublik.core.constants.CLassConstants.*;
@@ -31,7 +29,6 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
     <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
-//    void createLocalOutbox(String tableName) throws SQLException;
     void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk, String tableName) throws SQLException;
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
@@ -69,7 +66,7 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
             return switch (driver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" ->
                     reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty);
-                case "org.postgresql.Driver" ->
+                case "org.postgresql.Driver", "sdk.humus.HumusDriver" ->
                     reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty);
                 case "tech.ydb.jdbc.YdbDriver" ->
                     reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty);
@@ -117,9 +114,33 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
         String targetHosts = property.getToProperty().getProperty("hosts");
         log.info("TARGET: {}", targetUrl == null ? targetHosts : targetUrl);
         log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
+
+//        List<Storage<?,?,?,?>> storages = new ArrayList<>();
+        ServiceLoader<StorageFactory> loader = ServiceLoader.load(StorageFactory.class);
+        for (StorageFactory factory : loader) {
+            log.info("Storage factory: {}", factory.getClass().getName());
+//            Storage<?, ?, ?, ?> storage = factory.create(property);
+//            log.info("Storage: {}", storage.getClass().getName());
+        }
+/*
+        for (Storage<?,?,?,?> storage : loader) {
+            storages.add(storage);
+        }
+        storages.forEach(s -> log.info("Storage: {}", s.getClass().getName()));
+*/
+
+/*
+        for (ProxyPluginFactory factory : loader) {
+            ProxyPlugin plugin = factory.create(url, info);
+            if (plugin != null) {
+                plugins.add(plugin);
+            }
+        }
+*/
+
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
+        try (Storage<?,?,?,?> sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
              Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property)) {
             assert sourceStorage != null;
             sourceStorage.start(configs, sync, rows, targetStorage, chunkTable);

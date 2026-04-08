@@ -28,6 +28,13 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     protected final int threadCount;
     private Connection connection;
 
+    public JDBCStorage(ConnectionProperty connectionProperty) throws SQLException{
+        super(connectionProperty);
+        HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);
+        this.dataSource = new HikariDataSource(hikariConfig);
+        this.threadCount = connectionProperty.getThreadCount();
+    }
+
     protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
         HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);

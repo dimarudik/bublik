@@ -1,15 +1,13 @@
 package dev.bublik.cli.addons;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
@@ -111,9 +109,18 @@ public class Utils {
 */
     }
 
+/*
     public static ConnectionProperty connectionProperty(String configFileName) throws IOException {
         ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
         mapperYAML.findAndRegisterModules();
         return mapperYAML.readValue(Paths.get(configFileName).toFile(), ConnectionProperty.class);
+    }
+*/
+
+    public static ConnectionProperty connectionProperty(String configFileName) throws IOException {
+        Yaml yaml = new Yaml();
+        try (InputStream in = new FileInputStream(configFileName)) {
+            return yaml.loadAs(in, ConnectionProperty.class);
+        }
     }
 }

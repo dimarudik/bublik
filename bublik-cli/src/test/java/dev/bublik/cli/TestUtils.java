@@ -23,24 +23,6 @@ public class TestUtils {
         return cfg.getFile();
     }
 
-/*
-    public static ConnectionProperty buildConnectionProperty(JdbcDatabaseContainer from, JdbcDatabaseContainer to){
-        ConnectionProperty connectionProperty = new ConnectionProperty();
-        connectionProperty.setThreadCount(10);
-        connectionProperty.setToProperties(buildConnectionMap(to));
-        connectionProperty.setFromProperties(buildConnectionMap(from));
-        return connectionProperty;
-    }
-
-    public static Map<String, String> buildConnectionMap(JdbcDatabaseContainer from){
-        Map<String, String> fromUrlMap = new HashMap<>();
-        fromUrlMap.put("url", from.getJdbcUrl());
-        fromUrlMap.put("user", from.getUsername());
-        fromUrlMap.put("password",from.getPassword());
-        return fromUrlMap;
-    }
-*/
-
     public static TestResult getResult(String connectionPropertyFile,
                                        String mappingFile,
                                        int rows,
@@ -59,7 +41,6 @@ public class TestUtils {
                                        String chunkTableName) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
-//        Config config = configs.getFirst();
 
         App.runProcess(cp, configs, rows, sync, chunkTableName);
 

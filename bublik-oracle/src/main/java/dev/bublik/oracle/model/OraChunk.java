@@ -73,7 +73,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
         PreparedStatement statement = connection.prepareStatement(query);
         statement.setRowId(1, this.getStart());
         statement.setRowId(2, this.getEnd());
-        statement.setFetchSize(10000);
+        statement.setFetchSize(10_000);
         return (R) statement.executeQuery();
     }
 

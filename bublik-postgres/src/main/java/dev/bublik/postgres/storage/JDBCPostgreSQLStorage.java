@@ -47,6 +47,10 @@ import static dev.bublik.postgres.util.ColumnUtil.*;
 public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
 
+    public JDBCPostgreSQLStorage(ConnectionProperty connectionProperty) throws SQLException {
+        super(connectionProperty);
+    }
+
     public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
