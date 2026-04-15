@@ -104,7 +104,11 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException, IOException {
         log.info("Bublik starting...");
         log.info("VERSION : {}", getVersion());
-        log.info("WORKSTATION: {}", InetAddress.getLocalHost().getHostName());
+        try {
+            log.info("WORKSTATION: {}", InetAddress.getLocalHost().getHostName());
+        } catch (Exception e) {
+            log.info("Unknown workstation");
+        }
         log.info("THREADS: {}", property.getThreadCount());
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");
