@@ -55,7 +55,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
 
     }
 

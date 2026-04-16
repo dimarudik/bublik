@@ -92,7 +92,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void interval() throws IOException {
+    void interval() throws IOException, InterruptedException {
         TestResult result = getResult(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/interval.json",

@@ -97,8 +97,19 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
-
+    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
+        Connection connection = getConnection();
+        for (Config config : configs) {
+            try {
+                CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
+                dropTask.setString(1, config.fromTaskName());
+                dropTask.execute();
+                dropTask.close();
+                log.info("Dropped task {}", config.fromTaskName());
+            } catch (SQLException e) {
+                log.warn("Task {} does not exist", config.fromTaskName());
+            }
+        }
     }
 
     @Override

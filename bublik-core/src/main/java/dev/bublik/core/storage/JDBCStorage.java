@@ -137,7 +137,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
 //        Storage<K, T, S, R> sourceStorage = this;
         if (rows > 0) {
-            dropChunkTable(false, tableName);
+            dropChunkTable(configs,false, tableName);
             fulfillChunks(configs, false, rows, tableName);
             targetStorage.dropOutboxTable(false, tableName);
             targetStorage.createGlobalOutbox(tableName);
@@ -223,7 +223,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
         Connection dropChunkConnection = this.getPoolConnection();
         setConnection(dropChunkConnection);
-        dropChunkTable(false, tableName);
+        dropChunkTable(configs, false, tableName);
         dropChunkConnection.close();
         targetStorage.dropOutboxTable(false, tableName);
     }

@@ -95,7 +95,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends String, S extends Con
     }
 
     @Override
-    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
 /*
         Connection connection = getConnection();
         try (Statement dropTable = connection.createStatement()) {

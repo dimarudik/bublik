@@ -82,7 +82,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (rows > 0) {
-            dropChunkTable(sync, tableName);
+            dropChunkTable(configs, sync, tableName);
             createChunkTable(sync, tableName);
             fulfillChunks(configs, sync, rows, tableName);
             if (targetStorage instanceof JDBCStorage<?, ?, ?, ?>) {
@@ -141,7 +141,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 break;
             }
         } while (true);
-        dropChunkTable(sync, tableName);
+        dropChunkTable(configs, sync, tableName);
 //        targetStorage.dropOutboxTable(false, tableName);
 
         service.shutdown();
@@ -254,7 +254,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public void dropChunkTable(boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
         try {
             cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getChunkTableName(tableName)));

@@ -1289,7 +1289,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public void dropChunkTable(boolean sync, String tableName) {
+    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) {
         Connection connection = getConnection();
         try (Statement dropTable = connection.createStatement()) {
             dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
