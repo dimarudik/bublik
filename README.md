@@ -430,7 +430,7 @@ fromProperties:
   password: cassandra
   batchSize: 64
 toProperties:
-  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary
   user: test
   password: test
 ```

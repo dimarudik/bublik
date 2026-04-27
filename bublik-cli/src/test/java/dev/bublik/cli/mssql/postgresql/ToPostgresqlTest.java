@@ -70,7 +70,7 @@ public class ToPostgresqlTest {
                 sync,
                 getMSSQLJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(360_000);
+//        Thread.sleep(1_000_000);
 //        assertEquals(result.sourceCount(), result.targetCount());
     }
 

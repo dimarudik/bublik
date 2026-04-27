@@ -34,12 +34,14 @@ public record Column(Integer columnPosition,
         this(columnPosition, columnName, null, null, null, null, null, null, 0, null, 0,  null, false, false, false, null, false, false);
     }
 
+    // For MSSQL
     public Column(Integer columnPosition,
                   String columnName,
                   String columnType,
+                  Integer isNullable,
                   int charOctetLength,
                   String ascOrDesc) {
-        this(columnPosition, columnName, columnType, null, null, null, null, null, 0, null, charOctetLength,  ascOrDesc, false, false, false, null, false, false);
+        this(columnPosition, columnName, columnType, null, isNullable, null, null, null, 0, null, charOctetLength,  ascOrDesc, false, false, false, null, false, false);
     }
 
     public Column(Integer columnPosition,
@@ -97,13 +99,33 @@ public record Column(Integer columnPosition,
         return ascOrDesc.equals("1");
     }
 
-    public String getColumnNameWithType() {
-        return columnName + " " + columnType + " " +
+    public boolean nullable() {
+        return isNullable != null && isNullable == 1;
+    }
+
+    public String fromColumnNameWithType() {
+        return fromColumnName() + " " + getColumnType();
+    }
+
+    public String toColumnNameWithType() {
+        return toColumnName() + " " + getColumnType();
+    }
+
+    public String getColumnType() {
+        return  columnType + " " +
                 (charOctetLength > 0 &&
                         (columnType.equals("varchar")  ||
-                            columnType.equals("char")  ||
-                            columnType.equals("nchar") ||
-                            columnType.equals("nvarchar"))
+                                columnType.equals("char")  ||
+                                columnType.equals("nchar") ||
+                                columnType.equals("nvarchar"))
                         ? "(" + charOctetLength + ")" : "");
+    }
+
+    public String fromColumnName() {
+        return "from_" + columnName();
+    }
+
+    public String toColumnName() {
+        return "to_" + columnName();
     }
 }

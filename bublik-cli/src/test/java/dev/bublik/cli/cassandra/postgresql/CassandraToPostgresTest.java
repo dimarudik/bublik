@@ -77,7 +77,7 @@ public class CassandraToPostgresTest {
                 sourceProperties,
                 targetProperties);
         assertTrue(result);
-//        Thread.sleep(90_000);
+//        Thread.sleep(190_000);
     }
 
     public static boolean getResult(String connectionPropertyFile,

@@ -91,7 +91,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         }
 
         log.info("SOURCE Cassandra version: {}", getStorageMajorVersion());
-        log.info("TARGET Cassandra version: {}", targetStorage.getStorageMajorVersion());
+//        log.info("TARGET Cassandra version: {}", targetStorage.getStorageMajorVersion());
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {

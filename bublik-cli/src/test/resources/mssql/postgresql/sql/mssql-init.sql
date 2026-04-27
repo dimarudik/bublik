@@ -25,7 +25,7 @@ create table test.t2
 (
     uuid UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID(),
 --     id int,
-    id char(32),
+    id char(32) not null ,
     name nvarchar(256),
     constraint pk_t2 primary key nonclustered (uuid),
     index t2_uuid_id_idx clustered (id, uuid desc)
@@ -43,7 +43,7 @@ FROM NumberSequence OPTION (MAXRECURSION 0);
 
 create table test.test
 (
-    id int,
+    id int primary key,
     a  tinyint,
     b  smallint,
     c  bigint,

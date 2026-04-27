@@ -40,6 +40,7 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
                     rs.getInt("key_ordinal"),
                     rs.getString("column_name"),
                     rs.getString("column_type"),
+                    rs.getInt("is_nullable"),
                     rs.getInt("max_length"),
                     rs.getString("is_descending_key")));
         }

@@ -54,11 +54,29 @@ public class JDBCMSSQLStorage<K extends Integer, T extends String, S extends Con
         for (Config config : configs) {
             MSSQLTable<S> sourceTable = (MSSQLTable<S>) configToTable(config.fromSchemaName(), config.fromTableName());
             List<Column> clusteringKey = sourceTable.obtainClusteringKey((S)connection);
+            checkIfClusteringKeyIsNotEmpty(clusteringKey);
+            checkIfClusteringKeyHasNullableColumns(clusteringKey);
             sourceTable.setClusteringKey(clusteringKey);
             createChunkExtTable(connection, sync, sourceTable);
+
+//            String clusteringKeyColumnListByComma = String.join(", ", clusteringKey.stream().map(Column::columnName).toList());
+//            log.info("\n{}", SQL_CHUNKS.replace("$tableName", sourceTable.getSchemaName() + "." + sourceTable.getTableName()).replace("$columns", clusteringKeyColumnListByComma));
+
             log.info("Fulfilling chunk table {} with data from table {}", tableName, sourceTable.getTableFullName());
         }
         log.info("Chunk table {} created successfully", tableName);
+    }
+
+    private void checkIfClusteringKeyIsNotEmpty(List<Column> clusteringKey) {
+        clusteringKey.stream().findFirst().orElseThrow(() -> new RuntimeException("Clustering key is empty"));
+    }
+
+    private void checkIfClusteringKeyHasNullableColumns(List<Column> clusteringKey) {
+        clusteringKey
+                .stream()
+                .filter(Column::nullable)
+                .findFirst()
+                .ifPresent(column -> {throw new RuntimeException("Clustering key has nullable column: " + column.columnName());});
     }
 
     private void createSequence(Connection connection, boolean sync) throws SQLException {
@@ -77,7 +95,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends String, S extends Con
 
     private void createChunkExtTable(Connection connection, boolean sync, MSSQLTable<S> table) throws SQLException {
         Statement createTable = connection.createStatement();
-        String columnList = ", " + String.join(", ", table.getClusteringKey().stream().map(Column::getColumnNameWithType).toList());
+        String columnList = ", " + getFromToColumnsWithTypesByComma(table);
         String sql = DDL_CREATE_CHUNK_EXT_TABLE
                 .replace("$tableName", table.getTableName())
                 .replace("$columns", columnList);
@@ -85,6 +103,12 @@ public class JDBCMSSQLStorage<K extends Integer, T extends String, S extends Con
         createTable.executeUpdate(sql);
         createTable.close();
         connection.commit();
+    }
+
+    private String getFromToColumnsWithTypesByComma(MSSQLTable<S> table) {
+        String from = String.join(", ", table.getClusteringKey().stream().map(Column::fromColumnNameWithType).toList());
+        String to = String.join(", ", table.getClusteringKey().stream().map(Column::toColumnNameWithType).toList());
+        return from + ", " + to;
     }
 
     private void createChunkTable(Connection connection, boolean sync, String chunkTableName) throws SQLException {
