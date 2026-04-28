@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
@@ -167,6 +168,11 @@ public class App {
         ObjectMapper mapperJSON = new ObjectMapper();
         return List.of(mapperJSON.readValue(Paths.get(mappingDefFileName).toFile(),
                 Config[].class));
+    }
+
+    public static List<Config> getConfigs(InputStream is) throws IOException {
+        ObjectMapper mapperJSON = new ObjectMapper();
+        return List.of(mapperJSON.readValue(is, Config[].class));
     }
 
     private static ConnectionProperty envConnectionProperty() {

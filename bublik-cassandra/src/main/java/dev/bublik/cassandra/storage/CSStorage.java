@@ -102,6 +102,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             chunks.forEach(chunk -> futures.add(
                     service.submit(() -> {
                         try {
+                            log.info("chunk: {}", chunk.getId());
                             return chunk.allStages(false, tName);
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
@@ -168,6 +169,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
         for (Config c : configs) {
             CSTable<S> sourceTable = new CSTable<>(c.fromSchemaName(), c.fromTableName(), null, null);
+//            Table<S> targetTable = new PseudoTable<>(c.toSchemaName(), c.toTableName());
             sourceTable.enrichTable(cqlSession);
             ExecutorService service = Executors.newFixedThreadPool(Math.min(threadCount, 4));
             trs
@@ -366,19 +368,23 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             ResultSet rs = sourceSession.execute(bs);
             for (Row row : rs) {
                 String status = row.getString("status");
-                Chunk<K, T, S, R> chunk =
-                        new CSChunk<>(
-                                (K)row.getUuid("chunk_id"),
-                                (T)(Long)row.getLong("start_page"),
-                                (T)(Long)row.getLong("end_page"),
-                                config,
-                                t2t,
-                                ChunkStatus.valueOf(status),
-                                fetchQuery,
-                                this,
-                                targetStorage
-                        );
-                chunks.add(chunk);
+                String taskName = row.getString("task_name");
+                assert taskName != null;
+                if (taskName.equals(config.fromTaskName())) {
+                    Chunk<K, T, S, R> chunk =
+                            new CSChunk<>(
+                                    (K) row.getUuid("chunk_id"),
+                                    (T) (Long) row.getLong("start_page"),
+                                    (T) (Long) row.getLong("end_page"),
+                                    config,
+                                    t2t,
+                                    ChunkStatus.valueOf(status),
+                                    fetchQuery,
+                                    this,
+                                    targetStorage
+                            );
+                    chunks.add(chunk);
+                }
             }
         });
         return chunks;

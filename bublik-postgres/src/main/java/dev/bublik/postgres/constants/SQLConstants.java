@@ -23,7 +23,7 @@ public abstract class SQLConstants {
     public static final String DDL_TRUNCATE_CHUNK_TABLE =
             "truncate table $tableName";
     public static final String SQL_NUMBER_OF_TUPLES =
-            "select reltuples, relpages from pg_class " +
+            "select reltuples, relpages, relkind from pg_class " +
                     "where relnamespace::regnamespace::text = ? and relname = ?";
     public static final String DML_BATCH_INSERT_CHUNK_TABLE =
             "insert into $tableName (start_page, end_page, copied, task_name, " +

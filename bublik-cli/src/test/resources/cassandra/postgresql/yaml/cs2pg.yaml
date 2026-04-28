@@ -1,4 +1,4 @@
-threadCount: 10
+threadCount: 4
 
 fromProperties:
   class: dev.bublik.cassandra.storage.CassandraStorage

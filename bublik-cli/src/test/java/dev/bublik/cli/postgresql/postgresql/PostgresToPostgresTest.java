@@ -1,6 +1,9 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.service.StorageService;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -9,9 +12,12 @@ import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.*;
+import java.util.List;
 
+import static dev.bublik.cli.App.getConfigs;
 import static dev.bublik.cli.TestUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static dev.bublik.cli.addons.Utils.connectionProperty;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PostgresToPostgresTest {
     private static int rows = 50000;
@@ -66,6 +72,18 @@ public class PostgresToPostgresTest {
                 getJdbcProperties(target));
 //        Thread.sleep(60_000);
         assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
+    }
+
+    @Test
+    void isNotPartitioned() throws IOException, InterruptedException, SQLException {
+        ConnectionProperty property = connectionProperty(
+                PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/yaml/pg2pg.yaml"));
+        List<Config> configs = getConfigs(
+                PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/isNotPartitioned.json"));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+                StorageService.init(property, configs, false, 50_000, "_bublik"));
+        assertTrue(ex.getMessage().contains("Partitioned tables are not supported"));
     }
 
     @Test

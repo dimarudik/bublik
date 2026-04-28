@@ -20,7 +20,8 @@ create table public.t1 (
     r uuid,
     s varchar(256),
     t bigint,
-    u jsonb);
+    u jsonb,
+    mmap jsonb);
 
 create table public.t2 (
     id int,

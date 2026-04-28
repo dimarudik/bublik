@@ -447,7 +447,33 @@ You can run the tool by using json file in folder `./bublik-cli/src/test/resourc
     "fromSchemaName": "test",
     "fromTableName": "t1",
     "toSchemaName": "public",
-    "toTableName": "t1"
+    "toTableName": "t1",
+    "columnToColumn" : {
+      "id" : "id",
+      "a" : "a",
+      "b" : "b",
+      "c" : "c",
+      "d" : "d",
+      "e" : "e",
+      "f" : "f",
+      "g" : "g",
+      "i" : "i",
+      "j" : "j",
+      "k" : "k",
+      "l" : "l",
+      "m" : "m",
+      "n" : "n",
+      "o" : "o",
+      "p" : "p",
+      "q" : "q",
+      "r" : "r",
+      "s" : "s",
+      "t" : "t",
+      "u" : "u"
+    },
+    "expressionToColumn" : {
+      "test.map_to_json(mmap) as mmap" : "mmap"
+    }
   },
   {
     "fromSchemaName": "test",
@@ -479,6 +505,36 @@ You can run the tool by using json file in folder `./bublik-cli/src/test/resourc
     }
   }
 ]
+```
+
+> [!NOTE]
+> To transform map to json you can use UDF function 
+
+```sql
+CREATE OR REPLACE FUNCTION test.map_to_json (input map<text, text>)
+    RETURNS NULL ON NULL INPUT
+    RETURNS text
+    LANGUAGE java
+    AS $$
+        if (input == null || input.isEmpty()) {
+            return "{}";
+        }
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        boolean first = true;
+        for (java.util.Map.Entry<String, String> entry : input.entrySet()) {
+            if (!first) {
+                json.append(",");
+            }
+            String key = entry.getKey().replace("\"", "\\\"");
+            String value = entry.getValue().replace("\"", "\\\"");
+
+            json.append("\"").append(key).append("\":\"").append(value).append("\"");
+            first = false;
+        }
+        json.append("}");
+        return json.toString();
+    $$;
 ```
 
 ### Cassandra To PostgreSQL Run

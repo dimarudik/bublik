@@ -123,4 +123,9 @@ public class Utils {
             return yaml.loadAs(in, ConnectionProperty.class);
         }
     }
+
+    public static ConnectionProperty connectionProperty(InputStream is) throws IOException {
+        Yaml yaml = new Yaml();
+        return yaml.loadAs(is, ConnectionProperty.class);
+    }
 }

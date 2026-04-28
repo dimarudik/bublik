@@ -1218,7 +1218,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             long reltuples = 0;
             long relpages = 0;
             long max_end_page;
-            Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+            Table<S> table = configToTable(config.fromSchemaName(), config.fromTableName());
 
             PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
             preparedStatement.setString(1, table.getSchemaName().toLowerCase());
@@ -1227,6 +1227,11 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             while (resultSet.next()) {
                 reltuples = resultSet.getLong("reltuples");
                 relpages = resultSet.getLong("relpages");
+                char relkind = resultSet.getString("relkind").charAt(0);
+                if (relkind == 'p') {
+                    throw new RuntimeException("Partitioned tables are not supported: "
+                            + config.fromSchemaName() + '.' + config.fromTableName());
+                }
             }
             resultSet.close();
             preparedStatement.close();
