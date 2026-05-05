@@ -74,12 +74,12 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     }
 
     @Override
-    public Chunk<K, T, S, R> interStageSaveChunkRows(int rows, boolean sync, String chunkTableName) {
+    public Chunk<K, T, S, R> interStageSaveChunkRows(int copied, boolean sync, String chunkTableName) {
         CqlSession cqlSession = getSourceSession();
         try {
             PreparedStatement ps = cqlSession.prepare(DML_UPDATE_ROWS_CHUNK_TABLE.replace("$tableName", chunkTableName));
             BoundStatement bsUpdate = ps.boundStatementBuilder()
-                    .setInt("copied", rows)
+                    .setInt("copied", copied)
                     .setInstant("end_ts", LocalDateTime.now().toInstant(ZoneOffset.of("+0")))
 //                    .setInstant("end_ts", Instant.now())
                     .setUuid("chunk_id", getId())

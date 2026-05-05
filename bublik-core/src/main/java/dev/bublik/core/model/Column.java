@@ -4,6 +4,9 @@ import dev.bublik.core.service.NameSyntaxService;
 
 import java.util.List;
 
+import static dev.bublik.core.constants.Constants.FROM;
+import static dev.bublik.core.constants.Constants.TO;
+
 public record Column(Integer columnPosition,
                      String columnName,
                      String columnType,
@@ -87,11 +90,15 @@ public record Column(Integer columnPosition,
         return columnPosition().compareTo(column.columnPosition());
     }
 
-    public String getColumnNameWithAscOrDesc() {
+    public String getNameWithDigitAscOrDesc() {
         return columnName + " " + ascOrDesc;
     }
 
-    public String getColumnNameWithoutQuotes() {
+    public String getNameWithAscOrDesc() {
+        return columnName + " " + (ascOrDesc.equals("0") ? "ASC" : "DESC");
+    }
+
+    public String getNameWithoutQuotes() {
         return getWordWithoutQuotes(columnName);
     }
 
@@ -103,15 +110,15 @@ public record Column(Integer columnPosition,
         return isNullable != null && isNullable == 1;
     }
 
-    public String fromColumnNameWithType() {
-        return fromColumnName() + " " + getColumnType();
+    public String fromNameWithType() {
+        return fromName() + " " + getType();
     }
 
-    public String toColumnNameWithType() {
-        return toColumnName() + " " + getColumnType();
+    public String toNameWithType() {
+        return toName() + " " + getType();
     }
 
-    public String getColumnType() {
+    public String getType() {
         return  columnType + " " +
                 (charOctetLength > 0 &&
                         (columnType.equals("varchar")  ||
@@ -121,11 +128,11 @@ public record Column(Integer columnPosition,
                         ? "(" + charOctetLength + ")" : "");
     }
 
-    public String fromColumnName() {
-        return "from_" + columnName();
+    public String fromName() {
+        return FROM + columnName();
     }
 
-    public String toColumnName() {
-        return "to_" + columnName();
+    public String toName() {
+        return TO + columnName();
     }
 }

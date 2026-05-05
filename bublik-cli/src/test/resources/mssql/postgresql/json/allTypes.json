@@ -2,6 +2,7 @@
   {
     "fromSchemaName": "test",
     "fromTableName": "t1",
+    "fromTableAlias": "t",
     "toSchemaName": "public",
     "toTableName": "t1"
   },
@@ -14,6 +15,32 @@
     "fromSchemaName": "test",
     "fromTableName": "test",
     "toSchemaName": "public",
-    "toTableName": "test"
+    "toTableName": "test",
+    "columnToColumn" : {
+      "id" : "id",
+      "a" : "a",
+      "b" : "b",
+      "c" : "c",
+      "d" : "d",
+      "e" : "e",
+      "f" : "f",
+      "i" : "i",
+      "j" : "j",
+      "k" : "k",
+      "l" : "l",
+      "m" : "m",
+      "n" : "n",
+      "o" : "o",
+      "q" : "q",
+      "r" : "r",
+      "s" : "s",
+      "t" : "t",
+      "u" : "u",
+      "v" : "v",
+      "w" : "w",
+      "x" : "x",
+      "y" : "y",
+      "z" : "z"
+    }
   }
 ]

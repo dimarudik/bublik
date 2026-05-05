@@ -1,10 +1,10 @@
-threadCount: 10
+threadCount: 4
 
 fromProperties:
   url: jdbc:sqlserver://localhost:1433;databaseName=test;encrypt=true;trustServerCertificate=true;
   user: sa
   password: A_Str0ng_Required_Password
 toProperties:
-  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary
   user: test
   password: test

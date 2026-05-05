@@ -13,7 +13,7 @@ public interface ChunkService<K, T, S extends AutoCloseable, R> {
     Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String chunkTableName) throws SQLException;
     Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException;
     Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException;
-    Chunk<K, T, S, R> interStageSaveChunkRows(int rows, boolean sync, String chunkTableName) throws SQLException;
+    Chunk<K, T, S, R> interStageSaveChunkRows(int copied, boolean sync, String chunkTableName) throws SQLException;
     void lastStageCloseSourceSession(boolean sync) throws SQLException;
 
     default Chunk<K, T, S, R> firstStageAssignSourceSession(Chunk<K, T, S, R> chunk) throws SQLException {

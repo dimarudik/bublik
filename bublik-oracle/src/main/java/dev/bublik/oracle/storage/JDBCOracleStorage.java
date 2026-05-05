@@ -134,7 +134,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
 
             S sourceSession = this.getPoolConnection();
-            String sql = buildStartEndOfChunk(config, chunkTable);
+            String sql = buildStartEndOfChunk(config, chunkTable, sourceTable);
             log.debug("SQL to fetch metadata of chunks: {}", sql);
             PreparedStatement ps = sourceSession.prepareStatement(sql);
             ps.setString(1, config.fromTaskName());
@@ -162,7 +162,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         return chunkHashList;
     }
 
-    private Table2Table<S> getTable2Table(Table<S> sourceTable,
+    @Override
+    public Table2Table<S> getTable2Table(Table<S> sourceTable,
                                           Table<S> targetTable,
                                           List<Column2Column> c2c,
                                           Config config) {
@@ -214,6 +215,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 */
 
+    @Override
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
@@ -222,13 +224,13 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
                                 sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
@@ -239,7 +241,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
         if (config.expressionToColumn() != null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
@@ -260,7 +262,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                     }
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -281,7 +283,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                     }
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -311,7 +313,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                     sourceColumns.add(new KV(key, value));
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -332,7 +334,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                     }
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -345,7 +347,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTable, Table<S> sourceTable) {
         return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
                 "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
                 (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause());

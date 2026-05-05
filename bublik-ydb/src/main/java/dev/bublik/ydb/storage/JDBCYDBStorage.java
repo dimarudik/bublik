@@ -28,7 +28,7 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTable, Table<S> sourceTable) {
         return "";
     }
 
@@ -352,6 +352,16 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
         S session = getPoolConnection();
         targetTable.enrichTable(session);
         session.close();
+    }
+
+    @Override
+    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+        return List.of();
+    }
+
+    @Override
+    public Table2Table<S> getTable2Table(Table<S> sourceTable, Table<S> targetTable, List<Column2Column> c2c, Config config) {
+        return null;
     }
 
     @Override

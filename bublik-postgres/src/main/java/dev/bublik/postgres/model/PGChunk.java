@@ -108,7 +108,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
         if (getSourceSession().isValid(0)) {
             getSourceSession().close();
         }
-        if (getTargetStorage() instanceof  JDBCStorage && getTargetSession().isValid(0)) {
+        if (getTargetStorage() instanceof JDBCStorage && getTargetSession().isValid(0)) {
             getTargetSession().close();
         }
         return this;

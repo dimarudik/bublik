@@ -68,7 +68,7 @@ public class Index implements DDLService {
 //                indexName,
                 table.getSchemaName(),
                 table.getFinalTableName(true),
-                String.join(", ", columns.values().stream().map(Column::getColumnNameWithAscOrDesc).toList()),
+                String.join(", ", columns.values().stream().map(Column::getNameWithDigitAscOrDesc).toList()),
                 sqlInclude,
                 filterCondition != null ? "WHERE " + filterCondition : ""
         );

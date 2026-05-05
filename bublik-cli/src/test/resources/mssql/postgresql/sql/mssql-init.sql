@@ -13,7 +13,7 @@ create table test.t1
 ;WITH NumberSequence AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 1000000
+    SELECT n + 1 FROM NumberSequence WHERE n < 1000101
 )
  INSERT INTO test.t1 (id, name)
 SELECT n,
@@ -33,7 +33,7 @@ create table test.t2
 ;WITH NumberSequence AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 1000000
+    SELECT n + 1 FROM NumberSequence WHERE n < 1000226
 )
  INSERT INTO test.t2 (id, name)
 SELECT n,

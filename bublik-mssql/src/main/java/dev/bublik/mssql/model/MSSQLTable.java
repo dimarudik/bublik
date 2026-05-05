@@ -5,10 +5,7 @@ import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 
 import static dev.bublik.mssql.constants.SQLConstants.SQL_CLUSTERING_KEY;
@@ -30,7 +27,7 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
         this.clusteringKey = clusteringKey;
     }
 
-    public List<Column> obtainClusteringKey(S connection) throws SQLException {
+    public List<Column> getClusteringKeyColumns(S connection) throws SQLException {
         Set<Column> columns = new TreeSet<>();
         PreparedStatement ps = connection.prepareStatement(SQL_CLUSTERING_KEY);
         ps.setString(1, getSchemaName() + "." + getTableName());
@@ -49,17 +46,29 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
 
     @Override
     public boolean exists(Connection connection) throws SQLException {
-        return false;
+        ResultSet tablesLowCase = connection.getMetaData().getTables(
+                null,
+                getFinalSchemaName(),
+                getFinalTableName(false),
+                null);
+        if (!tablesLowCase.next()) {
+            tablesLowCase.close();
+            return false;
+        }
+        tablesLowCase.close();
+//        tableExistsCache().add(getFinalTableName(false));
+        return true;
     }
 
     @Override
     public String getFinalTableName(boolean withQuotes) {
-        return "";
+        String tableName = withQuotes ? getTableName() : getWordWithoutQuotes(getTableName());
+        return  isCaseSensitiveWord(getTableName()) ? tableName : getTableName().toLowerCase();
     }
 
     @Override
     public String getFinalSchemaName() {
-        return "";
+        return getSchemaName();
     }
 
     @Override
@@ -69,7 +78,81 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
 
     @Override
     public List<Column> getAllColumns(S connection) throws SQLException {
-        return List.of();
+        List<Column> columns = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT * FROM " + getSchemaName() + "." + getTableName() +  " WHERE 1 = 0 ")) {
+            ResultSetMetaData rsmd = ps.getMetaData();
+
+            for (int i = 1; i <= rsmd.getColumnCount(); i++) {
+                int ordinalPosition = i;
+                String columnName = rsmd.getColumnName(i);
+                String columnType = rsmd.getColumnTypeName(i);
+                int dataType = rsmd.getColumnType(i); // Код из java.sql.Types
+                int nullable = rsmd.isNullable(i);    // 0: No, 1: Yes, 2: Unknown
+                int decimalDigits = rsmd.getScale(i);
+                int charOctetLength = rsmd.getColumnDisplaySize(i);
+                boolean isAuto = rsmd.isAutoIncrement(i);
+                String isAutoIncrement = isAuto ? "YES" : "NO";
+                columns.add(new Column(
+                        ordinalPosition,
+                        columnName,
+                        columnType,
+                        dataType,
+                        nullable,
+                        null,
+                        isAutoIncrement,
+                        null,
+                        decimalDigits,
+                        null,
+                        charOctetLength,
+                        null,
+                        false,
+                        false,
+                        false
+                ));
+            }
+        }
+
+/*
+        ResultSet rs = connection.getMetaData().getColumns(
+                null,
+                getFinalSchemaName(),
+                getFinalTableName(false),
+                null);
+        while (rs.next()) {
+            int ordinalPosition = rs.getInt("ORDINAL_POSITION");
+            String columnName = rs.getString("COLUMN_NAME");
+            String columnType = rs.getString("TYPE_NAME");
+            Integer dataType = rs.getInt("DATA_TYPE");
+            int nullable = rs.getInt("NULLABLE");
+            String columnDefault = rs.getString("COLUMN_DEF");
+            String isAutoIncrement = rs.getString("IS_AUTOINCREMENT");
+            String isGenerated = rs.getString("IS_GENERATEDCOLUMN");
+            int decimalDigits = rs.getInt("DECIMAL_DIGITS");
+            String remark = rs.getString("REMARKS");
+            int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
+            log.info("{}", columnName);
+            columns.add(new Column(
+                    ordinalPosition,
+                    isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
+                    columnType.equals("bigserial") ? "bigint" : columnType,
+                    dataType,
+                    nullable,
+                    columnDefault,
+                    isAutoIncrement,
+                    isGenerated,
+                    decimalDigits,
+                    remark,
+                    charOctetLength,
+                    null,
+                    false,
+                    false,
+                    false
+            ));
+        }
+*/
+        columns.sort(Column::compareTo);
+        return columns;
     }
 
     @Override
@@ -134,6 +217,11 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
 
     @Override
     public boolean enrichTable(S session) throws SQLException {
+        if (exists(session)) {
+            setColumns(getAllColumns(session));
+            setClusteringKey(getClusteringKeyColumns(session));
+            return true;
+        }
         return false;
     }
 }

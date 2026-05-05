@@ -34,7 +34,7 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
     List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException;
-    String buildStartEndOfChunk(Config config, String chunkTableName);
+    String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable);
     LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config, Table2Table<S> t2t);
@@ -50,6 +50,8 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     void setSession(S session);
     void enrichTable(Table<S> sourceTable) throws SQLException;
     void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException;
+    List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config);
+    Table2Table<S> getTable2Table(Table<S> sourceTable, Table<S> targetTable, List<Column2Column> c2c, Config config);
 
     static Storage<?, ?, ?, ?> getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
         if (storageClass instanceof AutoColseableStorageClass) {

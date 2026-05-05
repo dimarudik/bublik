@@ -20,7 +20,7 @@ import static dev.bublik.cli.TestUtils.getResult;
 
 @Disabled
 public class ToPostgresqlTest {
-    private static int rows = 10000;
+    private static int rows = 50_000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
             .acceptLicense()

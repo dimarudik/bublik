@@ -334,7 +334,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable) {
         return "select chunk_id, start_page, end_page, task_name, schema_name, table_name, status from " +
                 chunkTableName + " where " +
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
@@ -359,7 +359,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 //            targetTable.getColumns().forEach(c -> System.out.println(c.columnName() + "." + c.columnType()));
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-            String sql = buildStartEndOfChunk(config, getChunkTableName(chunkTableName));
+            String sql = buildStartEndOfChunk(config, getChunkTableName(chunkTableName), sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: {}", fetchQuery);
@@ -390,7 +390,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         return chunks;
     }
 
-    private Table2Table<S> getTable2Table(Table<S> sourceTable,
+    @Override
+    public Table2Table<S> getTable2Table(Table<S> sourceTable,
                                           Table<S> targetTable,
                                           List<Column2Column> c2c,
                                           Config config) {
@@ -411,6 +412,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
+    @Override
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
@@ -427,12 +429,12 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getKey().replaceAll("\"", "")))
+                        .filter(c -> c.getNameWithoutQuotes().equals(entry.getKey().replaceAll("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
                                 sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .filter(c -> c.getNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
@@ -442,7 +444,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         if (config.expressionToColumn() != null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
+                        .filter(c -> c.getNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));

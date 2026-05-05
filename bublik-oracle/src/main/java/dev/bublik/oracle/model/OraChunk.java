@@ -63,7 +63,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public Chunk<K, T, S, R> interStageSaveChunkRows(int rows, boolean sync, String chunkTableName) throws SQLException {
+    public Chunk<K, T, S, R> interStageSaveChunkRows(int copied, boolean sync, String chunkTableName) throws SQLException {
         return this;
     }
 
@@ -88,7 +88,6 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
                 .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
                 .lastStageCloseSourceSession(sync);
-//        LogMessage logMessage = getLogMessage();
         logChunkInfo();
         if (getSourceSession().isValid(0)) {
             getSourceSession().close();

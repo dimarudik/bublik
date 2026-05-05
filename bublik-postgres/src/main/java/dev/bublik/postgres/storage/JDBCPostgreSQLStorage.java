@@ -65,7 +65,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-            String sql = buildStartEndOfChunk(config, chunkTableName);
+            String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: {}", fetchQuery);
@@ -73,6 +73,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
+            preparedStatement.setString(3, config.fromTaskName());
             ResultSet rs = preparedStatement.executeQuery();
             while (rs.next()) {
                 String status = rs.getString("status");
@@ -87,7 +88,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         this,
                         targetStorage);
                 chunks.add(chunk);
-//                chunk.setTargetTable(targetTable);
             }
             rs.close();
             preparedStatement.close();
@@ -96,7 +96,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return chunks;
     }
 
-    private Table2Table<S> getTable2Table(Table<S> sourceTable,
+    @Override
+    public Table2Table<S> getTable2Table(Table<S> sourceTable,
                                           Table<S> targetTable,
                                           List<Column2Column> c2c,
                                           Config config) {
@@ -148,6 +149,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 */
 
+    @Override
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
@@ -164,13 +166,13 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
                                 sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
@@ -181,7 +183,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         if (config.expressionToColumn() != null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getValue().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
@@ -202,7 +204,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -223,7 +225,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -253,7 +255,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     sourceColumns.add(new KV(key, value));
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -274,7 +276,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                 }
                 Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getColumnNameWithoutQuotes()
+                        .filter(c -> c.getNameWithoutQuotes()
                                 .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in target table " +
@@ -287,10 +289,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable) {
         return "select chunk_id, uuid, start_page, end_page, task_name, status from " +
                 chunkTableName + " where " +
-                "schema_name = ? and table_name = ? " +
+                "schema_name = ? and table_name = ? and task_name = ? " +
                 " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
                 + " limit 1000 ";
     }
@@ -516,6 +518,20 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             String targetType = entry.getValue().columnType();
 
             switch (targetType) {
+                case "money": {
+                    try {
+                        Number s = fetchResultSet.getBigDecimal(sourceColumn);
+                        if (s == null) {
+                            row.setNumeric(targetColumn, null);
+                            break;
+                        }
+                        row.setNumeric(targetColumn, s);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
+                        throw e;
+                    }
+                }
                 case "hstore": {
                     try {
                         String s = fetchResultSet.getString(sourceColumn);
@@ -1007,7 +1023,9 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 connectionTo.close();
                             }
                         } else {
-                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),
+                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+                                    chunk.getT2t().targetTable().getSchemaName(),
+                                    chunk.getT2t().targetTable().getTableName(),
                                     targetType, targetColumn);
                             throw new RuntimeException("Unsupported type: " + targetType);
                         }
