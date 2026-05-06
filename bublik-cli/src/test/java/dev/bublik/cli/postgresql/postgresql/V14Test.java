@@ -1,6 +1,7 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.cli.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class V14Test {
@@ -47,7 +48,7 @@ public class V14Test {
 
     @Test
     void allTypes() throws IOException {
-        TestResult result = getResult(
+        TestResult result = TestUtils.getResultCount(
                 "postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/allTypes-v14.json",
                 rows,

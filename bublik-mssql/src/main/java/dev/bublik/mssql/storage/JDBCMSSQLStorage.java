@@ -85,6 +85,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
                         .replace("$leadColumns", leadColumns)
                         .replace("$extTableName", sourceTable.getTableName())
                         .replace("$fromToColumns", fromToColumnsByComma);
+        log.info("\n{}", insertChunkExtSql);
         PreparedStatement insertExtTable = connection.prepareStatement(insertChunkExtSql);
         insertExtTable.setInt(1, rows);
         insertExtTable.executeUpdate();
@@ -200,21 +201,20 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
 
     @Override
     public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
-/*
         Connection connection = getConnection();
-        try (Statement dropTable = connection.createStatement()) {
-            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
+        for (Config config : configs) {
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", "_ext_" + config.fromTableName()));
             dropTable.close();
-            connection.commit();
-        } catch (SQLException e) {
-            try {
-                connection.rollback();
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
-            }
-            log.warn("Chunk table {} does not exist", tableName);
         }
-*/
+        Statement dropTable = connection.createStatement();
+        dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
+        dropTable.close();
+        connection.commit();
+        Statement dropSchema = connection.createStatement();
+        dropSchema.executeUpdate(DDL_DROP_SCHEMA);
+        dropSchema.close();
+        connection.commit();
     }
 
     @Override
@@ -234,16 +234,16 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
             Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             this.enrichTable(sourceTable);
-//            log.info("{} {}", sourceTable.getTableName(), sourceTable.getColumns());
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-//            log.info("{}", t2t);
             String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
-            String addFetchQuery = buildAddFetchStatement(config, t2t);
-            log.info("Fetch query: {}", fetchQuery);
+//            String addFetchQuery = buildAddFetchStatement(config, t2t);
+            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), false);
+            String orderByClause = buildOrderBy(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey());
+//            log.info("Fetch query: {} {}", fetchQuery, addFetchQuery);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
@@ -254,7 +254,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
                 String status = rs.getString("status");
                 Integer chunkId = rs.getInt("chunk_id");
                 Map.Entry<List<Object>, List<Object>> entry = getValues(sourceSession, t2t, chunkId);
-                System.out.println(entry);
+//                System.out.println(entry);
                 Chunk<K, T, S, R> chunk = new MSSQLChunk<>(
                         (K) chunkId,
                         (T) entry.getKey(),
@@ -265,7 +265,8 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
                         fetchQuery,
                         this,
                         targetStorage);
-                ((MSSQLChunk<K, T, S, R>)chunk).setAddFetchQuery(addFetchQuery);
+                ((MSSQLChunk<K, T, S, R>)chunk).setAddFetchPredicate(addFetchQuery);
+                ((MSSQLChunk<K, T, S, R>)chunk).setOrderByClause(orderByClause);
                 chunks.add(chunk);
             }
             rs.close();
@@ -336,8 +337,54 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
                 (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
-                getStringFromClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " >= ? and ", alias) + " >= ? ";
+                buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), true);
+//                getStringFromClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " >= ? and ", alias) + " >= ? ";
 //                getStringToClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " < ? and ", alias) + " < ? ";
+    }
+
+    public String buildConditionBlock(List<Column> columns, boolean isStart) {
+        if (columns == null || columns.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        int size = columns.size();
+
+        for (int i = 0; i < size; i++) {
+            if (i > 0) sb.append(" OR ");
+
+            sb.append("(");
+
+            // 1. Формируем часть с равенством для всех предыдущих колонок
+            for (int j = 0; j < i; j++) {
+                sb.append(columns.get(j).columnName()).append(" = ? AND ");
+            }
+
+            // 2. Определяем оператор для текущей колонки
+            Column current = columns.get(i);
+            boolean isLast = (i == size - 1);
+            String operator;
+
+            if (current.getAscOrDesc().equals("ASC")) {
+                // Для возрастания: Старт >, Конец <. Если последняя в старте, то >=
+                operator = isStart ? (isLast ? ">=" : ">") : "<";
+            } else {
+                // Для убывания: Старт <, Конец >. Если последняя в старте, то <=
+                operator = isStart ? (isLast ? "<=" : "<") : ">";
+            }
+
+            sb.append(current.columnName()).append(" ").append(operator).append(" ?)");
+        }
+
+        return "(" + sb.toString() + ")";
+    }
+
+    public String buildOrderBy(List<Column> columns) {
+        if (columns == null || columns.isEmpty()) return "";
+
+        String orderByBody = columns.stream()
+                .map(col -> col.columnName() + " " + col.getAscOrDesc())
+                .collect(Collectors.joining(", "));
+
+        return " ORDER BY " + orderByBody;
     }
 
     public String buildAddFetchStatement(Config config, Table2Table<S> t2t) {

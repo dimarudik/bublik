@@ -56,14 +56,14 @@ public class PostgresToPostgresTest {
 
     @Test
     void allTypes() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-        TestResult result2 = getResult(
+        TestResult result2 = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
                 rows,
@@ -88,7 +88,7 @@ public class PostgresToPostgresTest {
 
     @Test
     void targetTableNotExists() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/targetTableNotExists.json",
                 rows,
@@ -102,7 +102,7 @@ public class PostgresToPostgresTest {
 
     @Test
     void notNullFailure() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/notNullFailure.json",
                 rows,
@@ -122,7 +122,7 @@ public class PostgresToPostgresTest {
             }
         }
 
-        TestResult result2 = getResult(
+        TestResult result2 = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/notNullFailure.json",
                 0,
@@ -134,7 +134,7 @@ public class PostgresToPostgresTest {
 
     @Test
     void serialColumn() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/serialColumn.json",
                 rows,
@@ -148,7 +148,7 @@ public class PostgresToPostgresTest {
 
     @Test
     void emptySourceTable() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/emptySourceTable.json",
                 rows,

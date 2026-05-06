@@ -94,6 +94,10 @@ public record Column(Integer columnPosition,
         return columnName + " " + ascOrDesc;
     }
 
+    public String getAscOrDesc() {
+        return ascOrDesc.equals("0") ? "ASC" : "DESC";
+    }
+
     public String getNameWithAscOrDesc() {
         return columnName + " " + (ascOrDesc.equals("0") ? "ASC" : "DESC");
     }

@@ -23,22 +23,22 @@ public class TestUtils {
         return cfg.getFile();
     }
 
-    public static TestResult getResult(String connectionPropertyFile,
-                                       String mappingFile,
-                                       int rows,
-                                       boolean sync,
-                                       Properties sourceProperties,
-                                       Properties targetProperties) throws IOException {
-        return getResult(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, null);
+    public static TestResult getResultCount(String connectionPropertyFile,
+                                            String mappingFile,
+                                            int rows,
+                                            boolean sync,
+                                            Properties sourceProperties,
+                                            Properties targetProperties) throws IOException {
+        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, null);
     }
 
-    public static TestResult getResult(String connectionPropertyFile,
-                                       String mappingFile,
-                                       int rows,
-                                       boolean sync,
-                                       Properties sourceProperties,
-                                       Properties targetProperties,
-                                       String chunkTableName) throws IOException {
+    public static TestResult getResultCount(String connectionPropertyFile,
+                                            String mappingFile,
+                                            int rows,
+                                            boolean sync,
+                                            Properties sourceProperties,
+                                            Properties targetProperties,
+                                            String chunkTableName) throws IOException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
@@ -62,10 +62,6 @@ public class TestUtils {
     }
 
     public static Long countRows(Properties p, String query) {
-/*
-        try (Connection connection =
-                     DriverManager.getConnection(p.getProperty("url"), p.getProperty("user"), p.getProperty("password"))) {
-*/
         try (Connection connection =
                      DriverManager.getConnection(p.getProperty("url"), p)) {
             Statement statement = connection.createStatement();

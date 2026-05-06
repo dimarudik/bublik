@@ -1,5 +1,6 @@
 package dev.bublik.cli.docker;
 
+import dev.bublik.cli.TestUtils;
 import io.restassured.RestAssured;
 import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
@@ -32,7 +33,7 @@ import java.util.concurrent.ExecutionException;
 import static io.restassured.RestAssured.given;
 import static java.util.Collections.singletonList;
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -248,7 +249,7 @@ public class PgToPgEnvSwitchoverTest {
         prepareSource(sourceProperties);
         CompletableFuture<TestResult> future = CompletableFuture.supplyAsync(() -> {
             try {
-                return getResult(
+                return TestUtils.getResultCount(
                         "pg2pg/composev2/pg2pgSwitchover.yaml",
                         "pg2pg/composev2/pg2pgswitchover.json",
                         rows,

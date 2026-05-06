@@ -1,6 +1,7 @@
 package dev.bublik.cli.oracle.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.cli.TestUtils;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -13,7 +14,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class OracleToPostgresTest {
@@ -51,7 +52,7 @@ public class OracleToPostgresTest {
 
     @Test
     void parted() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/parted.json",
                 rows,
@@ -65,7 +66,7 @@ public class OracleToPostgresTest {
 
     @Test
     void leftJoin() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/leftJoin.json",
                 rows,
@@ -79,7 +80,7 @@ public class OracleToPostgresTest {
 
     @Test
     void columnFromMany() throws IOException {
-        TestResult result = getResult(
+        TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/columnFromMany.json",
                 rows,
@@ -93,7 +94,7 @@ public class OracleToPostgresTest {
 
     @Test
     void interval() throws IOException, InterruptedException {
-        TestResult result = getResult(
+        TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/interval.json",
                 rows,

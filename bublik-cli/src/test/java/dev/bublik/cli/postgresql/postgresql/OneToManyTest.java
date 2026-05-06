@@ -20,7 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
@@ -68,7 +68,7 @@ public class OneToManyTest {
         long targetCount = 0;
         long sourceCount = 0;
 
-        futures.add(service.submit(() -> getResult(
+        futures.add(service.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget1.yaml",
                 "postgresql/postgresql/json/oneToManyTarget.json",
                 rows,
@@ -78,7 +78,7 @@ public class OneToManyTest {
                 "_bublik_chunk_01")
         ));
 
-        futures.add(service.submit(() -> getResult(
+        futures.add(service.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
                 "postgresql/postgresql/json/oneToManyTarget.json",
                 rows,
@@ -113,7 +113,7 @@ public class OneToManyTest {
 
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
-        futures.add(service.submit(() -> getResult(
+        futures.add(service.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget1.yaml",
                 "postgresql/postgresql/json/notNullFailure2.json",
                 rows,
@@ -122,7 +122,7 @@ public class OneToManyTest {
                 getJdbcProperties(target1),
                 "_bublik_chunk_01")
         ));
-        futures.add(service.submit(() -> getResult(
+        futures.add(service.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
                 "postgresql/postgresql/json/notNullFailure2.json",
                 rows,
@@ -164,7 +164,7 @@ public class OneToManyTest {
 
         ExecutorService service2 = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures2 = new ArrayList<>();
-        futures2.add(service2.submit(() -> getResult(
+        futures2.add(service2.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget1.yaml",
                 "postgresql/postgresql/json/notNullFailure2.json",
                 0,
@@ -173,7 +173,7 @@ public class OneToManyTest {
                 getJdbcProperties(target1),
                 "_bublik_chunk_01")
         ));
-        futures2.add(service2.submit(() -> getResult(
+        futures2.add(service2.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
                 "postgresql/postgresql/json/notNullFailure2.json",
                 0,

@@ -2,45 +2,6 @@ create database test;
 use test;
 create schema test;
 
-create table test.t1
-(
-    uuid UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID(),
-    id int,
---     id char(32),
-    name nvarchar(256),
-    constraint pk_t1 primary key (uuid, id)
-);
-;WITH NumberSequence AS (
-    SELECT 1 AS n
-    UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 1000101
-)
- INSERT INTO test.t1 (id, name)
-SELECT n,
---        CAST(n AS VARCHAR(32)),
-       'Name_' + CAST(n AS VARCHAR(10))
-FROM NumberSequence OPTION (MAXRECURSION 0);
-
-create table test.t2
-(
-    uuid UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID(),
---     id int,
-    id char(32) not null ,
-    name nvarchar(256),
-    constraint pk_t2 primary key nonclustered (uuid),
-    index t2_uuid_id_idx clustered (id, uuid desc)
-);
-;WITH NumberSequence AS (
-    SELECT 1 AS n
-    UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 1000226
-)
- INSERT INTO test.t2 (id, name)
-SELECT n,
---     CAST(n AS VARCHAR(32)),
-    'Name_' + CAST(n AS VARCHAR(10))
-FROM NumberSequence OPTION (MAXRECURSION 0);
-
 create table test.test
 (
     id int primary key,

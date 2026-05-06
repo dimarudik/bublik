@@ -1,18 +1,6 @@
 [
   {
     "fromSchemaName": "test",
-    "fromTableName": "t1",
-    "fromTableAlias": "t",
-    "toSchemaName": "public",
-    "toTableName": "t1"
-  },
-  {
-    "fromSchemaName": "test",
-    "fromTableName": "t2",
-    "toSchemaName": "public"
-  },
-  {
-    "fromSchemaName": "test",
     "fromTableName": "test",
     "toSchemaName": "public",
     "toTableName": "test",

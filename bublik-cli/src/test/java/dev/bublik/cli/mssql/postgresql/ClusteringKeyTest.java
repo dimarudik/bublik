@@ -1,6 +1,7 @@
 package dev.bublik.cli.mssql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.cli.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
@@ -16,16 +17,17 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.getResultCount;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Disabled
-public class ToPostgresqlTest {
+public class ClusteringKeyTest {
     private static int rows = 50_000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
             .acceptLicense()
 //            .withDatabaseName("test");
-            .withInitScript("./mssql/postgresql/sql/mssql-init.sql");
+            .withInitScript("mssql/postgresql/sql/mssql-ClusteringKey.sql");
     private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("./mssql/postgresql/sql/pg-init.sql");
@@ -60,18 +62,19 @@ public class ToPostgresqlTest {
         }
     }
 
-    // exec sp_helpindex 'test.t';
+    // Реализовать проверку контрольной сумма кластерного ключа:
+    // SELECT COUNT(1), SUM(id1), SUM(id2) FROM t4;
     @Test
-    void allTypes() throws InterruptedException, IOException {
-        TestResult result = getResult(
+    void clusteringKey() throws InterruptedException, IOException {
+        TestResult result = TestUtils.getResultCount(
                 "./mssql/postgresql/yaml/mssql2pg.yaml",
-                "./mssql/postgresql/json/allTypes.json",
+                "./mssql/postgresql/json/clusteringKey.json",
                 rows,
                 sync,
                 getMSSQLJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(1_000_000);
-//        assertEquals(result.sourceCount(), result.targetCount());
+        Thread.sleep(1_000_000);
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
 

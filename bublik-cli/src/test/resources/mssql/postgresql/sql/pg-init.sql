@@ -1,10 +1,24 @@
+create table public.a (
+   id int,
+   name varchar(256));
+create table public.b (
+   uuid uuid,
+   name varchar(256));
 create table public.t1 (
     uuid uuid,
-    id char(32),
+    id int,
     name varchar(256));
 create table public.t2 (
    uuid uuid,
-   id char(32),
+   id int,
+   name varchar(256));
+create table public.t3 (
+   id1 int,
+   id2 int,
+   name varchar(256));
+create table public.t4 (
+   id1 int,
+   id2 int,
    name varchar(256));
 
 create table public.test (

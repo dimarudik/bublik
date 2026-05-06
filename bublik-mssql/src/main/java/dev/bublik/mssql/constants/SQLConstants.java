@@ -3,6 +3,8 @@ package dev.bublik.mssql.constants;
 public abstract class SQLConstants {
     public static final String DDL_CREATE_SCHEMA =
         "create schema bublik";
+    public static final String DDL_DROP_SCHEMA =
+        "drop schema if exists bublik";
     public static final String DDL_CREATE_CHUNK_SEQ =
         "create sequence bublik.chunk_seq as int start with 1 increment by 1";
     public static final String DDL_DROP_CHUNK_SEQ =
@@ -58,7 +60,8 @@ public abstract class SQLConstants {
                 WHERE RowNum % ? = 0 OR RowNum = 1
             )
             INSERT INTO bublik.[_ext_$extTableName] (chunk_id, page, $fromToColumns)
-            SELECT NEXT VALUE FOR bublik.chunk_seq, rNum as page, $leadColumns FROM ChunkPoints""";
+            SELECT NEXT VALUE FOR bublik.chunk_seq, rNum as page, $leadColumns FROM ChunkPoints
+            """;
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
             "update bublik.[$tableName] set status = ?, err_msg = null where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =

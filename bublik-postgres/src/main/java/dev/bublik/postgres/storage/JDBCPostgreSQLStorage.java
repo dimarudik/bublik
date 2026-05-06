@@ -628,7 +628,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         row.setJsonb(targetColumn, null);
                         break;
                     }
-                    String s = null;
+                    String s;
                     if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
                             int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
                             int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
@@ -645,7 +645,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                     s = fetchResultSet.getString(sourceColumn).replaceAll("\u0000", "");
                                     break;
                             }
-                        } else if (chunk instanceof PGChunk<?, ?, ?, ?>) {
+                        } else {
                             s = fetchResultSet.getString(sourceColumn);
                         }
                         row.setJsonb(targetColumn, s);
@@ -905,7 +905,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 default:
                                     break;
                             }
-                        } else if (chunk instanceof PGChunk<?, ?, ?, ?>) {
+                        } else {
                             bytes = fetchResultSet.getBytes(sourceColumn);
                         }
                         row.setByteArray(targetColumn, bytes);

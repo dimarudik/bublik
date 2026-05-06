@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 //@Disabled
@@ -65,7 +65,7 @@ public class ManyToOneTest {
         long targetCount = 0;
         long sourceCount = 0;
 
-        futures.add(service.submit(() -> getResult(
+        futures.add(service.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/manyToOneSource1.yaml",
                 "postgresql/postgresql/json/manyToOneSource1.json",
                 rows,
@@ -75,7 +75,7 @@ public class ManyToOneTest {
                 "_bublik_chunk_01")
         ));
 
-        futures.add(service.submit(() -> getResult(
+        futures.add(service.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/manyToOneSource2.yaml",
                 "postgresql/postgresql/json/manyToOneSource2.json",
                 rows,

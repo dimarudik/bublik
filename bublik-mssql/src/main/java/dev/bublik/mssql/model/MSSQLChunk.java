@@ -20,7 +20,8 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 
 public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(MSSQLChunk.class);
-    private String addFetchQuery;
+    private String addFetchPredicate;
+    private String orderByClause;
 
     public MSSQLChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
                       ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
@@ -33,14 +34,25 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
         List<Object> end = this.getEnd();
         String sql = query;
         if (end.getFirst() != null) {
-            sql = sql + addFetchQuery;
+            sql = sql + addFetchPredicate;
         }
+        sql = sql + orderByClause;
+//        log.info("{} {} {}", sql, start, end);
         Connection connection = this.getSourceSession();
         PreparedStatement statement = connection.prepareStatement(sql);
+        int paramIndex = 1;
+        // Для блока СТАРТА
         for (int i = 0; i < start.size(); i++) {
-            statement.setObject(i + 1, start.get(i));
-            if (end.get(i) != null) {
-                statement.setObject(i + 1 + start.size(), end.get(i));
+            for (int j = 0; j <= i; j++) {
+                statement.setObject(paramIndex++, start.get(j));
+            }
+        }
+        // Для блока КОНЦА (если он нужен)
+        if (end.getFirst() != null) {
+            for (int i = 0; i < end.size(); i++) {
+                for (int j = 0; j <= i; j++) {
+                    statement.setObject(paramIndex++, end.get(j));
+                }
             }
         }
         statement.setFetchSize(10_000);
@@ -136,11 +148,19 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
         getSourceSession().close();
     }
 
-    public String getAddFetchQuery() {
-        return addFetchQuery;
+    public String getAddFetchPredicate() {
+        return addFetchPredicate;
     }
 
-    public void setAddFetchQuery(String addFetchQuery) {
-        this.addFetchQuery = addFetchQuery;
+    public void setAddFetchPredicate(String addFetchPredicate) {
+        this.addFetchPredicate = addFetchPredicate;
+    }
+
+    public String getOrderByClause() {
+        return orderByClause;
+    }
+
+    public void setOrderByClause(String orderByClause) {
+        this.orderByClause = orderByClause;
     }
 }

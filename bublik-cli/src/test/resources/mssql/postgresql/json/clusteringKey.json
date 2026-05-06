@@ -1,0 +1,34 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "a",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t1",
+    "fromTableAlias": "t",
+    "toSchemaName": "public",
+    "toTableName": "t1"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t2",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t3",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t4",
+    "toSchemaName": "public"
+  }
+]
