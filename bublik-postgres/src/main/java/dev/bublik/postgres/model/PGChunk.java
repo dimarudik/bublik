@@ -21,8 +21,9 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
 
     public PGChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
-                   ChunkStatus status, String fetchQuery, Storage sourceStorage, Storage targetStorage) {
-        super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage);
+                   ChunkStatus status, String fetchQuery, Storage sourceStorage,
+                   Storage targetStorage, String orderByClause) {
+        super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
     @Override
@@ -69,7 +70,8 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-        String q = getFetchQuery();
+        String sql = getFetchQuery() + (getOrderByClause() == null ? "" : getOrderByClause());
+//        log.info("{} {} {}", sql, getStart(), getEnd());
 /*
         String q;
         if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
@@ -78,7 +80,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
             q = getSourceStorage().buildFetchStatement(getConfig());
         }
 */
-        ResultSet resultSet = getData(q);
+        ResultSet resultSet = getData(sql);
         setResultSet((R) resultSet);
         return this;
     }

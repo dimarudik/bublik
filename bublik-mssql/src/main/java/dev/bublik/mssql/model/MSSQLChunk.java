@@ -21,11 +21,11 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(MSSQLChunk.class);
     private String addFetchPredicate;
-    private String orderByClause;
 
     public MSSQLChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
-                      ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
-        super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage);
+                      ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage,
+                      Storage<K, T, S, R> targetStorage, String orderByClause) {
+        super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
     @Override
@@ -36,18 +36,16 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
         if (end.getFirst() != null) {
             sql = sql + addFetchPredicate;
         }
-        sql = sql + orderByClause;
+        sql = sql + (getOrderByClause() == null ? "" : getOrderByClause());
 //        log.info("{} {} {}", sql, start, end);
         Connection connection = this.getSourceSession();
         PreparedStatement statement = connection.prepareStatement(sql);
         int paramIndex = 1;
-        // Для блока СТАРТА
         for (int i = 0; i < start.size(); i++) {
             for (int j = 0; j <= i; j++) {
                 statement.setObject(paramIndex++, start.get(j));
             }
         }
-        // Для блока КОНЦА (если он нужен)
         if (end.getFirst() != null) {
             for (int i = 0; i < end.size(); i++) {
                 for (int j = 0; j <= i; j++) {
@@ -154,13 +152,5 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
 
     public void setAddFetchPredicate(String addFetchPredicate) {
         this.addFetchPredicate = addFetchPredicate;
-    }
-
-    public String getOrderByClause() {
-        return orderByClause;
-    }
-
-    public void setOrderByClause(String orderByClause) {
-        this.orderByClause = orderByClause;
     }
 }

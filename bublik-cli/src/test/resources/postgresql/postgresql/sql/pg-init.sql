@@ -113,6 +113,7 @@ select
     ints
  from public."Source" where 0 = 1;
 alter table public.target add column gender gender;
+alter table public.target add primary key (id);
 create table public.parted (
     id bigint,
     create_at timestamp(6) not null,

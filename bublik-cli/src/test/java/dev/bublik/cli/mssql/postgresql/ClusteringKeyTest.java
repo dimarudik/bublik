@@ -73,10 +73,9 @@ public class ClusteringKeyTest {
                 sync,
                 getMSSQLJdbcProperties(source),
                 getJdbcProperties(target));
-        Thread.sleep(1_000_000);
+//        Thread.sleep(1_000_000);
         assertEquals(result.sourceCount(), result.targetCount());
     }
-
 
     public static Properties getMSSQLJdbcProperties(JdbcDatabaseContainer<?> db) {
         Properties properties = new Properties();

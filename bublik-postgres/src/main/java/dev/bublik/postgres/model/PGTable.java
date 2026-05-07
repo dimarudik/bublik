@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
@@ -523,6 +524,18 @@ public class PGTable<S extends Connection> extends Table<S> {
             statement.execute(query);
             connection.commit();
         }
+    }
+
+    @Override
+    public String buildOrderBy(List<Column> columns) {
+        if (columns == null || columns.isEmpty()) return "";
+
+        String orderByBody = columns.stream()
+                .map(Column::columnName)
+//                .map(col -> col.columnName() + " " + col.getAscOrDesc())
+                .collect(Collectors.joining(", "));
+
+        return " ORDER BY " + orderByBody;
     }
 
     @Override

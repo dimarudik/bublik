@@ -2,12 +2,10 @@ package dev.bublik.core.model;
 
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.service.ChunkService;
-import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
 import java.time.Instant;
 
 
@@ -33,9 +31,10 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private ChunkStatus chunkStatus;
     private Instant startTs;
     private Instant endTs;
+    private final String orderByClause;
 
     public Chunk(K id, T start, T end, Config config, Table2Table<S> t2t, ChunkStatus status,
-                 String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage) {
+                 String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage, String orderByClause) {
         this.id = id;
         this.start = start;
         this.end = end;
@@ -45,6 +44,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.fetchQuery = fetchQuery;
         this.sourceStorage = sourceStorage;
         this.targetStorage = targetStorage;
+        this.orderByClause = orderByClause;
     }
 
     public K getId() {
@@ -81,6 +81,10 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
 
     public Storage<K, T, S, R> getTargetStorage() {
         return targetStorage;
+    }
+
+    public String getOrderByClause() {
+        return orderByClause;
     }
 
     public LogMessage getLogMessage() {

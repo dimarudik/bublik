@@ -235,6 +235,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
             Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
+//            targetTable.getPkColumns().forEach(c -> log.info("PK: {} {} {}", targetTable.getTableName(), c.columnName(), c.columnPosition(), c.ascOrDesc()));
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
@@ -242,7 +243,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
             String fetchQuery = buildFetchStatement(config, t2t);
 //            String addFetchQuery = buildAddFetchStatement(config, t2t);
             String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), false);
-            String orderByClause = buildOrderBy(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey());
+            String orderByClause = targetTable.buildOrderBy(targetTable.getPkColumns());
 //            log.info("Fetch query: {} {}", fetchQuery, addFetchQuery);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
@@ -264,9 +265,9 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
                         ChunkStatus.valueOf(status),
                         fetchQuery,
                         this,
-                        targetStorage);
+                        targetStorage,
+                        orderByClause);
                 ((MSSQLChunk<K, T, S, R>)chunk).setAddFetchPredicate(addFetchQuery);
-                ((MSSQLChunk<K, T, S, R>)chunk).setOrderByClause(orderByClause);
                 chunks.add(chunk);
             }
             rs.close();
@@ -375,21 +376,6 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
         }
 
         return "(" + sb.toString() + ")";
-    }
-
-    public String buildOrderBy(List<Column> columns) {
-        if (columns == null || columns.isEmpty()) return "";
-
-        String orderByBody = columns.stream()
-                .map(col -> col.columnName() + " " + col.getAscOrDesc())
-                .collect(Collectors.joining(", "));
-
-        return " ORDER BY " + orderByBody;
-    }
-
-    public String buildAddFetchStatement(Config config, Table2Table<S> t2t) {
-        String alias = (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".");
-        return " and " + getStringToClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " < ? and ", alias) + " < ? ";
     }
 
     @Override

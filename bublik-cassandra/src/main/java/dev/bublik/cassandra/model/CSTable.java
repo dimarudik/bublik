@@ -229,5 +229,10 @@ public class CSTable<S extends CqlSession> extends Table<S> {
         return true;
     }
 
+    @Override
+    public String buildOrderBy(List<Column> pkColumns) {
+        return "";
+    }
+
     public record UDTColumn(Column column, UserDefinedType udt){}
 }

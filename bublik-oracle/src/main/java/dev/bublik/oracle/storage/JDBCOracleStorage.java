@@ -152,7 +152,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         ChunkStatus.valueOf(status),
                         fetchQuery,
                         this,
-                        targetStorage);
+                        targetStorage,
+                        null);
                 chunkHashList.add(chunk);
             }
             resultSet.close();

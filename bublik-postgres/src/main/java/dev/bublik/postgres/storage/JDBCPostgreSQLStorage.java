@@ -69,6 +69,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: {}", fetchQuery);
+            String orderByClause = getOrderByIfExists(targetTable, config);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
@@ -86,7 +87,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         ChunkStatus.valueOf(status),
                         fetchQuery,
                         this,
-                        targetStorage);
+                        targetStorage,
+                        orderByClause);
                 chunks.add(chunk);
             }
             rs.close();
@@ -94,6 +96,13 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             sourceSession.close();
         }
         return chunks;
+    }
+
+    private String getOrderByIfExists(Table<S> targetTable, Config config) {
+        if (config.columnToColumn() != null && config.expressionToColumn() != null) {
+            return targetTable.buildOrderBy(targetTable.getPkColumns());
+        }
+        return "";
     }
 
     @Override

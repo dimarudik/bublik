@@ -1,16 +1,17 @@
 create table public.a (
-   id int,
+   id int primary key,
    name varchar(256));
 create table public.b (
-   uuid uuid,
+   uuid uuid primary key ,
    name varchar(256));
 create table public.t1 (
     uuid uuid,
-    id int,
-    name varchar(256));
+    id char(32),
+    name varchar(256),
+    constraint pk_t1 primary key (uuid, id));
 create table public.t2 (
    uuid uuid,
-   id int,
+   id char(32),
    name varchar(256));
 create table public.t3 (
    id1 int,
@@ -19,7 +20,8 @@ create table public.t3 (
 create table public.t4 (
    id1 int,
    id2 int,
-   name varchar(256));
+   name varchar(256),
+   constraint pk_t4 primary key (id1, id2));
 
 create table public.test (
      id int,

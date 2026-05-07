@@ -381,7 +381,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                                     ChunkStatus.valueOf(status),
                                     fetchQuery,
                                     this,
-                                    targetStorage
+                                    targetStorage,
+                                    null
                             );
                     chunks.add(chunk);
                 }

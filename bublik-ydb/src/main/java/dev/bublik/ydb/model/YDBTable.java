@@ -164,4 +164,9 @@ public class YDBTable<S extends Connection> extends Table<S> {
         }
         return false;
     }
+
+    @Override
+    public String buildOrderBy(List<Column> pkColumns) {
+        return "";
+    }
 }

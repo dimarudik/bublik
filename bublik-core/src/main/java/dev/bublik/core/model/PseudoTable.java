@@ -102,4 +102,9 @@ public class PseudoTable<S extends AutoCloseable> extends Table<S> {
     public boolean enrichTable(S session) throws SQLException {
         return false;
     }
+
+    @Override
+    public String buildOrderBy(List<Column> pkColumns) {
+        return "";
+    }
 }

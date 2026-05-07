@@ -36,8 +36,7 @@ FROM NumberSequence OPTION (MAXRECURSION 0);
 create table test.t1
 (
     uuid UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID(),
-    id int,
---     id char(32),
+    id char(32),
     name nvarchar(256),
     constraint pk_t1 primary key (uuid, id)
 );
@@ -56,8 +55,8 @@ FROM NumberSequence OPTION (MAXRECURSION 0);
 create table test.t2
 (
     uuid UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID(),
-    id int not null,
---     id char(32) not null ,
+--     id int not null,
+    id char(32) not null ,
     name nvarchar(256),
     constraint pk_t2 primary key nonclustered (uuid),
     index t2_uuid_id_idx clustered (id, uuid desc)
@@ -65,7 +64,7 @@ create table test.t2
 ;WITH NumberSequence AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 1000226
+    SELECT n + 1 FROM NumberSequence WHERE n < 400092
 )
  INSERT INTO test.t2 (id, name)
 SELECT n,
@@ -83,7 +82,7 @@ create table test.t3
 ;WITH NumberSequence AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 550001
+    SELECT n + 1 FROM NumberSequence WHERE n < 250001
 )
  INSERT INTO test.t3 (id2, name)
 SELECT n % 10,
@@ -96,12 +95,12 @@ CREATE TABLE test.t4
     id1 int NOT NULL,
     id2 int NOT NULL,
     name nvarchar(256),
-    CONSTRAINT pk_t4 PRIMARY KEY (id1, id2 DESC)
+    CONSTRAINT pk_t4 PRIMARY KEY (id1, id2)
 );
 ;WITH NumberSequence AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM NumberSequence WHERE n < 550001
+    SELECT n + 1 FROM NumberSequence WHERE n < 1060001
 )
  INSERT INTO test.t4 (id1, id2, name)
 SELECT
