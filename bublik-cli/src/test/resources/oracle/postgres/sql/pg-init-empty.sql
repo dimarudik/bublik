@@ -3,6 +3,10 @@ create schema if not exists test;
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
 
+create table test.b (
+    b numeric(10,0),
+    a int
+);
 create table test.table1 (
     id bigint,
     create_at timestamp(6) with time zone,

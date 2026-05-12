@@ -230,7 +230,7 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     }
 
     @Override
-    public String buildOrderBy(List<Column> pkColumns) {
+    public String buildOrderBy(Config config) {
         return "";
     }
 

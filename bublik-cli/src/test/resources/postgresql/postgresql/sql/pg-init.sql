@@ -12,6 +12,14 @@ analyze public.empty_table;
 delete from public.empty_table where id between 40000 and 310000;
 create table test.empty_table (id int,name varchar(256));
 
+create table test.a (
+    a int,
+    b numeric(10,0));
+insert into test.a (a, b) values (1, 1);
+create table test.b (
+    b numeric(10,0),
+    a int);
+
 create table test.table1 (
     id bigint,
     create_at timestamp(6) with time zone,
@@ -113,7 +121,7 @@ select
     ints
  from public."Source" where 0 = 1;
 alter table public.target add column gender gender;
-alter table public.target add primary key (id);
+-- alter table public.target add primary key (id);
 create table public.parted (
     id bigint,
     create_at timestamp(6) not null,

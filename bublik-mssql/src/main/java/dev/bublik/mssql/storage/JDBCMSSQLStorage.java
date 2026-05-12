@@ -241,10 +241,10 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
             String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
-//            String addFetchQuery = buildAddFetchStatement(config, t2t);
-            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), false);
-            String orderByClause = targetTable.buildOrderBy(targetTable.getPkColumns());
-//            log.info("Fetch query: {} {}", fetchQuery, addFetchQuery);
+            String alias = config.fromTableAlias();
+            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), false, alias);
+            String orderByClause = targetTable.buildOrderBy(config);
+            log.info("Fetch query: {} {} {}", fetchQuery, addFetchQuery, orderByClause);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
@@ -325,7 +325,8 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
         Set<String> set = new HashSet<>(asColumns);
         List<String> finalList = set.stream().toList();
         String columnToColumn = String.join(", ", finalList);
-        String alias = (config.fromTableAlias() == null ? "" : config.fromTableAlias() + ".");
+//        String alias = (config.fromTableAlias() == null ? "" : config.fromTableAlias());
+        String alias = config.fromTableAlias();
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
                 (t2t.ttlColumn() == null ? "" : ( ", " + t2t.ttlColumn().defaultValue() + " as " + t2t.ttlColumn().columnName() + " ")) +
@@ -338,13 +339,16 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
                 (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
-                buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), true);
+                buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), true, alias);
 //                getStringFromClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " >= ? and ", alias) + " >= ? ";
 //                getStringToClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " < ? and ", alias) + " < ? ";
     }
 
-    public String buildConditionBlock(List<Column> columns, boolean isStart) {
+    public String buildConditionBlock(List<Column> columns, boolean isStart, String alias) {
         if (columns == null || columns.isEmpty()) return "";
+
+        // Подготавливаем префикс (например, "t." или пустая строка)
+        String prefix = (alias != null && !alias.isEmpty()) ? alias + "." : "";
 
         StringBuilder sb = new StringBuilder();
         int size = columns.size();
@@ -356,7 +360,7 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
 
             // 1. Формируем часть с равенством для всех предыдущих колонок
             for (int j = 0; j < i; j++) {
-                sb.append(columns.get(j).columnName()).append(" = ? AND ");
+                sb.append(prefix).append(columns.get(j).columnName()).append(" = ? AND ");
             }
 
             // 2. Определяем оператор для текущей колонки
@@ -365,14 +369,13 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
             String operator;
 
             if (current.getAscOrDesc().equals("ASC")) {
-                // Для возрастания: Старт >, Конец <. Если последняя в старте, то >=
                 operator = isStart ? (isLast ? ">=" : ">") : "<";
             } else {
-                // Для убывания: Старт <, Конец >. Если последняя в старте, то <=
                 operator = isStart ? (isLast ? "<=" : "<") : ">";
             }
 
-            sb.append(current.columnName()).append(" ").append(operator).append(" ?)");
+            // Добавляем префикс и к текущей колонке
+            sb.append(prefix).append(current.columnName()).append(" ").append(operator).append(" ?)");
         }
 
         return "(" + sb.toString() + ")";

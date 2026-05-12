@@ -51,6 +51,19 @@ public class OracleToPostgresTest {
     }
 
     @Test
+    void columnOrder() throws IOException, InterruptedException {
+        TestResult result = getResultCount(
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/columnOrder.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+//        Thread.sleep(100_000);
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
     void parted() throws IOException, InterruptedException {
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",

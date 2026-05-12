@@ -220,7 +220,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
-            sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            targetTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {

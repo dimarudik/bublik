@@ -29,6 +29,7 @@
   {
     "fromSchemaName": "test",
     "fromTableName": "t4",
+    "fromTableAlias": "t",
     "toSchemaName": "public"
   }
 ]

@@ -28,5 +28,5 @@ public interface TableService<S extends AutoCloseable> {
     Map<String, String> getColumnToColumn(Connection connection) throws SQLException;
     void create(Connection connection) throws SQLException;
     boolean enrichTable(S session) throws SQLException;
-    String buildOrderBy(List<Column> pkColumns);
+    String buildOrderBy(Config config);
 }

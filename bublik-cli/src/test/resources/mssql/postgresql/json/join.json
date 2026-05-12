@@ -1,0 +1,15 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "fromTableAlias": "s",
+    "fromTableAdds": "join test.a on a.id = s.a_id",
+    "toSchemaName": "public",
+    "toTableName": "a",
+    "fetchWhereClause": "a_id > 0",
+    "expressionToColumn" : {
+      "s.id as id" : "id",
+      "a.name as name" : "name"
+    }
+  }
+]

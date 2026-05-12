@@ -69,7 +69,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             log.info("Fetch query: {}", fetchQuery);
-            String orderByClause = getOrderByIfExists(targetTable, config);
+            String orderByClause = targetTable.buildOrderBy(config);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
@@ -98,12 +98,14 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         return chunks;
     }
 
-    private String getOrderByIfExists(Table<S> targetTable, Config config) {
+/*
+    private String getOrderByIfExists(Table<S> targetTable, Config config, String alias) {
         if (config.columnToColumn() != null && config.expressionToColumn() != null) {
-            return targetTable.buildOrderBy(targetTable.getPkColumns());
+            return targetTable.buildOrderBy(targetTable.getPkColumns(), alias);
         }
         return "";
     }
+*/
 
     @Override
     public Table2Table<S> getTable2Table(Table<S> sourceTable,
@@ -709,7 +711,23 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         throw e;
                     }
                 }
-                case "numeric", "decimal": {
+/*
+                case "NUMBER": {
+                    try {
+                        Number o = (Number) fetchResultSet.getObject(sourceColumn);
+                        if (o == null) {
+                            row.setNumeric(targetColumn, null);
+                            break;
+                        }
+                        row.setNumeric(targetColumn, o);
+                        break;
+                    } catch (BinaryWriteFailedException | SQLException e) {
+                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
+                        throw e;
+                    }
+                }
+*/
+                case "numeric", "decimal", "NUMBER": {
                     try {
                         Object o = fetchResultSet.getObject(sourceColumn);
                         if (o == null) {
@@ -1036,7 +1054,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                     chunk.getT2t().targetTable().getSchemaName(),
                                     chunk.getT2t().targetTable().getTableName(),
                                     targetType, targetColumn);
-                            throw new RuntimeException("Unsupported type: " + targetType);
+                            throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumn);
                         }
                     } catch (BinaryWriteFailedException | SQLException e) {
                         log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),

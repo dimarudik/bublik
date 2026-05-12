@@ -104,7 +104,7 @@ public class PseudoTable<S extends AutoCloseable> extends Table<S> {
     }
 
     @Override
-    public String buildOrderBy(List<Column> pkColumns) {
+    public String buildOrderBy(Config config) {
         return "";
     }
 }

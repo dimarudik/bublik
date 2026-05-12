@@ -1,4 +1,8 @@
 alter session set container = freepdb1;
+create table test.a (
+    a int,
+    b NUMBER(10));
+insert into test.a (a, b) values (1, 2.2);
 create table test.table1 (
     id number(19,0),
     "LEVEL" varchar2(255),

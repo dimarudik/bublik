@@ -527,15 +527,19 @@ public class PGTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public String buildOrderBy(List<Column> columns) {
+    public String buildOrderBy(Config config) {
+        List<Column> columns = getPkColumns();
         if (columns == null || columns.isEmpty()) return "";
-
-        String orderByBody = columns.stream()
-                .map(Column::columnName)
-//                .map(col -> col.columnName() + " " + col.getAscOrDesc())
-                .collect(Collectors.joining(", "));
-
-        return " ORDER BY " + orderByBody;
+        if (config.columnToColumn() == null && config.expressionToColumn() == null) {
+            String alias = config.fromTableAlias();
+            String prefix = (alias != null && !alias.isEmpty()) ? alias + "." : "";
+            String orderByBody = columns.stream()
+                    .map(col -> prefix + col.columnName())
+                    .collect(Collectors.joining(", "));
+            return " ORDER BY " + orderByBody;
+        } else {
+            return "";
+        }
     }
 
     @Override

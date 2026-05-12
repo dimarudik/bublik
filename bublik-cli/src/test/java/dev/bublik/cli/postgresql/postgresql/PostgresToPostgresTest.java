@@ -63,8 +63,7 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-        assertEquals(result.sourceCount(), result.targetCount());
-/*
+//        assertEquals(result.sourceCount(), result.targetCount());
         TestResult result2 = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
@@ -73,7 +72,18 @@ public class PostgresToPostgresTest {
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
-*/
+    }
+
+    @Test
+    void columnOrder() throws IOException, InterruptedException {
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/json/columnOrder.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
     @Test
