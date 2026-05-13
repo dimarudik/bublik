@@ -21,7 +21,9 @@ create table public.t1 (
     s varchar(256),
     t bigint,
     u jsonb,
-    mmap jsonb);
+    mmap jsonb,
+    set1 text[],
+    list1 text[]);
 
 create table public.t2 (
     id int,

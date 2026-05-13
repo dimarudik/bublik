@@ -190,6 +190,27 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;
                 }
+                case "_text": {
+                    String sourceType = sourceColumn.columnType();
+                    switch (sourceType) {
+                        case "list<text>": {
+                            List<String> v = row.getList(sourceColumnName, String.class);
+                            columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
+                            break;
+                        }
+                        case "set<text>": {
+                            Set<String> v = row.getSet(sourceColumnName, String.class);
+                            columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
+                            break;
+                        }
+                        default: {
+                            List<Object> v = row.getList(sourceColumnName, Object.class);
+                            columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
+                            break;
+                        }
+                    }
+                    break;
+                }
                 default:
                     break;
             }

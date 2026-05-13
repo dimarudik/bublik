@@ -1204,40 +1204,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
-/*
-    @Override
-    public void enrichSourceTables(Connection connection) {
-        Map<Table<S>, Table<S>> tables = getTables();
-        try {
-            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-                Table<S> sourceTable = entry.getKey();
-                List<Column> allSourceColumns = sourceTable.getAllColumns((S)connection);
-                sourceTable.setColumns(allSourceColumns);
-
-                List<Column> sourcePKColumns = sourceTable.getPrimaryKeyColumns(connection);
-                sourceTable.setPkColumns(sourcePKColumns);
-
-                if (getMajorStorageVersion(connection) >= 15) {
-                    List<UniqueConstraint> uniqueConstraints = sourceTable.getUniqueConstraints(connection);
-                    sourceTable.setUniqueConstraints(uniqueConstraints);
-                }
-
-                List<Index> sourceIndexes = sourceTable.getTableIndexes(connection);
-                sourceTable.setIndexes(sourceIndexes);
-
-                List<ForeignKey> foreignKeys = sourceTable.getForeignKeys(connection, this, entry.getValue());
-                sourceTable.setForeignKeys(foreignKeys);
-
-                Map.Entry<Integer, List<TableOption>> options = sourceTable.getOptions(connection);
-                sourceTable.setId(options.getKey());
-                sourceTable.setOptions(options.getValue());
-            }
-        } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
-        }
-    }
-*/
-
     @Override
     public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
         try (Statement st = getPoolConnection().createStatement();
@@ -1511,6 +1477,14 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 }
                 case "json", "varchar": {
                     s.setVarChar(targetColumnName, (String) value);
+                    break;
+                }
+                case "_text": {
+                    if (value instanceof List) {
+                        s.setTextArray(targetColumnName, (List<String>) value);
+                    } else if (value instanceof Set) {
+                        s.setTextArray(targetColumnName, (Set<String>) value);
+                    }
                     break;
                 }
                 case "text", "bpchar": {
