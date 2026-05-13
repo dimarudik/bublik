@@ -1427,12 +1427,12 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                          Chunk<K, T, S, R> chunk,
                                          W writer) throws SQLException {
         Consumer<SimpleRow> simpleRowConsumer =
-                s -> consume(s, columnValues);
+                s -> consume(s, columnValues, chunk);
 
         ((SimpleRowWriter) writer).startRow(simpleRowConsumer);
     }
 
-    private <V> void consume(SimpleRow s, List<ColumnValue<V>> columnValues) {
+    private <V> void consume(SimpleRow s, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) {
         for (ColumnValue<V> columnValue : columnValues) {
             String targetColumnName = columnValue.targetColumn().columnName();
             String targetType = columnValue.targetColumn().columnType();
@@ -1600,7 +1600,31 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     break;
                 }
                 default:
-                    break;
+                    try {
+                        if (chunk.getConfig().tryCharIfAny() != null) {
+                            if (chunk.getConfig().tryCharIfAny().contains(targetColumnName)) {
+                                if (value == null) {
+                                    s.setText(targetColumnName, null);
+                                    break;
+                                }
+                                String str = value.toString();
+                                s.setText(targetColumnName, str.replaceAll("\u0000", ""));
+                                break;
+                            } else {
+                                log.error("There is no handler for type: {}  for column: {}", targetType, targetColumnName);
+                            }
+                        } else {
+                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+                                    chunk.getT2t().targetTable().getSchemaName(),
+                                    chunk.getT2t().targetTable().getTableName(),
+                                    targetType, targetColumnName);
+                            throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumnName);
+                        }
+                    } catch (BinaryWriteFailedException e) {
+                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),
+                                targetType, targetColumnName, getStackTrace(e));
+                        throw e;
+                    }
             }
         }
     }

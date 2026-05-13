@@ -52,12 +52,13 @@ create table test.t1 (
     mmap map<text, text>,
     set1 set<text>,
     list1 list<text>,
+    status text,
     primary key (id));
 insert into test.t1
 (id, a, b, c, d, e, f, g,
 --h,
 i, j, k, l, m, n, o, p, q, r, s, t, u,
-mmap, set1, list1)
+mmap, set1, list1, status)
 values
 (1, 'ascii', 9999999999, 0x0102030405060708090a0b0c0d0e0f101112131415161718, true, '2018-01-01', 123.456, 123.456,
 --12h57m43s,
@@ -69,5 +70,5 @@ values
      "toTableName": "t1"   }',
  {'k1' : 'v1', 'k2' : 'v1', 'k3' : 'v2'},
  {'k1', 'k2', 'k3'},
- ['k1', 'k2', 'k3']);
-insert into test.t1 (id, a) values (2, 'a');
+ ['k1', 'k2', 'k3'], 'Active');
+insert into test.t1 (id, a, status) values (2, 'a', 'Closed');

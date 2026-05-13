@@ -4,6 +4,7 @@
     "fromTableName": "t1",
     "toSchemaName": "public",
     "toTableName": "t1",
+    "tryCharIfAny" : ["status"],
     "columnToColumn" : {
       "id" : "id",
       "a" : "a",
@@ -27,7 +28,8 @@
       "t" : "t",
       "u" : "u",
       "set1" : "set1",
-      "list1" : "list1"
+      "list1" : "list1",
+      "status" : "status"
     },
     "expressionToColumn" : {
       "test.map_to_json(mmap) as mmap" : "mmap"

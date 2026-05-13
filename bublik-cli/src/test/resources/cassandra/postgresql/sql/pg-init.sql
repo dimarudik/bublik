@@ -1,3 +1,5 @@
+CREATE TYPE role_status AS ENUM ('NotActive', 'Active', 'Closed');
+
 create table public.t1 (
     id int,
     a varchar(256),
@@ -23,7 +25,8 @@ create table public.t1 (
     u jsonb,
     mmap jsonb,
     set1 text[],
-    list1 text[]);
+    list1 text[],
+    status role_status);
 
 create table public.t2 (
     id int,

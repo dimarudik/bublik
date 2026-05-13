@@ -248,14 +248,22 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 default:
-                    break;
+                    if (chunk.getConfig().tryCharIfAny() != null) {
+                        if (chunk.getConfig().tryCharIfAny().contains(targetColumn.columnName())) {
+                            String v = row.getString(sourceColumnName);
+                            columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
+                            break;
+                        }
+                    }
             }
         }
+/*
         columnValues
                 .stream()
                 .map(v -> v.sourceColumn().columnName() + "." + v.sourceColumn().columnType() +
                         " -> " + v.targetColumn().columnName() + "." + v.targetColumn().columnType() + " = " + v.value())
                 .forEach(System.out::println);
+*/
         return columnValues;
     }
 

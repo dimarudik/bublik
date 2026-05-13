@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.2.31</version>
+        <version>26.2.32</version>
     </parent>
 
     <artifactId>bublik-mssql</artifactId>
