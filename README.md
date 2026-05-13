@@ -2,22 +2,24 @@
 # Tool for Data Transfer between databases
 
 
-| SOURCE       | TARGET     |
-|:-------------|:-----------|
-| Cassandra    | Cassandra  |
-| Cassandra    | PostgreSQL |
-| Oracle       | Cassandra  |
-| Oracle       | PostgreSQL |
-| Oracle       | YDB        |
-| PostgreSQL   | Cassandra  |
-| PostgreSQL   | PostgreSQL |
-| PostgreSQL   | YDB        |
+| SOURCE     | TARGET     |
+|:-----------|:-----------|
+| Cassandra  | Cassandra  |
+| Cassandra  | PostgreSQL |
+| MS SQL     | PostgreSQL |
+| Oracle     | Cassandra  |
+| Oracle     | PostgreSQL |
+| Oracle     | YDB        |
+| PostgreSQL | Cassandra  |
+| PostgreSQL | PostgreSQL |
+| PostgreSQL | YDB        |
 
 
 This tool facilitates the efficient transfer of data between databases.
 * The quickest method for extracting data from <strong>Oracle</strong> is by using `ROWID` (employing `dbms_parallel_execute` to segment the data into chunks). 
 * In case of <strong>PostgreSQL</strong>, we should split a table into chunks by `CTID` (PostgreSQL version >= 14). As you know, the fastest way to input data into PostgreSQL is through the `COPY` command in binary format.
 * If you are using <strong>Cassandra</strong>, you can split the data into chunks based on Token Ranges.
+* When you are transferring data from <strong>MS SQL</strong> to <strong>PostgreSQL</strong>, the only way to speed up the process is to rely on the clustering key of SQL Server table.
 
 You can find more details and examples below.
 
@@ -32,6 +34,11 @@ You can find more details and examples below.
     * [Prepare Cassandra To PostgreSQL Connection Settings](#prepare-cassandra-to-postgresql-connection-settings)
     * [Prepare Cassandra To PostgreSQL Mapping Files](#prepare-cassandra-to-postgresql-mapping-files)
     * [Cassandra To PostgreSQL Run](#cassandra-to-postgresql-run)
+* [MS SQL To PostgreSQL](#ms-sql-to-postgresql)
+  * [Prepare MS SQL To PostgreSQL environment](#prepare-ms-sql-to-postgresql-environment)
+  * [Prepare MS SQL To PostgreSQL Connection Settings](#prepare-ms-sql-to-postgresql-connection-settings)
+  * [Prepare MS SQL To PostgreSQL Mapping File](#prepare-ms-sql-to-postgresql-mapping-file)
+  * [MS SQL To PostgreSQL Run](#ms-sql-to-postgresql-run)
 * [Oracle To Cassandra](#oracle-to-cassandra)
     * [Prepare Oracle To Cassandra environment](#prepare-oracle-to-cassandra-environment)
     * [Prepare Oracle To Cassandra Connection Settings](#prepare-oracle-to-cassandra-connection-settings)
@@ -78,7 +85,7 @@ cd bublik/
 Build and package all dependencies
 
 ```
-mvn clean package
+mvn clean package -DskipTests
 ```
 
 ## Cassandra To Cassandra
@@ -546,6 +553,169 @@ java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -k 50000 \
     -c ./bublik-cli/src/test/resources/cassandra/postgresql/yaml/cs2pg.yaml \
     -m ./bublik-cli/src/test/resources/cassandra/postgresql/json/cs2pg.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transfer
+
+## MS SQL To PostgreSQL
+![MS SQL To PostgreSQL](./bublik-cli/src/test/resources/images/mssql2pg.png)
+
+The objective is to migrate data from MS SQL to PostgreSQL database.
+To split data into chunks we use Clustering Key of Microsoft SQL Server table.
+Such method helps to minimize the workload on the source database and improves the performance of the data transfer to target database.
+
+### Prepare MS SQL To PostgreSQL environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn test -Dtest="dev/bublik/cli/mssql/postgresql/*" -Dsurefire.failIfNoSpecifiedTests=false 
+```
+
+Or you can run test case in docker containers manually:
+
+#### Prepare MS SQL environment
+
+```
+docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=A_Str0ng_Required_Password" --platform linux/amd64 \
+   -p 1433:1433 --name mssql \
+   -d mcr.microsoft.com/mssql/server:latest
+```
+
+>  **WARNING**: All tables participating in test case will be created and fulfilled during docker containers startup
+
+How to connect to Oracle by sqlcmd:
+
+```
+sqlcmd -S localhost -U sa -P "A_Str0ng_Required_Password" -i ./bublik-cli/src/test/resources/mssql/postgresql/sql/mssql-ClusteringKey-GO.sql
+```
+
+#### Prepare PostgreSQL environment
+
+```
+docker run --name postgres \
+        -h postgres \
+        -e POSTGRES_USER=test \
+        -e POSTGRES_PASSWORD=test \
+        -e POSTGRES_DB=postgres \
+        -p 5432:5432 \
+        -v ./bublik-cli/src/test/resources/mssql/postgresql/sql/pg-init.sql:/docker-entrypoint-initdb.d/init.sql \
+        -d postgres \
+        -c shared_preload_libraries="pg_stat_statements,auto_explain"
+```
+
+
+How to connect to PostgreSQL:
+
+```
+psql postgresql://test:test@localhost/postgres
+```
+
+### Prepare MS SQL To PostgreSQL Connection Settings
+
+You can run the tool by using yaml file `./bublik-cli/src/test/resources/mssql/postgresql/yaml/mssql2pg.yaml` with connection settings:
+
+```yaml
+threadCount: 4
+
+fromProperties:
+  url: jdbc:sqlserver://localhost:1433;databaseName=test;encrypt=true;trustServerCertificate=true;
+  user: sa
+  password: A_Str0ng_Required_Password
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary
+  user: test
+  password: test
+```
+
+Or you can use environment variables (do not specify -c parameter):
+
+```
+export THREAD_COUNT=4
+export FROM_URL=jdbc:sqlserver://localhost:1433;databaseName=test;encrypt=true;trustServerCertificate=true;
+export FROM_USER=sa
+export FROM_PASSWORD=A_Str0ng_Required_Password
+export TO_URL=jdbc:postgresql://localhost:5432/postgres
+export TO_USER=test
+export TO_PASSWORD=test
+```
+
+### Prepare MS SQL To PostgreSQL Mapping File
+
+You can run the tool by using json file `./bublik-cli/src/test/resources/mssql/postgresql/json/clusteringKey.json` with mapping settings:
+
+```json
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "a",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t1",
+    "fromTableAlias": "t",
+    "toSchemaName": "public",
+    "toTableName": "t1"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t2",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t3",
+    "toSchemaName": "public"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "t4",
+    "fromTableAlias": "t",
+    "toSchemaName": "public"
+  }
+]
+```
+
+or (for example):
+
+```json
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "fromTableAlias": "s",
+    "fromTableAdds": "join test.a on a.id = s.a_id",
+    "toSchemaName": "public",
+    "toTableName": "a",
+    "fetchWhereClause": "a_id > 0",
+    "expressionToColumn" : {
+      "s.id as id" : "id",
+      "a.name as name" : "name"
+    }
+  }
+]
+```
+
+
+### MS SQL To PostgreSQL Run
+
+Halt any changes to the movable tables in the source database (Oracle) and run:
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/mssql/postgresql/yaml/mssql2pg.yaml \
+    -m ./bublik-cli/src/test/resources/mssql/postgresql/json/clusteringKey.json
 ```
 
 Chunks will be created automatically with parameter -k at startup

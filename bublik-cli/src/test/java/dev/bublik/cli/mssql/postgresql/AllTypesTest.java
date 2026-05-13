@@ -19,7 +19,6 @@ import java.util.Properties;
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
 
-@Disabled
 public class AllTypesTest {
     private static int rows = 50_000;
     private static boolean sync = false;
