@@ -132,7 +132,6 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-
             S sourceSession = this.getPoolConnection();
             String sql = buildStartEndOfChunk(config, chunkTable, sourceTable);
             log.debug("SQL to fetch metadata of chunks: {}", sql);
@@ -140,7 +139,8 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
             ps.setString(1, config.fromTaskName());
             ResultSet resultSet = ps.executeQuery();
             String fetchQuery = buildFetchStatement(config, t2t);
-            log.info("Fetch query: {}", fetchQuery);
+            String orderByClause = targetTable.buildOrderBy(config);
+            log.info("Fetch query: {} {}", fetchQuery, orderByClause);
             while (resultSet.next()) {
                 String status = resultSet.getString("status");
                 Chunk<K, T, S, R> chunk = new OraChunk<>(
@@ -153,7 +153,7 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                         fetchQuery,
                         this,
                         targetStorage,
-                        null);
+                        orderByClause);
                 chunkHashList.add(chunk);
             }
             resultSet.close();

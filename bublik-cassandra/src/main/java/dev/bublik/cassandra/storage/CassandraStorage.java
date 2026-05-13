@@ -106,46 +106,77 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             String targetType = targetColumn.columnType();
             switch (targetType) {
                 case "int", "serial", "int4": {
-                    Integer v = row.getInt(sourceColumnName);
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
+                    Integer v = (Integer) o;
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;
                 }
                 case "smallserial", "int2": {
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
                     if (sourceColumn.columnType().equals("tinyint")) {
                         Integer v = (int) row.getByte(sourceColumnName);
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     } else {
-                        Short v = row.getShort(sourceColumnName);
+                        Short v = (Short) o;
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     }
                     break;
                 }
                 case "bigint", "int8": {
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
                     if (sourceColumn.columnType().equals("varint")) {
                         BigInteger v = row.getBigInteger(sourceColumnName);
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     } else {
-                        Long v = row.getLong(sourceColumnName);
+//                        Long v = row.getLong(sourceColumnName);
+                        Long v = (Long) o;
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     }
                     break;
                 }
                 case "numeric", "decimal": {
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
                     Number v = row.getBigDecimal(sourceColumnName);
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;
                 }
                 case "float4": {
-                    Float v = row.getFloat(sourceColumnName);
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
+                    Float v = (Float) o;
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;
                 }
                 case "float8", "double precision": {
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
                     if (sourceColumn.columnType().equals("float")) {
-                        Float v = row.getFloat(sourceColumnName);
+                        Float v = (Float) o;
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     } else {
-                        Double v = row.getDouble(sourceColumnName);
+                        Double v = (Double) o;
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     }
                     break;
@@ -176,7 +207,12 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
                 }
                 case "bool": {
-                    Boolean v = row.getBoolean(sourceColumnName);
+                    Object o = row.getObject(sourceColumnName);
+                    if (o == null) {
+                        columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, null));
+                        break;
+                    }
+                    Boolean v = (Boolean) o;
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;
                 }
@@ -215,13 +251,11 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     break;
             }
         }
-/*
         columnValues
                 .stream()
                 .map(v -> v.sourceColumn().columnName() + "." + v.sourceColumn().columnType() +
                         " -> " + v.targetColumn().columnName() + "." + v.targetColumn().columnType() + " = " + v.value())
                 .forEach(System.out::println);
-*/
         return columnValues;
     }
 

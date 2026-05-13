@@ -70,3 +70,4 @@ values
  {'k1' : 'v1', 'k2' : 'v1', 'k3' : 'v2'},
  {'k1', 'k2', 'k3'},
  ['k1', 'k2', 'k3']);
+insert into test.t1 (id, a) values (2, 'a');

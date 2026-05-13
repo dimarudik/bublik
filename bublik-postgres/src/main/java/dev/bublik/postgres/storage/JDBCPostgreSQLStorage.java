@@ -68,8 +68,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
-            log.info("Fetch query: {}", fetchQuery);
             String orderByClause = targetTable.buildOrderBy(config);
+            log.info("Fetch query: {} {}", fetchQuery, orderByClause);
             S sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
@@ -1439,96 +1439,164 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             V value = columnValue.value();
             switch (targetType) {
                 case "int", "serial", "int4": {
-                    s.setInteger(targetColumnName, (Integer) value);
+                    if (value != null) {
+                        s.setInteger(targetColumnName, (Integer) value);
+                    } else {
+                        s.setInteger(targetColumnName, null);
+                    }
                     break;
                 }
                 case "smallserial", "int2": {
-                    if (value instanceof Short) {
-                        s.setShort(targetColumnName, (Short) value);
+                    if (value != null) {
+                        if (value instanceof Short) {
+                            s.setShort(targetColumnName, (Short) value);
+                        } else {
+                            s.setShort(targetColumnName, ((Integer) value).shortValue());
+                        }
                     } else {
-                        s.setShort(targetColumnName, ((Integer) value).shortValue());
+                        s.setShort(targetColumnName, null);
                     }
                     break;
                 }
                 case "bigint", "int8": {
-                    if (value instanceof Long) {
-                        s.setLong(targetColumnName, (Long) value);
+                    if (value != null) {
+                        if (value instanceof Long) {
+                            s.setLong(targetColumnName, (Long) value);
+                        } else {
+                            s.setLong(targetColumnName, ((Number) value).longValue());
+                        }
                     } else {
-                        s.setLong(targetColumnName, ((Number) value).longValue());
+                        s.setLong(targetColumnName, null);
                     }
                     break;
                 }
                 case "numeric", "decimal": {
-                    s.setNumeric(targetColumnName, (BigDecimal) value);
+                    if (value != null) {
+                        s.setNumeric(targetColumnName, (BigDecimal) value);
+                    } else {
+                        s.setNumeric(targetColumnName, null);
+                    }
                     break;
                 }
                 case "float4": {
-                    s.setFloat(targetColumnName, (Float) value);
+                    if (value != null) {
+                        s.setFloat(targetColumnName, (Float) value);
+                    } else {
+                        s.setFloat(targetColumnName, null);
+                    }
                     break;
                 }
                 case "float8", "double precision": {
-                    if (value instanceof Double) {
-                        s.setDouble(targetColumnName, (Double) value);
+                    if (value != null) {
+                        if (value instanceof Double) {
+                            s.setDouble(targetColumnName, (Double) value);
+                        } else {
+                            Float f = (Float) value;
+                            s.setDouble(targetColumnName, f.doubleValue());
+                        }
                     } else {
-                        Float f = (Float) value;
-                        s.setDouble(targetColumnName, f.doubleValue());
+                        s.setDouble(targetColumnName, null);
                     }
                     break;
                 }
                 case "json", "varchar": {
-                    s.setVarChar(targetColumnName, (String) value);
+                    if (value != null) {
+                        s.setVarChar(targetColumnName, (String) value);
+                    } else {
+                        s.setVarChar(targetColumnName, null);
+                    }
                     break;
                 }
                 case "_text": {
-                    if (value instanceof List) {
-                        s.setTextArray(targetColumnName, (List<String>) value);
-                    } else if (value instanceof Set) {
-                        s.setTextArray(targetColumnName, (Set<String>) value);
+                    if (value != null) {
+                        if (value instanceof List) {
+                            s.setTextArray(targetColumnName, (List<String>) value);
+                        } else if (value instanceof Set) {
+                            s.setTextArray(targetColumnName, (Set<String>) value);
+                        }
+                    } else {
+                        s.setTextArray(targetColumnName, null);
                     }
                     break;
                 }
                 case "text", "bpchar": {
-                    s.setText(targetColumnName, (String) value);
+                    if (value != null) {
+                        s.setText(targetColumnName, (String) value);
+                    } else {
+                        s.setText(targetColumnName, null);
+                    }
                     break;
                 }
                 case "jsonb": {
-                    s.setJsonb(targetColumnName, (String) value);
+                    if (value != null) {
+                        s.setJsonb(targetColumnName, (String) value);
+                    } else {
+                        s.setJsonb(targetColumnName, null);
+                    }
                     break;
                 }
                 case "time": {
-                    s.setTime(targetColumnName, (LocalTime) value);
+                    if (value != null) {
+                        s.setTime(targetColumnName, (LocalTime) value);
+                    } else {
+                        s.setTime(targetColumnName, null);
+                    }
                     break;
                 }
                 case "timestamp": {
-                    ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant((Instant) value, ZoneId.of("UTC"));
-                    s.setTimeStamp(targetColumnName, LocalDateTime.ofInstant((Instant) value, zonedDateTime.getZone()));
+                    if (value != null) {
+                        ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant((Instant) value, ZoneId.of("UTC"));
+                        s.setTimeStamp(targetColumnName, LocalDateTime.ofInstant((Instant) value, zonedDateTime.getZone()));
+                    } else {
+                        s.setTimeStamp(targetColumnName, null);
+                    }
                     break;
                 }
                 case "date": {
-                    s.setDate(targetColumnName, (LocalDate) value);
+                    if (value != null) {
+                        s.setDate(targetColumnName, (LocalDate) value);
+                    } else {
+                        s.setDate(targetColumnName, null);
+                    }
                     break;
                 }
                 case "bytea": {
-                    ByteBuffer buffer = (ByteBuffer) value;
-                    s.setByteArray(targetColumnName, buffer.array());
+                    if (value != null) {
+                        ByteBuffer buffer = (ByteBuffer) value;
+                        s.setByteArray(targetColumnName, buffer.array());
+                    } else {
+                        s.setByteArray(targetColumnName, null);
+                    }
                     break;
                 }
                 case "bool": {
-                    s.setBoolean(targetColumnName, (Boolean) value);
+                    if (value != null) {
+                        s.setBoolean(targetColumnName, (Boolean) value);
+                    } else {
+                        s.setBoolean(targetColumnName, null);
+                    }
                     break;
                 }
                 case "inet": {
-                    InetAddress inetAddress = (InetAddress) value;
-                    if (inetAddress instanceof Inet4Address inet4Address) {
-                        s.setInet4Addr(targetColumnName, inet4Address);
+                    if (value != null) {
+                        InetAddress inetAddress = (InetAddress) value;
+                        if (inetAddress instanceof Inet4Address inet4Address) {
+                            s.setInet4Addr(targetColumnName, inet4Address);
+                        } else {
+                            Inet6Address inet6Address = (Inet6Address) inetAddress;
+                            s.setInet6Addr(targetColumnName, inet6Address);
+                        }
                     } else {
-                        Inet6Address inet6Address = (Inet6Address) inetAddress;
-                        s.setInet6Addr(targetColumnName, inet6Address);
+                        s.setInet4Addr(targetColumnName, null);
                     }
                     break;
                 }
                 case "uuid": {
-                    s.setUUID(targetColumnName, (UUID) value);
+                    if (value != null) {
+                        s.setUUID(targetColumnName, (UUID) value);
+                    } else {
+                        s.setUUID(targetColumnName, null);
+                    }
                     break;
                 }
                 default:

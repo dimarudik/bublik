@@ -71,7 +71,9 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     @Override
     public R getData(String query) throws SQLException {
         Connection connection = this.getSourceSession();
-        PreparedStatement statement = connection.prepareStatement(query);
+        String sql = query + getOrderByClause();
+//        log.info("sql: {}", sql);
+        PreparedStatement statement = connection.prepareStatement(sql);
         statement.setRowId(1, this.getStart());
         statement.setRowId(2, this.getEnd());
         statement.setFetchSize(10_000);

@@ -5,7 +5,7 @@ create type gender AS ENUM ('male', 'female', 'NA');
 
 create table test.b (
     b numeric(10,0),
-    a int
+    a int primary key
 );
 create table test.table1 (
     id bigint,
