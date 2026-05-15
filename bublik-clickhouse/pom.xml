@@ -9,7 +9,7 @@
         <version>26.2.35</version>
     </parent>
 
-    <artifactId>bublik-ydb</artifactId>
+    <artifactId>bublik-clickhouse</artifactId>
     <version>${project.parent.version}</version>
     <packaging>jar</packaging>
 
@@ -22,8 +22,8 @@
         </developer>
     </developers>
 
-    <name>bublik-ydb</name>
-    <description>Bublik ydb module</description>
+    <name>bublik-clickhouse</name>
+    <description>Bublik clickhouse module</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>
@@ -39,37 +39,17 @@
         <url>https://github.com/dimarudik/bublik/tree/stable</url>
     </scm>
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <log4j.version>2.23.1</log4j.version>
-        <jackson.version>2.15.2</jackson.version>
-        <bublik.version>25.1.0</bublik.version>
-        <ydb.version>2.3.15</ydb.version>
-    </properties>
-
     <dependencies>
-        <dependency>
-            <groupId>tech.ydb.jdbc</groupId>
-            <artifactId>ydb-jdbc-driver</artifactId>
-            <version>2.3.17</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>dev.bublik</groupId>
             <artifactId>bublik-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -131,50 +111,5 @@
             </plugin>
         </plugins>
     </build>
-
-    <!--
-        <build>
-            <resources>
-                <resource>
-                    <directory>src/main/resources</directory>
-                    <filtering>true</filtering>
-                </resource>
-            </resources>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-dependency-plugin</artifactId>
-                    <version>2.8</version>
-                    <executions>
-                        <execution>
-                            <id>copy-dependencies</id>
-                            <phase>prepare-package</phase>
-                            <goals>
-                                <goal>copy-dependencies</goal>
-                            </goals>
-                            <configuration>
-                                <outputDirectory>
-                                    ${project.build.directory}/lib
-                                </outputDirectory>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.2.0</version>
-                    <configuration>
-                        <archive>
-                            <manifest>
-                                <addClasspath>true</addClasspath>
-                                <classpathPrefix>lib/</classpathPrefix>
-                            </manifest>
-                        </archive>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </build>
-    -->
 
 </project>
