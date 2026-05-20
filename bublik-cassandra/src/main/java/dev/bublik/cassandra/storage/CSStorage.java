@@ -102,7 +102,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             chunks.forEach(chunk -> futures.add(
                     service.submit(() -> {
                         try {
-                            log.info("chunk: {}", chunk.getId());
+//                            log.info("chunk: {}", chunk.getId());
                             return chunk.allStages(false, tName);
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));

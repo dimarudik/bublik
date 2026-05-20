@@ -10,10 +10,12 @@ import dev.bublik.core.model.Chunk;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.LogMessage;
 import dev.bublik.core.model.Table2Table;
+import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -146,6 +148,9 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                 .interStageSaveChunkRows(getCopied(), sync, tableName)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName);
         logChunkInfo();
+        if (getTargetStorage() instanceof JDBCStorage && ((Connection)getTargetSession()).isValid(0)) {
+            ((Connection)getTargetSession()).close();
+        }
         return this;
     }
 }

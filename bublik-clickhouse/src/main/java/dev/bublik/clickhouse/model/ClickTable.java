@@ -1,5 +1,6 @@
 package dev.bublik.clickhouse.model;
 
+import com.clickhouse.client.api.insert.InsertResponse;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
