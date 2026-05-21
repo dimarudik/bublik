@@ -588,7 +588,7 @@ docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=A_Str0ng_Required_Password" 
 
 >  **WARNING**: All tables participating in test case will be created and fulfilled during docker containers startup
 
-How to connect to Oracle by sqlcmd:
+How to connect to MS SQL by sqlcmd:
 
 ```
 sqlcmd -S localhost -U sa -P "A_Str0ng_Required_Password" -i ./bublik-cli/src/test/resources/mssql/postgresql/sql/mssql-ClusteringKey-GO.sql
