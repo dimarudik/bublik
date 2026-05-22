@@ -1,0 +1,8 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "a",
+    "toSchemaName": "public",
+    "toTableName": "a"
+  }
+]

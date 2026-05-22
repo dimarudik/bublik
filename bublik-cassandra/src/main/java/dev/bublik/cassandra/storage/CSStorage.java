@@ -357,6 +357,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 throw new RuntimeException(e);
             }
 //            targetTable.getColumns().forEach(c -> System.out.println(c.columnName() + "." + c.columnType()));
+            String orderByClause = targetTable.buildOrderBy(config);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, getChunkTableName(chunkTableName), sourceTable);
@@ -382,8 +383,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                                     fetchQuery,
                                     this,
                                     targetStorage,
-                                    null
-                            );
+                                    orderByClause);
                     chunks.add(chunk);
                 }
             }
@@ -420,7 +420,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
             if (sourceTable.getClass() == targetTable.getClass()) {
                 sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
             } else {
-                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c,
+                targetTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c,
                         targetTable
                                 .getColumns()
                                 .stream()

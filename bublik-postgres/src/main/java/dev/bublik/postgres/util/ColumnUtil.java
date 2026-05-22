@@ -1,5 +1,6 @@
 package dev.bublik.postgres.util;
 
+//import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
 import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.model.Config;

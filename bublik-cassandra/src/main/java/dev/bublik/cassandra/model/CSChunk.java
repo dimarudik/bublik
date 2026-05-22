@@ -107,8 +107,10 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-        String q = getFetchQuery();
-        ResultSet resultSet = getData(q);
+//        String sql = getFetchQuery() + (getOrderByClause() == null ? "" : getOrderByClause());
+        String sql = getFetchQuery();
+//        log.info("{} {} {}", sql, getStart(), getEnd());
+        ResultSet resultSet = getData(sql);
         setResultSet((R) resultSet);
         return this;
     }

@@ -51,3 +51,7 @@ create table public.t2 (
     s varchar(256),
     t bigint,
     u jsonb);
+
+create table public.a (
+    id int primary key ,
+    name varchar(256));
