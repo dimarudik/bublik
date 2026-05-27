@@ -1,0 +1,19 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "a",
+    "toSchemaName": "test",
+    "toTableName": "b"
+  },
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "d",
+    "toSchemaName": "test",
+    "toTableName": "e",
+    "tryCharIfAny" : ["n"],
+    "columnToColumn" : {
+      "n" : "n",
+      "id" : "id"
+    }
+  }
+]

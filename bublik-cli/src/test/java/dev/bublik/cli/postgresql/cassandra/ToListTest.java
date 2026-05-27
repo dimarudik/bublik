@@ -104,7 +104,7 @@ public class ToListTest {
                 return false;
             }
             List<String> attrs1 = row.getList("attrs1", String.class);
-            System.out.println(attrs1);
+//            System.out.println(attrs1);
             if(!attrs1.contains("user1")) {
                 return false;
             }
@@ -115,7 +115,7 @@ public class ToListTest {
                 return false;
             }
             List<Integer> attrs2 = row.getList("attrs2", Integer.class);
-            System.out.println(attrs2);
+//            System.out.println(attrs2);
             if(!attrs2.contains(1)) {
                 return false;
             }

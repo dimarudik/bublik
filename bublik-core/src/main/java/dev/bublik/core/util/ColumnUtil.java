@@ -53,22 +53,43 @@ public class ColumnUtil {
         return 0;
     }
 
+    public static Map<String, String> parseHstoreString(String raw) {
+        Map<String, String> map = new java.util.LinkedHashMap<>();
+        if (raw == null || raw.trim().isEmpty()) return map;
+
+        String[] pairs = raw.split(",\\s*(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"); // Сплит по запятым вне кавычек
+        for (String pair : pairs) {
+            String[] kv = pair.split("=>");
+            if (kv.length == 2) {
+                String k = kv[0].trim().replaceAll("^\"|\"$", "");
+                String v = kv[1].trim();
+                if (v.equalsIgnoreCase("NULL")) {
+                    map.put(k, null);
+                } else {
+                    map.put(k, v.replaceAll("^\"|\"$", ""));
+                }
+            }
+        }
+        return map;
+    }
+
+/*
     public static Map<String, String> parseHstoreString(String hstoreStr) {
         Map<String, String> result = new HashMap<>();
         if (hstoreStr == null || hstoreStr.isEmpty()) {
             return result;
         }
 
-        // Разделяем по запятым, но учитываем, что значения могут быть в кавычках
         Pattern pairPattern = Pattern.compile("(\"[^\"]+\"|[^=>]+)=>(\"[^\"]+\"|[^,]+)");
         Matcher matcher = pairPattern.matcher(hstoreStr);
 
         while (matcher.find()) {
-            String key = matcher.group(1).replaceAll(", ", "").replaceAll("\"", "").trim();//.replaceAll("^\"|\"$", "").trim();
-            String value = matcher.group(2).replaceAll("\"", "");//.replaceAll("^\"|\"$", "").trim();
+            String key = matcher.group(1).replace(", ", "").replace("\"", "").trim();
+            String value = matcher.group(2).replace("\"", "");
             result.put(key, value);
         }
 
         return result;
     }
+*/
 }

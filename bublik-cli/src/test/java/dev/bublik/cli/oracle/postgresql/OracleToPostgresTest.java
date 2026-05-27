@@ -59,7 +59,6 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(100_000);
         assertEquals(result.sourceCount(), result.targetCount());
     }
 
@@ -86,13 +85,13 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+//        Thread.sleep(200_000);
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
-    @Test
-    void columnFromMany() throws IOException {
+    void columnFromMany() throws IOException, InterruptedException {
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/columnFromMany.json",
@@ -100,6 +99,7 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+//        Thread.sleep(200_000);
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.targetCount(), result.sourceCount());

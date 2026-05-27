@@ -105,7 +105,7 @@ public class ToMapTest {
                 return false;
             }
             Map<Integer, String> kv1 = row.getMap("kv1", Integer.class, String.class);
-            System.out.println(kv1);
+//            System.out.println(kv1);
             if(!kv1.get(1).equals("2025-01-01 00:00:00")) {
                 return false;
             }
@@ -113,7 +113,7 @@ public class ToMapTest {
                 return false;
             }
             Map<String, String> kv2 = row.getMap("kv2", String.class, String.class);
-            System.out.println(kv2);
+//            System.out.println(kv2);
             if(!kv2.get("user1").equals("user1@gmail.comv1")) {
                 return false;
             }

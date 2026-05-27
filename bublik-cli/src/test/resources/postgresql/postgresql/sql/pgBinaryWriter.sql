@@ -1,0 +1,114 @@
+create schema if not exists test;
+create type test.mood AS ENUM ('sad', 'ok', 'happy');
+CREATE EXTENSION IF NOT EXISTS hstore;
+
+create table test.a (
+    id int,
+    a varchar(40),
+    b numeric(10,0),
+    c bpchar(10),
+    d char(10),
+    e character(40),
+    f text,
+    g _varchar(40),
+    h _text,
+    i smallint,
+    j json,
+    jb jsonb,
+    k int2,
+    l bigint,
+    m int8,
+    n float4,
+    o float8,
+    p double precision,
+    q uuid,
+    r boolean,
+    s_date date,
+    t_timestamp timestamp,
+    u_timestamptz timestamptz,
+    v_time time,
+    w_bytea bytea,
+    x_inet inet,
+    y_hstore hstore,
+    z_bigint_arr bigint[],
+    aa_uuid_arr _uuid,
+    ac_interval interval,
+    ab_tstzrange tstzrange
+);
+insert into test.a (id, a, b, c, d, e, f, g, h, j, jb,
+                    k, l, m, n, o, p, q, r,
+                    s_date, t_timestamp, u_timestamptz, v_time,
+                    w_bytea, x_inet, y_hstore,
+                    z_bigint_arr, aa_uuid_arr,
+                    ac_interval, ab_tstzrange)
+    values
+        (1,
+         'varchar(40)',
+         1,
+         'bpchar(10)',
+         'char(10)',
+         'character(40)',
+         'text',
+         '{ "a", "b", "c" }'::_varchar,
+         '{ "a", "b", "c" }'::_text,
+         '{"key": "json"}',
+         '{"key": "jsonb"}',
+         1, 2, 3, 4.6865, 5.8362, 294636.9362048,
+         gen_random_uuid(), true,
+         current_date,
+         localtimestamp,
+         current_timestamp,
+         current_time,
+         decode('DEADBEEF01020304', 'hex'),
+         '192.168.1.55'::inet,
+         '"vendor"=>"Oracle", "target"=>"Postgres", "status"=>"success", "nullable_key"=>NULL'::hstore,
+         array[100000000001, 100000000002, 100000000003]::bigint[],
+         array[gen_random_uuid(), gen_random_uuid(), gen_random_uuid()]::uuid[],
+         '2 years 3 months 5 days 11 hours 22 minutes 33 seconds 444555 microseconds'::interval,
+         tstzrange(current_timestamp - interval '2 days', current_timestamp, '[)')
+        );
+insert into test.a (id) values (2);
+create table test.b (
+    a varchar(40),
+    b numeric(10,0),
+    c bpchar(10),
+    d char(10),
+    e character(40),
+    f text,
+    g _varchar(40),
+    h _text,
+    i smallint,
+    id int primary key,
+    j json,
+    jb jsonb,
+    k int2,
+    l bigint,
+    m int8,
+    n float4,
+    o float8,
+    p double precision,
+    q uuid,
+    r boolean,
+    s_date date,
+    t_timestamp timestamp,
+    u_timestamptz timestamptz,
+    v_time time,
+    w_bytea bytea,
+    x_inet inet,
+    y_hstore hstore,
+    z_bigint_arr bigint[],
+    aa_uuid_arr _uuid,
+    ac_interval interval,
+    ab_tstzrange tstzrange
+);
+create table test.c (
+    id int,
+    source_start_ts timestamptz,
+    source_end_ts timestamptz);
+create table test.d (
+    id int,
+    n mood);
+insert into test.d (id, n) values (1, 'happy');
+create table test.e (
+    id int,
+    n mood);

@@ -5,6 +5,7 @@ import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.Table;
+import dev.bublik.postgres.model.PgIntervalComponents;
 import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ public class ColumnUtil {
 
     private static final int HIGH_BIT_FLAG = 0x80000000;
 
+/*
     public static Interval byteArrayYMToInterval(byte[] bytes) {
         int year = toUnsignedInt(bytes[0]) << 24
                 | toUnsignedInt(bytes[1]) << 16
@@ -49,6 +51,46 @@ public class ColumnUtil {
                 minute,
                 second,
                 nano / 1000);
+    }
+*/
+
+    private static int toUnsignedInt(byte b) {
+        return b & 0xFF;
+    }
+
+    public static PgIntervalComponents byteArrayYMToInterval(byte[] bytes) {
+        int year = toUnsignedInt(bytes[0]) << 24
+
+                | toUnsignedInt(bytes[1]) << 16
+                | toUnsignedInt(bytes[2]) << 8
+                | toUnsignedInt(bytes[3]);
+        year ^= HIGH_BIT_FLAG;
+        int month = toUnsignedInt(bytes[4]) - 60;
+
+        int totalMonths = year * 12 + month;
+        return new PgIntervalComponents(totalMonths, 0, 0L);
+    }
+
+    public static PgIntervalComponents byteArrayDSToInterval(byte[] bytes) {
+        int day = toUnsignedInt(bytes[0]) << 24
+
+                | toUnsignedInt(bytes[1]) << 16
+                | toUnsignedInt(bytes[2]) << 8
+                | toUnsignedInt(bytes[3]);
+        day ^= HIGH_BIT_FLAG;
+        int hour = toUnsignedInt(bytes[4]) - 60;
+        int minute = toUnsignedInt(bytes[5]) - 60;
+        int second = toUnsignedInt(bytes[6]) - 60;
+        int nano = toUnsignedInt(bytes[7]) << 24
+
+                | toUnsignedInt(bytes[8]) << 16
+                | toUnsignedInt(bytes[9]) << 8
+                | toUnsignedInt(bytes[10]);
+        nano ^= HIGH_BIT_FLAG;
+
+        // Переводим часы, минуты, секунды и наносекунды в единую сумму микросекунд
+        long microseconds = (hour * 3600L + minute * 60L + second) * 1_000_000L + (nano / 1000);
+        return new PgIntervalComponents(0, day, microseconds);
     }
 
     public static LogSequenceNumber getCurrentLSN(Connection sqlConnection) throws SQLException {

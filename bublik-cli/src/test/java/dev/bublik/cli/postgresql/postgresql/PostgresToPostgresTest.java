@@ -63,7 +63,6 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-//        assertEquals(result.sourceCount(), result.targetCount());
         TestResult result2 = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/allTypes.json",

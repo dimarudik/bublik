@@ -105,7 +105,7 @@ public class ToSetTest {
                 return false;
             }
             Set<String> s1 = row.getSet("s1", String.class);
-            System.out.println(s1);
+//            System.out.println(s1);
             if(!s1.stream().findFirst().orElseThrow().equals("1")) {
                 return false;
             }
@@ -116,7 +116,7 @@ public class ToSetTest {
                 return false;
             }
             Set<String> s2 = row.getSet("s2", String.class);
-            System.out.println(s2);
+//            System.out.println(s2);
             if(!s2.contains("user1")) {
                 return false;
             }
