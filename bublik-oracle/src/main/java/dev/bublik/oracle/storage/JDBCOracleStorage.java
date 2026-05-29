@@ -220,13 +220,13 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
-            targetTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            column2Column.addAll(matchColumns(sourceTable, targetTable));
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
-                                .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
                         .findFirst()
                         .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
                                 sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
@@ -355,26 +355,6 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     }
 
-/*
-    @Override
-    public String buildStartEndOfChunk(List<Config> configs, String chunkTable) {
-        List<String> taskAndWhere = new ArrayList<>();
-        configs.forEach(sqlStatement -> {
-            String tmp = sqlStatement.fromTaskWhereClause() == null ? " " : " and " + sqlStatement.fromTaskWhereClause();
-            taskAndWhere.add(tmp);
-        });
-        String part1 = """
-                select rownum, chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from (
-                \tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from (
-                """;
-        String tmpPart2 = "\t\tselect chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status from user_parallel_execute_chunks where " +
-                "status <> 'PROCESSED' " + " and task_name = '$taskName' ";
-        String part2 = tmpPart2 + String.join(" and rownum <= 1000 union all \n" + tmpPart2, taskAndWhere);
-        String part3 = "\n\t) order by ora_hash(concat(task_name,start_rowid)) \n) order by 1";
-        return  part1 + part2 + part3;
-    }
-*/
-
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
         List<String> asColumns = t2t.column2Columns()
@@ -489,9 +469,9 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
     }
 
     @Override
-    public void enrichTable(Table<S> targetTable) throws SQLException {
+    public void enrichTable(Table<S> table) throws SQLException {
         S session = getPoolConnection();
-        targetTable.enrichTable(session);
+        table.enrichTable(session);
         session.close();
     }
 }

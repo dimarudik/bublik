@@ -168,11 +168,14 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             if (sourceTable.getClass() == targetTable.getClass()) {
                 sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
             } else {
+                column2Column.addAll(matchColumns(sourceTable, targetTable));
+/*
                 sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c,
                         targetTable
                                 .getColumns()
                                 .stream()
                                 .filter(c1 -> c1.columnName().equals(c.columnName())).findFirst().orElseThrow())));
+*/
             }
         }
         if (config.columnToColumn() != null) {
@@ -516,23 +519,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         Connection connectionTo = (Connection) chunk.getTargetSession();
 
         if (!isChunkProcessed(chunk, tableName)) {
-            Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            el -> el.sourceColumn().columnName(),
-                            Column2Column::targetColumn,
-                            (u, v) -> { throw new IllegalStateException(String.format("Duplicate key %s", u)); },
-                            LinkedHashMap::new
-                    ));
-
-            Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
-//            neededColumnsFromMany.forEach((k, v) -> columnToColumnMap.put(v.columnName(), v));
-
-            PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
-
-//            columnToColumnMap.forEach((k, v) -> log.info("{}: {}", k, v.columnName()));
-
-            List<String> columnNames = columnToColumnMap.values().stream().map(Column::columnName).toList();
+            List<Column2Column> columnToColumnMap = chunk.getT2t().column2Columns();
+            List<String> columnNames = columnToColumnMap.stream().map(Column2Column::targetColumn).map(Column::columnName).toList();
 
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                     chunk.getT2t().targetTable().getFinalTableName(true);
@@ -541,12 +529,12 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
 
             int pgStreamBufferSize = 1024 * 1024;
             int javaBufferSize = 64 * 1024;
-
+            PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
             try (PGCopyOutputStream os = new PGCopyOutputStream(pgConnection, sql, pgStreamBufferSize);
                  PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize)) {
                 do {
                     writer.startRow((short) columnNames.size());
-                    writeValue(columnToColumnMap, neededColumnsFromMany, fetchResultSet, chunk, writer);
+                    writeValue(columnToColumnMap, fetchResultSet, chunk, writer);
                     recordCount++;
                 } while (hasNext(fetchResultSet));
             }
@@ -561,17 +549,18 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
-    private void writeValue(Map<String, Column> neededColumnsToDB,
-                            Map<List<String>, Column> neededColumnsFromMany,
+    private void writeValue(List<Column2Column> neededColumnsToDB,
                             ResultSet rs,
                             Chunk<?, ?, ?, ?> chunk,
                             PgBinaryWriter writer) throws SQLException, IOException {
-        for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
-            String sourceColumn = entry.getKey().replace("\"", "");
-            String targetColumn = entry.getValue().columnName();
-            String targetType = entry.getValue().columnType();
+        for (Column2Column entry : neededColumnsToDB) {
+            String sourceColumn = entry.sourceColumn().columnName().replace("\"", "");
+            String sourceType = entry.sourceColumn().columnType();
+            String targetColumn = entry.targetColumn().columnName();
+            String targetType = entry.targetColumn().columnType();
+            int colIndex = rs.findColumn(sourceColumn);
 
-            Object o = rs.getObject(sourceColumn);
+            Object o = rs.getObject(colIndex);
             if (o == null) {
                 writer.writeNull();
                 continue;
@@ -583,7 +572,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     if (o instanceof org.postgresql.util.PGobject pgObject) {
                         s = pgObject.getValue();
                     } else {
-                        s = (String) o;
+                        s = o.toString();
                     }
                     writer.writeString(s != null ? s.replace("\u0000", "") : "");
                     break;
@@ -610,17 +599,16 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 }
                 case "text": {
                     String s;
-                    int cIndex = getColumnIndexByColumnName(rs, sourceColumn);
                     if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                        if (cIndex != 0 && rs.getMetaData().getColumnType(cIndex) == 2005) {
+                        if (colIndex != 0 && rs.getMetaData().getColumnType(colIndex) == 2005) { // 2005 - Oracle CLOB
                             s = convertClobToString(rs, sourceColumn);
                         } else {
-                            s = rs.getString(sourceColumn);
+                            s = o.toString();
                         }
-                        writer.writeString(s.replace("\u0000", ""));
                     } else {
-                        writer.writeString(((String) o).replace("\u0000", ""));
+                        s = o.toString();
                     }
+                    writer.writeString(s != null ? s.replace("\u0000", "") : "");
                     break;
                 }
                 case "jsonb": {
@@ -644,7 +632,13 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     break;
                 }
                 case "money", "numeric", "decimal", "NUMBER": {
-                    writer.writeNumeric((BigDecimal) o);
+                    if (o instanceof BigDecimal bd) {
+                        writer.writeNumeric(bd);
+                    } else if (o instanceof Number num) {
+                        writer.writeNumeric(new BigDecimal(num.toString()));
+                    } else {
+                        writer.writeNumeric(new BigDecimal(o.toString()));
+                    }
                     break;
                 }
                 case "serial", "int4": {
@@ -671,7 +665,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                     break;
                 }
-                case "float4": {
+                case "float4", "real" : {
+                    System.out.println(o);
                     if (o instanceof Number number) {
                         writer.writeFloat(number.floatValue());
                     } else {
@@ -1819,9 +1814,9 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable) throws SQLException {
+    public void enrichTable(Table<S> table) throws SQLException {
         S session = getPoolConnection();
-        sourceTable.enrichTable(session);
+        table.enrichTable(session);
         session.close();
     }
 

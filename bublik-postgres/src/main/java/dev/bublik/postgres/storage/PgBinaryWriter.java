@@ -65,39 +65,66 @@ public class PgBinaryWriter implements AutoCloseable {
             return;
         }
 
+        // 1. Получаем масштаб (количество знаков после запятой)
         short dscale = (short) value.scale();
+
+        // 2. Определяем знак (0x0000 - плюс, 0x4000 - минус)
         short sign = (short) (value.signum() >= 0 ? 0x0000 : 0x4000);
 
-        BigInteger unscaled = value.abs().unscaledValue();
+        // 3. Переводим число в строку без экспонент, чтобы четко разобрать целую и дробную части
+        String plainString = value.abs().toPlainString();
+
+        // Разбиваем строку по точке на целое и дробь
+        int dotIndex = plainString.indexOf('.');
+        String intPart = dotIndex < 0 ? plainString : plainString.substring(0, dotIndex);
+        String fracPart = dotIndex < 0 ? "" : plainString.substring(dotIndex + 1);
+
+        // Дополняем целую часть нулями слева, чтобы длина делилась на 4
+        while (intPart.length() % 4 != 0) {
+            intPart = "0" + intPart;
+        }
+        // Дополняем дробную часть нулями справа, чтобы длина делилась на 4
+        while (fracPart.length() % 4 != 0) {
+            fracPart = fracPart + "0";
+        }
 
         List<Short> digits = new ArrayList<>();
-        BigInteger base = BigInteger.valueOf(10000);
-        while (unscaled.compareTo(BigInteger.ZERO) > 0) {
-            BigInteger[] divmod = unscaled.divideAndRemainder(base);
-            digits.add(0, divmod[1].shortValue());
-            unscaled = divmod[0];
+
+        // Собираем 10000-ичные разряды целой части
+        for (int i = 0; i < intPart.length(); i += 4) {
+            digits.add(Short.parseShort(intPart.substring(i, i + 4)));
         }
 
+        // Вес (weight) — это количество групп целой части минус 1
+        short weight = (short) (digits.size() - 1);
+
+        // Собираем 10000-ичные разряды дробной части
+        for (int i = 0; i < fracPart.length(); i += 4) {
+            digits.add(Short.parseShort(fracPart.substring(i, i + 4)));
+        }
+
+        // Удаляем лишние нули в начале (если число меньше единицы, например 0.12)
+        while (digits.size() > 0 && digits.get(0) == 0) {
+            digits.remove(0);
+        }
+
+        // Если число было ровно 0
         if (digits.isEmpty()) {
             digits.add((short) 0);
-        }
-
-        short weight = (short) (digits.size() - 1 - (dscale > 0 ? (dscale + 3) / 4 : 0));
-
-        if (value.compareTo(BigDecimal.ONE) < 0 && value.compareTo(BigDecimal.ZERO) > 0) {
-            weight = (short) (-1 - (value.scale() - 1) / 4);
-        } else if (value.compareTo(BigDecimal.ZERO) == 0) {
             weight = 0;
         }
 
+        // Полный размер пакета данных: 8 байт заголовка + по 2 байта на каждый разряд
         int dataLength = 8 + (digits.size() * 2);
 
-        out.writeInt(dataLength);
-        out.writeShort(digits.size());
-        out.writeShort(weight);
-        out.writeShort(sign);
-        out.writeShort(dscale);
+        // Записываем структуру в бинарный поток COPY
+        out.writeInt(dataLength);          // Длина всего поля
+        out.writeShort(digits.size());     // Количество 10000-ичных цифр
+        out.writeShort(weight);            // Вес старшего разряда
+        out.writeShort(sign);              // Знак числа
+        out.writeShort(dscale);            // Масштаб (scale)
 
+        // Записываем сами разряды
         for (short digit : digits) {
             out.writeShort(digit);
         }

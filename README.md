@@ -893,7 +893,7 @@ The objective is to migrate tables <strong>TABLE1</strong>, <strong>Table2</stro
 | date                     | date, timestamp, timestamptz                         |
 | timestamp                | timestamp, timestamptz                               |
 | timestamp with time zone | timestamptz                                          |
-| number                   | numeric, smallint, bigint, integer, double precision |
+| number, int, float       | numeric, smallint, bigint, integer, double precision |
 | interval year to moth    | interval                                             |
 | interval day to second   | interval                                             |
 

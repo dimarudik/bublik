@@ -72,14 +72,14 @@ public class OraTable<S extends Connection> extends Table<S> {
             int decimalDigits = rs.getInt("DECIMAL_DIGITS");
             String remark = rs.getString("REMARKS");
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
+            String colName = isOracleCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName;
             columns.add(new Column(
                     ordinalPosition,
-                    isOracleCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
+                    colName,
                     columnType,
                     dataType,
                     nullable,
                     null,
-//                    columnDefault,
                     isAutoIncrement,
                     isGenerated,
                     decimalDigits,

@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
 
@@ -388,5 +389,28 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     @Override
     public <W extends Serializable> byte[] intervalDS2Interval(W intervalds) {
         return null;
+    }
+
+    public List<Column2Column> matchColumns(Table<?> sourceTable, Table<?> targetTable) {
+        Map<String, Column> targetColumnsMap = targetTable.getColumns().stream()
+                .collect(Collectors.toMap(
+                        col -> col.columnName().replace("\"", "").toLowerCase(),
+                        col -> col,
+                        (existing, replacement) -> existing
+                ));
+
+        List<Column2Column> matchedPairs = new ArrayList<>();
+
+        for (Column sourceCol : sourceTable.getColumns()) {
+            String cleanSourceName = sourceCol.columnName().replace("\"", "").toLowerCase();
+
+            if (targetColumnsMap.containsKey(cleanSourceName)) {
+                Column targetCol = targetColumnsMap.get(cleanSourceName);
+
+                matchedPairs.add(new Column2Column(sourceCol, targetCol));
+            }
+        }
+
+        return matchedPairs;
     }
 }

@@ -3,6 +3,28 @@ create schema if not exists test;
 create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
 
+CREATE TABLE test.a (
+    id int,
+    a numeric(12,2),
+    b numeric(10,0),
+    c char(1),
+    d char(10),
+    "ALL" varchar(255),
+    "LEVEL" varchar(255),
+    e real,
+    t timestamp,
+    create_at timestamp(6) with time zone,
+    gender smallint CHECK (gender IN (0,1)),
+    byteablob bytea,
+    textclob text,
+    exclude_me int,
+    "CaseSensitive" varchar(40),
+    country_id int,
+    rawbytea bytea,
+    json_like varchar(4000),
+    doc jsonb,
+    "uuid" char(36)
+);
 create table test.b (
     b numeric(10,0),
     a int primary key

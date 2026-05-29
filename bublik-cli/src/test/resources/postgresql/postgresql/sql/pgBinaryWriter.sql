@@ -4,9 +4,9 @@ CREATE EXTENSION IF NOT EXISTS hstore;
 
 create table test.a (
     id int,
-    a varchar(40),
-    b numeric(10,0),
-    c bpchar(10),
+    name varchar(40),
+    "Nam" numeric(10,0),
+    "ALL" bpchar(10),
     d char(10),
     e character(40),
     f text,
@@ -35,7 +35,7 @@ create table test.a (
     ac_interval interval,
     ab_tstzrange tstzrange
 );
-insert into test.a (id, a, b, c, d, e, f, g, h, j, jb,
+insert into test.a (id, name, "Nam", "ALL", d, e, f, g, h, j, jb,
                     k, l, m, n, o, p, q, r,
                     s_date, t_timestamp, u_timestamptz, v_time,
                     w_bytea, x_inet, y_hstore,
@@ -69,9 +69,9 @@ insert into test.a (id, a, b, c, d, e, f, g, h, j, jb,
         );
 insert into test.a (id) values (2);
 create table test.b (
-    a varchar(40),
-    b numeric(10,0),
-    c bpchar(10),
+    name varchar(40),
+    "Nam" numeric(10,0),
+    "ALL" bpchar(10),
     d char(10),
     e character(40),
     f text,

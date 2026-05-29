@@ -57,12 +57,12 @@ public class PgBinaryWriterTest {
         Properties targetProp = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
-                "./postgresql/postgresql/json/pgbulkinsert.json",
+                "./postgresql/postgresql/json/pgBinaryWriter.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
                 targetProp);
-//        Thread.sleep(30_000);
+//        Thread.sleep(90_000);
         assertEquals(result.sourceCount(), result.targetCount());
 
         try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
@@ -71,9 +71,9 @@ public class PgBinaryWriterTest {
             assertTrue(rs.next());
 
             assertEquals(1, rs.getInt("id"));
-            assertEquals("varchar(40)", rs.getString("a"));
-            assertEquals(new java.math.BigDecimal("1"), rs.getBigDecimal("b"));
-            assertEquals("bpchar(10)", rs.getString("c").trim()); // trim, так как bpchar дополняется пробелами
+            assertEquals("varchar(40)", rs.getString("name"));
+            assertEquals(new java.math.BigDecimal("1"), rs.getBigDecimal("Nam"));
+            assertEquals("bpchar(10)", rs.getString("ALL").trim()); // trim, так как bpchar дополняется пробелами
             assertEquals("char(10)", rs.getString("d").trim());
             assertEquals("character(40)", rs.getString("e").trim());
             assertEquals("text", rs.getString("f"));
@@ -149,8 +149,8 @@ public class PgBinaryWriterTest {
             assertTrue(rsNull.next());
             assertEquals(2, rsNull.getInt("id"));
 
-            rsNull.getString("a"); assertTrue(rsNull.wasNull());
-            rsNull.getBigDecimal("b"); assertTrue(rsNull.wasNull());
+            rsNull.getString("name"); assertTrue(rsNull.wasNull());
+            rsNull.getBigDecimal("Nam"); assertTrue(rsNull.wasNull());
             rsNull.getArray("g"); assertTrue(rsNull.wasNull());
             rsNull.getString("jb"); assertTrue(rsNull.wasNull());
             rsNull.getBytes("w_bytea"); assertTrue(rsNull.wasNull());
