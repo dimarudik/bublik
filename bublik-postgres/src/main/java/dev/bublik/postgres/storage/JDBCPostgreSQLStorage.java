@@ -1,9 +1,6 @@
 package dev.bublik.postgres.storage;
 
 import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
-import de.bytefish.pgbulkinsert.pgsql.model.interval.Interval;
-import de.bytefish.pgbulkinsert.row.SimpleRow;
-import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.exception.SourceSQLException;
@@ -19,13 +16,12 @@ import dev.bublik.postgres.service.StreamApiService;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.PGCopyOutputStream;
 import org.postgresql.replication.LogSequenceNumber;
-import org.postgresql.util.PGInterval;
 import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -34,8 +30,6 @@ import java.nio.ByteBuffer;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import static dev.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 import static dev.bublik.core.util.ColumnUtil.*;
@@ -519,8 +513,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         Connection connectionTo = (Connection) chunk.getTargetSession();
 
         if (!isChunkProcessed(chunk, tableName)) {
-            List<Column2Column> columnToColumnMap = chunk.getT2t().column2Columns();
-            List<String> columnNames = columnToColumnMap.stream().map(Column2Column::targetColumn).map(Column::columnName).toList();
+            List<Column2Column> columnToColumnList = chunk.getT2t().column2Columns();
+            List<String> columnNames = columnToColumnList.stream().map(Column2Column::targetColumn).map(Column::columnName).toList();
 
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                     chunk.getT2t().targetTable().getFinalTableName(true);
@@ -534,7 +528,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                  PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize)) {
                 do {
                     writer.startRow((short) columnNames.size());
-                    writeValue(columnToColumnMap, fetchResultSet, chunk, writer);
+                    writeValue(columnToColumnList, fetchResultSet, chunk, writer);
                     recordCount++;
                 } while (hasNext(fetchResultSet));
             }
@@ -549,19 +543,19 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
-    private void writeValue(List<Column2Column> neededColumnsToDB,
+    private void writeValue(List<Column2Column> columnToColumnList,
                             ResultSet rs,
                             Chunk<?, ?, ?, ?> chunk,
                             PgBinaryWriter writer) throws SQLException, IOException {
-        for (Column2Column entry : neededColumnsToDB) {
+        for (Column2Column entry : columnToColumnList) {
             String sourceColumn = entry.sourceColumn().columnName().replace("\"", "");
-            String sourceType = entry.sourceColumn().columnType();
+//            String sourceType = entry.sourceColumn().columnType();
             String targetColumn = entry.targetColumn().columnName();
             String targetType = entry.targetColumn().columnType();
             int colIndex = rs.findColumn(sourceColumn);
 
-            Object o = rs.getObject(colIndex);
-            if (o == null) {
+            Object value = rs.getObject(colIndex);
+            if (value == null) {
                 writer.writeNull();
                 continue;
             }
@@ -569,30 +563,30 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             switch (targetType) {
                 case "json", "varchar", "bpchar", "char", "character": {
                     String s;
-                    if (o instanceof org.postgresql.util.PGobject pgObject) {
+                    if (value instanceof org.postgresql.util.PGobject pgObject) {
                         s = pgObject.getValue();
                     } else {
-                        s = o.toString();
+                        s = value.toString();
                     }
                     writer.writeString(s != null ? s.replace("\u0000", "") : "");
                     break;
                 }
                 case "_text": {
                     String[] arr;
-                    if (o instanceof java.sql.Array) {
-                        arr = (String[]) ((java.sql.Array) o).getArray();
+                    if (value instanceof java.sql.Array) {
+                        arr = (String[]) ((java.sql.Array) value).getArray();
                     } else {
-                        arr = (String[]) o;
+                        arr = (String[]) value;
                     }
                     writer.writeTextArray(arr);
                     break;
                 }
                 case "_varchar": {
                     String[] arr;
-                    if (o instanceof java.sql.Array) {
-                        arr = (String[]) ((java.sql.Array) o).getArray();
+                    if (value instanceof java.sql.Array) {
+                        arr = (String[]) ((java.sql.Array) value).getArray();
                     } else {
-                        arr = (String[]) o;
+                        arr = (String[]) value;
                     }
                     writer.writeVarcharArray(arr);
                     break;
@@ -603,10 +597,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         if (colIndex != 0 && rs.getMetaData().getColumnType(colIndex) == 2005) { // 2005 - Oracle CLOB
                             s = convertClobToString(rs, sourceColumn);
                         } else {
-                            s = o.toString();
+                            s = value.toString();
                         }
                     } else {
-                        s = o.toString();
+                        s = value.toString();
                     }
                     writer.writeString(s != null ? s.replace("\u0000", "") : "");
                     break;
@@ -618,98 +612,98 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         int columnType = rs.getMetaData().getColumnType(columnIndex);
                         s = switch (columnType) {
                             case 2005, 2011 -> convertClobToString(rs, sourceColumn).replace("\u0000", "");
-                            default -> (o instanceof org.postgresql.util.PGobject pgo ?
-                                    pgo.getValue() : o.toString()).replace("\u0000", "");
+                            default -> (value instanceof org.postgresql.util.PGobject pgo ?
+                                    pgo.getValue() : value.toString()).replace("\u0000", "");
                         };
                     } else {
-                        if (o instanceof org.postgresql.util.PGobject pgObject) {
+                        if (value instanceof org.postgresql.util.PGobject pgObject) {
                             s = pgObject.getValue();
                         } else {
-                            s = (String) o;
+                            s = (String) value;
                         }
                     }
                     writer.writeJsonb(s);
                     break;
                 }
                 case "money", "numeric", "decimal", "NUMBER": {
-                    if (o instanceof BigDecimal bd) {
+                    if (value instanceof BigDecimal bd) {
                         writer.writeNumeric(bd);
-                    } else if (o instanceof Number num) {
+                    } else if (value instanceof Number num) {
                         writer.writeNumeric(new BigDecimal(num.toString()));
                     } else {
-                        writer.writeNumeric(new BigDecimal(o.toString()));
+                        writer.writeNumeric(new BigDecimal(value.toString()));
                     }
                     break;
                 }
-                case "serial", "int4": {
-                    if (o instanceof Number number) {
+                case "int", "serial", "int4": {
+                    if (value instanceof Number number) {
                         writer.writeInt(number.intValue());
                     } else {
-                        writer.writeInt(Integer.parseInt(o.toString()));
+                        writer.writeInt(Integer.parseInt(value.toString()));
                     }
                     break;
                 }
                 case "smallserial", "int2": {
-                    if (o instanceof Number number) {
+                    if (value instanceof Number number) {
                         writer.writeShort(number.shortValue());
                     } else {
-                        writer.writeShort(Short.parseShort(o.toString()));
+                        writer.writeShort(Short.parseShort(value.toString()));
                     }
                     break;
                 }
                 case "bigint", "int8": {
-                    if (o instanceof Number number) {
+                    if (value instanceof Number number) {
                         writer.writeLong(number.longValue());
                     } else {
-                        writer.writeLong(Long.parseLong(o.toString()));
+                        writer.writeLong(Long.parseLong(value.toString()));
                     }
                     break;
                 }
                 case "float4", "real" : {
-                    System.out.println(o);
-                    if (o instanceof Number number) {
+                    System.out.println(value);
+                    if (value instanceof Number number) {
                         writer.writeFloat(number.floatValue());
                     } else {
-                        writer.writeFloat(Float.parseFloat(o.toString()));
+                        writer.writeFloat(Float.parseFloat(value.toString()));
                     }
                     break;
                 }
                 case "float8", "double precision": {
-                    if (o instanceof Boolean bool) {
+                    if (value instanceof Boolean bool) {
                         writer.writeBoolean(bool);
-                    } else if (o instanceof Number number) {
+                    } else if (value instanceof Number number) {
                         writer.writeDouble(number.doubleValue());
                     } else {
-                        writer.writeDouble(Double.parseDouble(o.toString()));
+                        writer.writeDouble(Double.parseDouble(value.toString()));
                     }
                     break;
                 }
                 case "bool": {
-                    if (o instanceof Number number) {
+                    if (value instanceof Number number) {
                         writer.writeBoolean(number.intValue() > 0);
                     } else {
-                        writer.writeBoolean(Boolean.parseBoolean(o.toString()));
+                        writer.writeBoolean(Boolean.parseBoolean(value.toString()));
                     }
                     break;
                 }
                 case "uuid":
                     UUID uuid = null;
                     try {
-                        uuid = (UUID) o;
+                        uuid = (UUID) value;
                     } catch (ClassCastException e) {
                         try {
-                            uuid = UUID.fromString((String) o);
+                            uuid = UUID.fromString((String) value);
                         } catch (Exception e1) {
                             log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
-                                    chunk.getT2t().targetTable().getTableName(), targetColumn, o, getStackTrace(e1));
+                                    chunk.getT2t().targetTable().getTableName(), targetColumn, value, getStackTrace(e1));
                         }
                     }
                     writer.writeUuid(uuid);
                     break;
                 case "date": {
-                    if (o instanceof java.sql.Date sqlDate) {
+                    if (value instanceof java.sql.Date sqlDate) {
                         writer.writeDate(sqlDate.toLocalDate());
-                    } else if (o instanceof LocalDate localDate) {
+                    } else if (value instanceof LocalDate localDate) {
                         writer.writeDate(localDate);
                     }
                     break;
@@ -734,7 +728,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                     break;
                 }
-
                 case "timestamptz", "timestamp with time zone": {
                     OffsetDateTime odt = null;
                     try {
@@ -756,9 +749,9 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     break;
                 }
                 case "time", "time without time zone": {
-                    if (o instanceof java.sql.Time sqlTime) {
+                    if (value instanceof java.sql.Time sqlTime) {
                         writer.writeTime(sqlTime.toLocalTime());
-                    } else if (o instanceof LocalTime localTime) {
+                    } else if (value instanceof LocalTime localTime) {
                         writer.writeTime(localTime);
                     }
                     break;
@@ -778,8 +771,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                             default -> rs.getBytes(sourceColumn);
                         };
                     } else {
-                        if (o instanceof byte[]) {
-                            bytes = (byte[]) o;
+                        if (value instanceof byte[]) {
+                            bytes = (byte[]) value;
                         } else {
                             bytes = rs.getBytes(sourceColumn);
                         }
@@ -793,10 +786,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 }
                 case "inet": {
                     java.net.InetAddress inetAddress;
-                    if (o instanceof java.net.InetAddress) {
-                        inetAddress = (java.net.InetAddress) o;
+                    if (value instanceof java.net.InetAddress) {
+                        inetAddress = (java.net.InetAddress) value;
                     } else {
-                        String ipStr = o.toString().trim();
+                        String ipStr = value.toString().trim();
                         inetAddress = java.net.InetAddress.getByName(ipStr);
                     }
                     writer.writeInet(inetAddress);
@@ -804,19 +797,19 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 }
                 case "hstore": {
                     java.util.Map<String, String> hstoreMap;
-                    if (o instanceof java.util.Map) {
+                    if (value instanceof java.util.Map) {
                         @SuppressWarnings("unchecked")
-                        java.util.Map<String, String> castedMap = (java.util.Map<String, String>) o;
+                        java.util.Map<String, String> castedMap = (java.util.Map<String, String>) value;
                         hstoreMap = castedMap;
                     } else {
-                        hstoreMap = parseHstoreString(o.toString());
+                        hstoreMap = parseHstoreString(value.toString());
                     }
                     writer.writeHstore(hstoreMap);
                     break;
                 }
                 case "_bigint", "_int8": {
                     Long[] arr;
-                    switch (o) {
+                    switch (value) {
                         case Array sqlArray -> {
                             Object innerArray = sqlArray.getArray();
                             if (innerArray instanceof long[] primitiveArr) {
@@ -830,19 +823,19 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         case long[] primitiveArr -> arr = Arrays.stream(primitiveArr).boxed().toArray(Long[]::new);
                         case Number[] numberArr ->
                                 arr = Arrays.stream(numberArr).map(Number::longValue).toArray(Long[]::new);
-                        default -> arr = (Long[]) o;
+                        default -> arr = (Long[]) value;
                     }
                     writer.writeLongArray(arr);
                     break;
                 }
                 case "_uuid": {
                     UUID[] arr;
-                    if (o instanceof java.sql.Array sqlArray) {
+                    if (value instanceof java.sql.Array sqlArray) {
                         arr = (UUID[]) sqlArray.getArray();
-                    } else if (o instanceof String[] strArr) {
+                    } else if (value instanceof String[] strArr) {
                         arr = java.util.Arrays.stream(strArr).map(s -> s != null ? UUID.fromString(s) : null).toArray(UUID[]::new);
                     } else {
-                        arr = (UUID[]) o;
+                        arr = (UUID[]) value;
                     }
                     writer.writeUuidArray(arr);
                     break;
@@ -850,14 +843,13 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 case "tstzrange": {
                     String rangeStr = null;
 
-                    if (o instanceof org.postgresql.util.PGobject pgObject) {
+                    if (value instanceof org.postgresql.util.PGobject pgObject) {
                         rangeStr = pgObject.getValue();
                     } else {
-                        rangeStr = o.toString();
+                        rangeStr = value.toString();
                     }
 
                     if (rangeStr == null || rangeStr.equalsIgnoreCase("empty")) {
-                        // Безопасно пишем флаг пустого диапазона через внутренний метод писателя
                         writer.writeEmptyRange();
                         break;
                     }
@@ -917,14 +909,14 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                         switch (columnType) {
                             // INTERVALYM
                             case -103: {
-                                byte[] convertedBytes = jdbcSourceStorage.intervalYM2Interval((java.io.Serializable) o);
+                                byte[] convertedBytes = jdbcSourceStorage.intervalYM2Interval((java.io.Serializable) value);
                                 PgIntervalComponents comps = byteArrayYMToInterval(convertedBytes);
                                 months = comps.months();
                                 break;
                             }
                             // INTERVALDS
                             case -104: {
-                                byte[] convertedBytes = jdbcSourceStorage.intervalDS2Interval((java.io.Serializable) o);
+                                byte[] convertedBytes = jdbcSourceStorage.intervalDS2Interval((java.io.Serializable) value);
                                 PgIntervalComponents comps = byteArrayDSToInterval(convertedBytes);
                                 days = comps.days();
                                 micros = comps.microseconds();
@@ -934,7 +926,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                 break;
                         }
                     } else {
-                        if (o instanceof org.postgresql.util.PGInterval pgInterval) {
+                        if (value instanceof org.postgresql.util.PGInterval pgInterval) {
                             months = pgInterval.getYears() * 12 + pgInterval.getMonths();
                             days = pgInterval.getDays();
                             micros = (pgInterval.getHours() * 3600L + pgInterval.getMinutes() * 60L + (int) pgInterval.getSeconds()) * 1_000_000L
@@ -949,10 +941,10 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     if (chunk.getConfig().tryCharIfAny() != null) {
                         if (chunk.getConfig().tryCharIfAny().contains(targetColumn)) {
                             String s;
-                            if (o instanceof org.postgresql.util.PGobject pgObject) {
+                            if (value instanceof org.postgresql.util.PGobject pgObject) {
                                 s = pgObject.getValue();
                             } else {
-                                s = (String) o;
+                                s = (String) value;
                             }
                             writer.writeString(s != null ? s.replace("\u0000", "") : "");
                             break;
@@ -970,6 +962,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
     }
 
+/*
     private boolean hasColumn(java.sql.ResultSet rs, String columnName) {
         try {
             rs.findColumn(columnName);
@@ -978,6 +971,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             return false;
         }
     }
+*/
 
 
 /*
@@ -1834,6 +1828,28 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 
     @Override
+    public  <W> W getWriter(Chunk<K, T, S, R> chunk,
+                            String tableName) throws SQLException, SourceSQLException, IOException {
+        Connection connectionTo = (Connection) chunk.getTargetSession();
+        List<Column2Column> columnToColumnMap = chunk.getT2t().column2Columns();
+        List<String> columnNames = columnToColumnMap.stream().map(Column2Column::targetColumn).map(Column::columnName).toList();
+
+        String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
+                chunk.getT2t().targetTable().getFinalTableName(true);
+        String sql = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
+//            System.out.println(sql);
+
+        int pgStreamBufferSize = 1024 * 1024;
+        int javaBufferSize = 64 * 1024;
+        PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
+        PGCopyOutputStream os = new PGCopyOutputStream(pgConnection, sql, pgStreamBufferSize);
+        PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize);
+//        writer.startRow((short) columnNames.size());
+        return (W) writer;
+    }
+
+/*
+    @Override
     public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         Connection connectionTo = chunk.getTargetSession();
 
@@ -1856,7 +1872,21 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
         return (W) writer;
     }
+*/
 
+    @Override
+    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                         Chunk<K, T, S, R> chunk,
+                                         W writer) throws SQLException {
+        try {
+            ((PgBinaryWriter)writer).startRow((short) columnValues.size());
+            writeValue((PgBinaryWriter) writer, columnValues, chunk);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+/*
     @Override
     public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
                                          Chunk<K, T, S, R> chunk,
@@ -1866,7 +1896,196 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
 
         ((SimpleRowWriter) writer).startRow(simpleRowConsumer);
     }
+*/
 
+    private <V> void writeValue(PgBinaryWriter writer, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws IOException {
+        for (ColumnValue<V> columnValue : columnValues) {
+            String targetColumnName = columnValue.targetColumn().columnName();
+            String targetType = columnValue.targetColumn().columnType();
+            V value = columnValue.value();
+
+            if (value == null) {
+                writer.writeNull();
+                continue;
+            }
+
+            switch (targetType) {
+                case "int", "serial", "int4": {
+                    if (value instanceof Number number) {
+                        writer.writeInt(number.intValue());
+                    } else {
+                        writer.writeInt(Integer.parseInt(value.toString()));
+                    }
+                    break;
+                }
+                case "smallserial", "int2": {
+                    if (value instanceof Number number) {
+                        writer.writeShort(number.shortValue());
+                    } else {
+                        writer.writeShort(Short.parseShort(value.toString()));
+                    }
+                    break;
+                }
+                case "bigint", "int8": {
+                    if (value instanceof Number number) {
+                        writer.writeLong(number.longValue());
+                    } else {
+                        writer.writeLong(Long.parseLong(value.toString()));
+                    }
+                    break;
+                }
+                case "money", "numeric", "decimal", "NUMBER": {
+                    if (value instanceof BigDecimal bd) {
+                        writer.writeNumeric(bd);
+                    } else if (value instanceof Number num) {
+                        writer.writeNumeric(new BigDecimal(num.toString()));
+                    } else {
+                        writer.writeNumeric(new BigDecimal(value.toString()));
+                    }
+                    break;
+                }
+                case "float4", "real" : {
+                    System.out.println(value);
+                    if (value instanceof Number number) {
+                        writer.writeFloat(number.floatValue());
+                    } else {
+                        writer.writeFloat(Float.parseFloat(value.toString()));
+                    }
+                    break;
+                }
+                case "float8", "double precision": {
+                    if (value instanceof Boolean bool) {
+                        writer.writeBoolean(bool);
+                    } else if (value instanceof Number number) {
+                        writer.writeDouble(number.doubleValue());
+                    } else {
+                        writer.writeDouble(Double.parseDouble(value.toString()));
+                    }
+                    break;
+                }
+                case "_text": {
+                    if (value instanceof List) {
+                        writer.writeTextArray(((List<String>)value).toArray(String[]::new));
+                    } else if (value instanceof Set) {
+                        writer.writeTextArray(((Set<String>) value).toArray(String[]::new));
+                    }
+                    break;
+                }
+                case "json", "varchar", "bpchar", "char", "character": {
+                    String s;
+                    if (value instanceof org.postgresql.util.PGobject pgObject) {
+                        s = pgObject.getValue();
+                    } else {
+                        s = value.toString();
+                    }
+                    writer.writeString(s != null ? s.replace("\u0000", "") : "");
+                    break;
+                }
+                case "text": {
+                    String s;
+                    if (value instanceof org.postgresql.util.PGobject pgObject) {
+                        s = pgObject.getValue();
+                    } else {
+                        s = value.toString();
+                    }
+                    writer.writeString(s != null ? s.replace("\u0000", "") : "");
+                    break;
+                }
+                case "jsonb": {
+                    String s;
+                    if (value instanceof org.postgresql.util.PGobject pgObject) {
+                        s = pgObject.getValue();
+                    } else {
+                        s = (String) value;
+                    }
+                    writer.writeJsonb(s);
+                    break;
+                }
+                case "time", "time without time zone": {
+                    if (value instanceof java.sql.Time sqlTime) {
+                        writer.writeTime(sqlTime.toLocalTime());
+                    } else if (value instanceof LocalTime localTime) {
+                        writer.writeTime(localTime);
+                    }
+                    break;
+                }
+                case "timestamp", "timestamp without time zone": {
+                    ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant((Instant) value, ZoneId.of("UTC"));
+                    writer.writeTimestamp(zonedDateTime.toLocalDateTime());
+                    break;
+                }
+                case "date": {
+                    if (value instanceof java.sql.Date sqlDate) {
+                        writer.writeDate(sqlDate.toLocalDate());
+                    } else if (value instanceof LocalDate localDate) {
+                        writer.writeDate(localDate);
+                    }
+                    break;
+                }
+                case "bytea", "blob", "BINARY": {
+                    ByteBuffer buffer = (ByteBuffer) value;
+                    writer.writeBytea(buffer.array());
+                    break;
+                }
+                case "bool": {
+                    if (value instanceof Number number) {
+                        writer.writeBoolean(number.intValue() > 0);
+                    } else {
+                        writer.writeBoolean(Boolean.parseBoolean(value.toString()));
+                    }
+                    break;
+                }
+                case "inet": {
+                    java.net.InetAddress inetAddress;
+                    if (value instanceof java.net.InetAddress) {
+                        inetAddress = (java.net.InetAddress) value;
+                    } else {
+                        String ipStr = value.toString().trim();
+                        inetAddress = java.net.InetAddress.getByName(ipStr);
+                    }
+                    writer.writeInet(inetAddress);
+                    break;
+                }
+                case "uuid":
+                    UUID uuid = null;
+                    try {
+                        uuid = (UUID) value;
+                    } catch (ClassCastException e) {
+                        try {
+                            uuid = UUID.fromString((String) value);
+                        } catch (Exception e1) {
+                            log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
+                                    chunk.getT2t().targetTable().getTableName(), targetColumnName, value, getStackTrace(e1));
+                        }
+                    }
+                    writer.writeUuid(uuid);
+                    break;
+                default:
+                    if (chunk.getConfig().tryCharIfAny() != null) {
+                        if (chunk.getConfig().tryCharIfAny().contains(targetColumnName)) {
+                            String s;
+                            if (value instanceof org.postgresql.util.PGobject pgObject) {
+                                s = pgObject.getValue();
+                            } else {
+                                s = (String) value;
+                            }
+                            writer.writeString(s != null ? s.replace("\u0000", "") : "");
+                            break;
+                        } else {
+                            log.error("There is no handler for type: {}  for column: {}", targetType, targetColumnName);
+                        }
+                    } else {
+                        log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+                                chunk.getT2t().targetTable().getSchemaName(),
+                                chunk.getT2t().targetTable().getTableName(),
+                                targetType, targetColumnName);
+                        throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumnName);
+                    }
+            }
+        }
+    }
+
+/*
     private <V> void consume(SimpleRow s, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) {
         for (ColumnValue<V> columnValue : columnValues) {
             String targetColumnName = columnValue.targetColumn().columnName();
@@ -2063,11 +2282,28 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
             }
         }
     }
+*/
 
+    @Override
+    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        Connection connectionTo = chunk.getTargetSession();
+        try {
+            PgBinaryWriter w = (PgBinaryWriter) writer;
+            DataOutputStream os = w.getOut();
+            w.close();
+            os.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        connectionTo.commit();
+    }
+
+/*
     @Override
     public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         Connection connectionTo = chunk.getTargetSession();
         ((SimpleRowWriter) writer).close();
         connectionTo.commit();
     }
+*/
 }

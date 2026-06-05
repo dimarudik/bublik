@@ -72,6 +72,7 @@ values
  {'k1', 'k2', 'k3'},
  ['k1', 'k2', 'k3'], 'Active');
 insert into test.t1 (id, a, status) values (2, 'a', 'Closed');
+insert into test.t1 (id) values (3);
 
 create table test.a (
     id int,

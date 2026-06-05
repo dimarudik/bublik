@@ -1,5 +1,6 @@
 package dev.bublik.core.service;
 
+import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.AutoColseableStorageClass;
 import dev.bublik.core.storage.JDBCStorageClass;
@@ -27,7 +28,7 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException;
     void createGlobalOutbox(String tableName) throws SQLException;
     <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
-    <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException;
     <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk, String tableName) throws SQLException;
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;

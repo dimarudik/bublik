@@ -32,6 +32,10 @@ public class PgBinaryWriter implements AutoCloseable {
         this.out.write(BINARY_HEADER);
     }
 
+    public DataOutputStream getOut() {
+        return out;
+    }
+
     public void startRow(short columnCount) throws IOException {
         out.writeShort(columnCount);
     }

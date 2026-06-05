@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.2.40</version>
+        <version>26.2.41</version>
     </parent>
 
     <artifactId>bublik-ydb</artifactId>

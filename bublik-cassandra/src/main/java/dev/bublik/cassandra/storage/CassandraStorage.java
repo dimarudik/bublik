@@ -79,29 +79,29 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         long start = System.currentTimeMillis();
         Storage<K, T, S, R> targetStorage = chunk.getTargetStorage();
         int recordCount = 0;
-        W w = targetStorage.getWriter(chunk, tableName);
-        for (Row row : resultSet) {
-            List<ColumnValue<V>> columnValues = getRecordValues(row, chunk);
-            targetStorage.insertColumnValue(columnValues, chunk, w);
-            recordCount++;
+        try {
+            W w = targetStorage.getWriter(chunk, tableName);
+            for (Row row : resultSet) {
+                List<ColumnValue<V>> columnValues = getRecordValues(row, chunk);
+//                columnValues.forEach(cv -> System.out.println(cv.sourceColumn().columnName() + " " + cv.value()));
+                targetStorage.insertColumnValue(columnValues, chunk, w);
+                recordCount++;
+            }
+            targetStorage.closeWriter(w, chunk, tableName);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
-        targetStorage.closeWriter(w, chunk, tableName);
         long stop = System.currentTimeMillis();
         chunk.setCopied(recordCount);
         return new LogMessage(start, stop, "Cassandra -> Postgres");
     }
 
     private <V> List<ColumnValue<V>> getRecordValues(Row row, Chunk<K, T, S, R> chunk) {
-        Map<Column, Column> column2Column = new HashMap<>();
-        Table2Table<?> t2t = chunk.getT2t();
-        t2t.column2Columns()
-                .stream()
-                .filter(e -> e.sourceColumn() != null)
-                .forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
+        List<Column2Column> columnToColumnList = chunk.getT2t().column2Columns();
         List<ColumnValue<V>> columnValues = new ArrayList<>();
-        for (Map.Entry<Column, Column> entry : column2Column.entrySet()) {
-            Column sourceColumn = entry.getKey();
-            Column targetColumn = entry.getValue();
+        for (Column2Column entry : columnToColumnList) {
+            Column sourceColumn = entry.sourceColumn();
+            Column targetColumn = entry.targetColumn();
             String sourceColumnName = sourceColumn.columnName();
             String targetType = targetColumn.columnType();
             switch (targetType) {

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -367,7 +368,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, IOException {
         return null;
     }
 
