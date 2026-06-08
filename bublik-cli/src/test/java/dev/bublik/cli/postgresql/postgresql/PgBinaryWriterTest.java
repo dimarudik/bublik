@@ -156,6 +156,7 @@ public class PgBinaryWriterTest {
             rsNull.getBytes("w_bytea"); assertTrue(rsNull.wasNull());
             rsNull.getString("ab_tstzrange"); assertTrue(rsNull.wasNull());
             rsNull.close();
+            statement.close();
 
         } catch (SQLException e) {
             throw new RuntimeException(e);

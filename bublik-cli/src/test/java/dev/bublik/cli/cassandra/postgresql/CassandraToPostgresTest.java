@@ -14,12 +14,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
-import java.sql.SQLException;
+import java.math.BigDecimal;
+import java.sql.*;
 import java.util.List;
 import java.util.Properties;
 
 import static dev.bublik.cli.App.getConfigs;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CassandraToPostgresTest {
     private static int rows = 10_000;
@@ -67,17 +68,91 @@ public class CassandraToPostgresTest {
 
     @Test
     public void primitiveTypes() throws InterruptedException, IOException {
-        Properties sourceProperties = getJdbcPropertiesOfCassandra(source);
-        Properties targetProperties = getJdbcProperties(target);
+        Properties sourceProp = getJdbcPropertiesOfCassandra(source);
+        Properties targetProp = getJdbcProperties(target);
         boolean result = getResult(
                 "./cassandra/postgresql/yaml/cs2pg.yaml",
                 "./cassandra/postgresql/json/cs2pg.json",
                 rows,
                 sync,
-                sourceProperties,
-                targetProperties);
-//        Thread.sleep(190_000);
+                sourceProp,
+                targetProp);
         assertTrue(result);
+
+        try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
+            Statement statement = connection.createStatement();
+            ResultSet rs1 = statement.executeQuery("select * from public.t1 where id = 1");
+            assertTrue(rs1.next());
+            assertEquals(1, rs1.getInt("id"));
+            assertEquals("ascii", rs1.getString("a"));
+            assertEquals(9999999999L, rs1.getLong("b"));
+            assertTrue(rs1.getBoolean("d"));
+            assertEquals(java.sql.Date.valueOf("2018-01-01"), rs1.getDate("e"));
+            assertEquals("12:00:00", rs1.getTime("n").toString());
+            java.sql.Timestamp expectedTimestamp = java.sql.Timestamp.valueOf("2025-12-02 00:00:00.001");
+            assertEquals(expectedTimestamp, rs1.getTimestamp("o"));
+            assertEquals(new java.math.BigDecimal("123.456"), rs1.getBigDecimal("f"));
+            assertEquals(123.456d, rs1.getDouble("g"), 0.0001d);
+            assertEquals(123.456f, rs1.getFloat("i"), 0.001f);
+            assertEquals(123, rs1.getInt("k"));
+            assertEquals(123, rs1.getShort("l"));
+            assertEquals(123, rs1.getShort("q")); // tinyint (Cassandra) -> int2 (Postgres)
+            assertEquals("127.0.0.1", rs1.getString("j"));
+            assertEquals("text", rs1.getString("m"));
+            assertEquals("varchar", rs1.getString("s"));
+            assertEquals(123456789L, rs1.getLong("t"));
+            byte[] expectedBytes = new byte[]{
+                    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+                    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18
+            };
+            assertArrayEquals(expectedBytes, rs1.getBytes("c"));
+            java.util.UUID expectedUuid = java.util.UUID.fromString("50554d6e-29bb-11e5-b345-feff819cdc9f");
+            assertEquals(expectedUuid, rs1.getObject("p", java.util.UUID.class));
+            assertEquals(expectedUuid, rs1.getObject("r", java.util.UUID.class));
+
+            String uJson = rs1.getString("u");
+            assertNotNull(uJson);
+            assertTrue(uJson.contains("\"fromSchemaName\": \"test\""));
+            String mmapJson = rs1.getString("mmap");
+            assertNotNull(mmapJson);
+            assertTrue(mmapJson.contains("\"k1\": \"v1\""));
+            assertTrue(mmapJson.contains("\"k3\": \"v2\""));
+            java.sql.Array set1Array = rs1.getArray("set1");
+            assertNotNull(set1Array);
+            java.util.List<String> setValues = java.util.Arrays.asList((String[]) set1Array.getArray());
+            assertTrue(setValues.containsAll(java.util.Arrays.asList("k1", "k2", "k3")));
+            java.sql.Array list1Array = rs1.getArray("list1");
+            assertNotNull(list1Array);
+            assertArrayEquals(new String[]{"k1", "k2", "k3"}, (String[]) list1Array.getArray());
+            assertEquals("Active", rs1.getString("status"));
+            rs1.close();
+
+            ResultSet rs2 = statement.executeQuery("select * from public.t1 where id = 2");
+            assertTrue(rs2.next());
+            assertEquals(2, rs2.getInt("id"));
+            assertEquals("a", rs2.getString("a"));
+            assertEquals("Closed", rs2.getString("status"));
+            rs2.getBigDecimal("b"); assertTrue(rs2.wasNull());
+            rs2.getBytes("c");      assertTrue(rs2.wasNull());
+            rs2.getTimestamp("o");  assertTrue(rs2.wasNull());
+            rs2.getArray("list1");  assertTrue(rs2.wasNull());
+            rs2.close();
+
+            ResultSet rs3 = statement.executeQuery("select * from public.t1 where id = 3");
+            assertTrue(rs3.next());
+            assertEquals(3, rs3.getInt("id"));
+            rs3.getString("a");      assertTrue(rs3.wasNull());
+            rs3.getString("status"); assertTrue(rs3.wasNull());
+            rs3.getBigDecimal("f");  assertTrue(rs3.wasNull());
+            rs3.getArray("set1");    assertTrue(rs3.wasNull());
+            rs3.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+//        Thread.sleep(190_000);
     }
 
     public static boolean getResult(String connectionPropertyFile,

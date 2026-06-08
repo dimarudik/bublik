@@ -501,6 +501,14 @@ public class PgBinaryWriter implements AutoCloseable {
         out.writeInt(months);
     }
 
+    public void writeEmptyArray(int elementOid) throws IOException {
+        out.writeInt(12);
+        out.writeInt(0);
+        out.writeInt(0);
+        out.writeInt(elementOid);
+    }
+
+
     @Override
     public void close() throws IOException {
         try {

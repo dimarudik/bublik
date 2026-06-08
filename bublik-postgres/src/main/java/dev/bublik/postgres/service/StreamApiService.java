@@ -1,18 +1,8 @@
 package dev.bublik.postgres.service;
 
-import de.bytefish.pgbulkinsert.row.SimpleRowWriter;
-import dev.bublik.core.model.Chunk;
-import dev.bublik.core.model.Column;
-import dev.bublik.core.model.Column2Column;
-import org.postgresql.PGConnection;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-
-import static dev.bublik.core.util.Utils.getStackTrace;
-
 public class StreamApiService {
 
+/*
     public SimpleRowWriter getSimpleRowWriter(Connection connection,
                                               Chunk<?, ?, ?, ?> chunk,
                                               String schemaName,
@@ -34,6 +24,7 @@ public class StreamApiService {
             throw new RuntimeException(e);
         }
     }
+*/
 
 
 }

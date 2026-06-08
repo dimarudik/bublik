@@ -1,6 +1,5 @@
 package dev.bublik.postgres.storage;
 
-import de.bytefish.pgbulkinsert.exceptions.BinaryWriteFailedException;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.exception.SourceSQLException;
@@ -16,16 +15,12 @@ import dev.bublik.postgres.service.StreamApiService;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.PGCopyOutputStream;
 import org.postgresql.replication.LogSequenceNumber;
-import org.postgresql.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.sql.*;
 import java.time.*;
@@ -327,12 +322,12 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     connectionFrom.close();
                     log.error("{}", getStackTrace(s));
                     throw s;
-                } catch (BinaryWriteFailedException b) {
+                } /*catch (BinaryWriteFailedException b) {
                     if (b.getCause() instanceof PSQLException && b.getCause().getCause() == null) {
                         connectionTo.close();
                     }
                     throw b;
-                }  catch (IOException e) {
+                } */ catch (IOException e) {
                     throw new RuntimeException(e);
                 } finally {
                     ;
@@ -1898,7 +1893,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     }
 */
 
-    private <V> void writeValue(PgBinaryWriter writer, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws IOException {
+    private <V> void writeValue(PgBinaryWriter writer, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws IOException, SQLException {
         for (ColumnValue<V> columnValue : columnValues) {
             String targetColumnName = columnValue.targetColumn().columnName();
             String targetType = columnValue.targetColumn().columnType();
@@ -1963,11 +1958,26 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                     break;
                 }
-                case "_text": {
-                    if (value instanceof List) {
-                        writer.writeTextArray(((List<String>)value).toArray(String[]::new));
-                    } else if (value instanceof Set) {
-                        writer.writeTextArray(((Set<String>) value).toArray(String[]::new));
+                case "_text", "_varchar": {
+                    String[] arr = null;
+
+                    switch (value) {
+                        case Array sqlArray -> arr = (String[]) sqlArray.getArray();
+                        case Collection<?> col -> arr = col.stream()
+                                .map(item -> item != null ? item.toString() : null)
+                                .toArray(String[]::new);
+                        case String[] strArr -> arr = strArr;
+                        default -> {
+                        }
+                    }
+                    if (arr == null || arr.length == 0) {
+                        writer.writeNull();
+                    } else {
+                        if (targetType.equals("_text")) {
+                            writer.writeTextArray(arr);
+                        } else {
+                            writer.writeVarcharArray(arr);
+                        }
                     }
                     break;
                 }
