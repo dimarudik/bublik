@@ -33,14 +33,16 @@ create table test.a (
     z_bigint_arr bigint[],
     aa_uuid_arr _uuid,
     ac_interval interval,
-    ab_tstzrange tstzrange
+    ab_tstzrange tstzrange,
+    xml_doc xml
 );
 insert into test.a (id, name, "Nam", "ALL", d, e, f, g, h, j, jb,
                     k, l, m, n, o, p, q, r,
                     s_date, t_timestamp, u_timestamptz, v_time,
                     w_bytea, x_inet, y_hstore,
                     z_bigint_arr, aa_uuid_arr,
-                    ac_interval, ab_tstzrange)
+                    ac_interval, ab_tstzrange,
+                    xml_doc)
     values
         (1,
          'varchar(40)',
@@ -65,7 +67,8 @@ insert into test.a (id, name, "Nam", "ALL", d, e, f, g, h, j, jb,
          array[100000000001, 100000000002, 100000000003]::bigint[],
          array[gen_random_uuid(), gen_random_uuid(), gen_random_uuid()]::uuid[],
          '2 years 3 months 5 days 11 hours 22 minutes 33 seconds 444555 microseconds'::interval,
-         tstzrange(current_timestamp - interval '2 days', current_timestamp, '[)')
+         tstzrange(current_timestamp - interval '2 days', current_timestamp, '[)'),
+         XMLPARSE(DOCUMENT '<root><element id="1">Текст внутри XML</element></root>')
         );
 insert into test.a (id) values (2);
 create table test.b (
@@ -99,7 +102,8 @@ create table test.b (
     z_bigint_arr bigint[],
     aa_uuid_arr _uuid,
     ac_interval interval,
-    ab_tstzrange tstzrange
+    ab_tstzrange tstzrange,
+    xml_doc xml
 );
 create table test.c (
     id int,

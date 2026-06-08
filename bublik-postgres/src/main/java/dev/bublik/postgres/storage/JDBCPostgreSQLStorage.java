@@ -560,10 +560,24 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     String s;
                     if (value instanceof org.postgresql.util.PGobject pgObject) {
                         s = pgObject.getValue();
+                    } else if (value instanceof java.sql.SQLXML sqlXml) {
+                        s = sqlXml.getString();
                     } else {
                         s = value.toString();
                     }
                     writer.writeString(s != null ? s.replace("\u0000", "") : "");
+                    break;
+                }
+                case "xml": {
+                    String s;
+                    if (value instanceof java.sql.SQLXML sqlXml) {
+                        s = sqlXml.getString();
+                    } else if (value instanceof org.postgresql.util.PGobject pgObject) {
+                        s = pgObject.getValue();
+                    } else {
+                        s = value.toString();
+                    }
+                    writer.writeXml(s != null ? s.replace("\u0000", "") : "");
                     break;
                 }
                 case "_text": {

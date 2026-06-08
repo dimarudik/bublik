@@ -61,6 +61,21 @@ public class TestUtils {
         return new TestResult(sourceCount, targetCount);
     }
 
+    private long getColumnChecksum(Connection conn, String tableName, String columnName) throws SQLException {
+        String sql = String.format(
+                "SELECT COALESCE(SUM(('x' || substring(md5(coalesce(%s::text, '')), 1, 16))::bit(64)::bigint), 0) FROM %s",
+                columnName, tableName
+        );
+
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return 0;
+    }
+
     public static Long countRows(Properties p, String query) {
         try (Connection connection =
                      DriverManager.getConnection(p.getProperty("url"), p)) {

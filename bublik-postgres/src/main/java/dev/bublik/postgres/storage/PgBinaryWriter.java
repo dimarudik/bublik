@@ -508,6 +508,14 @@ public class PgBinaryWriter implements AutoCloseable {
         out.writeInt(elementOid);
     }
 
+    public void writeXml(String xmlString) throws IOException {
+        if (xmlString == null) {
+            out.writeInt(-1);
+        } else {
+            this.writeString(xmlString);
+        }
+    }
+
 
     @Override
     public void close() throws IOException {

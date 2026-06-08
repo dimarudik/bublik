@@ -143,6 +143,9 @@ public class PgBinaryWriterTest {
             assertNotNull(tstzrangeStr);
             assertTrue(tstzrangeStr.startsWith("["));
             assertTrue(tstzrangeStr.endsWith(")"));
+            String xmlDocStr = rs.getString("xml_doc");
+            assertNotNull(xmlDocStr);
+            assertEquals("<root><element id=\"1\">Текст внутри XML</element></root>", xmlDocStr.trim());
             rs.close();
 
             ResultSet rsNull = statement.executeQuery("select * from test.b where id = 2");
@@ -155,6 +158,7 @@ public class PgBinaryWriterTest {
             rsNull.getString("jb"); assertTrue(rsNull.wasNull());
             rsNull.getBytes("w_bytea"); assertTrue(rsNull.wasNull());
             rsNull.getString("ab_tstzrange"); assertTrue(rsNull.wasNull());
+            rsNull.getString("xml_doc"); assertTrue(rsNull.wasNull());
             rsNull.close();
             statement.close();
 
