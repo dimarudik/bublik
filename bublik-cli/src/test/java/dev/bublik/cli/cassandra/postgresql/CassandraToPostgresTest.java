@@ -7,6 +7,7 @@ import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
 import java.sql.*;
 import java.util.List;
 import java.util.Properties;
+import java.util.TimeZone;
 
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,6 +54,12 @@ public class CassandraToPostgresTest {
             }
         }
     }
+
+    @BeforeEach
+    void setUpZone() {
+        TimeZone.setDefault(TimeZone.getTimeZone("Europe/Moscow"));
+    }
+
 
     @AfterAll
     static void clear() {
@@ -89,14 +97,26 @@ public class CassandraToPostgresTest {
             assertTrue(rs1.getBoolean("d"));
             assertEquals(java.sql.Date.valueOf("2018-01-01"), rs1.getDate("e"));
             assertEquals("12:00:00", rs1.getTime("n").toString());
-            java.sql.Timestamp expectedTimestamp = java.sql.Timestamp.valueOf("2025-12-02 00:00:00.001");
+            java.time.Instant sourceInstant = java.time.Instant.parse("2025-12-02T00:00:00.001Z");
+            java.time.LocalDateTime expectedLocal = sourceInstant.atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+            java.sql.Timestamp expectedTimestamp = java.sql.Timestamp.valueOf(expectedLocal);
             assertEquals(expectedTimestamp, rs1.getTimestamp("o"));
+            java.time.ZonedDateTime sourceO1 = java.time.ZonedDateTime.parse(
+                    "2025-12-02T00:00:00.001+08:00",
+                    java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME
+            );
+            java.time.LocalDateTime expectedO1Local = sourceO1
+                    .withZoneSameInstant(java.time.ZoneId.systemDefault())
+                    .toLocalDateTime();
+            java.sql.Timestamp expectedO1Timestamp = java.sql.Timestamp.valueOf(expectedO1Local);
+            assertEquals(expectedO1Timestamp, rs1.getTimestamp("o1"),
+                    "Абсолютное время в колонке o1 не совпадает с учетом часового пояса!");
             assertEquals(new java.math.BigDecimal("123.456"), rs1.getBigDecimal("f"));
             assertEquals(123.456d, rs1.getDouble("g"), 0.0001d);
             assertEquals(123.456f, rs1.getFloat("i"), 0.001f);
             assertEquals(123, rs1.getInt("k"));
             assertEquals(123, rs1.getShort("l"));
-            assertEquals(123, rs1.getShort("q")); // tinyint (Cassandra) -> int2 (Postgres)
+            assertEquals(123, rs1.getShort("q"));
             assertEquals("127.0.0.1", rs1.getString("j"));
             assertEquals("text", rs1.getString("m"));
             assertEquals("varchar", rs1.getString("s"));

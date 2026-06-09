@@ -82,8 +82,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         try {
             W w = targetStorage.getWriter(chunk, tableName);
             for (Row row : resultSet) {
-                List<ColumnValue<V>> columnValues = getRecordValues(row, chunk);
-//                columnValues.forEach(cv -> System.out.println(cv.sourceColumn().columnName() + " " + cv.value()));
+                List<ColumnValue<V>> columnValues = getForJdbcRecordValues(row, chunk);
                 targetStorage.insertColumnValue(columnValues, chunk, w);
                 recordCount++;
             }
@@ -96,7 +95,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return new LogMessage(start, stop, "Cassandra -> Postgres");
     }
 
-    private <V> List<ColumnValue<V>> getRecordValues(Row row, Chunk<K, T, S, R> chunk) {
+    private <V> List<ColumnValue<V>> getForJdbcRecordValues(Row row, Chunk<K, T, S, R> chunk) {
         List<Column2Column> columnToColumnList = chunk.getT2t().column2Columns();
         List<ColumnValue<V>> columnValues = new ArrayList<>();
         for (Column2Column entry : columnToColumnList) {
@@ -140,7 +139,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                         BigInteger v = row.getBigInteger(sourceColumnName);
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     } else {
-//                        Long v = row.getLong(sourceColumnName);
                         Long v = (Long) o;
                         columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     }
@@ -191,7 +189,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;
                 }
-                case "timestamp": {
+                case "timestamp", "timestamp without time zone", "timestamptz", "timestamp with time zone": {
                     Instant v = row.getInstant(sourceColumnName);
                     columnValues.add(new ColumnValue<>(sourceColumn, targetColumn, (V) v));
                     break;

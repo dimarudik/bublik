@@ -35,7 +35,6 @@ create table test.t1 (
     e date,
     f decimal,
     g double,
---    h duration,
     i float,
     j inet,
     k int,
@@ -43,6 +42,7 @@ create table test.t1 (
     m text,
     n time,
     o timestamp,
+    o1 timestamp,
     p timeuuid,
     q tinyint,
     r uuid,
@@ -56,13 +56,14 @@ create table test.t1 (
     primary key (id));
 insert into test.t1
 (id, a, b, c, d, e, f, g,
---h,
-i, j, k, l, m, n, o, p, q, r, s, t, u,
+i, j, k, l, m, n, o, o1, p, q, r, s, t, u,
 mmap, set1, list1, status)
 values
-(1, 'ascii', 9999999999, 0x0102030405060708090a0b0c0d0e0f101112131415161718, true, '2018-01-01', 123.456, 123.456,
---12h57m43s,
-123.456, '127.0.0.1', 123, 123, 'text', '12:00:00', '2025-12-02T00:00:00.001+0000', 50554d6e-29bb-11e5-b345-feff819cdc9f,
+(1, 'ascii', 9999999999, 0x0102030405060708090a0b0c0d0e0f101112131415161718,
+true, '2018-01-01', 123.456, 123.456,
+123.456, '127.0.0.1', 123, 123, 'text', '12:00:00',
+ '2025-12-02T00:00:00.001+0000', '2025-12-02T00:00:00.001+0800',
+ 50554d6e-29bb-11e5-b345-feff819cdc9f,
 123, 50554d6e-29bb-11e5-b345-feff819cdc9f, 'varchar', 123456789,
 '{   "fromSchemaName": "test",
      "fromTableName": "t1",

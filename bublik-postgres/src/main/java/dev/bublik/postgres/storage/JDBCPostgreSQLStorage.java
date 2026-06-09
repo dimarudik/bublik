@@ -1846,7 +1846,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                 chunk.getT2t().targetTable().getFinalTableName(true);
         String sql = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
-//            System.out.println(sql);
+//        System.out.println(sql);
 
         int pgStreamBufferSize = 1024 * 1024;
         int javaBufferSize = 64 * 1024;
@@ -1889,6 +1889,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                                          W writer) throws SQLException {
         try {
             ((PgBinaryWriter)writer).startRow((short) columnValues.size());
+//            System.out.println(columnValues.size());
             writeValue((PgBinaryWriter) writer, columnValues, chunk);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -2033,9 +2034,27 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     }
                     break;
                 }
+/*
                 case "timestamp", "timestamp without time zone": {
                     ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant((Instant) value, ZoneId.of("UTC"));
                     writer.writeTimestamp(zonedDateTime.toLocalDateTime());
+                    break;
+                }
+*/
+                case "timestamp", "timestamp without time zone": {
+                    if (value instanceof Instant instant) {
+                        LocalDateTime localDateTime = instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
+                        writer.writeTimestamp(localDateTime);
+                    } else if (value instanceof LocalDateTime ldt) {
+                        writer.writeTimestamp(ldt);
+                    }
+                    break;
+                }
+                case "timestamptz", "timestamp with time zone": {
+                    if (value instanceof Instant instant) {
+                        OffsetDateTime odt = instant.atOffset(java.time.ZoneOffset.UTC);
+                        writer.writeTimestampTz(odt);
+                    }
                     break;
                 }
                 case "date": {
