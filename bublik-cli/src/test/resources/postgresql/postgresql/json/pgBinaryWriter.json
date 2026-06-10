@@ -13,6 +13,7 @@
     "tryCharIfAny" : ["n"],
     "columnToColumn" : {
       "n" : "n",
+      "\"1\"" : "\"1\"",
       "id" : "id"
     }
   }

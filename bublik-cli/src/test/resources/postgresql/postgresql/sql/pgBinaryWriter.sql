@@ -111,8 +111,10 @@ create table test.c (
     source_end_ts timestamptz);
 create table test.d (
     id int,
+    "1" int,
     n mood);
-insert into test.d (id, n) values (1, 'happy');
+insert into test.d (id, "1", n) values (1, 1,'happy');
 create table test.e (
     id int,
+    "1" int,
     n mood);

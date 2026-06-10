@@ -8,11 +8,29 @@ public interface NameSyntaxService {
     }
 
     default boolean isCaseSensitiveWord(String word) {
+        if (word == null || word.isEmpty()) {
+            return false;
+        }
+
+        boolean bP = (word.charAt(0) == '"' && word.charAt(word.length() - 1) == '"');
+
+        boolean bU = word.toUpperCase().equals(word);
+        boolean bL = word.toLowerCase().equals(word);
+        boolean hasMixedCase = !bU && !bL;
+
+        boolean startsWithDigit = Character.isDigit(word.charAt(0));
+
+        return bP || hasMixedCase || startsWithDigit;
+    }
+
+/*
+    default boolean isCaseSensitiveWord(String word) {
         boolean bP = (word.charAt(0) == '"' && word.charAt(word.length() - 1) == '"');
         boolean bU = word.toUpperCase().equals(word);
         boolean bL = word.toLowerCase().equals(word);
         return bP || (!bU && !bL);
     }
+*/
 
     default boolean isOracleCaseSensitiveWord(String word) {
         boolean bU = word.toUpperCase().equals(word);

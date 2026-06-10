@@ -669,7 +669,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     break;
                 }
                 case "float4", "real" : {
-                    System.out.println(value);
                     if (value instanceof Number number) {
                         writer.writeFloat(number.floatValue());
                     } else {
@@ -1955,7 +1954,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                     break;
                 }
                 case "float4", "real" : {
-                    System.out.println(value);
                     if (value instanceof Number number) {
                         writer.writeFloat(number.floatValue());
                     } else {
