@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static dev.bublik.cassandra.constants.SQLConstants.*;
-import static dev.bublik.core.constants.CLassConstants.DEFAULT_FETCH_WHERE_CLAUSE;
+import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Storage<K, T, S, R> implements Source {

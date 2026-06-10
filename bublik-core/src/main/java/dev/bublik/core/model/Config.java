@@ -3,7 +3,7 @@ package dev.bublik.core.model;
 import java.util.List;
 import java.util.Map;
 
-import static dev.bublik.core.constants.CLassConstants.DEFAULT_FETCH_WHERE_CLAUSE;
+import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
 
 public record Config(
         String fromSchemaName,

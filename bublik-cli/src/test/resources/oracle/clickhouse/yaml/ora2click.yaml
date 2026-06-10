@@ -1,0 +1,11 @@
+threadCount: 4
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
+  user: test
+  password: test
+toProperties:
+  class: dev.bublik.clickhouse.storage.ClickhouseStorage
+  url: http://localhost:8123
+  user: test
+  password: test

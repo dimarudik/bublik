@@ -46,15 +46,6 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         this.batchSize = getBatchSize(connectionProperty);
     }
 
-/*
-    @Override
-    public void createLocalOutbox(String tableName) throws SQLException {
-        CqlSession cqlSession = getSession();
-        cqlSession.execute(DDL_CREATE_LOCAL_OUTBOX_TABLE.replace("$tableName", getOutboxTableName(tableName)));
-        log.info("Local outbox table created successfully");
-    }
-*/
-
     @Override
     public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         Storage<K, T, S, R> sourceStorage = chunk.getSourceStorage();
