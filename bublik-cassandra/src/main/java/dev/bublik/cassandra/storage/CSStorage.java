@@ -79,7 +79,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName,  Storage<K, T, S, R> cacheStorage) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (rows > 0) {
             dropChunkTable(configs, sync, tableName);

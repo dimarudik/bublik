@@ -1,0 +1,18 @@
+threadCount: 10
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  class: dev.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: cassandra
+  password: cassandra
+  batchSize: 256
+cacheProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?targetServerType=primary
+  user: test
+  password: test

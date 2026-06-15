@@ -365,6 +365,11 @@ public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K
     }
 
     @Override
+    public void initCache(List<Config> configs) throws SQLException {
+        log.info("Cache is not implemented for YDB");
+    }
+
+    @Override
     public void createPrimaryKeys() {
     }
 

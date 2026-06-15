@@ -34,7 +34,7 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+    public void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName, Storage<K, T, S, R> cacheStorage) throws SQLException {
 
     }
 

@@ -99,7 +99,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName,  Storage<K, T, S, R> cacheStorage) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (!sync) {
             startNOSync(targetStorage, configs, rows, tableName);

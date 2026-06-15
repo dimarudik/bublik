@@ -1,0 +1,17 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "source",
+    "toSchemaName": "test",
+    "toTableName": "ttl_check",
+    "columnToColumn": {
+      "id": "id",
+      "offer_id": "offer_id",
+      "CACHE.targeting_type": "flags"
+    },
+    "cacheToQuery": {
+      "ttl_seconds": "SELECT id, CAST(EXTRACT(EPOCH FROM (close_date + CASE WHEN cb_service_name IN ('HOTELS_POSTPAY', 'HOTELS_POSTPAY_PREDICTOR') THEN INTERVAL '2 years' WHEN cb_service_name IN ('AVIA', 'CONCERT', 'SPECTACLE', 'EXHIBITION', 'MOVIE', 'SHOPPING_BANK') THEN INTERVAL '6 months' ELSE INTERVAL '1 month' END) - NOW()) AS INTEGER) AS ttl_seconds FROM public.offer;",
+      "targeting_type": "SELECT id, targeting_type FROM public.offer where targeting_type = 'DYNAMIC'"
+    }
+  }
+]

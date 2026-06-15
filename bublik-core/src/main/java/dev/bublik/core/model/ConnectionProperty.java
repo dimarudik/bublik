@@ -8,6 +8,7 @@ public class ConnectionProperty {
     private Boolean rowsStat = false;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
+    private Map<String, String> cacheProperties;
     private Map<String, String> crypto;
     private Map<String, Map<String, String>> toAdds;
 
@@ -16,12 +17,14 @@ public class ConnectionProperty {
                               Boolean rowsStat,
                               Map<String, String> fromProperties,
                               Map<String, String> toProperties,
+                              Map<String, String> cacheProperties,
                               Map<String, String> crypto,
                               Map<String, Map<String, String>> toAdds) {
         this.threadCount = threadCount;
         this.rowsStat = rowsStat;
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
+        this.cacheProperties = cacheProperties;
         this.crypto = crypto;
         this.toAdds = toAdds;
     }
@@ -58,8 +61,20 @@ public class ConnectionProperty {
         this.toProperties = toProperties;
     }
 
+    public Map<String, String> getCacheProperties() {
+        return cacheProperties;
+    }
+
+    public void setCacheProperties(Map<String, String> cacheProperties) {
+        this.cacheProperties = cacheProperties;
+    }
+
     public Properties getFromProperty() {
         return getProperties(fromProperties);
+    }
+
+    public Properties getCacheProperty() {
+        return getProperties(cacheProperties);
     }
 
     public Properties getToProperty() {

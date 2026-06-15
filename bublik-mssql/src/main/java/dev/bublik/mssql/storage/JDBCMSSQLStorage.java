@@ -490,4 +490,9 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
         }
         return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
+
+    @Override
+    public void initCache(List<Config> configs) throws SQLException {
+        log.info("Cache is not supported for MSSQL");
+    }
 }

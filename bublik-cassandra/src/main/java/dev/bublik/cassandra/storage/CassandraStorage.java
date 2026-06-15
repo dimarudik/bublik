@@ -2,7 +2,11 @@ package dev.bublik.cassandra.storage;
 
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
-import com.datastax.oss.driver.api.core.cql.*;
+import com.datastax.oss.driver.api.core.cql.BatchStatement;
+import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder;
+import com.datastax.oss.driver.api.core.cql.BatchableStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.data.UdtValue;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import com.datastax.oss.driver.api.core.type.UserDefinedType;
@@ -11,9 +15,24 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.bublik.cassandra.storage.cassandraaddons.*;
+import dev.bublik.core.cache.CacheHolder;
 import dev.bublik.core.model.*;
 import dev.bublik.cassandra.model.CSComplexType;
 import dev.bublik.cassandra.model.CSTable;
+import dev.bublik.cassandra.storage.cassandraaddons.BatchEntity;
+import dev.bublik.cassandra.storage.cassandraaddons.CSRecord;
+import dev.bublik.cassandra.storage.cassandraaddons.CSValue;
+import dev.bublik.cassandra.storage.cassandraaddons.CSValueAttribute;
+import dev.bublik.cassandra.storage.cassandraaddons.MM3Batch;
+import dev.bublik.core.cache.CacheHolder;
+import dev.bublik.core.model.Chunk;
+import dev.bublik.core.model.Column;
+import dev.bublik.core.model.ColumnValue;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.KV;
+import dev.bublik.core.model.LogMessage;
+import dev.bublik.core.model.Table2Table;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
@@ -27,13 +46,33 @@ import java.nio.ByteBuffer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.*;
-import java.util.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static dev.bublik.cassandra.storage.cassandraaddons.MM3.*;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.byteBufferToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.byteToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.compositeToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.getTokenRange;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.intToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.longToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.smallIntToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.stringToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.timestampToBytes;
+import static dev.bublik.cassandra.storage.cassandraaddons.MM3.uuidToBytes;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
@@ -417,154 +456,168 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     private record CSObj(Object object, byte[] bytes) {
     }
 
-    private <C1, C2> CSObj getCSObj(ResultSet resultSet, Column targetColumn, String sClmName) throws SQLException {
+    private <C1, C2> CSObj getCSObj(ResultSet resultSet, Column targetColumn, String sClmName, String cacheName) throws SQLException {
         Object v = null;
         byte[] bytes = null;
-        String targetType = targetColumn.columnType();
-        switch (targetType) {
-            case "tinyint": {
-                v = (byte) resultSet.getInt(sClmName);
-                if (targetColumn.isPartitionKey()) {
-                    bytes = byteToBytes((byte) v);
-                }
-                break;
+        if (cacheName != null) {
+            long key = resultSet.getLong("offer_id");
+            //log.info("CACHE {} exists: {}", cacheName, CacheHolder.cacheExists(cacheName));
+
+            if (cacheName.equals("targeting_type")){
+                byte excluded = CacheHolder.cacheExists(cacheName) && CacheHolder.getCache(cacheName).get(key) != null ? (byte) 0b00000100 : (byte) 0b00000000;
+                bytes = byteToBytes(excluded);
+                v = excluded;
             }
-            case "smallint": {
-                v = resultSet.getShort(sClmName);
-                if (targetColumn.isPartitionKey()) {
-                    bytes = smallIntToBytes((short) v);
-                }
-                break;
-            }
-            case "int": {
-                v = resultSet.getInt(sClmName);
-                if (targetColumn.isPartitionKey()) {
-                    bytes = intToBytes((Integer) v);
-                }
-                break;
-            }
-            case "bigint": {
-                v = resultSet.getLong(sClmName);
-                if (targetColumn.isPartitionKey()) {
-                    bytes = longToBytes((Long) v);
-                }
-                break;
-            }
-            case "text": {
-                v = resultSet.getString(sClmName);
-                if (targetColumn.isPartitionKey() && v != null) {
-                    bytes = stringToBytes((String) v);
-                }
-                break;
-            }
-            case "date": {
-                Timestamp t = resultSet.getTimestamp(sClmName);
-                long l = t.getTime();
-                v = Instant.ofEpochMilli(l).atZone(ZoneId.systemDefault()).toLocalDate();
-                break;
-            }
-            case "timestamp": {
-                v = resultSet.getTimestamp(sClmName).toInstant();
-                if (targetColumn.isPartitionKey() && v != null) {
-                    bytes = timestampToBytes((Instant) v);
-                }
-                break;
-            }
-            case "boolean": {
-                v = resultSet.getBoolean(sClmName);
-                break;
-            }
-            case "blob": {
-                byte[] bs = resultSet.getBytes(sClmName);
-                if (bs != null) {
-                    v = ByteBuffer.wrap(bs);
-                }
-                break;
-            }
-            case "float": {
-                v = resultSet.getFloat(sClmName);
-                break;
-            }
-            case "decimal": {
-                v = resultSet.getBigDecimal(sClmName);
-                break;
-            }
-            case "uuid": {
-                Object tmp = resultSet.getObject(sClmName);
-                try {
-                    v = tmp;
-                } catch (ClassCastException e) {
-                    v = UUID.fromString((String) tmp);
-                }
-                if (targetColumn.isPartitionKey() && v != null) {
-                    bytes = uuidToBytes((UUID) v);
-                }
-                break;
-            }
-            default:
-                String tmp;
-                Pattern pattern = Pattern.compile("(frozen)<(.*)>>");
-                Matcher matcher = pattern.matcher(targetType);
-                if (targetType.contains("frozen") && matcher.find()) {
-                    tmp = targetType.substring(7, targetType.length() - 1);
-                } else {
-                    tmp = targetType;
-                }
-                CSComplexType<?> complexType = CSComplexType.of(tmp);
-                ObjectMapper mapper = new ObjectMapper();
-                mapper.enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES);
-                switch (complexType.typeName()) {
-                    case "list": {
-                        String s = resultSet.getString(sClmName);
-                        try {
-                            Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
-                            v = getListOf(c1);
-                            ((List<?>) v).addAll(mapper.readValue(s, List.class));
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                        break;
+
+            //log.info("SAVING {} for offer_id: {}", bytes, key);
+            return new CSObj(v, bytes);
+        } else {
+            String targetType = targetColumn.columnType();
+            switch (targetType) {
+                case "tinyint": {
+                    v = (byte) resultSet.getInt(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        bytes = byteToBytes((byte) v);
                     }
-                    case "set": {
-                        String s = resultSet.getString(sClmName);
-                        try {
-                            Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
-                            v = getSetOf(c1);
-                            ((Set<?>) v).addAll(mapper.readValue(s, Set.class));
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                        break;
+                    break;
+                }
+                case "smallint": {
+                    v = resultSet.getShort(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        bytes = smallIntToBytes((short) v);
                     }
-                    case "map": {
-                        String s = resultSet.getString(sClmName);
-                        try {
-                            Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
-                            Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
-                            if (c1 == Integer.class && c2 == String.class) {
-                                v = mapper.readValue(s, new TypeReference<HashMap<Integer, String>>() {
-                                });
-                            } else if (c1 == String.class && c2 == String.class) {
-                                v = mapper.readValue(s, new TypeReference<HashMap<String, String>>() {
-                                });
-                            } else if (c1 == String.class && c2 == Integer.class) {
-                                v = mapper.readValue(s, new TypeReference<HashMap<String, Integer>>() {
-                                });
-                            } else if (c1 == Integer.class && c2 == Integer.class) {
-                                v = mapper.readValue(s, new TypeReference<HashMap<Integer, Integer>>() {
-                                });
+                    break;
+                }
+                case "int": {
+                    v = resultSet.getInt(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        bytes = intToBytes((Integer) v);
+                    }
+                    break;
+                }
+                case "bigint": {
+                    v = resultSet.getLong(sClmName);
+                    if (targetColumn.isPartitionKey()) {
+                        bytes = longToBytes((Long) v);
+                    }
+                    break;
+                }
+                case "text": {
+                    v = resultSet.getString(sClmName);
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        bytes = stringToBytes((String) v);
+                    }
+                    break;
+                }
+                case "date": {
+                    Timestamp t = resultSet.getTimestamp(sClmName);
+                    long l = t.getTime();
+                    v = Instant.ofEpochMilli(l).atZone(ZoneId.systemDefault()).toLocalDate();
+                    break;
+                }
+                case "timestamp": {
+                    v = resultSet.getTimestamp(sClmName).toInstant();
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        bytes = timestampToBytes((Instant) v);
+                    }
+                    break;
+                }
+                case "boolean": {
+                    v = resultSet.getBoolean(sClmName);
+                    break;
+                }
+                case "blob": {
+                    byte[] bs = resultSet.getBytes(sClmName);
+                    if (bs != null) {
+                        v = ByteBuffer.wrap(bs);
+                    }
+                    break;
+                }
+                case "float": {
+                    v = resultSet.getFloat(sClmName);
+                    break;
+                }
+                case "decimal": {
+                    v = resultSet.getBigDecimal(sClmName);
+                    break;
+                }
+                case "uuid": {
+                    Object tmp = resultSet.getObject(sClmName);
+                    try {
+                        v = tmp;
+                    } catch (ClassCastException e) {
+                        v = UUID.fromString((String) tmp);
+                    }
+                    if (targetColumn.isPartitionKey() && v != null) {
+                        bytes = uuidToBytes((UUID) v);
+                    }
+                    break;
+                }
+                default:
+                    String tmp;
+                    Pattern pattern = Pattern.compile("(frozen)<(.*)>>");
+                    Matcher matcher = pattern.matcher(targetType);
+                    if (targetType.contains("frozen") && matcher.find()) {
+                        tmp = targetType.substring(7, targetType.length() - 1);
+                    } else {
+                        tmp = targetType;
+                    }
+                    CSComplexType<?> complexType = CSComplexType.of(tmp);
+                    ObjectMapper mapper = new ObjectMapper();
+                    mapper.enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES);
+                    switch (complexType.typeName()) {
+                        case "list": {
+                            String s = resultSet.getString(sClmName);
+                            try {
+                                Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                                v = getListOf(c1);
+                                ((List<?>) v).addAll(mapper.readValue(s, List.class));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
                             }
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
+                            break;
                         }
-                        break;
+                        case "set": {
+                            String s = resultSet.getString(sClmName);
+                            try {
+                                Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                                v = getSetOf(c1);
+                                ((Set<?>) v).addAll(mapper.readValue(s, Set.class));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            break;
+                        }
+                        case "map": {
+                            String s = resultSet.getString(sClmName);
+                            try {
+                                Class<C1> c1 = (Class<C1>) complexType.fieldTypes().getFirst();
+                                Class<C2> c2 = (Class<C2>) complexType.fieldTypes().getLast();
+                                if (c1 == Integer.class && c2 == String.class) {
+                                    v = mapper.readValue(s, new TypeReference<HashMap<Integer, String>>() {
+                                    });
+                                } else if (c1 == String.class && c2 == String.class) {
+                                    v = mapper.readValue(s, new TypeReference<HashMap<String, String>>() {
+                                    });
+                                } else if (c1 == String.class && c2 == Integer.class) {
+                                    v = mapper.readValue(s, new TypeReference<HashMap<String, Integer>>() {
+                                    });
+                                } else if (c1 == Integer.class && c2 == Integer.class) {
+                                    v = mapper.readValue(s, new TypeReference<HashMap<Integer, Integer>>() {
+                                    });
+                                }
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                            break;
+                        }
+                        default:
+                            break;
                     }
-                    default:
-                        break;
-                }
-                break;
+                    break;
+            }
+            return new CSObj(v, bytes);
         }
-        return new CSObj(v, bytes);
     }
 
     private CSRecord getCSRecord(ResultSet resultSet,
@@ -577,20 +630,42 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
                 .filter(e -> e.sourceColumn() != null)
                 .forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
-        Integer ttl = null;
-        Long timestamp = null;
+        Integer recordTtl = null;
+        Long recordTimestamp = null;
+        // Устанавливаем дефолтное значение из поля withTTL
         if (t2t.ttlColumn() != null) {
-            ttl = resultSet.getInt(t2t.ttlColumn().columnName());
+            recordTtl = resultSet.getInt(t2t.ttlColumn().columnName());
         }
         if (t2t.timestampColumn() != null) {
-            timestamp = resultSet.getLong(t2t.timestampColumn().columnName());
+            recordTimestamp = resultSet.getLong(t2t.timestampColumn().columnName());
         }
+
+        // Вычисляем TTL из кэша при наличии
+        CacheHolder.CacheInstance ttlCache = CacheHolder.getCache("ttl_seconds");
+        if (ttlCache != null) {
+            Long keyValue = resultSet.getLong("offer_id");
+            Integer ttlSeconds = (Integer) ttlCache.get(keyValue);
+
+            int oneYearInSeconds = 365 * 24 * 60 * 60;
+            int oneWeekInSeconds = 7 * 24 * 60 * 60;
+
+            if (ttlSeconds != null) {
+                // Если полученный ttl <= 0, то устанавливаем минимальное значение (1 неделя)
+                recordTtl = Math.toIntExact(ttlSeconds <= 0 ? oneWeekInSeconds : ttlSeconds);
+                log.info("TTL for offer_id {}: {}", keyValue, recordTtl);
+            } else {
+                // Проставляем 2 года если отсутствуют значения в кэше
+                log.warn("TTL из кэша не получен для offer_id={}, установлено значение по умолчанию 2 года", keyValue);
+                recordTtl = Math.toIntExact(oneYearInSeconds * 2);
+            }
+        }
+
         for (Map.Entry<Column, Column> entry : column2Column.entrySet()) {
             Column sourceColumn = entry.getKey();
             Column targetColumn = entry.getValue();
             String sClmName = sourceColumn.columnName();
-            CSObj csObj = getCSObj(resultSet, targetColumn, sClmName);
-            objectList.add(new CSValue(targetColumn, csObj.object, null));
+            CSObj csObj = getCSObj(resultSet, targetColumn, sClmName, sourceColumn.columnName().contains("CACHE") ? sourceColumn.columnName().substring(6) : null);
+            objectList.add(new CSValue(targetColumn, csObj.object, new CSValueAttribute(recordTtl, recordTimestamp)));
             if (targetColumn.isPartitionKey()) {
                 mapBytes.put(targetColumn.columnPosition(), csObj.bytes);
             }
@@ -677,7 +752,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             for (String sourceExpr : sourceExprs) {
                 String rsColName = sourceExpr.substring(sourceExpr.toLowerCase().lastIndexOf(" as ") + 4);
                 Column typeColumn = typeColumns.get(i);
-                CSObj csObj = getCSObj(resultSet, typeColumn, rsColName);
+                CSObj csObj = getCSObj(resultSet, typeColumn, rsColName, null);
                 objects.add(csObj.object);
                 i++;
             }
@@ -686,7 +761,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             objectList.add(new CSValue(targetColumn, v, null));
         }
 
-        return new CSRecord(tokenRange, objectList, new CSValueAttribute(ttl, timestamp));
+        return new CSRecord(tokenRange, objectList, new CSValueAttribute(recordTtl, recordTimestamp));
     }
 
     private <C> List<C> getListOf(Class<C> c) {
@@ -790,12 +865,35 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         Map<Integer, byte[]> mapBytes = new TreeMap<>();
         Integer recordTtl = null;
         Long recordTimestamp = null;
+        // Устанавливаем дефолтное значение из поля withTTL
         if (t2t.ttlColumn() != null) {
             recordTtl = row.getInt(t2t.ttlColumn().columnName());
         }
         if (t2t.timestampColumn() != null) {
             recordTimestamp = row.getLong(t2t.timestampColumn().columnName());
         }
+
+        // Вычисляем TTL из кэша при наличии
+        CacheHolder.CacheInstance ttlCache = CacheHolder.getCache("ttl_seconds");
+        if (ttlCache != null) {
+            Long keyValue = row.getLong("offer_id");
+            Integer ttlSeconds = (Integer) ttlCache.get(keyValue);
+
+            int oneYearInSeconds = 365 * 24 * 60 * 60;
+            int oneWeekInSeconds = 7 * 24 * 60 * 60;
+
+            if (ttlSeconds != null) {
+                // Если полученный ttl <= 0, то устанавливаем минимальное значение (1 неделя)
+                recordTtl = Math.toIntExact(ttlSeconds <= 0 ? oneWeekInSeconds : ttlSeconds);
+                log.info("TTL for offer_id {}: {}", keyValue, recordTtl);
+            } else {
+                // Проставляем 2 года если отсутствуют значения в кэше
+                log.warn("TTL из кэша не получен для offer_id={}, установлено значение по умолчанию 2 года", keyValue);
+                recordTtl = Math.toIntExact(oneYearInSeconds * 2);
+            }
+
+        }
+
         for (Map.Entry<Column, Column> entry: column2Column.entrySet()) {
             Column sourceColumn = entry.getKey();
             Column targetColumn = entry.getValue();
@@ -850,5 +948,10 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             timestamp = recordTimestamp;
         }
         return new CSValue(targetColumn, value, new CSValueAttribute(ttl, timestamp));
+    }
+
+    @Override
+    public void initCache(List<Config> configs) throws SQLException {
+        log.info("Cache is not implemented for this storage");
     }
 }

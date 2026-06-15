@@ -25,15 +25,21 @@ public record Config(
         Map<String, List<String>> asList,
         Map<String, List<String>> asSet,
         Map<String, List<KV>> asMap,
-        Map<String, List<String>> asUDT
+        Map<String, List<String>> asUDT,
+        Map<String, String> cacheToQuery
 ) {
 
     public Config(String fromSchemaName, String fromTableName, String fromTableAlias, String fromTableAdds, String toSchemaName, String toTableName, String fetchWhereClause, List<String> tryCharIfAny, Map<String, String> columnToColumn, Map<String, String> expressionToColumn) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null, fetchWhereClause, null, null, null, null, tryCharIfAny, columnToColumn, expressionToColumn, null, null, null, null, null);
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null, fetchWhereClause, null, null, null, null, tryCharIfAny, columnToColumn, expressionToColumn, null, null, null, null, null, null);
     }
 
-    public Config(String fromSchemaName, String fromTableName, String fromTableAlias, String fromTableAdds, String toSchemaName, String toTableName, String fetchHintClause, String fetchWhereClause, String fromTaskName, String fromTaskWhereClause, String timestamp, String withTTL, List<String> tryCharIfAny, Map<String, String> columnToColumn, Map<String, String> expressionToColumn, Map<String, List<String>> columnFromMany) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause, fetchWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany, null, null, null, null);
+    public Config(String fromSchemaName, String fromTableName, String fromTableAlias, String fromTableAdds, String toSchemaName,
+            String toTableName, String fetchHintClause, String fetchWhereClause, String fromTaskName, String fromTaskWhereClause,
+            String timestamp, String withTTL, List<String> tryCharIfAny, Map<String, String> columnToColumn,
+            Map<String, String> expressionToColumn, Map<String, List<String>> columnFromMany, Map<String, String> cacheToQuery) {
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause, fetchWhereClause,
+                fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany,
+                null, null, null, null, cacheToQuery);
     }
 
     public Config copy() {
@@ -59,7 +65,8 @@ public record Config(
                 this.asList,
                 this.asSet,
                 this.asMap,
-                this.asUDT
+                this.asUDT,
+                this.cacheToQuery == null ? null : Map.copyOf(this.cacheToQuery)
         );
     }
 }

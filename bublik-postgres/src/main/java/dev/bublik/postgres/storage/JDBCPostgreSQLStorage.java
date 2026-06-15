@@ -1,10 +1,22 @@
 package dev.bublik.postgres.storage;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import dev.bublik.core.cache.CacheHolder;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.exception.TargetSQLException;
-import dev.bublik.core.model.*;
+import dev.bublik.core.model.Chunk;
+import dev.bublik.core.model.Column;
+import dev.bublik.core.model.Column2Column;
+import dev.bublik.core.model.ColumnValue;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.KV;
+import dev.bublik.core.model.LogMessage;
+import dev.bublik.core.model.Table;
+import dev.bublik.core.model.Table2Table;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
@@ -22,15 +34,52 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.sql.*;
-import java.time.*;
-import java.util.*;
+import java.sql.Array;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import javax.sql.DataSource;
 
 import static dev.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
-import static dev.bublik.core.util.ColumnUtil.*;
+import static dev.bublik.core.util.ColumnUtil.convertBlobToBytes;
+import static dev.bublik.core.util.ColumnUtil.convertClobToString;
+import static dev.bublik.core.util.ColumnUtil.getColumnIndexByColumnName;
+import static dev.bublik.core.util.ColumnUtil.parseHstoreString;
 import static dev.bublik.core.util.Utils.getStackTrace;
-import static dev.bublik.postgres.constants.SQLConstants.*;
-import static dev.bublik.postgres.util.ColumnUtil.*;
+import static dev.bublik.postgres.constants.SQLConstants.DDL_CREATE_CHUNK_TABLE;
+import static dev.bublik.postgres.constants.SQLConstants.DDL_CREATE_OUTBOX_TABLE;
+import static dev.bublik.postgres.constants.SQLConstants.DDL_DROP_CHUNK_TABLE;
+import static dev.bublik.postgres.constants.SQLConstants.DDL_DROP_OUTBOX_TABLE;
+import static dev.bublik.postgres.constants.SQLConstants.DML_INSERT_OUTBOX_TABLE;
+import static dev.bublik.postgres.constants.SQLConstants.DML_SELECT_OUTBOX_TABLE;
+import static dev.bublik.postgres.constants.SQLConstants.SQL_NUMBER_OF_TUPLES;
+import static dev.bublik.postgres.constants.SQLConstants.SQL_PG_CURRENT_LSN_AND_XID;
+import static dev.bublik.postgres.util.ColumnUtil.byteArrayDSToInterval;
+import static dev.bublik.postgres.util.ColumnUtil.byteArrayYMToInterval;
+import static dev.bublik.postgres.util.ColumnUtil.getMaxEndPageOfChunks;
+import static dev.bublik.postgres.util.ColumnUtil.getTotalPagesOfTable;
+import static dev.bublik.postgres.util.ColumnUtil.insertCtidChunksV2;
 
 public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
@@ -169,19 +218,34 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         }
         if (config.columnToColumn() != null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
-                Column sourceColumn = sourceTable.getColumns().stream()
-                        .filter(c -> c.getNameWithoutQuotes()
-                                .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
-                        .findFirst()
-                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
-                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
-                Column targetColumn = targetTable.getColumns().stream()
-                        .filter(c -> c.getNameWithoutQuotes()
-                                .equalsIgnoreCase(entry.getValue().replace("\"", "")))
-                        .findFirst()
-                        .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
-                                targetTable.getSchemaName() + "." + targetTable.getTableName()));
-                column2Column.add(new Column2Column(sourceColumn, targetColumn));
+                Column sourceColumn;
+                if(entry.getKey().contains("CACHE")) {
+                    String cacheName = entry.getKey().substring(6);
+                    sourceColumn = new Column("CACHE."+ cacheName, "text");
+                    Column targetColumn = targetTable.getColumns().stream()
+                            .filter(c -> c.getNameWithoutQuotes()
+                                    .equalsIgnoreCase(entry.getValue().replace("\"", "")))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
+                                                                    targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                    column2Column.add(new Column2Column(sourceColumn, targetColumn));
+                } else {
+                    sourceColumn = sourceTable.getColumns().stream()
+                            .filter(c -> c.getNameWithoutQuotes()
+                                    .equalsIgnoreCase(entry.getKey().replaceAll("\"", "")))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                                                    sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                    Column targetColumn = targetTable.getColumns().stream()
+                            .filter(c -> c.getNameWithoutQuotes()
+                                    .equalsIgnoreCase(entry.getValue().replace("\"", "")))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
+                                                                    targetTable.getSchemaName() + "." + targetTable.getTableName()));
+                    column2Column.add(new Column2Column(sourceColumn, targetColumn));
+
+                }
+
             }
         }
         if (config.expressionToColumn() != null) {
@@ -1523,6 +1587,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         List<String> asColumns = t2t.column2Columns()
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
+                .filter(c2c -> !c2c.sourceColumn().columnName().contains("CACHE"))
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
         List<String> asList = t2t.column2Columns()
@@ -2346,5 +2411,103 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
         ((SimpleRowWriter) writer).close();
         connectionTo.commit();
     }
-*/
+
+ */
+
+
+    @Override
+    public void initCache(List<Config> configs) throws SQLException {
+        log.info("Init cache start");
+
+        for (Config config : configs) {
+
+            if (config.cacheToQuery() == null) {
+                log.info("No cache tables defined in configs, skipping cache initialization");
+                return;
+            }
+
+            HikariConfig hikariConfig = new HikariConfig();
+            hikariConfig.setJdbcUrl(getConnectionProperty().getCacheProperty().getProperty("url"));
+            hikariConfig.setUsername(getConnectionProperty().getCacheProperty().getProperty("user"));
+            hikariConfig.setPassword(getConnectionProperty().getCacheProperty().getProperty("password"));
+            hikariConfig.setConnectionTimeout(3_000);
+            hikariConfig.setAutoCommit(false);
+            hikariConfig.setMaximumPoolSize(1);
+            DataSource dataSource = new HikariDataSource(hikariConfig);
+            Connection cacheConnection = dataSource.getConnection();
+
+            CacheHolder.clearAll();
+
+            for (Entry<String, String> entry :  config.cacheToQuery().entrySet()) {
+
+                log.info("Loading cache from: {}", entry.getValue());
+
+                CacheHolder.CacheInstance cache = CacheHolder.getOrCreateCache(entry.getKey());
+
+                try (PreparedStatement statement = cacheConnection.prepareStatement(entry.getValue());
+                        ResultSet resultSet = statement.executeQuery()) {
+
+                    ResultSetMetaData metaData = resultSet.getMetaData();
+                    int columnCount = metaData.getColumnCount();
+
+                    if (columnCount < 2) {
+                        throw new IllegalStateException("Ожидается минимум 2 колонки (key, value), получено: " + columnCount);
+                    }
+
+                    // Тип второй колонки (значение)
+                    int valueTypeCode = metaData.getColumnType(2);
+
+                    while (resultSet.next()) {
+                        long key = resultSet.getLong(1);
+                        Object value;
+
+                        // Динамическое получение значения в зависимости от типа
+                        switch (valueTypeCode) {
+                            case java.sql.Types.VARCHAR:
+                            case java.sql.Types.CHAR:
+                            case java.sql.Types.LONGVARCHAR:
+                                value = resultSet.getString(2);
+                                break;
+                            case java.sql.Types.INTEGER:
+                                value = resultSet.getInt(2);
+                                break;
+                            case java.sql.Types.BIGINT:
+                                value = resultSet.getLong(2);
+                                break;
+                            case java.sql.Types.TIMESTAMP:
+                            case java.sql.Types.TIMESTAMP_WITH_TIMEZONE:
+                                value = resultSet.getTimestamp(2);
+                                // Если нужно сразу конвертировать в Instant:
+                                value = resultSet.getTimestamp(2).toInstant();
+                                break;
+                            case java.sql.Types.DATE:
+                                value = resultSet.getDate(2);
+                                break;
+                            case java.sql.Types.BOOLEAN:
+                                value = resultSet.getBoolean(2);
+                                break;
+                            case java.sql.Types.DOUBLE:
+                            case java.sql.Types.FLOAT:
+                            case java.sql.Types.NUMERIC:
+                            case java.sql.Types.DECIMAL:
+                                value = resultSet.getBigDecimal(2); // Или getDouble, если точность не критична
+                                break;
+                            default:
+                                // Fallback: пробуем получить как Object или String
+                                value = resultSet.getObject(2);
+                                break;
+                        }
+
+                        cache.setValueTypeCode(valueTypeCode);
+                        cache.put(key, value);
+                    }
+                }
+                log.info("Total cache loaded: {} rows", cache.size());
+
+            }
+
+            cacheConnection.commit();
+            cacheConnection.close();
+        }
+    }
 }
