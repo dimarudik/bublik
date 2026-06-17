@@ -62,7 +62,7 @@ public class ToMapExprTest {
     @Test
     public void toMapViaExpression() throws InterruptedException, IOException {
         Properties sourceProperties = getJdbcProperties(source);
-        Properties targetProperties = getJdbcPropertiesOfCassandra(target);
+        Properties targetProperties = getPropertiesOfCassandra(target);
         boolean result = getResult(
                 "./postgresql/cassandra/yaml/pg2cs-to-list.yaml",
                 "./postgresql/cassandra/json/to-map-expr.json",
@@ -131,7 +131,7 @@ public class ToMapExprTest {
         return properties;
     }
 
-    private Properties getJdbcPropertiesOfCassandra(CassandraContainer target) {
+    private Properties getPropertiesOfCassandra(CassandraContainer target) {
         Properties properties = new Properties();
         properties.setProperty("class", "org.bublik.cassandra.storage.CSPoolStorage");
         properties.setProperty("keyspace", "test");

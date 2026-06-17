@@ -17,6 +17,7 @@ public class ClickClient {
     public Client createClient(Properties properties) {
         return new Client.Builder()
                 .addEndpoint(properties.getProperty("url"))
+                .setDefaultDatabase(properties.getProperty("database"))
                 .setUsername(properties.getProperty("user"))
                 .setPassword(properties.getProperty("password"))
                 .setMaxConnections(size)

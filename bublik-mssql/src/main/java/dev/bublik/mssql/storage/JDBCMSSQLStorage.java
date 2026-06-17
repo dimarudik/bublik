@@ -415,7 +415,11 @@ public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S exten
     public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
-            targetTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            if (sourceTable.getClass() == targetTable.getClass()) {
+                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
+            } else {
+                column2Column.addAll(matchColumns(sourceTable, targetTable));
+            }
         }
         if (config.columnToColumn() != null) {
 //            sourceTable.getColumns().forEach(c -> log.info("{}", c.columnName()));

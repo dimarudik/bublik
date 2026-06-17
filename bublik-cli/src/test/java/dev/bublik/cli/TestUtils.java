@@ -7,6 +7,12 @@ import dev.bublik.core.model.ConnectionProperty;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.List;
 import java.util.Properties;
@@ -76,9 +82,13 @@ public class TestUtils {
         return 0;
     }
 
+/*
     public static Long countRows(Properties p, String query) {
+        Properties cleanProps = new Properties();
+        cleanProps.putAll(p);
+        cleanProps.remove("url");
         try (Connection connection =
-                     DriverManager.getConnection(p.getProperty("url"), p)) {
+                     DriverManager.getConnection(p.getProperty("url"), cleanProps)) {
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(query);
             resultSet.next();
@@ -86,6 +96,60 @@ public class TestUtils {
         }
         catch (SQLException e){
             throw new RuntimeException(e);
+        }
+    }
+*/
+    public static Long countRows(Properties p, String query) {
+        String rawUrl = p.getProperty("url");
+
+        // Если это запрос к Oracle/Postgres, оставляем стандартный JDBC-путь
+        if (!rawUrl.contains("jdbc:clickhouse:http")) {
+            Properties cleanProps = new Properties();
+            cleanProps.putAll(p);
+            cleanProps.remove("url");
+            try (java.sql.Connection connection = java.sql.DriverManager.getConnection(rawUrl, cleanProps);
+                 java.sql.Statement statement = connection.createStatement();
+                 java.sql.ResultSet resultSet = statement.executeQuery(query)) {
+                resultSet.next();
+                return resultSet.getLong(1);
+            } catch (java.sql.SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // Для ClickHouse делаем прямой, независимый HTTP-запрос
+        try {
+            // Извлекаем базовый хост (например, http://localhost:8123/)
+            String httpUrl = rawUrl.replace("jdbc:clickhouse:", "");
+            if (httpUrl.contains("?")) {
+                httpUrl = httpUrl.substring(0, httpUrl.indexOf("?"));
+            }
+
+            // Кодируем SQL-запрос для передачи в URL
+            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
+            String finalUrl = httpUrl + "?query=" + encodedQuery;
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(finalUrl))
+                    .header("X-ClickHouse-User", p.getProperty("user", "default"))
+                    .header("X-ClickHouse-Key", p.getProperty("password", ""))
+                    // Принудительно отключаем прогресс-заголовки на уровне HTTP-протокола
+                    .header("X-ClickHouse-No-Progress", "1")
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("ClickHouse HTTP query failed with status " + response.statusCode() + ": " + response.body());
+            }
+
+            // ClickHouse возвращает число со знаком переноса строки (например, "1\n"), очищаем его
+            return Long.parseLong(response.body().trim());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to count rows via ClickHouse HTTP API", e);
         }
     }
 
@@ -96,8 +160,20 @@ public class TestUtils {
     public static Properties getJdbcProperties(JdbcDatabaseContainer<?> db) {
         Properties properties = new Properties();
         properties.setProperty("url", db.getJdbcUrl());
+//        properties.setProperty("database", db.getDatabaseName());
         properties.setProperty("user", db.getUsername());
         properties.setProperty("password", db.getPassword());
+        return properties;
+    }
+
+    public static Properties getFullJdbcProperties(JdbcDatabaseContainer<?> target) {
+        String url = target.getJdbcUrl();
+//        System.out.println(url);
+        Properties properties = new Properties();
+        properties.setProperty("url", url);
+        properties.setProperty("database", target.getDatabaseName());
+        properties.setProperty("user", target.getUsername());
+        properties.setProperty("password", target.getPassword());
         return properties;
     }
 }

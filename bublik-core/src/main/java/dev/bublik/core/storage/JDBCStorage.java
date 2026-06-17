@@ -407,7 +407,6 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
             if (targetColumnsMap.containsKey(cleanSourceName)) {
                 Column targetCol = targetColumnsMap.get(cleanSourceName);
-
                 matchedPairs.add(new Column2Column(sourceCol, targetCol));
             }
         }

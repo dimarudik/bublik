@@ -1,8 +1,13 @@
 [
   {
-    "fromSchemaName": "public",
+    "fromSchemaName": "test",
     "fromTableName": "a",
-    "toSchemaName": "test",
-    "toTableName": "a"
+    "toSchemaName": "default",
+    "toTableName": "a",
+    "columnToColumn" : {
+      "a"       : "a",
+      "b"       : "b",
+      "created" : "created_at"
+    }
   }
 ]

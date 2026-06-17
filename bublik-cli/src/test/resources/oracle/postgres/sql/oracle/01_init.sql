@@ -1,7 +1,7 @@
 alter session set container = freepdb1;
 create table test.a (
-                        a int,
-                        b NUMBER(10));
+    a int,
+    b NUMBER(10));
 insert into test.a (a, b) values (1, 2.2);
 commit;
 create table test.b (

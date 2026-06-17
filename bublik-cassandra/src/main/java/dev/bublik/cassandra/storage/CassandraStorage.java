@@ -59,7 +59,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
             }
         } else if (sourceStorage instanceof JDBCStorage) {
             ResultSet resultSet = (ResultSet) chunk.getResultSet();
-            return ranged(chunk, resultSet);
+            return jdbcToCassandra(chunk, resultSet);
         }
         throw new RuntimeException("Unknown storage type");
     }
@@ -256,7 +256,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return columnValues;
     }
 
-    public LogMessage ranged(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
+    public LogMessage jdbcToCassandra(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();

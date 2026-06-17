@@ -166,4 +166,41 @@ public class PgBinaryWriterTest {
             throw new RuntimeException(e);
         }
     }
+
+    @Test
+    void pgBinaryWriter2() throws IOException, InterruptedException {
+        Properties targetProp = getJdbcProperties(target);
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/json/pgBinaryWriter2.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                targetProp);
+//        Thread.sleep(90_000);
+        assertEquals(result.sourceCount(), result.targetCount());
+
+        try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
+            Statement statement2 = connection.createStatement();
+            ResultSet rs2 = statement2.executeQuery("select * from test.g where \"Id\" = 1");
+            assertTrue(rs2.next());
+            assertEquals(1, rs2.getInt("Id"));
+            assertEquals("happy", rs2.getString("A"));
+            assertEquals("yes", rs2.getString("aBb"));
+            rs2.close();
+            statement2.close();
+
+            Statement statement3 = connection.createStatement();
+            ResultSet rs3 = statement3.executeQuery("select * from test.i where \"iD\" = 1");
+            assertTrue(rs3.next());
+            assertEquals(1, rs3.getInt("iD"));
+            assertEquals("happy", rs3.getString("a"));
+            assertEquals("yes", rs3.getString("abB"));
+            rs3.close();
+            statement3.close();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

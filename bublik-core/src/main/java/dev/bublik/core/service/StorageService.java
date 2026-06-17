@@ -84,7 +84,8 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
     static StorageClass getStorageClass(Properties properties) throws SQLException {
         String className = properties.getProperty("class");
         String url = properties.getProperty("url");
-        if (className != null && url == null) {
+//        if (className != null && url == null) {
+        if (className != null) {
             return new AutoColseableStorageClass(AutoCloseable.class, properties);
         } else {
             return new JDBCStorageClass(Connection.class, properties);

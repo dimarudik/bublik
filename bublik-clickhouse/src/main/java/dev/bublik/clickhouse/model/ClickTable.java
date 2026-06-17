@@ -1,6 +1,8 @@
 package dev.bublik.clickhouse.model;
 
-import com.clickhouse.client.api.insert.InsertResponse;
+import com.clickhouse.client.api.Client;
+import com.clickhouse.client.api.query.GenericRecord;
+import com.clickhouse.data.ClickHouseColumn;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -8,10 +10,13 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ClickTable <S extends Connection> extends Table<S> {
+import static dev.bublik.clickhouse.constants.SQLConstants.SQL_ALL_COLUMNS;
+
+public class ClickTable <S extends Client> extends Table<S> {
     private static final Logger log = LoggerFactory.getLogger(ClickTable.class);
 
     public ClickTable(String schemaName, String tableName) {
@@ -40,7 +45,22 @@ public class ClickTable <S extends Connection> extends Table<S> {
 
     @Override
     public List<Column> getAllColumns(S connection) throws SQLException {
-        return List.of();
+        List<Column> columns = new ArrayList<>();
+
+        List<GenericRecord> records = connection.queryAll(SQL_ALL_COLUMNS,
+                java.util.Map.of("db", getSchemaName(), "table", getTableName()));
+
+        for (GenericRecord record : records) {
+            long position = record.getLong("position");
+
+            Column column = new Column(
+                    (int) position,
+                    record.getString("name"),
+                    record.getString("type"),
+                    record.getString("default_expression"));
+            columns.add(column);
+        }
+        return columns;
     }
 
     @Override
@@ -105,7 +125,9 @@ public class ClickTable <S extends Connection> extends Table<S> {
 
     @Override
     public boolean enrichTable(S session) throws SQLException {
-        return false;
+        List<Column> allColumns = getAllColumns(session);
+        setColumns(allColumns);
+        return true;
     }
 
     @Override

@@ -201,6 +201,8 @@ public class PGTable<S extends Connection> extends Table<S> {
             int decimalDigits = rs.getInt("DECIMAL_DIGITS");
             String remark = rs.getString("REMARKS");
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
+//            тут
+//            System.out.println(columnName + "   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             columns.add(new Column(
                     ordinalPosition,
                     isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
@@ -544,6 +546,7 @@ public class PGTable<S extends Connection> extends Table<S> {
 
     @Override
     public boolean enrichTable(Connection session) throws SQLException {
+        // if table exists, enrich it
         if (exists(session)) {
             setColumns(getAllColumns(session));
             setPkColumns(getPrimaryKeyColumns(session));

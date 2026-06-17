@@ -158,13 +158,6 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c, c)));
             } else {
                 column2Column.addAll(matchColumns(sourceTable, targetTable));
-/*
-                sourceTable.getColumns().forEach(c -> column2Column.add(new Column2Column(c,
-                        targetTable
-                                .getColumns()
-                                .stream()
-                                .filter(c1 -> c1.columnName().equals(c.columnName())).findFirst().orElseThrow())));
-*/
             }
         }
         if (config.columnToColumn() != null) {
@@ -513,13 +506,14 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
 
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                     chunk.getT2t().targetTable().getFinalTableName(true);
-            String sql = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
-//            System.out.println(sql);
+            String sqlCopy = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
+//            тут
+//            System.out.println(sqlCopy);
 
             int pgStreamBufferSize = 1024 * 1024;
             int javaBufferSize = 64 * 1024;
             PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
-            try (PGCopyOutputStream os = new PGCopyOutputStream(pgConnection, sql, pgStreamBufferSize);
+            try (PGCopyOutputStream os = new PGCopyOutputStream(pgConnection, sqlCopy, pgStreamBufferSize);
                  PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize)) {
                 do {
                     writer.startRow((short) columnNames.size());
@@ -555,6 +549,8 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
                 continue;
             }
 
+//            тут
+//            System.out.println(sourceColumn + " " + targetColumn + " " + targetType);
             switch (targetType) {
                 case "json", "varchar", "bpchar", "char", "character": {
                     String s;
@@ -1825,7 +1821,7 @@ public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends 
     @Override
     public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
         S session = getPoolConnection();
-        if (!targetTable.enrichTable(session)) {
+        if (!targetTable.enrichTable(session) && sourceTable.getClass().equals(targetTable.getClass())) {
             targetTable.setOptions(sourceTable.getOptions());
             targetTable.setColumns(sourceTable.getColumns());
             targetTable.create(session);

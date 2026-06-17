@@ -30,6 +30,8 @@
         <Logger name="tech.ydb.query" level="error"/>
         <Logger name="com.datastax.oss.driver.internal.core" level="error"/>
         <Logger name="com.datastax.dse.driver.internal.core.type.codec" level="error"/>
+        <Logger name="com.clickhouse" level="error"/>
+        <Logger name="org.apache.hc" level="error"/>
         <Logger name="org.bublik" level="all"/>
         <Logger name="org.postgresql" level="all"/>
     </Loggers>

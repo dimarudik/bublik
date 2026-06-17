@@ -118,3 +118,21 @@ create table test.e (
     id int,
     "1" int,
     n mood);
+create table test.f (
+    "Id" int,
+    "A" varchar(20),
+    "aBb" varchar(20));
+insert into test.f ("Id", "A", "aBb") values (1,'happy', 'yes');
+create table test.g (
+    "Id" int,
+    "A" varchar(20),
+    "aBb" varchar(20));
+create table test.h (
+    "Id" int,
+    "A" varchar(20),
+    "aBb" varchar(20));
+insert into test.h ("Id", "A", "aBb") values (1,'happy', 'yes');
+create table test.i (
+    "iD" int,
+    "a" varchar(20),
+    "abB" varchar(20));

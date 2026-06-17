@@ -1,6 +1,6 @@
 create table public.a (
-   id int primary key,
-   name varchar(256));
+   "Id" int primary key,
+   "Name" varchar(256));
 create table public.b (
    uuid uuid primary key ,
    name varchar(256));

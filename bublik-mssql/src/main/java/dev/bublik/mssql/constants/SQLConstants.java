@@ -19,7 +19,6 @@ public abstract class SQLConstants {
                 ext_table varchar(256),
                 schema_name varchar(128),
                 table_name varchar(256),
-                config json,
                 required bigint,
                 copied bigint,
                 task_name varchar(128),

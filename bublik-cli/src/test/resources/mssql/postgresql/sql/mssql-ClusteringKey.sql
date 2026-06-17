@@ -5,15 +5,15 @@ create schema test;
 -- A
 create table test.a
 (
-    id int primary key,
-    name nvarchar(256)
+    "Id" int primary key,
+    "Name" nvarchar(256)
 );
 ;WITH NumberSequence AS (
     SELECT 1 AS n
     UNION ALL
     SELECT n + 1 FROM NumberSequence WHERE n < 200020
 )
- INSERT INTO test.a (id, name)
+ INSERT INTO test.a ("Id", "Name")
 SELECT n, 'Name_' + CAST(n AS VARCHAR(10))
 FROM NumberSequence OPTION (MAXRECURSION 0);
 

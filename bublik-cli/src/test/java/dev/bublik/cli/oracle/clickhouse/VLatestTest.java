@@ -3,35 +3,38 @@ package dev.bublik.cli.oracle.clickhouse;
 import dev.bublik.cli.TestResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.Properties;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
-public class OracleToClickhouseTest {
+public class VLatestTest {
     private static int rows = 20000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
-            .withInitScript("./oracle/postgres/sql/oracle/01_init.sql");
+            .withInitScript("./oracle/clickhouse/sql/oracle/01_init.sql");
 
-    private static ClickHouseContainer target = new ClickHouseContainer("clickhouse/clickhouse-server:21.11-alpine");
+    private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
+            .parse("clickhouse")
+            .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
+
+    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
+            .withInitScript("./oracle/clickhouse/sql/allTypes.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {
         source.setPortBindings(java.util.Collections.singletonList("1521:1521"));
         source.start();
+        target.setPortBindings(java.util.List.of("8123:8123", "9000:9000"));
         target.start();
     }
 
@@ -49,8 +52,7 @@ public class OracleToClickhouseTest {
     }
 
     @Test
-    void pgBinaryWriter() throws IOException, InterruptedException {
-        Properties targetProp = getJdbcProperties(target);
+    void allTypes() throws IOException, InterruptedException {
         TestResult result = getResultCount(
                 "./oracle/clickhouse/yaml/ora2click.yaml",
                 "./oracle/clickhouse/json/ora2click.json",

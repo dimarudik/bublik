@@ -1,9 +1,9 @@
 [
   {
-    "fromSchemaName" : "PUBLIC",
+    "fromSchemaName" : "public",
     "fromTableName" : "\"Source\"",
-    "toSchemaName" : "PUBLIC",
-    "toTableName" : "TARGET",
+    "toSchemaName" : "public",
+    "toTableName" : "target",
     "tryCharIfAny" : ["current_mood", "gender"],
     "columnToColumn" : {
       "id"            : "id",

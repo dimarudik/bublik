@@ -7,5 +7,6 @@ fromProperties:
 toProperties:
   class: dev.bublik.clickhouse.storage.ClickhouseStorage
   url: http://localhost:8123
+  database: default
   user: test
   password: test

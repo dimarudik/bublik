@@ -12,25 +12,12 @@ public interface NameSyntaxService {
             return false;
         }
 
-        boolean bP = (word.charAt(0) == '"' && word.charAt(word.length() - 1) == '"');
-
-        boolean bU = word.toUpperCase().equals(word);
-        boolean bL = word.toLowerCase().equals(word);
-        boolean hasMixedCase = !bU && !bL;
-
+        boolean bP = word.length() >= 2 && word.startsWith("\"") && word.endsWith("\"");
         boolean startsWithDigit = Character.isDigit(word.charAt(0));
+        boolean hasUpperCase = !word.toLowerCase().equals(word);
 
-        return bP || hasMixedCase || startsWithDigit;
+        return bP || startsWithDigit || hasUpperCase;
     }
-
-/*
-    default boolean isCaseSensitiveWord(String word) {
-        boolean bP = (word.charAt(0) == '"' && word.charAt(word.length() - 1) == '"');
-        boolean bU = word.toUpperCase().equals(word);
-        boolean bL = word.toLowerCase().equals(word);
-        return bP || (!bU && !bL);
-    }
-*/
 
     default boolean isOracleCaseSensitiveWord(String word) {
         boolean bU = word.toUpperCase().equals(word);

@@ -1,6 +1,7 @@
 package dev.bublik.clickhouse.storage;
 
 import com.clickhouse.client.api.Client;
+import dev.bublik.clickhouse.model.ClickTable;
 import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
@@ -110,7 +111,7 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
 
     @Override
     public Table<S> configToTable(String schemaName, String tableName) {
-        return null;
+        return new ClickTable<>(schemaName, tableName);
     }
 
     @Override
@@ -130,7 +131,7 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
 
     @Override
     public S getSession() {
-        return null;
+        return (S) clickClient.getClient();
     }
 
     @Override
@@ -155,7 +156,7 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
 
     @Override
     public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
-
+        targetTable.enrichTable(getSession());
     }
 
     @Override
