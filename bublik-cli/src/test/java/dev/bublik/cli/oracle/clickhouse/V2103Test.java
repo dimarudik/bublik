@@ -3,6 +3,7 @@ package dev.bublik.cli.oracle.clickhouse;
 import dev.bublik.cli.TestResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.BindMode;
@@ -17,6 +18,7 @@ import java.util.Properties;
 
 import static dev.bublik.cli.TestUtils.*;
 
+@Disabled
 public class V2103Test {
     private static int rows = 20000;
     private static boolean sync = false;

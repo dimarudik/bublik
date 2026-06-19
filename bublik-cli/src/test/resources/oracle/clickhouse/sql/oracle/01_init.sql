@@ -30,9 +30,26 @@ create table test.b (
     uuid char(36)
 );
 INSERT INTO test.b (
-    id, a, b, c, d, "ALL", "LEVEL", e,
-    t, create_at, gender, byteablob, textclob, exclude_me,
-    "CaseSensitive", country_id, rawbytea, json_like, doc, uuid
+    id,
+    a,
+    b,
+    c,
+    d,
+    "ALL",
+    "LEVEL",
+    e,
+    t,
+    create_at,
+    gender,
+    byteablob,
+    textclob,
+    exclude_me,
+    "CaseSensitive",
+    country_id,
+    rawbytea,
+    json_like,
+    doc,
+    uuid
 )
 SELECT
     1,
@@ -43,8 +60,10 @@ SELECT
     'Тестовая строка NVARCHAR2',
     'Уровень доступа VARCHAR2',
     123.45,
-    CURRENT_TIMESTAMP,
-    SYSTIMESTAMP,
+    TO_TIMESTAMP('2026-06-18 15:01:37', 'YYYY-MM-DD HH24:MI:SS'),
+    TO_TIMESTAMP_TZ('2026-06-18 15:01:37.694864 +00:00', 'YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM'),
+--     CURRENT_TIMESTAMP,
+--     SYSTIMESTAMP,
     1,
     TO_BLOB(HEXTORAW('DEADBEEF01020304')),
     TO_CLOB('Текст внутри поля CLOB'),
@@ -56,5 +75,6 @@ SELECT
     '{"user": "Dmitrii", "role": "admin"}',
     '3e2e125a-b6c9-4f9b-9682-d21ec40564bc'
 FROM dual;
-INSERT INTO test.b (id) VALUES (2);
+INSERT INTO test.b (id, exclude_me) VALUES (2, 900);
+INSERT INTO test.b (id) VALUES (3);
 COMMIT;

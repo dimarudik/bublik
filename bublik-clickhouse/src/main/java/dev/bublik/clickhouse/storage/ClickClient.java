@@ -21,6 +21,7 @@ public class ClickClient {
                 .setUsername(properties.getProperty("user"))
                 .setPassword(properties.getProperty("password"))
                 .setMaxConnections(size)
+//                .useAsyncRequests(false)
                 .setConnectTimeout(10, ChronoUnit.SECONDS)
                 .setSocketTimeout(5, ChronoUnit.MINUTES)
                 .build();

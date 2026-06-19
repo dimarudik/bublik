@@ -1,13 +1,8 @@
 [
   {
     "fromSchemaName": "test",
-    "fromTableName": "a",
+    "fromTableName": "b",
     "toSchemaName": "default",
-    "toTableName": "a",
-    "columnToColumn" : {
-      "a"       : "a",
-      "b"       : "b",
-      "created" : "created_at"
-    }
+    "toTableName": "b"
   }
 ]

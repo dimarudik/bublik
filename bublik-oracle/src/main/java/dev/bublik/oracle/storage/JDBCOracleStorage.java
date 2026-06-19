@@ -357,11 +357,25 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
 
     @Override
     public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+/*
+        List<Column2Column> originalColumns = t2t.column2Columns();
+        List<Column2Column> sortedColumn2Columns = originalColumns.stream()
+                .sorted(Comparator.comparingInt(c2c -> c2c.targetColumn().columnPosition()))
+                .toList();
+*/
+        List<Column2Column> sortedColumn2Columns = t2t.getSortedColumn2ColumnByTargetColumnPosition();
+        List<String> asColumns = new ArrayList<>(sortedColumn2Columns
+                .stream()
+                .filter(c2c -> c2c.sourceColumn() != null)
+                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
+                .toList());
+/*
         List<String> asColumns = t2t.column2Columns()
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
+*/
         List<String> asList = t2t.column2Columns()
                 .stream()
                 .map(Column2Column::asList)
@@ -390,14 +404,18 @@ public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Con
                 .flatMap(Collection::stream)
                 .distinct()
                 .toList();
-        Set<String> set = new HashSet<>(asColumns);
+//        Set<String> set = new HashSet<>(asColumns);
+        Set<String> set = new HashSet<>();
         set.addAll(asList);
         set.addAll(asSet);
         set.addAll(asMap.stream().map(KV::key).toList());
         set.addAll(asMap.stream().map(KV::value).toList());
         set.addAll(asUDT);
-        List<String> finalList = set.stream().toList();
-        String columnToColumn = String.join(", ", finalList);
+        asColumns.addAll(set);
+//        List<String> finalList = asColumns;
+//        List<String> finalList = set.stream().toList();
+//        String columnToColumn = String.join(", ", finalList);
+        String columnToColumn = String.join(", ", asColumns);
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +
                 columnToColumn + " " +

@@ -1,10 +1,9 @@
 package dev.bublik.clickhouse.service;
 
-import com.clickhouse.client.api.data_formats.RowBinaryFormatWriter;
-
+import java.io.OutputStream;
 import java.sql.ResultSet;
 
 @FunctionalInterface
 public interface ColumnTransfer {
-    void transfer(ResultSet rs, String srcColumnName, RowBinaryFormatWriter writer, int chIndex) throws Exception;
+    void transfer(ResultSet rs, int jdbcIndex, com.google.common.io.LittleEndianDataOutputStream out) throws Exception;
 }
