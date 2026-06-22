@@ -1,6 +1,17 @@
 [
   {
     "fromSchemaName": "test",
+    "fromTableName": "a",
+    "toSchemaName": "default",
+    "toTableName": "a",
+    "columnToColumn" : {
+      "a"       : "a",
+      "b"       : "b",
+      "created" : "created_at"
+    }
+  },
+  {
+    "fromSchemaName": "test",
     "fromTableName": "b",
     "toSchemaName": "default",
     "toTableName": "b"

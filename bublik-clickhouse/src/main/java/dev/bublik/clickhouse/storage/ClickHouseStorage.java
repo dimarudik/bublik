@@ -22,8 +22,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public class ClickhouseStorage<K, T, S extends Client, R> extends ClickStorage<K, T, S, R> {
-    public ClickhouseStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
+public class ClickHouseStorage<K, T, S extends Client, R> extends ClickStorage<K, T, S, R> {
+    public ClickHouseStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
     }
 
@@ -190,6 +190,35 @@ public class ClickhouseStorage<K, T, S extends Client, R> extends ClickStorage<K
                     break;
                 }
 
+                case "int16", "uint16": {
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        Object v = r.getObject(jdbcIdx);
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+                        switch (v) {
+                            case null -> {
+                                out.writeShort((short) 0);
+                                return;
+                            }
+                            case Number number -> out.writeShort(number.shortValue());
+                            case Boolean bool -> out.writeShort((short) (bool ? 1 : 0));
+                            default -> {
+                                try {
+                                    out.writeShort(Short.parseShort(v.toString().trim()));
+                                } catch (Exception ex) {
+                                    out.writeShort((short) 0);
+                                }
+                            }
+                        }
+                    };
+                    break;
+                }
+
                 case "int32", "uint32": {
                     transfers[i] = (r, jdbcIdx, out) -> {
                         Object v = r.getObject(jdbcIdx);
@@ -244,6 +273,86 @@ public class ClickhouseStorage<K, T, S extends Client, R> extends ClickStorage<K
                                 }
                             }
                         }
+                    };
+                    break;
+                }
+
+                case "int128", "uint128": {
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        Object v = r.getObject(jdbcIdx);
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+
+                        java.math.BigInteger bigInt;
+                        switch (v) {
+                            case null -> bigInt = java.math.BigInteger.ZERO;
+                            case java.math.BigInteger bi -> bigInt = bi;
+                            case Number num -> bigInt = new java.math.BigInteger(num.toString());
+                            default -> {
+                                try {
+                                    bigInt = new java.math.BigInteger(v.toString().trim());
+                                } catch (Exception ex) {
+                                    bigInt = java.math.BigInteger.ZERO;
+                                }
+                            }
+                        }
+
+                        byte[] rawBytes = bigInt.toByteArray();
+                        // Строго по спецификации RowBinary: 16 байт для Int128/UInt128
+                        byte[] finalBytes = new byte[16];
+                        byte signByte = (byte) (bigInt.signum() < 0 ? 0xFF : 0x00);
+                        java.util.Arrays.fill(finalBytes, signByte);
+
+                        int bytesToCopy = Math.min(rawBytes.length, 16);
+                        for (int j = 0; j < bytesToCopy; j++) {
+                            finalBytes[j] = rawBytes[rawBytes.length - 1 - j];
+                        }
+                        out.write(finalBytes);
+                    };
+                    break;
+                }
+
+                case "int256", "uint256": {
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        Object v = r.getObject(jdbcIdx);
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+
+                        java.math.BigInteger bigInt;
+                        switch (v) {
+                            case null -> bigInt = java.math.BigInteger.ZERO;
+                            case java.math.BigInteger bi -> bigInt = bi;
+                            case Number num -> bigInt = new java.math.BigInteger(num.toString());
+                            default -> {
+                                try {
+                                    bigInt = new java.math.BigInteger(v.toString().trim());
+                                } catch (Exception ex) {
+                                    bigInt = java.math.BigInteger.ZERO;
+                                }
+                            }
+                        }
+
+                        byte[] rawBytes = bigInt.toByteArray();
+                        // Строго по спецификации RowBinary: 32 байта для Int256/UInt256
+                        byte[] finalBytes = new byte[32];
+                        byte signByte = (byte) (bigInt.signum() < 0 ? 0xFF : 0x00);
+                        java.util.Arrays.fill(finalBytes, signByte);
+
+                        int bytesToCopy = Math.min(rawBytes.length, 32);
+                        for (int j = 0; j < bytesToCopy; j++) {
+                            finalBytes[j] = rawBytes[rawBytes.length - 1 - j];
+                        }
+                        out.write(finalBytes);
                     };
                     break;
                 }
@@ -304,6 +413,44 @@ public class ClickhouseStorage<K, T, S extends Client, R> extends ClickStorage<K
                                 }
                             }
                         }
+                    };
+                    break;
+                }
+
+                case "bfloat16": {
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        Object v = r.getObject(jdbcIdx);
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1); // NULL - ничего не следует
+                                return;
+                            }
+                            out.writeByte(0); // Значение присутствует
+                        }
+
+                        float fVal;
+                        switch (v) {
+                            case null -> fVal = 0.0f;
+                            case Number number -> fVal = number.floatValue();
+                            case Boolean bool -> fVal = bool ? 1.0f : 0.0f;
+                            default -> {
+                                try {
+                                    fVal = Float.parseFloat(v.toString().trim());
+                                } catch (Exception ex) {
+                                    fVal = 0.0f;
+                                }
+                            }
+                        }
+
+                        // КОНВЕРТАЦИЯ FLOAT32 -> BFLOAT16 STRICTLY BY SPECIFICATION:
+                        // 1. Получаем полные 32-битные аппаратно-зависимые биты IEEE 754
+                        int bits = Float.floatToIntBits(fVal);
+
+                        // 2. Сдвигаем на 16 бит вправо, оставляя старшие 2 байта (знак + экспонента + мантисса)
+                        int bfloatBits = bits >>> 16;
+
+                        // 3. Записываем ровно 2 байта в Little-Endian поток
+                        out.writeShort((short) bfloatBits);
                     };
                     break;
                 }

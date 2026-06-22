@@ -144,4 +144,69 @@ public class V2111Test {
         }
     }
 
+    @Test
+    void column2Column() throws IOException, InterruptedException {
+        Properties targetProps = getJdbcProperties(target);
+        TestResult result = getResultCount(
+                "./oracle/clickhouse/yaml/ora2click.yaml",
+                "./oracle/clickhouse/json/c2c.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                targetProps);
+        assertEquals(result.sourceCount(), result.targetCount());
+//        Thread.sleep(100_000);
+        Properties cleanProps = new Properties();
+        cleanProps.putAll(targetProps);
+        cleanProps.remove("url");
+        try (Connection connection =
+                     DriverManager.getConnection(targetProps.getProperty("url"), cleanProps)) {
+
+            Statement statement1 = connection.createStatement();
+            ResultSet rs1 = statement1.executeQuery("select * from c where ID = 1");
+            assertTrue(rs1.next());
+
+            assertEquals(1, rs1.getLong("ID"));
+            assertEquals(123456.78, rs1.getDouble("A"), 0.001);
+            assertEquals("Тестовая строка NVARCHAR2", rs1.getString("ALL"));
+            assertEquals("3e2e125a-b6c9-4f9b-9682-d21ec40564bc", rs1.getString("UUID"));
+
+            rs1.close();
+            statement1.close();
+
+            Statement statement2 = connection.createStatement();
+            ResultSet rs2 = statement2.executeQuery("select * from c where ID = 2");
+            assertTrue(rs2.next());
+
+            assertEquals(2, rs2.getLong("ID"));
+
+            rs2.getInt("EXCLUDE_ME"); assertTrue(rs2.wasNull());
+            rs2.getBigDecimal("A"); assertTrue(rs2.wasNull());
+            rs2.getLong("B");       assertTrue(rs2.wasNull());
+            rs2.getString("C");     assertTrue(rs2.wasNull());
+            rs2.getString("D");     assertTrue(rs2.wasNull());
+            rs2.getString("ALL");   assertTrue(rs2.wasNull());
+            rs2.getString("LEVEL"); assertTrue(rs2.wasNull());
+            rs2.getFloat("E");      assertTrue(rs2.wasNull());
+            rs2.getTimestamp("T");  assertTrue(rs2.wasNull());
+            rs2.getTimestamp("CREATE_AT"); assertTrue(rs2.wasNull());
+            rs2.getInt("GENDER");   assertTrue(rs2.wasNull());
+            rs2.getString("BYTEABLOB");    assertTrue(rs2.wasNull());
+            rs2.getString("TEXTCLOB");     assertTrue(rs2.wasNull());
+            rs2.getString("CaseSensitive"); assertTrue(rs2.wasNull());
+            rs2.getInt("COUNTRY_ID");      assertTrue(rs2.wasNull());
+            rs2.getString("RAWBYTEA");     assertTrue(rs2.wasNull());
+            rs2.getString("JSON_LIKE");    assertTrue(rs2.wasNull());
+            rs2.getString("DOC");          assertTrue(rs2.wasNull());
+            rs2.getString("UUID");         assertTrue(rs2.wasNull());
+
+            rs2.close();
+            statement2.close();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
 }

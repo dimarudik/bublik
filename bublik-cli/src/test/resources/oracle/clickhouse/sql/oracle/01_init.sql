@@ -27,7 +27,11 @@ create table test.b (
     rawbytea raw(16),
     json_like varchar2(4000),
     doc varchar2(4000) check (doc is json),
-    uuid char(36)
+    uuid char(36),
+    int16_t number(5),
+    int128_t number,
+    int256_t VARCHAR2(80),
+    bfloat16_t number
 );
 INSERT INTO test.b (
     id,
@@ -49,7 +53,11 @@ INSERT INTO test.b (
     rawbytea,
     json_like,
     doc,
-    uuid
+    uuid,
+    int16_t,
+    int128_t,
+    int256_t,
+    bfloat16_t
 )
 SELECT
     1,
@@ -73,8 +81,14 @@ SELECT
     HEXTORAW('AABBCCDDEEFF00112233445566778899'),
     '{"key": "just_string"}',
     '{"user": "Dmitrii", "role": "admin"}',
-    '3e2e125a-b6c9-4f9b-9682-d21ec40564bc'
+    '3e2e125a-b6c9-4f9b-9682-d21ec40564bc',
+    32767,
+    170141183460469231731687303715884105727,
+    '57896044618658097711785492504343953926634992332820282019728792003956564819967',
+    123.45
 FROM dual;
 INSERT INTO test.b (id, exclude_me) VALUES (2, 900);
 INSERT INTO test.b (id) VALUES (3);
+INSERT INTO test.b (id, t, a) VALUES (4, TO_TIMESTAMP('2026-06-18 15:01:38', 'YYYY-MM-DD HH24:MI:SS'), 200);
+INSERT INTO test.b (id, t, a) VALUES (4, TO_TIMESTAMP('2026-06-18 15:01:37', 'YYYY-MM-DD HH24:MI:SS'), 100);
 COMMIT;

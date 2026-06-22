@@ -1,0 +1,18 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "toSchemaName": "default",
+    "toTableName": "d",
+    "columnToColumn" : {
+      "ID"    : "ID",
+      "A"     : "A",
+      "UUID"  : "UUID",
+      "ALL"   : "ALL",
+      "T"     : "T"
+    },
+    "expressionToColumn" : {
+      "ID * 2 as GENDER" : "GENDER"
+    }
+  }
+]

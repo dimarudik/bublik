@@ -5,7 +5,7 @@ fromProperties:
   user: test
   password: test
 toProperties:
-  class: dev.bublik.clickhouse.storage.ClickhouseStorage
+  class: dev.bublik.clickhouse.storage.ClickHouseStorage
   url: http://localhost:8123
   database: default
   user: test

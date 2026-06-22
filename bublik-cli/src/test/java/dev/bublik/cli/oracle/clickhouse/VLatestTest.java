@@ -63,8 +63,8 @@ public class VLatestTest {
                 sync,
                 getJdbcProperties(source),
                 targetProps);
-//        Thread.sleep(300_000);
         assertEquals(result.sourceCount(), result.targetCount());
+//        Thread.sleep(200_000);
 
         Properties cleanProps = new Properties();
         cleanProps.putAll(targetProps);
@@ -73,7 +73,10 @@ public class VLatestTest {
                      DriverManager.getConnection(targetProps.getProperty("url"), cleanProps)) {
 
             Statement statement1 = connection.createStatement();
-            ResultSet rs1 = statement1.executeQuery("select * from b where ID = 1");
+            ResultSet rs1 = statement1.executeQuery(
+                    "select ID,A,B,C,D,ALL,LEVEL,E,T,CREATE_AT,GENDER,BYTEABLOB,TEXTCLOB,EXCLUDE_ME," +
+                            "CaseSensitive,COUNTRY_ID,RAWBYTEA,JSON_LIKE,DOC,UUID,INT16_T,INT128_T,INT256_T, " +
+                            "toFloat32(BFLOAT16_T) AS bfloat16_check from b where ID = 1");
             assertTrue(rs1.next());
 
             assertEquals(1, rs1.getLong("ID"));
@@ -108,11 +111,22 @@ public class VLatestTest {
             assertNotNull(tsCreateAt);
             assertTrue(tsCreateAt.toString().contains("2026-06-18"));
 
+            assertEquals(32767, rs1.getInt("INT16_T"));
+            String expectedInt128 = "170141183460469231731687303715884105727";
+            assertEquals(expectedInt128, rs1.getObject("INT128_T").toString().trim());
+            String expectedInt256 = "57896044618658097711785492504343953926634992332820282019728792003956564819967";
+            assertEquals(expectedInt256, rs1.getObject("INT256_T").toString().trim());
+
+            assertEquals(123.0f, rs1.getFloat("bfloat16_check"), 0.001f);
+
             rs1.close();
             statement1.close();
 
             Statement statement2 = connection.createStatement();
-            ResultSet rs2 = statement2.executeQuery("select * from b where ID = 2");
+            ResultSet rs2 = statement2.executeQuery(
+                    "select ID,A,B,C,D,ALL,LEVEL,E,T,CREATE_AT,GENDER,BYTEABLOB,TEXTCLOB,EXCLUDE_ME," +
+                            "CaseSensitive,COUNTRY_ID,RAWBYTEA,JSON_LIKE,DOC,UUID,INT16_T,INT128_T,INT256_T, " +
+                            "toFloat32(BFLOAT16_T) AS bfloat16_check from b where ID = 2");
             assertTrue(rs2.next());
 
             assertEquals(2, rs2.getLong("ID"));
@@ -138,10 +152,115 @@ public class VLatestTest {
             rs2.getString("JSON_LIKE");    assertTrue(rs2.wasNull());
             rs2.getString("DOC");          assertTrue(rs2.wasNull());
             rs2.getString("UUID");         assertTrue(rs2.wasNull());
+            rs2.getObject("INT16_T");  assertTrue(rs2.wasNull());
+            rs2.getObject("INT128_T"); assertTrue(rs2.wasNull());
+            rs2.getObject("INT256_T"); assertTrue(rs2.wasNull());
+            rs2.getFloat("bfloat16_check"); assertTrue(rs2.wasNull());
 
             rs2.close();
             statement2.close();
 
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void column2Column() throws IOException, InterruptedException {
+        Properties targetProps = getJdbcProperties(target);
+        TestResult result = getResultCount(
+                "./oracle/clickhouse/yaml/ora2click.yaml",
+                "./oracle/clickhouse/json/c2c.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                targetProps);
+        assertEquals(result.sourceCount(), result.targetCount());
+//        Thread.sleep(100_000);
+        Properties cleanProps = new Properties();
+        cleanProps.putAll(targetProps);
+        cleanProps.remove("url");
+        try (Connection connection =
+                     DriverManager.getConnection(targetProps.getProperty("url"), cleanProps)) {
+
+            Statement statement1 = connection.createStatement();
+            ResultSet rs1 = statement1.executeQuery("select * from c where ID = 1");
+            assertTrue(rs1.next());
+
+            assertEquals(1, rs1.getLong("ID"));
+            assertEquals(123456.78, rs1.getDouble("A"), 0.001);
+            assertEquals("Тестовая строка NVARCHAR2", rs1.getString("ALL"));
+            assertEquals("3e2e125a-b6c9-4f9b-9682-d21ec40564bc", rs1.getString("UUID"));
+
+            rs1.close();
+            statement1.close();
+
+            Statement statement2 = connection.createStatement();
+            ResultSet rs2 = statement2.executeQuery("select * from c where ID = 2");
+            assertTrue(rs2.next());
+
+            assertEquals(2, rs2.getLong("ID"));
+
+            rs2.getInt("EXCLUDE_ME"); assertTrue(rs2.wasNull());
+            rs2.getBigDecimal("A"); assertTrue(rs2.wasNull());
+            rs2.getLong("B");       assertTrue(rs2.wasNull());
+            rs2.getString("C");     assertTrue(rs2.wasNull());
+            rs2.getString("D");     assertTrue(rs2.wasNull());
+            rs2.getString("ALL");   assertTrue(rs2.wasNull());
+            rs2.getString("LEVEL"); assertTrue(rs2.wasNull());
+            rs2.getFloat("E");      assertTrue(rs2.wasNull());
+            rs2.getTimestamp("T");  assertTrue(rs2.wasNull());
+            rs2.getTimestamp("CREATE_AT"); assertTrue(rs2.wasNull());
+            rs2.getInt("GENDER");   assertTrue(rs2.wasNull());
+            rs2.getString("BYTEABLOB");    assertTrue(rs2.wasNull());
+            rs2.getString("TEXTCLOB");     assertTrue(rs2.wasNull());
+            rs2.getString("CaseSensitive"); assertTrue(rs2.wasNull());
+            rs2.getInt("COUNTRY_ID");      assertTrue(rs2.wasNull());
+            rs2.getString("RAWBYTEA");     assertTrue(rs2.wasNull());
+            rs2.getString("JSON_LIKE");    assertTrue(rs2.wasNull());
+            rs2.getString("DOC");          assertTrue(rs2.wasNull());
+            rs2.getString("UUID");         assertTrue(rs2.wasNull());
+
+            rs2.close();
+            statement2.close();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    @Test
+    void expression2Column() throws IOException, InterruptedException {
+        Properties targetProps = getJdbcProperties(target);
+        TestResult result = getResultCount(
+                "./oracle/clickhouse/yaml/ora2click.yaml",
+                "./oracle/clickhouse/json/e2c.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                targetProps);
+        assertEquals(result.sourceCount(), result.targetCount() + 1);
+//        Thread.sleep(100_000);
+        Properties cleanProps = new Properties();
+        cleanProps.putAll(targetProps);
+        cleanProps.remove("url");
+        try (Connection connection =
+                     DriverManager.getConnection(targetProps.getProperty("url"), cleanProps)) {
+
+            Statement statement1 = connection.createStatement();
+            ResultSet rs1 = statement1.executeQuery("select * from d final where ID = 4");
+            assertTrue(rs1.next());
+
+            assertEquals(4, rs1.getLong("ID"));
+            assertEquals(200, rs1.getDouble("A"), 0.001);
+
+            java.sql.Timestamp tsT = rs1.getTimestamp("T");
+            assertNotNull(tsT);
+            assertTrue(tsT.toString().contains("2026-06-18"));
+
+            rs1.close();
+            statement1.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

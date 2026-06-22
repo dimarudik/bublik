@@ -1,0 +1,14 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "toSchemaName": "default",
+    "toTableName": "c",
+    "columnToColumn" : {
+      "ID"    : "ID",
+      "A"     : "A",
+      "UUID"  : "UUID",
+      "ALL"   : "ALL"
+    }
+  }
+]
