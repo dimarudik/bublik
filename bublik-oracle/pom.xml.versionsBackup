@@ -6,10 +6,10 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.2.51</version>
+        <version>26.2.50</version>
     </parent>
 
-    <artifactId>bublik-mssql</artifactId>
+    <artifactId>bublik-oracle</artifactId>
     <version>${project.parent.version}</version>
     <packaging>jar</packaging>
 
@@ -22,8 +22,8 @@
         </developer>
     </developers>
 
-    <name>bublik-mssql</name>
-    <description>Bublik mssql module</description>
+    <name>bublik-oracle</name>
+    <description>Bublik oracle module</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>
@@ -39,6 +39,10 @@
         <url>https://github.com/dimarudik/bublik/tree/stable</url>
     </scm>
 
+    <properties>
+        <oracle.version>23.9.0.25.07</oracle.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>dev.bublik</groupId>
@@ -46,16 +50,19 @@
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <version>${oracle.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.database.nls</groupId>
+            <artifactId>orai18n</artifactId>
+            <version>${oracle.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.microsoft.sqlserver</groupId>
-            <artifactId>mssql-jdbc</artifactId>
-            <version>13.3.1.jre11-preview</version>
-            <scope>compile</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

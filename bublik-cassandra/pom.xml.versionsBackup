@@ -6,10 +6,10 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.2.51</version>
+        <version>26.2.50</version>
     </parent>
 
-    <artifactId>bublik-mssql</artifactId>
+    <artifactId>bublik-cassandra</artifactId>
     <version>${project.parent.version}</version>
     <packaging>jar</packaging>
 
@@ -22,8 +22,8 @@
         </developer>
     </developers>
 
-    <name>bublik-mssql</name>
-    <description>Bublik mssql module</description>
+    <name>bublik-cassandra</name>
+    <description>Bublik cassandra module</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>
@@ -39,6 +39,10 @@
         <url>https://github.com/dimarudik/bublik/tree/stable</url>
     </scm>
 
+    <properties>
+        <datastax.driver.version>4.17.0</datastax.driver.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>dev.bublik</groupId>
@@ -46,16 +50,19 @@
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>4.2.6.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.cassandra</groupId>
+            <artifactId>java-driver-core</artifactId>
+            <version>4.19.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.microsoft.sqlserver</groupId>
-            <artifactId>mssql-jdbc</artifactId>
-            <version>13.3.1.jre11-preview</version>
-            <scope>compile</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -117,5 +124,44 @@
             </plugin>
         </plugins>
     </build>
+
+    <!--
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>2.8</version>
+                    <executions>
+                        <execution>
+                            <id>copy-dependencies</id>
+                            <phase>prepare-package</phase>
+                            <goals>
+                                <goal>copy-dependencies</goal>
+                            </goals>
+                            <configuration>
+                                <outputDirectory>
+                                    ${project.build.directory}/lib
+                                </outputDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.2.0</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addClasspath>true</addClasspath>
+                                <classpathPrefix>lib/</classpathPrefix>
+                            </manifest>
+                        </archive>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </build>
+    -->
 
 </project>

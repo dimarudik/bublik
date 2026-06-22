@@ -27,7 +27,7 @@ public class V2111Test {
             .withInitScript("./oracle/clickhouse/sql/oracle/01_init.sql");
 
     private static ClickHouseContainer target = new ClickHouseContainer("clickhouse/clickhouse-server:21.11-alpine")
-            .withInitScript("./oracle/clickhouse/sql/allTypes.sql");
+            .withInitScript("./oracle/clickhouse/sql/allTypes2111.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {
