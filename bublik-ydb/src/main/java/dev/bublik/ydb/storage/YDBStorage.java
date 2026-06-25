@@ -20,10 +20,10 @@ import java.util.Map;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.ydb.constants.SQLConstants.*;
 
-public class JDBCYDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(JDBCYDBStorage.class);
+public class YDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T, S, R> {
+    private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
 
-    public JDBCYDBStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    public YDBStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 

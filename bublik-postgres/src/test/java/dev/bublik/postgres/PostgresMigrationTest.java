@@ -1,0 +1,96 @@
+package dev.bublik.postgres;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.storage.Storage;
+import dev.bublik.postgres.storage.PostgresStorage;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+public class PostgresMigrationTest {
+    static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
+            DockerImageName.parse("postgres"));
+
+    static HikariDataSource sourceDataSource;
+    static HikariDataSource targetDataSource;
+
+    @BeforeAll
+    static void beforeAll() throws Exception {
+        postgres.start();
+
+        HikariConfig sourceConfig = new HikariConfig();
+        sourceConfig.setJdbcUrl(postgres.getJdbcUrl());
+        sourceConfig.setUsername(postgres.getUsername());
+        sourceConfig.setPassword(postgres.getPassword());
+        sourceConfig.setMaximumPoolSize(5);
+        sourceDataSource = new HikariDataSource(sourceConfig);
+
+        HikariConfig targetConfig = new HikariConfig();
+        targetConfig.setJdbcUrl(postgres.getJdbcUrl());
+        targetConfig.setUsername(postgres.getUsername());
+        targetConfig.setPassword(postgres.getPassword());
+        targetConfig.setMaximumPoolSize(5);
+        targetDataSource = new HikariDataSource(targetConfig);
+
+        try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE source_users (id SERIAL PRIMARY KEY, name VARCHAR(100))");
+            stmt.execute("CREATE TABLE target_users (id INT PRIMARY KEY, name VARCHAR(100))");
+
+            stmt.execute("INSERT INTO source_users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+        }
+    }
+
+    @AfterAll
+    static void afterAll() {
+        if (sourceDataSource != null) sourceDataSource.close();
+        if (targetDataSource != null) targetDataSource.close();
+        postgres.stop();
+    }
+
+    @Test
+    void testPostgresToPostgresMigration() throws Exception {
+        Storage<Integer, Long, Connection, ResultSet> sourceStorage = new PostgresStorage<>(sourceDataSource);
+        Storage<Integer, Long, Connection, ResultSet> targetStorage = new PostgresStorage<>(targetDataSource);
+
+        List<Config> configs = new ArrayList<>();
+        Config tableConfig = new Config(
+                "public",
+                "source_users",
+                "public",
+                "target_users"
+        );
+        configs.add(tableConfig);
+
+        String chunkTableName = "bublik_chunks";
+        sourceStorage.start(configs, false, 1000, targetStorage, chunkTableName);
+
+        try (Connection conn = targetDataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {
+
+            assertTrue(rs.next());
+            int count = rs.getInt(1);
+            String firstUser = rs.getString(2);
+
+            assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
+        }
+
+        sourceStorage.closeStorage();
+        targetStorage.closeStorage();
+    }
+}

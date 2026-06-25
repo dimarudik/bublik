@@ -20,10 +20,10 @@ import java.util.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
-public class JDBCOracleStorage<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(JDBCOracleStorage.class);
+public class OracleStorage<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
+    private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
 
-    public JDBCOracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    public OracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 

@@ -27,21 +27,46 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         implements JDBCStorageService<K, T, S, R>, Source, Target {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
-    protected final int threadCount;
     private Connection connection;
+    private final boolean isManagedPool;
 
-    public JDBCStorage(ConnectionProperty connectionProperty) throws SQLException{
-        super(connectionProperty);
-        HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);
-        this.dataSource = new HikariDataSource(hikariConfig);
-        this.threadCount = connectionProperty.getThreadCount();
+    public JDBCStorage(DataSource dataSource) {
+        super(new ConnectionProperty());
+        this.dataSource = dataSource;
+        this.threadCount = getMaxPoolSize(dataSource, 10);
+        this.isManagedPool = false;
     }
 
-    protected JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    public JDBCStorage(DataSource dataSource, int threadCount) {
+        super(new ConnectionProperty());
+        this.dataSource = dataSource;
+        this.threadCount = threadCount;
+        this.isManagedPool = false;
+    }
+
+    protected JDBCStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
+        super(connectionProperty);
+        this.dataSource = dataSource;
+        this.threadCount = connectionProperty.getThreadCount();
+        this.isManagedPool = false;
+    }
+
+    public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
-        HikariConfig hikariConfig = buildConfiguration(getStorageClass().getProperties(), connectionProperty);
+        HikariConfig hikariConfig = buildConfiguration(storageClass.getProperties(), connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
+        this.isManagedPool = true;
+    }
+
+    private static int getMaxPoolSize(DataSource dataSource, int defaultValue) {
+        if (dataSource == null) {
+            return defaultValue;
+        }
+        if (dataSource instanceof HikariDataSource) {
+            return ((HikariDataSource) dataSource).getMaximumPoolSize();
+        }
+        return defaultValue;
     }
 
     @Override
@@ -74,7 +99,14 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
     @Override
     public S getPoolConnection() throws SQLException {
-            return (S) dataSource.getConnection();
+        Connection conn = dataSource.getConnection();
+
+        if (conn.getAutoCommit()) {
+            conn.setAutoCommit(false);
+            log.debug("Auto-commit was ENABLED on external DataSource. Forcefully disabled for batch processing.");
+        }
+
+        return (S) conn;
     }
 
     @Override
@@ -286,6 +318,17 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             log.info("HikariDataSource closed successfully.");
         } else {
             log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
+        }
+
+        if (isManagedPool && dataSource instanceof AutoCloseable) {
+            try {
+                ((AutoCloseable) dataSource).close();
+                log.info("Bublik-managed HikariDataSource successfully closed.");
+            } catch (Exception e) {
+                log.error("Error closing managed HikariDataSource: {}", e.getMessage());
+            }
+        } else {
+            log.debug("DataSource is managed by external system (e.g. Spring). Skipping closure.");
         }
     }
 

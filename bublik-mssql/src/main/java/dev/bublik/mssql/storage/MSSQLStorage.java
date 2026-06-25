@@ -19,10 +19,10 @@ import static dev.bublik.core.constants.Constants.FROM;
 import static dev.bublik.core.constants.Constants.TO;
 import static dev.bublik.mssql.constants.SQLConstants.*;
 
-public class JDBCMSSQLStorage<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(JDBCMSSQLStorage.class);
+public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
+    private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
 
-    public JDBCMSSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    public MSSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 

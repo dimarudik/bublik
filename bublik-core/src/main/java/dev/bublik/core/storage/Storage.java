@@ -9,6 +9,7 @@ import java.util.Map;
 
 public abstract class Storage<K, T, S extends AutoCloseable, R> implements StorageService<K, T, S, R>, Wrapper, AutoCloseable {
     private final StorageClass storageClass;
+    protected int threadCount;
     private final ConnectionProperty connectionProperty;
     private Map<Table<S>, Table<S>> tables;
 
@@ -36,5 +37,9 @@ public abstract class Storage<K, T, S extends AutoCloseable, R> implements Stora
 
     public ConnectionProperty getConnectionProperty() {
         return connectionProperty;
+    }
+
+    public int getThreadCount() {
+        return threadCount;
     }
 }

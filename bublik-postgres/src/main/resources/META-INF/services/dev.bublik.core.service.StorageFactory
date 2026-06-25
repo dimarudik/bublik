@@ -1,1 +1,1 @@
-dev.bublik.postgres.storage.PostgreSQLStorageFactory
+dev.bublik.postgres.storage.PostgresStorageFactory

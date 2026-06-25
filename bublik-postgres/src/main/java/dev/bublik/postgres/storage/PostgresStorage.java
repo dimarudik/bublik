@@ -11,13 +11,13 @@ import dev.bublik.core.storage.StorageClass;
 import dev.bublik.postgres.model.PGChunk;
 import dev.bublik.postgres.model.PGTable;
 import dev.bublik.postgres.model.PgIntervalComponents;
-import dev.bublik.postgres.service.StreamApiService;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.PGCopyOutputStream;
 import org.postgresql.replication.LogSequenceNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -32,16 +32,22 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.postgres.constants.SQLConstants.*;
 import static dev.bublik.postgres.util.ColumnUtil.*;
 
-public class JDBCPostgreSQLStorage<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(JDBCPostgreSQLStorage.class);
-    StreamApiService streamApiService = new StreamApiService();
+public class PostgresStorage<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
+    private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
 
-
-    public JDBCPostgreSQLStorage(ConnectionProperty connectionProperty) throws SQLException {
-        super(connectionProperty);
+    public PostgresStorage(DataSource dataSource) {
+        super(dataSource);
     }
 
-    public JDBCPostgreSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
+    public PostgresStorage(DataSource dataSource, int threadCount) {
+        super(dataSource, threadCount);
+    }
+
+    public PostgresStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
+        super(dataSource, connectionProperty);
+    }
+
+    public PostgresStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);
     }
 

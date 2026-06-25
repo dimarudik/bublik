@@ -6,7 +6,7 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>26.2.51</version>
+    <version>26.2.52</version>
     <packaging>pom</packaging>
 
     <developers>
@@ -42,6 +42,8 @@
         <log4j.version>3.0.0-beta2</log4j.version>
         <jackson.version>2.20.0</jackson.version>
         <lombok.version>1.18.38</lombok.version>
+        <mockito.version>5.23.0</mockito.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
 
     <dependencyManagement>

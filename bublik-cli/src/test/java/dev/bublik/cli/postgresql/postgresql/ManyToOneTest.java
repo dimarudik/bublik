@@ -20,7 +20,6 @@ import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-//@Disabled
 public class ManyToOneTest {
     private static int rows = 50000;
     private static boolean sync = false;
