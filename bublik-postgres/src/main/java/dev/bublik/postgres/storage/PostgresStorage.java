@@ -43,7 +43,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
         super(dataSource, threadCount);
     }
 
-    public PostgresStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
+    protected PostgresStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
         super(dataSource, connectionProperty);
     }
 

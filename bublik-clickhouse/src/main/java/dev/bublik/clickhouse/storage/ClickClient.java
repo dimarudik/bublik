@@ -1,6 +1,7 @@
 package dev.bublik.clickhouse.storage;
 
 import com.clickhouse.client.api.Client;
+import com.clickhouse.client.api.ClientConfigProperties;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Properties;
@@ -8,6 +9,16 @@ import java.util.Properties;
 public class ClickClient {
     private final int size;
     private final Client client;
+
+    public ClickClient(Client client) {
+        this.client = client;
+        this.size = Integer.parseInt(client.getConfiguration().get(ClientConfigProperties.HTTP_MAX_OPEN_CONNECTIONS.getKey()));
+    }
+
+    public ClickClient(Client client, int size) {
+        this.size = size;
+        this.client = client;
+    }
 
     public ClickClient(Properties properties, int size) {
         this.size = size;
@@ -21,7 +32,6 @@ public class ClickClient {
                 .setUsername(properties.getProperty("user"))
                 .setPassword(properties.getProperty("password"))
                 .setMaxConnections(size)
-//                .useAsyncRequests(false)
                 .setConnectTimeout(10, ChronoUnit.SECONDS)
                 .setSocketTimeout(5, ChronoUnit.MINUTES)
                 .build();
@@ -29,5 +39,9 @@ public class ClickClient {
 
     public Client getClient() {
         return client;
+    }
+
+    public int getSize() {
+        return size;
     }
 }

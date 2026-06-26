@@ -13,12 +13,25 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K, T, S, R> implements Source {
-    protected final int threadCount;
-    private final ClickClient clickClient;
+    protected ClickClient clickClient;
 
-    protected ClickStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
+    public ClickStorage(Client client) {
+        super(new ConnectionProperty());
+        ClickClient clickClient = new ClickClient(client);
+        this.clickClient = clickClient;
+        this.threadCount = clickClient.getSize();
+    }
+
+    public ClickStorage(Client client, int threadCount) {
+        super(new ConnectionProperty());
+        this.threadCount = threadCount;
+        this.clickClient = new ClickClient(client, threadCount);
+    }
+
+    public ClickStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
         this.threadCount = connectionProperty.getThreadCount();
         this.clickClient = new ClickClient(getStorageClass().getProperties(), connectionProperty.getThreadCount());

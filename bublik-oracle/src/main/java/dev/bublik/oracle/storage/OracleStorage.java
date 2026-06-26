@@ -13,6 +13,7 @@ import dev.bublik.oracle.model.OraTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.io.Serializable;
 import java.sql.*;
 import java.util.*;
@@ -22,6 +23,18 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 
 public class OracleStorage<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
+
+    public OracleStorage(DataSource dataSource) {
+        super(dataSource);
+    }
+
+    public OracleStorage(DataSource dataSource, int threadCount) {
+        super(dataSource, threadCount);
+    }
+
+    protected OracleStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
+        super(dataSource, connectionProperty);
+    }
 
     public OracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);

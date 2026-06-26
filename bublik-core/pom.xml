@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.2.52</version>
+        <version>26.2.53</version>
     </parent>
 
     <artifactId>bublik-core</artifactId>
@@ -50,10 +50,11 @@
             <artifactId>HikariCP</artifactId>
             <version>5.1.0</version>
         </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.13.4</version>
+            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

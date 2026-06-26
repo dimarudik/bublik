@@ -11,6 +11,7 @@ import dev.bublik.mssql.model.MSSQLTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,6 +22,18 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 
 public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
+
+    public MSSQLStorage(DataSource dataSource) {
+        super(dataSource);
+    }
+
+    public MSSQLStorage(DataSource dataSource, int threadCount) {
+        super(dataSource, threadCount);
+    }
+
+    protected MSSQLStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
+        super(dataSource, connectionProperty);
+    }
 
     public MSSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
         super(storageClass, connectionProperty);

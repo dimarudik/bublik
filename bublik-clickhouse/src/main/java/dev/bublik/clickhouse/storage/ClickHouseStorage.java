@@ -23,6 +23,15 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class ClickHouseStorage<K, T, S extends Client, R> extends ClickStorage<K, T, S, R> {
+
+    public ClickHouseStorage(Client client) {
+        super(client);
+    }
+
+    public ClickHouseStorage(Client client, int threadCount) {
+        super(client, threadCount);
+    }
+
     public ClickHouseStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
     }
