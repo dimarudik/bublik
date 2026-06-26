@@ -21,10 +21,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
+import static dev.bublik.core.constants.Constants.CHUNK_TABLE_NAME;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
-public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage<K, T, S, R>
-        implements JDBCStorageService<K, T, S, R>, Source, Target {
+public abstract class JDBCStorage extends Storage
+        implements JDBCStorageService, Source, Target {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     private Connection connection;
@@ -88,17 +89,17 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public S getSession() {
+    public <S extends AutoCloseable> S getSession() {
         return (S) getConnection();
     }
 
     @Override
-    public void setSession(S session) {
-        setConnection(session);
+    public <S extends AutoCloseable> void setSession(S session) {
+        setConnection((Connection) session);
     }
 
     @Override
-    public S getPoolConnection() throws SQLException {
+    public <S extends AutoCloseable> S getPoolConnection() throws SQLException {
         Connection conn = dataSource.getConnection();
 
         if (conn.getAutoCommit()) {
@@ -131,7 +132,17 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+        start(targetStorage, configs, rows, CHUNK_TABLE_NAME);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+        start(targetStorage, configs, rows, tableName, false);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> cfgs, int rows, String tableName, boolean sync) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (!sync) {
             startNOSync(targetStorage, configs, rows, tableName);
@@ -155,7 +166,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         return configs;
     }
 
-    private void startNOSync(Storage<K, T, S, R> targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+    private void startNOSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
 
@@ -171,8 +182,8 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
-            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
-            List<Future<Chunk<K, T, S, R>>> futures = new ArrayList<>();
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName, targetStorage);
+            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
             chunks.forEach(chunk -> futures.add(
                     service
                             .submit(() -> {
@@ -181,12 +192,12 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                                     try {
-                                        if ((chunk.getSourceSession()).isValid(0)) {
+                                        if (((Connection)chunk.getSourceSession()).isValid(0)) {
                                             log.warn("Saving info about error to database");
                                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
                                             (chunk.getSourceSession()).close();
                                         }
-                                        if (targetStorage instanceof  JDBCStorage &&  (chunk.getTargetSession()).isValid(0)) {
+                                        if (targetStorage instanceof  JDBCStorage &&  ((Connection)chunk.getTargetSession()).isValid(0)) {
                                             (chunk.getTargetSession()).close();
                                         }
                                     } catch (SQLException exception) {
@@ -262,6 +273,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+/*
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
         sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
@@ -273,19 +285,6 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         }
         Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
         sourceStorage.setTables(sourceTables);
-/*
-        if (sourceStorage.getClass().equals(targetStorage.getClass())) {
-            JDBCStorage sourceJDBCStorage = sourceStorage.unwrap(JDBCStorage.class);
-            JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
-            log.info("Version source: {}", sourceJDBCStorage.getStorageVersion(sourceConnection));
-            if (sourceJDBCStorage.getMajorStorageVersion(sourceConnection) >= 14) {
-                sourceJDBCStorage.enrichSourceTables(sourceConnection);
-                sourceJDBCStorage.enrichTargetTables();
-                targetStorage.setTables(sourceTables);
-                targetJDBCStorage.createTables();
-            }
-        }
-*/
 
         Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
         log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
@@ -295,7 +294,6 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
             try {
                 chunk.allStages(true, tableName);
             } catch (Exception e) {
-//                log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                 throw new RuntimeException(e);
             }
         });
@@ -309,6 +307,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         targetJDBCStorage.createForeignKeys();
         sourceConnection.close();
         targetConnection.close();
+*/
     }
 
     @Override
@@ -350,13 +349,15 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 */
 
-    private boolean inList(List<Table<S>> tables, Table<S> table) {
+/*
+    private <S extends AutoCloseable> boolean inList(List<Table<S>> tables, Table<S> table) {
         return tables.contains(table);
     }
+*/
 
     @Override
-    public Table<S> getTagetTableBySourceTable(Table<S> sourceTable) {
-        for (Map.Entry<Table<S>, Table<S>> entry : getTables().entrySet()) {
+    public Table getTargetTableBySourceTable(Table sourceTable) {
+        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
             if (entry.getKey().equals(sourceTable)) {
                 return entry.getValue();
             }
@@ -365,8 +366,8 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public Table<S> getSourceTableByTargetTable(Table<S> targetTable) {
-        for (Map.Entry<Table<S>, Table<S>> entry : getTables().entrySet()) {
+    public Table getSourceTableByTargetTable(Table targetTable) {
+        for (Map.Entry<Table, Table> entry : getTables().entrySet()) {
             if (entry.getValue().equals(targetTable)) {
                 return entry.getKey();
             }
@@ -375,8 +376,8 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage) {
-        Map<Table<S>, Table<S>> tables = new HashMap<>();
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
+        Map<Table, Table> tables = new HashMap<>();
         for (Config c : configs) {
             tables.put(configToTable(c.fromSchemaName(), c.fromTableName()), targetStorage.configToTable(c.toSchemaName(), c.toTableName()));
         }
@@ -407,16 +408,16 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
     }
 
     @Override
-    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
     }
 
     @Override
-    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, IOException {
+    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, IOException {
         return null;
     }
 
     @Override
-    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
 
     }
 
@@ -435,7 +436,7 @@ public abstract class JDBCStorage<K, T, S extends Connection, R> extends Storage
         return null;
     }
 
-    public List<Column2Column> matchColumns(Table<?> sourceTable, Table<?> targetTable) {
+    public List<Column2Column> matchColumns(Table sourceTable, Table targetTable) {
         Map<String, Column> targetColumnsMap = targetTable.getColumns().stream()
                 .collect(Collectors.toMap(
                         col -> col.columnName().replace("\"", "").toLowerCase(),

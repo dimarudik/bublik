@@ -6,7 +6,7 @@ import dev.bublik.core.storage.Storage;
 
 public class OracleStorageFactory implements StorageFactory {
     @Override
-    public Storage<?, ?, ?, ?> create(ConnectionProperty connectionProperty) {
+    public Storage create(ConnectionProperty connectionProperty) {
         return null;
     }
 }

@@ -22,7 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public class ClickHouseStorage<K, T, S extends Client, R> extends ClickStorage<K, T, S, R> {
+public class ClickHouseStorage extends ClickStorage {
 
     public ClickHouseStorage(Client client) {
         super(client);
@@ -37,10 +37,10 @@ public class ClickHouseStorage<K, T, S extends Client, R> extends ClickStorage<K
     }
 
     @Override
-    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        Storage<K, T, S, R> sourceStorage = chunk.getSourceStorage();
-        if (sourceStorage instanceof ClickStorage<K,T,S,R>) {
-            if (chunk.getTargetStorage() instanceof JDBCStorage<?, ?, ?, ?>) {
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        Storage sourceStorage = chunk.getSourceStorage();
+        if (sourceStorage instanceof ClickStorage) {
+            if (chunk.getTargetStorage() instanceof JDBCStorage) {
                 return new LogMessage(0, 0, "ClickHouse -> JDBC");
             } else {
                 return new LogMessage(0, 0, "ClickHouse -> ClickHouse");
@@ -52,10 +52,10 @@ public class ClickHouseStorage<K, T, S extends Client, R> extends ClickStorage<K
         throw new RuntimeException("Unknown storage type");
     }
 
-    public LogMessage jdbcToClickHouse(Chunk<K, T, S, R> chunk, ResultSet rs) {
+    public LogMessage jdbcToClickHouse(Chunk<?, ?, ?, ?> chunk, ResultSet rs) {
         long start = System.currentTimeMillis();
         Client client = getSession();
-        Table<?> targetTable = chunk.getT2t().targetTable();
+        Table targetTable = chunk.getT2t().targetTable();
         TableSchema targetTableSchema = client.getTableSchema(
                 targetTable.getTableName(), targetTable.getSchemaName());
 

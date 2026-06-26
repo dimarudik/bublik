@@ -32,7 +32,8 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.postgres.constants.SQLConstants.*;
 import static dev.bublik.postgres.util.ColumnUtil.*;
 
-public class PostgresStorage<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
+// <K extends Integer, T extends Long, S extends Connection, R extends ResultSet>
+public class PostgresStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
 
     public PostgresStorage(DataSource dataSource) {
@@ -52,21 +53,23 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
-        List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs,
+                                                String chunkTableName,
+                                                Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         for (Config config : configs) {
-            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
+            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             String orderByClause = targetTable.buildOrderBy(config);
             log.info("Fetch query: {} {}", fetchQuery, orderByClause);
-            S sourceSession = this.getPoolConnection();
+            Connection sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
@@ -74,10 +77,10 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
             ResultSet rs = preparedStatement.executeQuery();
             while (rs.next()) {
                 String status = rs.getString("status");
-                Chunk<K, T, S, R> chunk = new PGChunk<>(
-                        (K) (Integer) rs.getInt("chunk_id"),
-                        (T) (Long) rs.getLong("start_page"),
-                        (T) (Long) rs.getLong("end_page"),
+                Chunk<?, ?, ?, ?> chunk = new PGChunk<>(
+                        rs.getInt("chunk_id"),
+                        rs.getLong("start_page"),
+                        rs.getLong("end_page"),
                         config,
                         t2t,
                         ChunkStatus.valueOf(status),
@@ -89,7 +92,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
             }
             rs.close();
             preparedStatement.close();
-            sourceSession.close();
+            ((Connection)sourceSession).close();
         }
         return chunks;
     }
@@ -104,10 +107,10 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 */
 
     @Override
-    public Table2Table<S> getTable2Table(Table<S> sourceTable,
-                                          Table<S> targetTable,
-                                          List<Column2Column> c2c,
-                                          Config config) {
+    public Table2Table getTable2Table(Table sourceTable,
+                                      Table targetTable,
+                                      List<Column2Column> c2c,
+                                      Config config) {
         Column ttlColumn = null;
         Column timestampColumn = null;
         if (config.withTTL() != null) {
@@ -144,7 +147,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
                     false,
                     false);
         }
-        return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
+        return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
 /*
@@ -157,7 +160,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 */
 
     @Override
-    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+    public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
             if (sourceTable.getClass() == targetTable.getClass()) {
@@ -292,7 +295,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable) {
         return "select chunk_id, uuid, start_page, end_page, task_name, status from " +
                 chunkTableName + " where " +
                 "schema_name = ? and table_name = ? and task_name = ? " +
@@ -301,14 +304,13 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
     }
 
     @Override
-    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException,
-//            BinaryWriteFailedException,
-            SourceSQLException, TargetSQLException {
-        if (chunk.getSourceStorage() instanceof JDBCStorage<K,T,S,R>) {
-            ResultSet fetchResultSet = chunk.getResultSet();
-            Connection connectionFrom = chunk.getSourceSession();
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName)
+            throws SQLException, SourceSQLException, TargetSQLException {
+        if (chunk.getSourceStorage() instanceof JDBCStorage) {
+            ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
+            Connection connectionFrom = (Connection) chunk.getSourceSession();
             if (fetchResultSet.next()) {
-                Connection connectionTo = chunk.getTargetSession();
+                Connection connectionTo = (Connection) chunk.getTargetSession();
                 try {
                     LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                     connectionTo.close();
@@ -385,7 +387,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
                                             columnType.equals("bigserial") ? "bigint" : columnType,
                                             dataType, null, null, null, null, 0, null, 0, null, false, false, false)));
                 } else if (expressionToColumnMap == null) {
-                    Table<?> sourceTable = chunk.getT2t().sourceTable();
+                    Table sourceTable = chunk.getT2t().sourceTable();
                     sourceTable.getColumns().forEach(column -> columnMap.put(column.columnName(), column));
                 }
 
@@ -1521,7 +1523,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 */
 
     @Override
-    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+    public String buildFetchStatement(Config config, Table2Table t2t) {
         List<String> asColumns = t2t.column2Columns()
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
@@ -1584,11 +1586,11 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 
     @Override
     public void createPrimaryKeys() {
-        Map<Table<S>, Table<S>> tables = getTables();
+        Map<Table, Table> tables = getTables();
         try {
             Connection targetConnection = getPoolConnection();
-            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-                Table<S> targetTable = entry.getValue();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table targetTable = entry.getValue();
                 targetTable.createPrimaryKey(targetConnection);
             }
             targetConnection.close();
@@ -1599,11 +1601,11 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 
     @Override
     public void createIndexes() {
-        Map<Table<S>, Table<S>> tables = getTables();
+        Map<Table, Table> tables = getTables();
         try {
             Connection targetConnection = getPoolConnection();
-            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-                Table<S> taregtTable = entry.getValue();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
                 taregtTable.createIndexes(targetConnection);
             }
             targetConnection.close();
@@ -1614,11 +1616,11 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 
     @Override
     public void createForeignKeys() {
-        Map<Table<S>, Table<S>> tables = getTables();
+        Map<Table, Table> tables = getTables();
         try {
             Connection targetConnection = getPoolConnection();
-            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-                Table<S> taregtTable = entry.getValue();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
                 taregtTable.createForeignKeys(targetConnection);
             }
             targetConnection.close();
@@ -1629,11 +1631,11 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 
     @Override
     public void createUniqueConstraints() {
-        Map<Table<S>, Table<S>> tables = getTables();
+        Map<Table, Table> tables = getTables();
         try {
             Connection targetConnection = getPoolConnection();
-            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-                Table<S> taregtTable = entry.getValue();
+            for (Map.Entry<Table, Table> entry : tables.entrySet()) {
+                Table taregtTable = entry.getValue();
                 taregtTable.createUniqueConstraints(targetConnection);
             }
             targetConnection.close();
@@ -1644,7 +1646,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 
     @Override
     public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
-        try (Statement st = getPoolConnection().createStatement();
+        try (Statement st = ((Connection)getPoolConnection()).createStatement();
              ResultSet rs = st.executeQuery(SQL_PG_CURRENT_LSN_AND_XID)) {
             if (rs.next()) {
                 String lsn = rs.getString(1);
@@ -1667,7 +1669,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
             long reltuples = 0;
             long relpages = 0;
             long max_end_page;
-            Table<S> table = configToTable(config.fromSchemaName(), config.fromTableName());
+            Table table = configToTable(config.fromSchemaName(), config.fromTableName());
 
             PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
             preparedStatement.setString(1, table.getSchemaName().toLowerCase());
@@ -1813,24 +1815,24 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
     }
 
     @Override
-    public Table<S> configToTable(String schemaName, String tableName) {
-        return new PGTable<>(schemaName, tableName);
+    public Table configToTable(String schemaName, String tableName) {
+        return new PGTable(schemaName, tableName);
     }
 
     @Override
-    public void enrichTable(Table<S> table) throws SQLException {
-        S session = getPoolConnection();
+    public void enrichTable(Table table) throws SQLException {
+        Connection session = getPoolConnection();
         table.enrichTable(session);
         session.close();
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
-        S session = getPoolConnection();
+    public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
+        Connection session = getPoolConnection();
         if (!targetTable.enrichTable(session) && sourceTable.getClass().equals(targetTable.getClass())) {
             targetTable.setOptions(sourceTable.getOptions());
             targetTable.setColumns(sourceTable.getColumns());
-            targetTable.create(session);
+            targetTable.create((Connection) session);
         } else {
             targetTable.enrichTable(session);
         }
@@ -1838,7 +1840,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
     }
 
     @Override
-    public  <W> W getWriter(Chunk<K, T, S, R> chunk,
+    public  <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk,
                             String tableName) throws SQLException, SourceSQLException, IOException {
         Connection connectionTo = (Connection) chunk.getTargetSession();
         List<Column2Column> columnToColumnMap = chunk.getT2t().column2Columns();
@@ -1885,7 +1887,7 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 */
 
     @Override
-    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
+    public <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
                                          Chunk<K, T, S, R> chunk,
                                          W writer) throws SQLException {
         try {
@@ -1909,7 +1911,9 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
     }
 */
 
-    private <V> void writeValue(PgBinaryWriter writer, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws IOException, SQLException {
+    private <K, T, S extends AutoCloseable, R, V> void writeValue(PgBinaryWriter writer,
+                                                                  List<ColumnValue<V>> columnValues,
+                                                                  Chunk<K, T, S, R> chunk) throws IOException, SQLException {
         for (ColumnValue<V> columnValue : columnValues) {
             String targetColumnName = columnValue.targetColumn().columnName();
             String targetType = columnValue.targetColumn().columnType();
@@ -2328,8 +2332,8 @@ public class PostgresStorage<K extends Integer, T extends Long, S extends Connec
 */
 
     @Override
-    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        Connection connectionTo = chunk.getTargetSession();
+    public <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        Connection connectionTo = (Connection) chunk.getTargetSession();
         try {
             PgBinaryWriter w = (PgBinaryWriter) writer;
             DataOutputStream os = w.getOut();

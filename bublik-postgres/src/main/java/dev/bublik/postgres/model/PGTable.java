@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
-public class PGTable<S extends Connection> extends Table<S> {
+public class PGTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(PGTable.class);
 
     public PGTable(String schemaName, String tableName) {
@@ -182,8 +182,9 @@ public class PGTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(Connection connection) throws SQLException {
+    public <S extends AutoCloseable> List<Column> getAllColumns(S session) throws SQLException {
         List<Column> columns = new ArrayList<>();
+        Connection connection = (Connection) session;
         ResultSet rs = connection.getMetaData().getColumns(
                 null,
                 getFinalSchemaName(),
@@ -545,12 +546,13 @@ public class PGTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(Connection session) throws SQLException {
+    public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
         // if table exists, enrich it
-        if (exists(session)) {
-            setColumns(getAllColumns(session));
-            setPkColumns(getPrimaryKeyColumns(session));
-            Map.Entry<Integer, List<TableOption>> options = getOptions(session);
+        Connection connection = (Connection) session;
+        if (exists(connection)) {
+            setColumns(getAllColumns(connection));
+            setPkColumns(getPrimaryKeyColumns(connection));
+            Map.Entry<Integer, List<TableOption>> options = getOptions(connection);
             setId(options.getKey());
             setOptions(options.getValue());
             return true;

@@ -13,9 +13,10 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
-public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K, T, S, R> implements Source {
+import static dev.bublik.core.constants.Constants.CHUNK_TABLE_NAME;
+
+public abstract class ClickStorage extends Storage implements Source {
     protected ClickClient clickClient;
 
     public ClickStorage(Client client) {
@@ -48,7 +49,17 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+        start(targetStorage, configs, rows, CHUNK_TABLE_NAME);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+        start(targetStorage, configs, rows, tableName, false);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName, boolean sync) throws SQLException {
 
     }
 
@@ -58,17 +69,17 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, V, W>  void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
 
     }
 
     @Override
-    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException {
+    public <K, T, S extends AutoCloseable, R, W>  W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException {
         return null;
     }
 
     @Override
-    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, W>  void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
 
     }
 
@@ -93,12 +104,12 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException {
         return List.of();
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable) {
         return "";
     }
 
@@ -108,7 +119,7 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+    public String buildFetchStatement(Config config, Table2Table t2t) {
         return "";
     }
 
@@ -118,32 +129,32 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage) {
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
         return Map.of();
     }
 
     @Override
-    public Table<S> configToTable(String schemaName, String tableName) {
-        return new ClickTable<>(schemaName, tableName);
+    public Table configToTable(String schemaName, String tableName) {
+        return new ClickTable(schemaName, tableName);
     }
 
     @Override
-    public Table<S> getTagetTableBySourceTable(Table<S> table) {
+    public Table getTargetTableBySourceTable(Table table) {
         return null;
     }
 
     @Override
-    public Table<S> getSourceTableByTargetTable(Table<S> table) {
+    public Table getSourceTableByTargetTable(Table table) {
         return null;
     }
 
     @Override
-    public S getPoolConnection() throws SQLException {
+    public <S extends AutoCloseable> S getPoolConnection() throws SQLException {
         return null;
     }
 
     @Override
-    public S getSession() {
+    public <S extends AutoCloseable> S getSession() {
         return (S) clickClient.getClient();
     }
 
@@ -158,27 +169,27 @@ public abstract class ClickStorage<K, T, S extends Client, R> extends Storage<K,
     }
 
     @Override
-    public void setSession(S session) {
+    public <S extends AutoCloseable>void setSession(S session) {
 
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable) throws SQLException {
+    public void enrichTable(Table sourceTable) throws SQLException {
 
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+    public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
         targetTable.enrichTable(getSession());
     }
 
     @Override
-    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+    public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
         return List.of();
     }
 
     @Override
-    public Table2Table<S> getTable2Table(Table<S> sourceTable, Table<S> targetTable, List<Column2Column> c2c, Config config) {
+    public Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config) {
         return null;
     }
 

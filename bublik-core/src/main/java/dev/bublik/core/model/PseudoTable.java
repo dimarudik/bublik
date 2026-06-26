@@ -7,7 +7,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class PseudoTable<S extends AutoCloseable> extends Table<S> {
+public class PseudoTable extends Table {
 
     public PseudoTable(String schemaName, String tableName) {
         super(schemaName, tableName);
@@ -34,7 +34,7 @@ public class PseudoTable<S extends AutoCloseable> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(S connection) throws SQLException {
+    public <S extends AutoCloseable> List<Column> getAllColumns(S connection) throws SQLException {
         return List.of();
     }
 
@@ -99,7 +99,7 @@ public class PseudoTable<S extends AutoCloseable> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(S session) throws SQLException {
+    public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
         return false;
     }
 

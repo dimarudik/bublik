@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public abstract class Table<S extends AutoCloseable> implements TableService<S>, NameSyntaxService, Comparable<Table<S>> {
+public abstract class Table implements TableService, NameSyntaxService, Comparable<Table> {
     private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
     private Integer id;
     private String schemaName;
@@ -101,12 +101,12 @@ public abstract class Table<S extends AutoCloseable> implements TableService<S>,
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Table<?> table)) return false;
+        if (!(o instanceof Table table)) return false;
         return schemaName.equals(table.schemaName) && tableName.equals(table.tableName);
     }
 
     @Override
-    public int compareTo(Table<S> o) {
+    public int compareTo(Table o) {
         return (this.getSchemaName() + "." + this.getTableName()).compareTo(o.getSchemaName() + "." + o.getTableName());
     }
 

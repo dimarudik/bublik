@@ -19,7 +19,7 @@ public class StorageConstructorTest {
         DataSource mockDataSource = Mockito.mock(DataSource.class);
         int expectedThreadCount = 7;
 
-        Storage<?, ?, ?, ?> storage = new PostgresStorage(mockDataSource, expectedThreadCount);
+        Storage storage = new PostgresStorage(mockDataSource, expectedThreadCount);
 
         assertNotNull(storage.getConnectionProperty(),
                 "ConnectionProperty не должен быть null, иначе будет NullPointerException");

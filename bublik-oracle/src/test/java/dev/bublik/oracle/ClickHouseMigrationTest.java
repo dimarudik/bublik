@@ -83,7 +83,7 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testOracleToClickHouseMigration() throws Exception {
-        Storage sourceStorage = new OracleStorage<>(sourceDataSource);
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
         Storage targetStorage = new ClickHouseStorage(clickhouseClient);
 
         assertEquals(5, targetStorage.getThreadCount(),
@@ -98,9 +98,7 @@ public class ClickHouseMigrationTest {
         );
         configs.add(tableConfig);
 
-        String chunkTableName = "BUBLIK_CHUNKS";
-
-        sourceStorage.start(configs, false, 1000, targetStorage, chunkTableName);
+        sourceStorage.start(targetStorage, configs, 1000);
 
         try (Connection conn = clickhouse.createConnection("");
              Statement stmt = conn.createStatement();

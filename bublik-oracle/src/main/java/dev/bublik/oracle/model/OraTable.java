@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OraTable<S extends Connection> extends Table<S> {
+public class OraTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(OraTable.class);
 
     public OraTable(String schemaName, String tableName) {
@@ -53,8 +53,9 @@ public class OraTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(Connection connection) throws SQLException {
+    public <S extends AutoCloseable>  List<Column> getAllColumns(S session) throws SQLException {
         List<Column> columns = new ArrayList<>();
+        Connection connection = (Connection) session;
         ResultSet rs = connection.getMetaData().getColumns(
                 null,
                 getFinalSchemaName(),
@@ -167,10 +168,11 @@ public class OraTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(S session) throws SQLException {
-        if (exists(session)) {
-            setColumns(getAllColumns(session));
-            setPkColumns(getPrimaryKeyColumns(session));
+    public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
+        Connection connection = (Connection) session;
+        if (exists(connection)) {
+            setColumns(getAllColumns(connection));
+            setPkColumns(getPrimaryKeyColumns(connection));
             return true;
         }
         return false;

@@ -10,7 +10,7 @@ import java.util.*;
 
 import static dev.bublik.mssql.constants.SQLConstants.SQL_CLUSTERING_KEY;
 
-public class MSSQLTable<S extends Connection> extends Table<S> {
+public class MSSQLTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(MSSQLTable.class);
     private List<Column> clusteringKey;
 
@@ -27,9 +27,9 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
         this.clusteringKey = clusteringKey;
     }
 
-    public List<Column> getClusteringKeyColumns(S connection) throws SQLException {
+    public <S extends AutoCloseable> List<Column> getClusteringKeyColumns(S connection) throws SQLException {
         Set<Column> columns = new TreeSet<>();
-        PreparedStatement ps = connection.prepareStatement(SQL_CLUSTERING_KEY);
+        PreparedStatement ps = ((Connection)connection).prepareStatement(SQL_CLUSTERING_KEY);
         ps.setString(1, getSchemaName() + "." + getTableName());
         ResultSet rs = ps.executeQuery();
         while (rs.next()) {
@@ -77,8 +77,9 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(S connection) throws SQLException {
+    public <S extends AutoCloseable> List<Column> getAllColumns(S session) throws SQLException {
         List<Column> columns = new ArrayList<>();
+        Connection connection = (Connection) session;
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT * FROM " + getSchemaName() + "." + getTableName() +  " WHERE 1 = 0 ")) {
             ResultSetMetaData rsmd = ps.getMetaData();
@@ -177,10 +178,11 @@ public class MSSQLTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(S session) throws SQLException {
-        if (exists(session)) {
-            setColumns(getAllColumns(session));
-            setClusteringKey(getClusteringKeyColumns(session));
+    public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
+        Connection connection = (Connection) session;
+        if (exists(connection)) {
+            setColumns(getAllColumns(connection));
+            setClusteringKey(getClusteringKeyColumns(connection));
             return true;
         }
         return false;

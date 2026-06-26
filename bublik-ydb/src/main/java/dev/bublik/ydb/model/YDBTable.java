@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class YDBTable<S extends Connection> extends Table<S> {
+public class YDBTable extends Table {
     public YDBTable(){}
     public YDBTable(String schemaName, String tableName) {
         super(schemaName, tableName);
@@ -55,8 +55,9 @@ public class YDBTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(Connection connection) throws SQLException {
+    public <S extends AutoCloseable> List<Column> getAllColumns(S session) throws SQLException {
         List<Column> columns = new ArrayList<>();
+        Connection connection = (Connection) session;
         ResultSet rs = connection.getMetaData().getColumns(
                 null,
                 getFinalSchemaName(),
@@ -157,9 +158,10 @@ public class YDBTable<S extends Connection> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(S session) throws SQLException {
-        if (exists(session)) {
-            setColumns(getAllColumns(session));
+    public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
+        Connection connection = (Connection) session;
+        if (exists(connection)) {
+            setColumns(getAllColumns(connection));
             return true;
         }
         return false;

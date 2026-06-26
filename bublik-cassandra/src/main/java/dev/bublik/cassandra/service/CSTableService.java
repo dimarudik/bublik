@@ -18,7 +18,7 @@ public interface CSTableService {
     Logger log = LoggerFactory.getLogger(CSTableService.class);
 
     @Deprecated
-    static List<Column> getKey(CqlSession cqlSession, Table<?> table, String keyType) {
+    static List<Column> getKey(CqlSession cqlSession, Table table, String keyType) {
         ResultSet resultSet = cqlSession.execute(
                 SQL_KEY_BY_TYPE,
                 table.getSchemaName(),
@@ -48,15 +48,15 @@ public interface CSTableService {
         return key;
     }
 
-    static List<Column> getNonStaticColumns(Table<?> table) {
+    static List<Column> getNonStaticColumns(Table table) {
         return table.getColumns().stream().filter(column -> !column.isStatic()).toList();
     }
 
-    static List<Column> getNonFrozenCollectionColumns(Table<?> table) {
+    static List<Column> getNonFrozenCollectionColumns(Table table) {
         return table.getColumns().stream().filter(column -> column.isCollection() && !column.isFrozen()).toList();
     }
 
-    static String countRowsInTableQuery(CSTable<?> table) {
+    static String countRowsInTableQuery(CSTable table) {
         List<Column> pkCol = table.getPartitionKey();
 //        Collections.sort(pkColumns);
         List<Column> pkColumns = pkCol.stream().sorted().toList();

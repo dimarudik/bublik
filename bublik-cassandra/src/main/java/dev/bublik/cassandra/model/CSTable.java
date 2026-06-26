@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 import static dev.bublik.cassandra.constants.SQLConstants.SQL_ALL_COLUMNS;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
-public class CSTable<S extends CqlSession> extends Table<S> {
+public class CSTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(CSTable.class);
     private List<Column> partitionKey;
     private List<Column> clusteringKey;
@@ -79,8 +79,9 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(CqlSession cqlSession) {
+    public <S extends AutoCloseable> List<Column> getAllColumns(S session) {
         List<Column> columns = new ArrayList<>();
+        CqlSession cqlSession = (CqlSession) session;
         try {
             ResultSet resultSet = cqlSession.execute(
                     SQL_ALL_COLUMNS,
@@ -221,7 +222,7 @@ public class CSTable<S extends CqlSession> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(S session) {
+    public <S extends AutoCloseable> boolean enrichTable(S session) {
         List<Column> allColumns = getAllColumns(session);
         setColumns(allColumns);
         setClusteringKey(allColumns.stream().filter(Column::isClusteringKey).toList());

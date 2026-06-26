@@ -17,14 +17,14 @@ public interface ChunkService<K, T, S extends AutoCloseable, R> {
     void lastStageCloseSourceSession(boolean sync) throws SQLException;
 
     default Chunk<K, T, S, R> firstStageAssignSourceSession(Chunk<K, T, S, R> chunk) throws SQLException {
-        Storage<K, T, S, R> storage = chunk.getSourceStorage();
+        Storage storage = chunk.getSourceStorage();
         S sourceConnection = storage.getPoolConnection();
         chunk.setSourceSession(sourceConnection);
         return chunk;
     }
 
     default Chunk<K, T, S, R> firstStageAssignTargetSession(Chunk<K, T, S, R> chunk) throws SQLException {
-        Storage<K, T, S, R> storage = chunk.getTargetStorage();
+        Storage storage = chunk.getTargetStorage();
         S targetSession = storage.getPoolConnection();
         chunk.setTargetSession(targetSession);
         chunk.setStartTs(Instant.now());

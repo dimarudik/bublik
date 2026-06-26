@@ -22,9 +22,9 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
     private static final Logger log = LoggerFactory.getLogger(MSSQLChunk.class);
     private String addFetchPredicate;
 
-    public MSSQLChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
-                      ChunkStatus status, String fetchQuery, Storage<K, T, S, R> sourceStorage,
-                      Storage<K, T, S, R> targetStorage, String orderByClause) {
+    public MSSQLChunk(K id, T start, T end, Config config, Table2Table t2t,
+                      ChunkStatus status, String fetchQuery, Storage sourceStorage,
+                      Storage targetStorage, String orderByClause) {
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 

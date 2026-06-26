@@ -63,8 +63,8 @@ public class PostgresMigrationTest {
 
     @Test
     void testPostgresToPostgresMigration() throws Exception {
-        Storage sourceStorage = new PostgresStorage<>(sourceDataSource);
-        Storage targetStorage = new PostgresStorage<>(targetDataSource);
+        Storage sourceStorage = new PostgresStorage(sourceDataSource);
+        Storage targetStorage = new PostgresStorage(targetDataSource);
 
         List<Config> configs = new ArrayList<>();
         Config tableConfig = new Config(
@@ -75,8 +75,7 @@ public class PostgresMigrationTest {
         );
         configs.add(tableConfig);
 
-        String chunkTableName = "bublik_chunks";
-        sourceStorage.start(configs, false, 1000, targetStorage, chunkTableName);
+        sourceStorage.start(targetStorage, configs, 1000);
 
         try (Connection conn = targetDataSource.getConnection();
              Statement stmt = conn.createStatement();

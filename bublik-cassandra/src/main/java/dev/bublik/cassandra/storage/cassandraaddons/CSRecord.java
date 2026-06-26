@@ -13,7 +13,7 @@ public record CSRecord (TokenRange tokenRange,
                         CSValueAttribute attribute) {
 
     public String buildInsertStatement(Chunk<? ,?, ?, ?> chunk) {
-        Table2Table<?> t2t = chunk.getT2t();
+        Table2Table t2t = chunk.getT2t();
         List<String> columnNames = values
                 .stream()
                 .map(CSValue::column)

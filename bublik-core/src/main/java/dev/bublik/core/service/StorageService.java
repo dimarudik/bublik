@@ -22,39 +22,41 @@ import java.util.*;
 import static dev.bublik.core.constants.CLassConstants.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
-public interface StorageService<K, T, S extends AutoCloseable, R> {
+public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    void start(List<Config> configs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException;
+    void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
+    void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException;
+    void start(Storage targetStorage, List<Config> configs, int rows, String tableName, boolean sync) throws SQLException;
     void createGlobalOutbox(String tableName) throws SQLException;
-    <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
-    <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException;
-    <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
+    <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException;
+    <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk, String tableName) throws SQLException;
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
     void dropOutboxTable(boolean sync, String tableName) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
-    List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException;
-    String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable);
-    LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException;
+    String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable);
+    <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
-    String buildFetchStatement(Config config, Table2Table<S> t2t);
+    String buildFetchStatement(Config config, Table2Table t2t);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
-    Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage);
-    Table<S> configToTable(String schemaName, String tableName);
-    Table<S> getTagetTableBySourceTable(Table<S> table);
-    Table<S> getSourceTableByTargetTable(Table<S> table);
-    S getPoolConnection() throws SQLException;
-    S getSession();
+    Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
+    Table configToTable(String schemaName, String tableName);
+    Table getTargetTableBySourceTable(Table table);
+    Table getSourceTableByTargetTable(Table table);
+    <S extends AutoCloseable> S getPoolConnection() throws SQLException;
+    <S extends AutoCloseable> S getSession();
     String getStorageVersion();
     int getStorageMajorVersion();
-    void setSession(S session);
-    void enrichTable(Table<S> sourceTable) throws SQLException;
-    void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException;
-    List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config);
-    Table2Table<S> getTable2Table(Table<S> sourceTable, Table<S> targetTable, List<Column2Column> c2c, Config config);
+    <S extends AutoCloseable> void setSession(S session);
+    void enrichTable(Table sourceTable) throws SQLException;
+    void enrichTable(Table sourceTable, Table targetTable) throws SQLException;
+    List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config);
+    Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config);
 
-    static Storage<?, ?, ?, ?> getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
+    static Storage getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
         if (storageClass instanceof AutoColseableStorageClass) {
             Properties props = storageClass.getProperties();
             String className = props.getProperty("class");
@@ -92,13 +94,13 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
         }
     }
 
-    static Storage<?, ?, ?, ?> reflectStorage(String className, Properties properties, ConnectionProperty connectionProperty) {
+    static Storage reflectStorage(String className, Properties properties, ConnectionProperty connectionProperty) {
         try {
             Class<?> clazz = Class.forName(className);
             Constructor<?> constructor = clazz.getConstructor(StorageClass.class, ConnectionProperty.class);
             StorageClass storageClass = getStorageClass(properties);
             log.info("Storage class: {} ", className);
-            return (Storage<?, ?, ?, ?>) constructor.newInstance(storageClass, connectionProperty);
+            return (Storage) constructor.newInstance(storageClass, connectionProperty);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
@@ -148,10 +150,10 @@ public interface StorageService<K, T, S extends AutoCloseable, R> {
 
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage<?,?,?,?> sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
+        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
              Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property)) {
             assert sourceStorage != null;
-            sourceStorage.start(configs, sync, rows, targetStorage, chunkTable);
+            sourceStorage.start(targetStorage, configs, rows, chunkTable, sync);
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {

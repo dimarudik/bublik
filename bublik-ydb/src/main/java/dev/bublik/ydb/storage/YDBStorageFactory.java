@@ -6,7 +6,7 @@ import dev.bublik.core.storage.Storage;
 
 public class YDBStorageFactory implements StorageFactory {
     @Override
-    public Storage<?, ?, ?, ?> create(ConnectionProperty connectionProperty) {
+    public Storage create(ConnectionProperty connectionProperty) {
         return null;
     }
 }

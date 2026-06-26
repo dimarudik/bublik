@@ -20,7 +20,7 @@ import java.util.Map;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.ydb.constants.SQLConstants.*;
 
-public class YDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T, S, R> {
+public class YDBStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
 
     public YDBStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
@@ -28,21 +28,14 @@ public class YDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T,
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTable, Table<S> sourceTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTable, Table sourceTable) {
         return "";
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+    public String buildFetchStatement(Config config, Table2Table t2t) {
         return "";
     }
-
-/*
-    @Override
-    public String buildFetchStatement(Config config) {
-        return "";
-    }
-*/
 
     @Override
     public Map.Entry<String,Long> getSystemChangeNumberWithTrxId() throws SQLException {
@@ -94,16 +87,16 @@ public class YDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T,
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable, Storage<K, T, S, R> targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable, Storage targetStorage) throws SQLException {
         return List.of();
     }
 
     @Override
-    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R>  LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
-        Connection connectionFrom = chunk.getSourceSession();
+        Connection connectionFrom = (Connection) chunk.getSourceSession();
         if (fetchResultSet.next()) {
-            Connection connectionTo = chunk.getTargetSession();
+            Connection connectionTo = (Connection) chunk.getTargetSession();
 //            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
 //            if (table.exists(connectionTo)) {
 //                chunk.setTargetTable(table);
@@ -348,19 +341,19 @@ public class YDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T,
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
-        S session = getPoolConnection();
+    public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
+        Connection session = getPoolConnection();
         targetTable.enrichTable(session);
         session.close();
     }
 
     @Override
-    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+    public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
         return List.of();
     }
 
     @Override
-    public Table2Table<S> getTable2Table(Table<S> sourceTable, Table<S> targetTable, List<Column2Column> c2c, Config config) {
+    public Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config) {
         return null;
     }
 
@@ -490,7 +483,7 @@ public class YDBStorage<K, T, S extends Connection, R> extends JDBCStorage<K, T,
 */
 
     @Override
-    public void enrichTable(Table<S> targetTable) throws SQLException {
+    public void enrichTable(Table targetTable) throws SQLException {
         targetTable.enrichTable(getSession());
     }
 }

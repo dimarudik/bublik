@@ -20,7 +20,8 @@ import static dev.bublik.core.constants.Constants.FROM;
 import static dev.bublik.core.constants.Constants.TO;
 import static dev.bublik.mssql.constants.SQLConstants.*;
 
-public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
+// <K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet>
+public class MSSQLStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
 
     public MSSQLStorage(DataSource dataSource) {
@@ -67,8 +68,8 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
         createChunkTable(connection, sync, tableName);
         connection.commit();
         for (Config config : configs) {
-            MSSQLTable<S> sourceTable = (MSSQLTable<S>) configToTable(config.fromSchemaName(), config.fromTableName());
-            List<Column> clusteringKey = sourceTable.getClusteringKeyColumns((S)connection);
+            MSSQLTable sourceTable = (MSSQLTable) configToTable(config.fromSchemaName(), config.fromTableName());
+            List<Column> clusteringKey = sourceTable.getClusteringKeyColumns(connection);
             sourceTable.setClusteringKey(clusteringKey);
             checkIfClusteringKeyIsNotEmpty(clusteringKey);
             checkIfClusteringKeyHasNullableColumns(clusteringKey);
@@ -82,7 +83,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     private void insertChunkTable(Connection connection,
-                                  MSSQLTable<S> sourceTable,
+                                  MSSQLTable sourceTable,
                                   String chunkTableName,
                                   Config config,
                                   int rows) throws SQLException {
@@ -165,7 +166,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
         connection.commit();
     }
 
-    private void createChunkExtTable(Connection connection, boolean sync, MSSQLTable<S> table) throws SQLException {
+    private void createChunkExtTable(Connection connection, boolean sync, MSSQLTable table) throws SQLException {
         Statement createTable = connection.createStatement();
         String columnList = getStringFromToClusteringKeyWithType(table, ", ");
         String sql = DDL_CREATE_CHUNK_EXT_TABLE
@@ -177,29 +178,29 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
         connection.commit();
     }
 
-    private String getClusteringKeyColumnListByComma(MSSQLTable<S> sourceTable) {
+    private String getClusteringKeyColumnListByComma(MSSQLTable sourceTable) {
         return String.join(", ", sourceTable.getClusteringKey().stream().map(Column::columnName).toList());
     }
 
-    private String getClusteringKeyColumnAscDescListByComma(MSSQLTable<S> sourceTable) {
+    private String getClusteringKeyColumnAscDescListByComma(MSSQLTable sourceTable) {
         return String.join(", ", sourceTable.getClusteringKey().stream().map(Column::getNameWithAscOrDesc).toList());
     }
 
-    private String getStringFromClusteringKey(MSSQLTable<S> table, String delimiter, String alias) {
+    private String getStringFromClusteringKey(MSSQLTable table, String delimiter, String alias) {
         return String.join(delimiter, table.getClusteringKey().stream().map(Column::columnName).map(c -> alias + c).toList());
     }
 
-    private String getStringToClusteringKey(MSSQLTable<S> table, String delimiter, String alias) {
+    private String getStringToClusteringKey(MSSQLTable table, String delimiter, String alias) {
         return String.join(delimiter, table.getClusteringKey().stream().map(Column::columnName).map(c -> alias + c).toList());
     }
 
-    private String getStringFromToClusteringKey(MSSQLTable<S> table, String delimiter, String alias) {
+    private String getStringFromToClusteringKey(MSSQLTable table, String delimiter, String alias) {
         String from = String.join(delimiter, table.getClusteringKey().stream().map(Column::fromName).map(c -> alias + c).toList());
         String to = String.join(delimiter, table.getClusteringKey().stream().map(Column::toName).map(c -> alias + c).toList());
         return from + delimiter + to;
     }
 
-    private String getStringFromToClusteringKeyWithType(MSSQLTable<S> table, String delimiter) {
+    private String getStringFromToClusteringKeyWithType(MSSQLTable table, String delimiter) {
         String from = String.join(delimiter, table.getClusteringKey().stream().map(Column::fromNameWithType).toList());
         String to = String.join(delimiter, table.getClusteringKey().stream().map(Column::toNameWithType).toList());
         return from + delimiter + to;
@@ -241,24 +242,24 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
-        List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         for (Config config : configs) {
-            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
 //            targetTable.getPkColumns().forEach(c -> log.info("PK: {} {} {}", targetTable.getTableName(), c.columnName(), c.columnPosition(), c.ascOrDesc()));
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
+            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             String alias = config.fromTableAlias();
-            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), false, alias);
+            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable)t2t.sourceTable()).getClusteringKey(), false, alias);
             String orderByClause = targetTable.buildOrderBy(config);
             log.info("Fetch query: {} {} {}", fetchQuery, addFetchQuery, orderByClause);
-            S sourceSession = this.getPoolConnection();
+            Connection sourceSession = this.getPoolConnection();
             PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
@@ -269,10 +270,10 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
                 Integer chunkId = rs.getInt("chunk_id");
                 Map.Entry<List<Object>, List<Object>> entry = getValues(sourceSession, t2t, chunkId);
 //                System.out.println(entry);
-                Chunk<K, T, S, R> chunk = new MSSQLChunk<>(
-                        (K) chunkId,
-                        (T) entry.getKey(),
-                        (T) entry.getValue(),
+                Chunk<?, ?, ?, ?> chunk = new MSSQLChunk<>(
+                        chunkId,
+                        entry.getKey(),
+                        entry.getValue(),
                         config,
                         t2t,
                         ChunkStatus.valueOf(status),
@@ -280,7 +281,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
                         this,
                         targetStorage,
                         orderByClause);
-                ((MSSQLChunk<K, T, S, R>)chunk).setAddFetchPredicate(addFetchQuery);
+                ((MSSQLChunk<?, ?, ?, ?>)chunk).setAddFetchPredicate(addFetchQuery);
                 chunks.add(chunk);
             }
             rs.close();
@@ -290,8 +291,8 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
         return chunks;
     }
 
-    private Map.Entry<List<Object>, List<Object>> getValues(Connection connection, Table2Table<S> t2t, Integer chunkId) throws SQLException {
-        MSSQLTable<S> sourceTable = (MSSQLTable<S>) t2t.sourceTable();
+    private Map.Entry<List<Object>, List<Object>> getValues(Connection connection, Table2Table t2t, Integer chunkId) throws SQLException {
+        MSSQLTable sourceTable = (MSSQLTable) t2t.sourceTable();
         String columnList = getStringFromToClusteringKey(sourceTable, ", ", "");
         String sql = SQL_VALUES_FROM_EXT_TABLE
                 .replace("$extTableName", sourceTable.getTableName())
@@ -315,7 +316,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable) {
         return "select top(1000) c.chunk_id, c.uuid, c.start_page, c.end_page, c.task_name, c.status from bublik." +
                 chunkTableName + " c, bublik._ext_" + sourceTable.getTableName() + " e where c.chunk_id = e.chunk_id and " +
                 "c.schema_name = ? and c.table_name = ? and c.task_name = ? " +
@@ -324,12 +325,12 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     @Override
-    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+    public String buildFetchStatement(Config config, Table2Table t2t) {
         List<String> asColumns = t2t.column2Columns()
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
@@ -352,7 +353,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
                 (config.fromTableAdds() == null ? "" : config.fromTableAdds()) + " " +
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
-                buildConditionBlock(((MSSQLTable<S>)t2t.sourceTable()).getClusteringKey(), true, alias);
+                buildConditionBlock(((MSSQLTable)t2t.sourceTable()).getClusteringKey(), true, alias);
 //                getStringFromClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " >= ? and ", alias) + " >= ? ";
 //                getStringToClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " < ? and ", alias) + " < ? ";
     }
@@ -400,20 +401,20 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     @Override
-    public Table<S> configToTable(String schemaName, String tableName) {
-        return new MSSQLTable<>(schemaName, tableName, null);
+    public Table configToTable(String schemaName, String tableName) {
+        return new MSSQLTable(schemaName, tableName, null);
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable) throws SQLException {
-        S session = getPoolConnection();
+    public void enrichTable(Table sourceTable) throws SQLException {
+        Connection session = getPoolConnection();
         sourceTable.enrichTable(session);
         session.close();
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
-        S session = getPoolConnection();
+    public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
+        Connection session = getPoolConnection();
         if (!targetTable.enrichTable(session)) {
             targetTable.setOptions(sourceTable.getOptions());
             targetTable.setColumns(sourceTable.getColumns());
@@ -425,7 +426,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     @Override
-    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+    public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
             if (sourceTable.getClass() == targetTable.getClass()) {
@@ -468,7 +469,7 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
     }
 
     @Override
-    public Table2Table<S> getTable2Table(Table<S> sourceTable, Table<S> targetTable, List<Column2Column> c2c, Config config) {
+    public Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config) {
         Column ttlColumn = null;
         Column timestampColumn = null;
         if (config.withTTL() != null) {
@@ -505,6 +506,6 @@ public class MSSQLStorage<K extends Integer, T extends List<Object>, S extends C
                     false,
                     false);
         }
-        return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
+        return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 }

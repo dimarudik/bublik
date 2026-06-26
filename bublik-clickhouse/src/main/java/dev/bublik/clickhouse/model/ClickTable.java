@@ -2,7 +2,6 @@ package dev.bublik.clickhouse.model;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
-import com.clickhouse.data.ClickHouseColumn;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -16,7 +15,7 @@ import java.util.Map;
 
 import static dev.bublik.clickhouse.constants.SQLConstants.SQL_ALL_COLUMNS;
 
-public class ClickTable <S extends Client> extends Table<S> {
+public class ClickTable extends Table {
     private static final Logger log = LoggerFactory.getLogger(ClickTable.class);
 
     public ClickTable(String schemaName, String tableName) {
@@ -44,9 +43,9 @@ public class ClickTable <S extends Client> extends Table<S> {
     }
 
     @Override
-    public List<Column> getAllColumns(S connection) throws SQLException {
+    public <S extends AutoCloseable> List<Column> getAllColumns(S session) throws SQLException {
         List<Column> columns = new ArrayList<>();
-
+        Client connection = (Client) session;
         List<GenericRecord> records = connection.queryAll(SQL_ALL_COLUMNS,
                 java.util.Map.of("db", getSchemaName(), "table", getTableName()));
 
@@ -124,7 +123,7 @@ public class ClickTable <S extends Client> extends Table<S> {
     }
 
     @Override
-    public boolean enrichTable(S session) throws SQLException {
+    public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
         List<Column> allColumns = getAllColumns(session);
         setColumns(allColumns);
         return true;

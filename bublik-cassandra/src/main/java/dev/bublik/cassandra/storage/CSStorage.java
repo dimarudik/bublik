@@ -33,10 +33,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static dev.bublik.cassandra.constants.SQLConstants.*;
+import static dev.bublik.core.constants.Constants.CHUNK_TABLE_NAME;
 import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
-public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Storage<K, T, S, R> implements Source {
+public abstract class CSStorage extends Storage implements Source {
     private static final Logger log = LoggerFactory.getLogger(CSStorage.class);
     private final CSPool csPool;
     protected final int threadCount;
@@ -60,7 +61,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public S getSession() {
+    public <S extends AutoCloseable> S getSession() {
         return (S) getCsPool().getCqlSession();
     }
 
@@ -74,18 +75,28 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public S getPoolConnection() throws SQLException {
+    public <S extends AutoCloseable> S getPoolConnection() throws SQLException {
         return (S) csPool.getCqlSession();
     }
 
     @Override
-    public void start(List<Config> cfgs, boolean sync, int rows, Storage<K, T, S, R> targetStorage, String tableName) throws SQLException {
+    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+        start(targetStorage, configs, rows, CHUNK_TABLE_NAME);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+        start(targetStorage, configs, rows, tableName, false);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> cfgs, int rows, String tableName, boolean sync) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (rows > 0) {
             dropChunkTable(configs, sync, tableName);
             createChunkTable(sync, tableName);
             fulfillChunks(configs, sync, rows, tableName);
-            if (targetStorage instanceof JDBCStorage<?, ?, ?, ?>) {
+            if (targetStorage instanceof JDBCStorage) {
                 targetStorage.createGlobalOutbox(tableName);
             }
         }
@@ -95,7 +106,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
-            List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
             String tName = getChunkTableName(tableName);
 
@@ -152,7 +163,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 
     @Override
     public void fulfillChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
-        S cqlSession = (S) csPool.getCqlSession();
+        CqlSession cqlSession = csPool.getCqlSession();
         Set<TokenRange> trs = new HashSet<>(csPool.getTokenRanges());
         // добавляются хвостики сверху и снизу ренджа
         TokenRange defaultToken = MM3.defaultTokenRange();
@@ -168,7 +179,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 //        trs.forEach(t -> log.info("{} {}", t.getStart(), t.getEnd()));
 
         for (Config c : configs) {
-            CSTable<S> sourceTable = new CSTable<>(c.fromSchemaName(), c.fromTableName(), null, null);
+            CSTable sourceTable = new CSTable(c.fromSchemaName(), c.fromTableName(), null, null);
 //            Table<S> targetTable = new PseudoTable<>(c.toSchemaName(), c.toTableName());
             sourceTable.enrichTable(cqlSession);
             ExecutorService service = Executors.newFixedThreadPool(Math.min(threadCount, 4));
@@ -209,7 +220,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
         log.info("Chunk table fulfilled successfully");
     }
 
-    private long getEstimatedRowsInRange(CqlSession cqlSession, CSTable<?> sourceTable, TokenRange tr) {
+    private long getEstimatedRowsInRange(CqlSession cqlSession, CSTable sourceTable, TokenRange tr) {
         String queryCount = CSTableService.countRowsInTableQuery(sourceTable);
         PreparedStatement ps = cqlSession.prepare(queryCount);
         long startValue = ((Murmur3Token) tr.getStart()).getValue();
@@ -234,7 +245,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     private void insertChunk(CqlSession cqlSession, PreparedStatement ps, long start,
-                             long stop, CSTable<?> sourceTable, String taskName, long shift) {
+                             long stop, CSTable sourceTable, String taskName, long shift) {
         try {
             UUID chunkId = Uuids.timeBased();
             BoundStatement bsInsert = ps.boundStatementBuilder()
@@ -334,7 +345,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName, Table<S> sourceTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable) {
         return "select chunk_id, start_page, end_page, task_name, schema_name, table_name, status from " +
                 chunkTableName + " where " +
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
@@ -343,13 +354,13 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTableName, Storage<K, T, S, R> targetStorage) throws SQLException {
-        List<Chunk<K, T, S, R>> chunks = new ArrayList<>();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         CqlSession sourceSession = getSession();
 //        log.info("Get chunk list from {}", chunkTableName);
         configs.forEach(config -> {
-            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             try {
                 this.enrichTable(sourceTable);
                 targetStorage.enrichTable(sourceTable, targetTable);
@@ -359,7 +370,7 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
 //            targetTable.getColumns().forEach(c -> System.out.println(c.columnName() + "." + c.columnType()));
             String orderByClause = targetTable.buildOrderBy(config);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
+            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             String sql = buildStartEndOfChunk(config, getChunkTableName(chunkTableName), sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
@@ -372,11 +383,11 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                 String taskName = row.getString("task_name");
                 assert taskName != null;
                 if (taskName.equals(config.fromTaskName())) {
-                    Chunk<K, T, S, R> chunk =
+                    Chunk<?, ?, ?, ?> chunk =
                             new CSChunk<>(
-                                    (K) row.getUuid("chunk_id"),
-                                    (T) (Long) row.getLong("start_page"),
-                                    (T) (Long) row.getLong("end_page"),
+                                    row.getUuid("chunk_id"),
+                                    row.getLong("start_page"),
+                                    row.getLong("end_page"),
                                     config,
                                     t2t,
                                     ChunkStatus.valueOf(status),
@@ -392,10 +403,10 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public Table2Table<S> getTable2Table(Table<S> sourceTable,
-                                          Table<S> targetTable,
-                                          List<Column2Column> c2c,
-                                          Config config) {
+    public Table2Table getTable2Table(Table sourceTable,
+                                      Table targetTable,
+                                      List<Column2Column> c2c,
+                                      Config config) {
         Column ttlColumn = null;
         Column timestampColumn = null;
         if (config.withTTL() != null) {
@@ -410,11 +421,11 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
                     "int",
                     config.timestamp());
         }
-        return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
+        return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
     @Override
-    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+    public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null) {
             if (sourceTable.getClass() == targetTable.getClass()) {
@@ -477,22 +488,22 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public Map<Table<S>, Table<S>> configsToTables(List<Config> configs, Storage<K, T, S, R> targetStorage) {
+    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
         return Map.of();
     }
 
     @Override
-    public Table<S> configToTable(String schemaName, String tableName) {
-        return new CSTable<>(schemaName, tableName, null, null);
+    public Table configToTable(String schemaName, String tableName) {
+        return new CSTable(schemaName, tableName, null, null);
     }
 
     @Override
-    public Table<S> getTagetTableBySourceTable(Table<S> table) {
+    public Table getTargetTableBySourceTable(Table table) {
         return null;
     }
 
     @Override
-    public Table<S> getSourceTableByTargetTable(Table<S> table) {
+    public Table getSourceTableByTargetTable(Table table) {
         return null;
     }
 
@@ -526,8 +537,8 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
-        CSTable<?> sourceTable = (CSTable<?>) t2t.sourceTable();
+    public String buildFetchStatement(Config config, Table2Table t2t) {
+        CSTable sourceTable = (CSTable) t2t.sourceTable();
         List<Column> pkColumns = new ArrayList<>(sourceTable.getPartitionKey());
         List<Column> ckColumns = new ArrayList<>(sourceTable.getClusteringKey());
         List<Column> nonStaticColumns = CSTableService.getNonStaticColumns(sourceTable);
@@ -580,30 +591,34 @@ public abstract class CSStorage<K extends UUID, T extends Long, S extends CqlSes
     }
 
     @Override
-    public void setSession(S session) {
+    public <S extends AutoCloseable> void setSession(S session) {
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable) throws SQLException {
+    public void enrichTable(Table sourceTable) throws SQLException {
         sourceTable.enrichTable(getSession());
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+    public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
         targetTable.enrichTable(getSession());
     }
 
     @Override
-    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) {
+    public <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                                                           Chunk<K, T, S, R> chunk,
+                                                                           W writer) {
     }
 
     @Override
-    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName)
+            throws SQLException {
         return null;
     }
 
     @Override
-    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName)
+            throws SQLException {
 
     }
 }

@@ -35,9 +35,8 @@ import java.util.stream.Collectors;
 
 import static dev.bublik.cassandra.storage.cassandraaddons.MM3.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
-
-public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
-        extends CSStorage<K, T, S, R> {
+// <K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
+public class CassandraStorage extends CSStorage {
     private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
     private final int batchSize;
 
@@ -47,14 +46,16 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 
     @Override
-    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        Storage<K, T, S, R> sourceStorage = chunk.getSourceStorage();
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+        Storage sourceStorage = chunk.getSourceStorage();
         if (sourceStorage instanceof CSStorage) {
-            if (chunk.getTargetStorage() instanceof JDBCStorage<?, ?, ?, ?>) {
-                com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
+            if (chunk.getTargetStorage() instanceof JDBCStorage) {
+                com.datastax.oss.driver.api.core.cql.ResultSet resultSet =
+                        (com.datastax.oss.driver.api.core.cql.ResultSet) chunk.getResultSet();
                 return unRanged(chunk, resultSet, tableName);
             } else {
-                com.datastax.oss.driver.api.core.cql.ResultSet resultSet = chunk.getResultSet();
+                com.datastax.oss.driver.api.core.cql.ResultSet resultSet =
+                        (com.datastax.oss.driver.api.core.cql.ResultSet) chunk.getResultSet();
                 return ranged(chunk, resultSet);
             }
         } else if (sourceStorage instanceof JDBCStorage) {
@@ -64,11 +65,11 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         throw new RuntimeException("Unknown storage type");
     }
 
-    public <V, W> LogMessage unRanged(Chunk<K, T, S, R> chunk,
+    public <K, T, S extends AutoCloseable, R, V, W> LogMessage unRanged(Chunk<K, T, S, R> chunk,
                                    com.datastax.oss.driver.api.core.cql.ResultSet resultSet,
                                    String tableName) throws SQLException {
         long start = System.currentTimeMillis();
-        Storage<K, T, S, R> targetStorage = chunk.getTargetStorage();
+        Storage targetStorage = chunk.getTargetStorage();
         int recordCount = 0;
         try {
             W w = targetStorage.getWriter(chunk, tableName);
@@ -86,7 +87,8 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return new LogMessage(start, stop, "Cassandra -> Postgres");
     }
 
-    private <V> List<ColumnValue<V>> getForJdbcRecordValues(Row row, Chunk<K, T, S, R> chunk) {
+    private <K, T, S extends AutoCloseable, R, V> List<ColumnValue<V>> getForJdbcRecordValues(Row row,
+                                                                                              Chunk<K, T, S, R> chunk) {
         List<Column2Column> columnToColumnList = chunk.getT2t().column2Columns();
         List<ColumnValue<V>> columnValues = new ArrayList<>();
         for (Column2Column entry : columnToColumnList) {
@@ -256,11 +258,12 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return columnValues;
     }
 
-    public LogMessage jdbcToCassandra(Chunk<K, T, S, R> chunk, ResultSet resultSet) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> LogMessage jdbcToCassandra(Chunk<K, T, S, R> chunk,
+                                                                         ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         long start = System.currentTimeMillis();
-        CqlSession cqlSession = chunk.getTargetSession();
+        CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
 
         Set<TokenRange> tokenRangeSet = getCsPool().tokenRanges();
         MM3Batch mm3Batch = MM3Batch.createMM3Batch();
@@ -324,13 +327,13 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         }
     }
 
-    public LogMessage ranged(Chunk<K, T, S, R> chunk,
+    public <K, T, S extends AutoCloseable, R> LogMessage ranged(Chunk<K, T, S, R> chunk,
                              com.datastax.oss.driver.api.core.cql.ResultSet resultSet) throws SQLException {
         int recordCount = 0;
         int batchCount = 0;
         int sourceStorageMajorVersion = chunk.getSourceStorage().getStorageMajorVersion();
         long start = System.currentTimeMillis();
-        CqlSession cqlSession = chunk.getTargetSession();
+        CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
         Set<TokenRange> tokenRangeSet = getCsPool().tokenRanges();
         MM3Batch mm3Batch = MM3Batch.createMM3Batch();
         mm3Batch.initMM3Batch(tokenRangeSet);
@@ -568,7 +571,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
     }
 
     private CSRecord getCSRecord(ResultSet resultSet,
-                                 Table2Table<?> t2t,
+                                 Table2Table t2t,
                                  Set<TokenRange> tokenRangeSet) throws SQLException {
         List<CSValue> objectList = new ArrayList<>();
         Map<Column, Column> column2Column = new HashMap<>();
@@ -783,7 +786,7 @@ public class CassandraStorage<K extends UUID, T extends Long, S extends CqlSessi
         return new CSObj(v, bytes);
     }
 
-    private CSRecord getCSRecord(Row row, Table2Table<S> t2t, Set<TokenRange> tokenRangeSet, int majorVersion) throws SQLException {
+    private CSRecord getCSRecord(Row row, Table2Table t2t, Set<TokenRange> tokenRangeSet, int majorVersion) throws SQLException {
         List<CSValue> objectList = new ArrayList<>();
         Map<Column, Column> column2Column = new HashMap<>();
         t2t.column2Columns().forEach((c) -> column2Column.put(c.sourceColumn(), c.targetColumn()));

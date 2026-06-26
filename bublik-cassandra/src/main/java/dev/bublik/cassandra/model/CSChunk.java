@@ -28,7 +28,7 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
 
-    public CSChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
+    public CSChunk(K id, T start, T end, Config config, Table2Table t2t,
                    ChunkStatus status, String fetchQuery, Storage sourceStorage,
                    Storage targetStorage, String orderByClause) {
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);

@@ -20,7 +20,7 @@ import static dev.bublik.postgres.constants.SQLConstants.*;
 public class PGChunk<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
 
-    public PGChunk(K id, T start, T end, Config config, Table2Table<S> t2t,
+    public PGChunk(K id, T start, T end, Config config, Table2Table t2t,
                    ChunkStatus status, String fetchQuery, Storage sourceStorage,
                    Storage targetStorage, String orderByClause) {
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);

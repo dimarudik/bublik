@@ -21,7 +21,7 @@ import java.util.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
-public class OracleStorage<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet> extends JDBCStorage<K, T, S, R> {
+public class OracleStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
 
     public OracleStorage(DataSource dataSource) {
@@ -55,7 +55,7 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
     }
 
     @Override
-    public LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R>  LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
 
@@ -136,16 +136,16 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
     }
 
     @Override
-    public List<Chunk<K, T, S, R>> getChunkList(List<Config> configs, String chunkTable, Storage<K, T, S, R> targetStorage) throws SQLException {
-        List<Chunk<K, T, S, R>> chunkHashList = new ArrayList<>();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable, Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunkHashList = new ArrayList<>();
         for (Config config : configs) {
-            Table<S> sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table<S> targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table<S> t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-            S sourceSession = this.getPoolConnection();
+            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
+            Connection sourceSession = this.getPoolConnection();
             String sql = buildStartEndOfChunk(config, chunkTable, sourceTable);
             log.debug("SQL to fetch metadata of chunks: {}", sql);
             PreparedStatement ps = sourceSession.prepareStatement(sql);
@@ -156,10 +156,10 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
             log.info("Fetch query: {} {}", fetchQuery, orderByClause);
             while (resultSet.next()) {
                 String status = resultSet.getString("status");
-                Chunk<K, T, S, R> chunk = new OraChunk<>(
-                        (K)Integer.valueOf(resultSet.getInt("chunk_id")),
-                        (T)resultSet.getRowId("start_rowid"),
-                        (T)resultSet.getRowId("end_rowid"),
+                Chunk<?, ?, ?, ?> chunk = new OraChunk<>(
+                        Integer.valueOf(resultSet.getInt("chunk_id")),
+                        resultSet.getRowId("start_rowid"),
+                        resultSet.getRowId("end_rowid"),
                         config,
                         t2t,
                         ChunkStatus.valueOf(status),
@@ -177,10 +177,10 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
     }
 
     @Override
-    public Table2Table<S> getTable2Table(Table<S> sourceTable,
-                                          Table<S> targetTable,
-                                          List<Column2Column> c2c,
-                                          Config config) {
+    public Table2Table getTable2Table(Table sourceTable,
+                                      Table targetTable,
+                                      List<Column2Column> c2c,
+                                      Config config) {
         Column ttlColumn = null;
         Column timestampColumn = null;
         if (config.withTTL() != null) {
@@ -217,7 +217,7 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
                     false,
                     false);
         }
-        return new Table2Table<>(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
+        return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
 /*
@@ -230,7 +230,7 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
 */
 
     @Override
-    public List<Column2Column> getColumn2Column(Table<S> sourceTable, Table<S> targetTable, Config config) {
+    public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
         List<Column2Column> column2Column = new ArrayList<>();
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
             column2Column.addAll(matchColumns(sourceTable, targetTable));
@@ -361,7 +361,7 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTable, Table<S> sourceTable) {
+    public String buildStartEndOfChunk(Config config, String chunkTable, Table sourceTable) {
         return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
                 "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
                 (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause());
@@ -369,7 +369,7 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
     }
 
     @Override
-    public String buildFetchStatement(Config config, Table2Table<S> t2t) {
+    public String buildFetchStatement(Config config, Table2Table t2t) {
 /*
         List<Column2Column> originalColumns = t2t.column2Columns();
         List<Column2Column> sortedColumn2Columns = originalColumns.stream()
@@ -490,18 +490,18 @@ public class OracleStorage<K extends Integer, T extends RowId, S extends Connect
 */
 
     @Override
-    public Table<S> configToTable(String schemaName, String tableName) {
-        return new OraTable<>(schemaName, tableName);
+    public Table configToTable(String schemaName, String tableName) {
+        return new OraTable(schemaName, tableName);
     }
 
     @Override
-    public void enrichTable(Table<S> sourceTable, Table<S> targetTable) throws SQLException {
+    public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
 
     }
 
     @Override
-    public void enrichTable(Table<S> table) throws SQLException {
-        S session = getPoolConnection();
+    public void enrichTable(Table table) throws SQLException {
+        Connection session = getPoolConnection();
         table.enrichTable(session);
         session.close();
     }

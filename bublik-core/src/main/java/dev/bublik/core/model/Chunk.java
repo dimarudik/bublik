@@ -16,11 +16,11 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private final T start;
     private final T end;
     private final Config config;
-    private final Table2Table<S> t2t;
+    private final Table2Table t2t;
     private final String fetchQuery;
-    private final Storage<K, T, S, R> sourceStorage;
+    private final Storage sourceStorage;
     private long startTime;
-    private final Storage<K, T, S, R> targetStorage;
+    private final Storage targetStorage;
     private S sourceSession;
     private S targetSession;
     private LogMessage logMessage;
@@ -33,8 +33,8 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private Instant endTs;
     private final String orderByClause;
 
-    public Chunk(K id, T start, T end, Config config, Table2Table<S> t2t, ChunkStatus status,
-                 String fetchQuery, Storage<K, T, S, R> sourceStorage, Storage<K, T, S, R> targetStorage, String orderByClause) {
+    public Chunk(K id, T start, T end, Config config, Table2Table t2t, ChunkStatus status,
+                 String fetchQuery, Storage sourceStorage, Storage targetStorage, String orderByClause) {
         this.id = id;
         this.start = start;
         this.end = end;
@@ -63,11 +63,11 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         return config;
     }
 
-    public Table2Table<S> getT2t() {
+    public Table2Table getT2t() {
         return t2t;
     }
 
-    public Storage<K, T, S, R> getSourceStorage() {
+    public Storage getSourceStorage() {
         return sourceStorage;
     }
 
@@ -79,7 +79,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
         this.startTime = startTime;
     }
 
-    public Storage<K, T, S, R> getTargetStorage() {
+    public Storage getTargetStorage() {
         return targetStorage;
     }
 
