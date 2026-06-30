@@ -5,7 +5,6 @@ import java.util.Properties;
 
 public class ConnectionProperty {
     private int threadCount;
-    private Boolean rowsStat = false;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
     private Map<String, String> crypto;
@@ -13,13 +12,11 @@ public class ConnectionProperty {
 
     public ConnectionProperty(){}
     public ConnectionProperty(int threadCount,
-                              Boolean rowsStat,
                               Map<String, String> fromProperties,
                               Map<String, String> toProperties,
                               Map<String, String> crypto,
                               Map<String, Map<String, String>> toAdds) {
         this.threadCount = threadCount;
-        this.rowsStat = rowsStat;
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
         this.crypto = crypto;
@@ -34,13 +31,6 @@ public class ConnectionProperty {
         this.threadCount = threadCount;
     }
 
-    public Boolean getRowsStat() {
-        return rowsStat;
-    }
-
-    public void setRowsStat(Boolean rowsStat) {
-        this.rowsStat = rowsStat;
-    }
 
     public Map<String, String> getFromProperties() {
         return fromProperties;

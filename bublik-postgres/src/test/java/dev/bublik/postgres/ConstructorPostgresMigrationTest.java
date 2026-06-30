@@ -23,7 +23,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class PostgresMigrationTest {
+public class ConstructorPostgresMigrationTest {
     static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres"));
 
@@ -81,7 +81,6 @@ public class PostgresMigrationTest {
 
         sourceStorage.start(targetStorage, configs, 1000);
 
-//        Thread.sleep(100_000);
         try (Connection conn = targetDataSource.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {

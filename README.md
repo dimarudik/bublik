@@ -1752,8 +1752,49 @@ For example, if you want to migrate data from PostgreSQL to Cassandra you need t
 
 The easiest way to start migration is to use init method.
 
-- You should create ConnectionProperty object.
-
+Create ConnectionProperty (example from TestContainers):
 ```java
-    init(ConnectionProperty property, List<Config> configs, int rows, Table outboxTable);
+ConnectionProperty getConnectionProperty() {
+    Map<String, String> fromProps = new HashMap<>();
+    fromProps.put("url", postgres.getJdbcUrl());
+    fromProps.put("user", postgres.getUsername());
+    fromProps.put("password", postgres.getPassword());
+
+    Map<String, String> toProps = new HashMap<>();
+    toProps.put("url", postgres.getJdbcUrl());
+    toProps.put("user", postgres.getUsername());
+    toProps.put("password", postgres.getPassword());
+
+    return new ConnectionProperty(
+            4,
+            fromProps,
+            toProps,
+            new HashMap<>(),
+            new HashMap<>()
+    );
+}
 ```
+
+Create Config:
+```java
+List<Config> configs = new ArrayList<>();
+Config tableConfig = new Config(
+        "public",
+        "source_users",
+        "public",
+        "target_users"
+);
+configs.add(tableConfig);
+```
+
+Create outbox table (table will be created at source and target side):
+```java
+Table outboxTable = new PseudoTable("public", "bublik");
+```
+
+Run the migration:
+```java
+StorageService.init(connectionProperty, configs, 1000, outboxTable);
+```
+
+Full example `[InitPostgresMigrationTest.java](./bublik-postgres/src/test/java/dev/bublik/postgres/InitPostgresMigrationTest.java)`
