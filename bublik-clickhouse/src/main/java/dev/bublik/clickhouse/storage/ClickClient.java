@@ -15,11 +15,6 @@ public class ClickClient {
         this.size = Integer.parseInt(client.getConfiguration().get(ClientConfigProperties.HTTP_MAX_OPEN_CONNECTIONS.getKey()));
     }
 
-    public ClickClient(Client client, int size) {
-        this.size = size;
-        this.client = client;
-    }
-
     public ClickClient(Properties properties, int size) {
         this.size = size;
         this.client = createClient(properties);

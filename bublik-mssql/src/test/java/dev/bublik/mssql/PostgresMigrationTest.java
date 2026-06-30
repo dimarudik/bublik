@@ -3,6 +3,8 @@ package dev.bublik.mssql;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.mssql.storage.MSSQLStorage;
 import dev.bublik.postgres.storage.PostgresStorage;
@@ -76,8 +78,10 @@ public class PostgresMigrationTest {
 
     @Test
     void testMssqlToPostgresMigration() throws Exception {
-        Storage sourceStorage = new MSSQLStorage(sourceDataSource);
-        Storage targetStorage = new PostgresStorage(targetDataSource);
+        Table sourceOutboxTable = new PseudoTable("bublik", "bublik");
+        Table targetOutboxTable = new PseudoTable("public", "bublik");
+        Storage sourceStorage = new MSSQLStorage(sourceDataSource, sourceOutboxTable);
+        Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
 
         List<Config> configs = new ArrayList<>();
         Config tableConfig = new Config(

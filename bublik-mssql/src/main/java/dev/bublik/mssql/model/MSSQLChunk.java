@@ -1,10 +1,7 @@
 package dev.bublik.mssql.model;
 
 import dev.bublik.core.constants.ChunkStatus;
-import dev.bublik.core.model.Chunk;
-import dev.bublik.core.model.Config;
-import dev.bublik.core.model.LogMessage;
-import dev.bublik.core.model.Table2Table;
+import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -57,16 +54,22 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
         return (R) statement.executeQuery();
     }
 
+    private String schemaName() {
+        return getSourceStorage().getOutboxTable().getSchemaName() == null ? "bublik"
+                : getSourceStorage().getOutboxTable().getSchemaName();
+    }
+
     @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, String tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+        String oTable = schemaName() + ".[" + tableName.getTableName() + "]";
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, oTable)
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(tableName)
-                .interStageSaveChunkRows(getCopied(), sync, tableName)
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
+                .mainStageTransfer(oTable)
+                .interStageSaveChunkRows(getCopied(), sync, oTable)
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, oTable)
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();
         if (getSourceSession().isValid(0)) {
@@ -85,8 +88,10 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
             Connection connection = this.getSourceSession();
             PreparedStatement updateStatus;
             if (errMsg == null) {
+//                System.out.println(DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
                 updateStatus = connection.prepareStatement(
-                        DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
+                        DML_UPDATE_STATUS_CHUNK_TABLE
+                                .replace("$tableName", chunkTableName));
                 updateStatus.setString(1, newStatus.toString());
                 updateStatus.setLong(2, this.getId());
             } else {

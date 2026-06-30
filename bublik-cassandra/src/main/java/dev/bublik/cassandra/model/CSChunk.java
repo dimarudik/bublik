@@ -6,10 +6,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import dev.bublik.core.constants.ChunkStatus;
-import dev.bublik.core.model.Chunk;
-import dev.bublik.core.model.Config;
-import dev.bublik.core.model.LogMessage;
-import dev.bublik.core.model.Table2Table;
+import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -20,6 +17,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Properties;
 import java.util.UUID;
 
 import static dev.bublik.cassandra.constants.SQLConstants.*;
@@ -139,16 +137,29 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         return this;
     }
 
+    private String oTable(Properties properties) {
+        String outboxTable = "";
+        if (getSourceStorage().getOutboxTable().getSchemaName() == null || properties != null) {
+            String keyspace = properties.getProperty("keyspace");
+            outboxTable = keyspace + "." + getSourceStorage().getOutboxTable().getTableName();
+        } else {
+            outboxTable = getSourceStorage().getOutboxTable().tableToString();
+        }
+        return outboxTable;
+    }
+
     @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, String tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+        String chunkTable = getSourceStorage().getConnectionProperty() == null ? oTable(null) :
+                oTable(getSourceStorage().getConnectionProperty().getFromProperty());
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, chunkTable)
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(tableName)
-                .interStageSaveChunkRows(getCopied(), sync, tableName)
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName);
+                .mainStageTransfer(chunkTable)
+                .interStageSaveChunkRows(getCopied(), sync, chunkTable)
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTable);
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && ((Connection)getTargetSession()).isValid(0)) {
             ((Connection)getTargetSession()).close();

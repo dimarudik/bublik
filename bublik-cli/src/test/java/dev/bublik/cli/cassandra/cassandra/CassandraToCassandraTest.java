@@ -25,8 +25,6 @@ import java.util.function.Predicate;
 import static dev.bublik.cli.App.getConfigs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-// +
-//@Disabled
 public class CassandraToCassandraTest {
     private static int rows = 50000;
     private static boolean sync = false;
@@ -56,27 +54,12 @@ public class CassandraToCassandraTest {
         source.start();
         target.setPortBindings(Collections.singletonList("9043:9042"));
         target.start();
-        while (!source.isRunning() && !target.isRunning()) {
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
     @AfterAll
     static void clear() throws InterruptedException {
-//        Thread.sleep(45_000);
         source.stop();
         target.stop();
-        while (source.isRunning() || target.isRunning()) {
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
     @Test

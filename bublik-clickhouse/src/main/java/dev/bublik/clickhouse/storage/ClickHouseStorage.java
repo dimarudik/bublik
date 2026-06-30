@@ -24,16 +24,21 @@ import java.util.List;
 
 public class ClickHouseStorage extends ClickStorage {
 
-    public ClickHouseStorage(Client client) {
-        super(client);
+    public ClickHouseStorage(Client client,
+                             Table outboxTable) {
+        super(client, outboxTable);
     }
 
-    public ClickHouseStorage(Client client, int threadCount) {
-        super(client, threadCount);
+    public ClickHouseStorage(Client client,
+                             int threadCount,
+                             Table outboxTable) {
+        super(client, threadCount, outboxTable);
     }
 
-    public ClickHouseStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
-        super(storageClass, connectionProperty);
+    public ClickHouseStorage(StorageClass storageClass,
+                             ConnectionProperty connectionProperty,
+                             Table outboxTable) {
+        super(storageClass, connectionProperty, outboxTable);
     }
 
     @Override

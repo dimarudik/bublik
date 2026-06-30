@@ -1,10 +1,7 @@
 package dev.bublik.oracle.model;
 
 import dev.bublik.core.constants.ChunkStatus;
-import dev.bublik.core.model.Chunk;
-import dev.bublik.core.model.Config;
-import dev.bublik.core.model.LogMessage;
-import dev.bublik.core.model.Table2Table;
+import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
@@ -81,15 +78,15 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, String tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.tableToString())
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(tableName)
-                .interStageSaveChunkRows(getCopied(), sync, tableName)
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName)
+                .mainStageTransfer(tableName.tableToString())
+                .interStageSaveChunkRows(getCopied(), sync, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.tableToString())
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();
         if (getSourceSession().isValid(0)) {

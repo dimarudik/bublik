@@ -42,17 +42,17 @@ public abstract class SQLConstants {
             "select pg_relation_size( ? ) / 8192 as heap_blks_total";
 
     public static final String DDL_CREATE_OUTBOX_TABLE =
-            "create table $tableName_outbox (" +
+            "create table $tableName (" +
                     "chunk_id int primary key, " +
                     "task_name varchar(128), " +
                     "copied bigint)";
     public static final String DDL_DROP_OUTBOX_TABLE =
-            "drop table $tableName_outbox";
+            "drop table $tableName";
     public static final String DML_INSERT_OUTBOX_TABLE =
-            "insert into $tableName_outbox (chunk_id, task_name, copied) " +
+            "insert into $tableName (chunk_id, task_name, copied) " +
                     "values (?, ?, ?)";
     public static final String DML_SELECT_OUTBOX_TABLE =
-            "select chunk_id, task_name, copied from $tableName_outbox where chunk_id = ?";
+            "select chunk_id, task_name, copied from $tableName where chunk_id = ?";
 
 /*
     public static final String DML_INSERT_OUTBOX_TABLE =

@@ -155,7 +155,7 @@ public class App {
                                   String chunkTable) {
         try {
             StorageService.init(property, configs, sync, rowsParameter,
-                    chunkTable == null ? "_bublik" : chunkTable);
+                    chunkTable == null ? "\"_bublik\"" : chunkTable);
         } catch (SQLException e) {
             log.error("{} {}", e.getSQLState(), getStackTrace(e));
 //            throw new RuntimeException(e);

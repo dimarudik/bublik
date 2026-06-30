@@ -11,16 +11,19 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable 
     private final StorageClass storageClass;
     protected int threadCount;
     private final ConnectionProperty connectionProperty;
+    private final Table outboxTable;
     private Map<Table, Table> tables;
 
-    public Storage(ConnectionProperty connectionProperty) {
+    public Storage(ConnectionProperty connectionProperty, Table outboxTable) {
         this.storageClass = null;
+        this.outboxTable = outboxTable;
         this.connectionProperty = connectionProperty;
     }
 
-    protected Storage(StorageClass storageClass, ConnectionProperty connectionProperty) {
+    protected Storage(StorageClass storageClass, ConnectionProperty connectionProperty, Table outboxTable) {
         this.storageClass = storageClass;
         this.connectionProperty = connectionProperty;
+        this.outboxTable = outboxTable;
     }
 
     public Map<Table, Table> getTables() {
@@ -41,5 +44,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable 
 
     public int getThreadCount() {
         return threadCount;
+    }
+
+    public Table getOutboxTable() {
+        return outboxTable;
     }
 }

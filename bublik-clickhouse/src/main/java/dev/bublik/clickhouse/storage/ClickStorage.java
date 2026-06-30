@@ -16,55 +16,52 @@ import java.util.Map;
 
 import static dev.bublik.core.constants.Constants.CHUNK_TABLE_NAME;
 
-public abstract class ClickStorage extends Storage implements Source {
+abstract class ClickStorage extends Storage implements Source {
     protected ClickClient clickClient;
 
-    public ClickStorage(Client client) {
-        super(new ConnectionProperty());
+    public ClickStorage(Client client, Table outboxTable) {
+        super(new ConnectionProperty(), outboxTable);
         ClickClient clickClient = new ClickClient(client);
         this.clickClient = clickClient;
         this.threadCount = clickClient.getSize();
     }
 
-    public ClickStorage(Client client, int threadCount) {
-        super(new ConnectionProperty());
+    public ClickStorage(Client client, int threadCount, Table outboxTable) {
+        super(new ConnectionProperty(), outboxTable);
         this.threadCount = threadCount;
-        this.clickClient = new ClickClient(client, threadCount);
+        this.clickClient = new ClickClient(client);
     }
 
-    public ClickStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
-        super(storageClass, connectionProperty);
+    public ClickStorage(StorageClass storageClass,
+                        ConnectionProperty connectionProperty,
+                        Table outboxTable) {
+        super(storageClass, connectionProperty, outboxTable);
         this.threadCount = connectionProperty.getThreadCount();
         this.clickClient = new ClickClient(getStorageClass().getProperties(), connectionProperty.getThreadCount());
     }
 
     @Override
-    public void fulfillChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
+    public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
 
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
 
     }
 
     @Override
     public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-        start(targetStorage, configs, rows, CHUNK_TABLE_NAME);
+        start(targetStorage, configs, rows, false);
     }
 
     @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
-        start(targetStorage, configs, rows, tableName, false);
-    }
-
-    @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName, boolean sync) throws SQLException {
+    public void start(Storage targetStorage, List<Config> configs, int rows, boolean sync) throws SQLException {
 
     }
 
     @Override
-    public void createGlobalOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox() throws SQLException {
 
     }
 
@@ -84,17 +81,17 @@ public abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk) throws SQLException {
 
     }
 
     @Override
-    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException {
+    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) throws SQLException {
         return false;
     }
 
     @Override
-    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
+    public void dropOutboxTable(boolean sync) throws SQLException {
 
     }
 
@@ -104,12 +101,12 @@ public abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
         return List.of();
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable) {
+    public String buildStartEndOfChunk(Config config, Table sourceTable) {
         return "";
     }
 

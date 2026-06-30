@@ -1,5 +1,6 @@
 package dev.bublik.postgres;
 
+import dev.bublik.core.model.PseudoTable;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
@@ -19,7 +20,7 @@ public class StorageConstructorTest {
         DataSource mockDataSource = Mockito.mock(DataSource.class);
         int expectedThreadCount = 7;
 
-        Storage storage = new PostgresStorage(mockDataSource, expectedThreadCount);
+        Storage storage = new PostgresStorage(mockDataSource, expectedThreadCount, new PseudoTable("public", "bublik"));
 
         assertNotNull(storage.getConnectionProperty(),
                 "ConnectionProperty не должен быть null, иначе будет NullPointerException");

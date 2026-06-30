@@ -20,6 +20,14 @@ public class CSPool {
     private final Metadata metadata;
     private final int majorVersion;
 
+    public CSPool(CqlSession cqlSession) {
+        this.cqlSession = cqlSession;
+        this.tokenRanges = tokenRanges();
+        this.metadata = cqlSession.getMetadata();
+        this.majorVersion = Objects.requireNonNull(cqlSession.getMetadata().getNodes().values().iterator().next().getCassandraVersion()).getMajor();
+        this.size = cqlSession.getContext().getConfigLoader().getInitialConfig().getDefaultProfile().getInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE);
+    }
+
     public CSPool(Properties properties, int size) {
         this.size = size;
         this.cqlSession = createCqlSession(properties);
@@ -36,18 +44,17 @@ public class CSPool {
         return tokenRanges;
     }
 
+    public CqlSession getCqlSession() {
+        return cqlSession;
+    }
+
     public CqlSession createCqlSession(Properties properties) {
-        return CqlSession
-                .builder()
+        return CqlSession.builder()
                 .addContactPoints(getAddresses(properties))
                 .withConfigLoader(getConfigLoader(properties))
                 .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
                 .withLocalDatacenter(properties.getProperty("datacenter"))
                 .build();
-    }
-
-    public CqlSession getCqlSession() {
-        return cqlSession;
     }
 
     public List<InetSocketAddress> getAddresses(Properties properties) {
@@ -60,8 +67,7 @@ public class CSPool {
     }
 
     public DriverConfigLoader getConfigLoader(Properties properties) {
-        return DriverConfigLoader
-                .programmaticBuilder()
+        return DriverConfigLoader.programmaticBuilder()
                 .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, size)
                 .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, size)
                 .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(14))
@@ -80,5 +86,9 @@ public class CSPool {
 
     public int getMajorVersion() {
         return majorVersion;
+    }
+
+    public int getSize() {
+        return size;
     }
 }

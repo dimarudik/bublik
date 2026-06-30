@@ -29,4 +29,20 @@ public interface TableService {
     void create(Connection connection) throws SQLException;
     <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException;
     String buildOrderBy(Config config);
+
+    static Table stringToTable(String outboxTable) {
+        String schemaName;
+        String tableName;
+
+        if (outboxTable != null && outboxTable.contains(".")) {
+            String[] parts = outboxTable.split("\\.", -1);
+            schemaName = parts[0];
+            tableName = parts[1];
+        } else {
+            schemaName = null;
+            tableName = outboxTable;
+        }
+
+        return new PseudoTable(schemaName, tableName);
+    }
 }

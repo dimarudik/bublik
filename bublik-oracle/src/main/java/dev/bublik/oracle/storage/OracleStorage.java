@@ -24,20 +24,27 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 public class OracleStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
 
-    public OracleStorage(DataSource dataSource) {
-        super(dataSource);
+    public OracleStorage(DataSource dataSource,
+                         Table outboxTable) {
+        super(dataSource, outboxTable);
     }
 
-    public OracleStorage(DataSource dataSource, int threadCount) {
-        super(dataSource, threadCount);
+    public OracleStorage(DataSource dataSource,
+                         int threadCount,
+                         Table outboxTable) {
+        super(dataSource, threadCount, outboxTable);
     }
 
-    protected OracleStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
-        super(dataSource, connectionProperty);
+    protected OracleStorage(DataSource dataSource,
+                            ConnectionProperty connectionProperty,
+                            Table outboxTable) {
+        super(dataSource, connectionProperty, outboxTable);
     }
 
-    public OracleStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    public OracleStorage(StorageClass storageClass,
+                         ConnectionProperty connectionProperty,
+                         Table outboxTable) throws SQLException {
+        super(storageClass, connectionProperty, outboxTable);
     }
 
     @Override
@@ -65,7 +72,7 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public void fulfillChunks(List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
+    public void fulfillChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
         Connection connection = getConnection();
         for (Config config : configs) {
             try {
@@ -110,7 +117,7 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
         Connection connection = getConnection();
         for (Config config : configs) {
             try {
@@ -126,17 +133,22 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public void createGlobalOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox() throws SQLException {
 
     }
 
     @Override
-    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk) throws SQLException {
 
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable, Storage targetStorage) throws SQLException {
+    public void dropOutboxTable(boolean sync) throws SQLException {
+
+    }
+
+    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunkHashList = new ArrayList<>();
         for (Config config : configs) {
             Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
@@ -146,7 +158,7 @@ public class OracleStorage extends JDBCStorage {
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
             Connection sourceSession = this.getPoolConnection();
-            String sql = buildStartEndOfChunk(config, chunkTable, sourceTable);
+            String sql = buildStartEndOfChunk(config, sourceTable);
             log.debug("SQL to fetch metadata of chunks: {}", sql);
             PreparedStatement ps = sourceSession.prepareStatement(sql);
             ps.setString(1, config.fromTaskName());
@@ -361,7 +373,7 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTable, Table sourceTable) {
+    public String buildStartEndOfChunk(Config config, Table sourceTable) {
         return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
                 "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
                 (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause());

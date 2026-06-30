@@ -20,24 +20,25 @@ import java.util.*;
 
 
 import static dev.bublik.core.constants.CLassConstants.*;
+import static dev.bublik.core.constants.Constants.CHUNK_SCHEMA_NAME;
+import static dev.bublik.core.service.TableService.stringToTable;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
     void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
-    void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException;
-    void start(Storage targetStorage, List<Config> configs, int rows, String tableName, boolean sync) throws SQLException;
-    void createGlobalOutbox(String tableName) throws SQLException;
+    void start(Storage targetStorage, List<Config> configs, int rows, boolean sync) throws SQLException;
+    void createGlobalOutbox() throws SQLException;
     <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
     <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException;
     <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
-    void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk, String tableName) throws SQLException;
-    boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) throws SQLException;
-    void dropOutboxTable(boolean sync, String tableName) throws SQLException;
+    void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk) throws SQLException;
+    boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) throws SQLException;
+    void dropOutboxTable(boolean sync) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
-    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException;
-    String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable);
+    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException;
+    String buildStartEndOfChunk(Config config, Table sourceTable);
     <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config, Table2Table t2t);
@@ -56,27 +57,30 @@ public interface StorageService {
     List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config);
     Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config);
 
-    static Storage getStorage(StorageClass storageClass, Properties properties, ConnectionProperty connectionProperty) throws SQLException {
+    static Storage getStorage(StorageClass storageClass,
+                              Properties properties,
+                              ConnectionProperty connectionProperty,
+                              Table outboxTable) throws SQLException {
         if (storageClass instanceof AutoColseableStorageClass) {
             Properties props = storageClass.getProperties();
             String className = props.getProperty("class");
             if (className == null || className.isEmpty()) {
                 throw new NullPointerException();
             } else {
-                return reflectStorage(className, properties, connectionProperty);
+                return reflectStorage(className, properties, connectionProperty, outboxTable);
             }
         }
         if (storageClass instanceof JDBCStorageClass) {
             Driver driver = DriverManager.getDriver(properties.getProperty("url"));
             return switch (driver.getClass().getName()) {
                 case "oracle.jdbc.OracleDriver" ->
-                    reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
                 case "org.postgresql.Driver", "sdk.humus.HumusDriver" ->
-                    reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
                 case "tech.ydb.jdbc.YdbDriver" ->
-                    reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
                 case "com.microsoft.sqlserver.jdbc.SQLServerDriver" ->
-                    reflectStorage(MSSQL_STORAGE_CLASS_NAME, properties, connectionProperty);
+                    reflectStorage(MSSQL_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
                 default -> throw new RuntimeException();
             };
         }
@@ -94,20 +98,33 @@ public interface StorageService {
         }
     }
 
-    static Storage reflectStorage(String className, Properties properties, ConnectionProperty connectionProperty) {
+    static Storage reflectStorage(String className,
+                                  Properties properties,
+                                  ConnectionProperty connectionProperty,
+                                  Table outboxTable) {
         try {
             Class<?> clazz = Class.forName(className);
-            Constructor<?> constructor = clazz.getConstructor(StorageClass.class, ConnectionProperty.class);
+            Constructor<?> constructor = clazz.getConstructor(StorageClass.class,
+                    ConnectionProperty.class, Table.class);
             StorageClass storageClass = getStorageClass(properties);
             log.info("Storage class: {} ", className);
-            return (Storage) constructor.newInstance(storageClass, connectionProperty);
+            return (Storage) constructor.newInstance(storageClass, connectionProperty, outboxTable);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String chunkTable) throws SQLException, IOException {
+    @Deprecated
+    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String outboxTable) throws SQLException, IOException {
+        init(property, configs, rows, stringToTable(outboxTable), sync);
+    }
+
+    static void init(ConnectionProperty property, List<Config> configs, int rows, Table outboxTable) throws SQLException, IOException {
+        init(property, configs, rows, outboxTable, false);
+    }
+
+    static void init(ConnectionProperty property, List<Config> configs, int rows, Table outboxTable, boolean sync) throws SQLException, IOException {
         log.info("Bublik starting...");
         log.info("VERSION : {}", getVersion());
         try {
@@ -147,13 +164,12 @@ public interface StorageService {
             }
         }
 */
-
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property);
-             Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property)) {
+        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property, outboxTable);
+             Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property, outboxTable)) {
             assert sourceStorage != null;
-            sourceStorage.start(targetStorage, configs, rows, chunkTable, sync);
+            sourceStorage.start(targetStorage, configs, rows, sync);
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {

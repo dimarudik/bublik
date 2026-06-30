@@ -117,4 +117,12 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
     public String getTableNameWithoutQuotes() {
         return getWordWithoutQuotes(tableName);
     }
+
+    public String tableToString() {
+        if (getSchemaName() == null) {
+            return getTableName();
+        } else {
+            return getSchemaName() + "." + getTableName();
+        }
+    }
 }

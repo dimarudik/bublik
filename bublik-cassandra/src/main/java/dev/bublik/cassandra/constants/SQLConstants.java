@@ -40,12 +40,6 @@ public abstract class SQLConstants {
                 "task_name varchar, " +
                 "copied int, " +
                 "primary key (chunk_id))";
-    public static final String DDL_CREATE_LOCAL_OUTBOX_TABLE =
-            "create table $tableName (" +
-                    "chunk_id TIMEUUID, " +
-                    "task_name varchar, " +
-                    "copied int, " +
-                    "primary key (chunk_id))";
     public static final String DDL_DROP_TABLE =
             "drop table if exists $tableName";
     public static final String DML_INSERT_OUTBOX_TABLE =

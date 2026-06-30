@@ -70,6 +70,7 @@ You can find more details and examples below.
   * [Prepare PostgreSQL To YDB Mapping File](#prepare-postgresql-to-ydb-mapping-file)
   * [PostgreSQL To YDB Run](#postgresql-to-ydb-run)
 * [For Developers](#for-developers)
+  * [init method](#init-method)
 
 ## Build
 
@@ -1692,12 +1693,22 @@ You can use Bublik's libs in your own projects by adding the following dependenc
 ```xml
     <dependency>
         <groupId>dev.bublik</groupId>
-        <artifactId>bublik-core</artifactId>
+        <artifactId>bublik-cassandra</artifactId>
+        <version>${version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.bublik</groupId>
+      <artifactId>bublik-clickhouse</artifactId>
+      <version>${version}</version>
+      </dependency>
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-mssql</artifactId>
         <version>${version}</version>
     </dependency>
     <dependency>
         <groupId>dev.bublik</groupId>
-        <artifactId>bublik-cassandra</artifactId>
+        <artifactId>bublik-oracle</artifactId>
         <version>${version}</version>
     </dependency>
     <dependency>
@@ -1710,27 +1721,39 @@ You can use Bublik's libs in your own projects by adding the following dependenc
         <artifactId>bublik-ydb</artifactId>
         <version>${version}</version>
     </dependency>
+```
+
+The list of needed dependencies is based on types of source and target databases.<br>
+If you want to migrate data from PostgreSQL to PostgreSQL you need only dependency:
+```xml
     <dependency>
         <groupId>dev.bublik</groupId>
-        <artifactId>bublik-oracle</artifactId>
+        <artifactId>bublik-postgres</artifactId>
         <version>${version}</version>
     </dependency>
 ```
 
-The list of dependencies are based on types of source and target databases. Core library is required for all types of databases. Possible flows:
+If your source and target have different types you need to add two dependencies.<br>
+For example, if you want to migrate data from PostgreSQL to Cassandra you need to add the following two dependencies:
+```xml
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-postgres</artifactId>
+        <version>${version}</version>
+    </dependency>
+    <dependency>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik-cassandra</artifactId>
+        <version>${version}</version>
+    </dependency>
+```
 
-| SOURCE       | TARGET     |
-|:-------------|:-----------|
-| Cassandra    | Cassandra  |
-| Oracle       | Cassandra  |
-| Oracle       | PostgreSQL |
-| Oracle       | YDB        |
-| PostgreSQL   | Cassandra  |
-| PostgreSQL   | PostgreSQL |
-| PostgreSQL   | YDB        |
+### init method
 
-Just run method:
+The easiest way to start migration is to use init method.
+
+- You should create ConnectionProperty object.
 
 ```java
-StorageService.init(...);
+    init(ConnectionProperty property, List<Config> configs, int rows, Table outboxTable);
 ```

@@ -35,14 +35,26 @@ import java.util.stream.Collectors;
 
 import static dev.bublik.cassandra.storage.cassandraaddons.MM3.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
-// <K extends UUID, T extends Long, S extends CqlSession, R extends com.datastax.oss.driver.api.core.cql.ResultSet>
 public class CassandraStorage extends CSStorage {
     private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
-    private final int batchSize;
 
-    public CassandraStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
-        super(storageClass, connectionProperty);
+    public CassandraStorage(CqlSession cqlSession, int batchSize, Table outboxTable) {
+        super(cqlSession, outboxTable);
+        this.batchSize = batchSize;
+    }
+
+    public CassandraStorage(CqlSession cqlSession, int batchSize, int threadCount, Table outboxTable) {
+        super(cqlSession, threadCount, outboxTable);
+        this.batchSize = batchSize;
+    }
+
+    public CassandraStorage(StorageClass storageClass,
+                            ConnectionProperty connectionProperty,
+                            Table outboxTable) {
+        super(storageClass, connectionProperty, outboxTable);
         this.batchSize = getBatchSize(connectionProperty);
+        this.threadCount = connectionProperty.getThreadCount();
+        this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
     }
 
     @Override

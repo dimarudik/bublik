@@ -23,12 +23,14 @@ import static dev.bublik.ydb.constants.SQLConstants.*;
 public class YDBStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
 
-    public YDBStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    public YDBStorage(StorageClass storageClass,
+                      ConnectionProperty connectionProperty,
+                      Table outboxTable) throws SQLException {
+        super(storageClass, connectionProperty, outboxTable);
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTable, Table sourceTable) {
+    public String buildStartEndOfChunk(Config config, Table sourceTable) {
         return "";
     }
 
@@ -43,17 +45,18 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public void fulfillChunks(List<Config> configs, boolean synz, int rows, String tableName) throws SQLException {
+    public void fulfillChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
 
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
 
     }
 
     @Override
-    public void createGlobalOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox() throws SQLException {
+/*
         String[] t = tableName.split("\\.");
         String tName;
         if (t.length == 1) {
@@ -61,24 +64,12 @@ public class YDBStorage extends JDBCStorage {
         } else {
             tName = t[1];
         }
+*/
         Connection connection = getPoolConnection();
         try {
             Statement createTable = connection.createStatement();
-            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", tName));
+            createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString()));
             createTable.close();
-//            Table table = TableService.getTable(connection, "", "bublik_outbox");
-/*
-            Table table = configToTable("", "bublik_outbox");
-            if (table.exists(connection)) {
-                Statement createTable = connection.createStatement();
-                createTable.executeUpdate(DDL_DROP_YDB_TABLE_BUBLIK_OUTBOX);
-                createTable.close();
-            }
-            Statement truncateTable = connection.createStatement();
-            truncateTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE);
-            truncateTable.close();
-            connection.commit();
-*/
             log.info("Outbox table created successfully");
         } catch (SQLException e) {
             log.error("{}", getStackTrace(e));
@@ -87,7 +78,7 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTable, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
         return List.of();
     }
 
@@ -138,7 +129,7 @@ public class YDBStorage extends JDBCStorage {
 
         try {
 //            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
-            insertProcessedChunkInfo(chunk, tableName);
+            insertProcessedChunkInfo(chunk);
             connectionTo.rollback();
         } catch (SQLException e) {
 //            log.error("Error insert into BUBLIK_OUTBOX for chunk {}, start {}, end {}, rows {}, task {}: {}",
@@ -170,7 +161,7 @@ public class YDBStorage extends JDBCStorage {
 
         try {
 //            insertProcessedChunkInfo(connectionTo, (int) chunk.getId(), recordCount, chunk.getConfig().fromTaskName(), tableName);
-            insertProcessedChunkInfo(chunk, tableName);
+            insertProcessedChunkInfo(chunk);
             connectionTo.commit();
         } catch (SQLException e) {
             log.error("ON COMMIT chunkId = {} {}", chunk.getId(), getStackTrace(e));
@@ -421,7 +412,8 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
+    public void dropOutboxTable(boolean sync) throws SQLException {
+/*
         String[] t = tableName.split("\\.");
         String tName;
         if (t.length == 1) {
@@ -429,10 +421,11 @@ public class YDBStorage extends JDBCStorage {
         } else {
             tName = t[1];
         }
+*/
         try {
             Connection connection = getPoolConnection();
             Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", tName));
+            dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString()));
             dropTable.close();
             connection.commit();
             connection.close();
@@ -442,8 +435,9 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk) {
         try {
+/*
             String[] t = tableName.split("\\.");
             String tName;
             if (t.length == 1) {
@@ -451,8 +445,10 @@ public class YDBStorage extends JDBCStorage {
             } else {
                 tName = t[1];
             }
+*/
             Connection connection = (Connection) chunk.getTargetSession();
-            PreparedStatement ps = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace("$tableName", tName));
+            PreparedStatement ps = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace(
+                    "$tableName", getOutboxTable().tableToString()));
             ps.setInt(1, (int) chunk.getId());
             ps.setString(2, chunk.getConfig().fromTaskName());
             ps.setLong(3, chunk.getCopied());

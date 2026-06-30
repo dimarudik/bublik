@@ -3,6 +3,8 @@ package dev.bublik.postgres;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
@@ -63,8 +65,10 @@ public class PostgresMigrationTest {
 
     @Test
     void testPostgresToPostgresMigration() throws Exception {
-        Storage sourceStorage = new PostgresStorage(sourceDataSource);
-        Storage targetStorage = new PostgresStorage(targetDataSource);
+        Table sourceOutboxTable = new PseudoTable("public", "bublik");
+        Table targetOutboxTable = new PseudoTable("public", "_bublik");
+        Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceOutboxTable);
+        Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
 
         List<Config> configs = new ArrayList<>();
         Config tableConfig = new Config(
@@ -77,6 +81,7 @@ public class PostgresMigrationTest {
 
         sourceStorage.start(targetStorage, configs, 1000);
 
+//        Thread.sleep(100_000);
         try (Connection conn = targetDataSource.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {

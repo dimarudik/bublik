@@ -20,24 +20,30 @@ import static dev.bublik.core.constants.Constants.FROM;
 import static dev.bublik.core.constants.Constants.TO;
 import static dev.bublik.mssql.constants.SQLConstants.*;
 
-// <K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet>
 public class MSSQLStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
 
-    public MSSQLStorage(DataSource dataSource) {
-        super(dataSource);
+    public MSSQLStorage(DataSource dataSource,
+                        Table outboxTable) {
+        super(dataSource, outboxTable);
     }
 
-    public MSSQLStorage(DataSource dataSource, int threadCount) {
-        super(dataSource, threadCount);
+    public MSSQLStorage(DataSource dataSource,
+                        int threadCount,
+                        Table outboxTable) {
+        super(dataSource, threadCount, outboxTable);
     }
 
-    protected MSSQLStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
-        super(dataSource, connectionProperty);
+    protected MSSQLStorage(DataSource dataSource,
+                           ConnectionProperty connectionProperty,
+                           Table outboxTable) {
+        super(dataSource, connectionProperty, outboxTable);
     }
 
-    public MSSQLStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    public MSSQLStorage(StorageClass storageClass,
+                        ConnectionProperty connectionProperty,
+                        Table outboxTable) throws SQLException {
+        super(storageClass, connectionProperty, outboxTable);
     }
 
     @Override
@@ -61,11 +67,11 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public void fulfillChunks(List<Config> configs, boolean sync, int rows, String tableName) throws SQLException {
+    public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
         Connection connection = getConnection();
         createSchema(connection, sync);
         createSequence(connection, sync);
-        createChunkTable(connection, sync, tableName);
+        createChunkTable(connection, sync);
         connection.commit();
         for (Config config : configs) {
             MSSQLTable sourceTable = (MSSQLTable) configToTable(config.fromSchemaName(), config.fromTableName());
@@ -75,16 +81,15 @@ public class MSSQLStorage extends JDBCStorage {
             checkIfClusteringKeyHasNullableColumns(clusteringKey);
             sourceTable.setClusteringKey(clusteringKey);
             createChunkExtTable(connection, sync, sourceTable);
-            insertChunkTable(connection, sourceTable, tableName, config, rows);
+            insertChunkTable(connection, sourceTable, config, rows);
 //            log.info("Fulfilling chunk table {} with data from table {}", tableName, sourceTable.getTableFullName());
         }
         dropSequence(connection, sync);
-        log.info("Chunk table {} created successfully", tableName);
+        log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
     }
 
     private void insertChunkTable(Connection connection,
                                   MSSQLTable sourceTable,
-                                  String chunkTableName,
                                   Config config,
                                   int rows) throws SQLException {
         String clusteringKeyColumnListByComma = getClusteringKeyColumnListByComma(sourceTable);
@@ -93,6 +98,7 @@ public class MSSQLStorage extends JDBCStorage {
         String fromToColumnsByComma = getStringFromToClusteringKey(sourceTable, ", ", "");
         String insertChunkExtSql =
                 DML_INSERT_EXT_CHUNKS
+                        .replace("$schemaName", schemaName())
                         .replace("$tableName", sourceTable.getSchemaName() + "." + sourceTable.getTableName())
                         .replace("$columns", clusteringKeyColumnListByComma)
                         .replace("$colsAscDesc", clusteringKeyColumnAscDescListByComma)
@@ -105,7 +111,8 @@ public class MSSQLStorage extends JDBCStorage {
         insertExtTable.executeUpdate();
         insertExtTable.close();
         String insertChunkSql = DML_INSERT_CHUNKS
-                .replace("$tableName", chunkTableName)
+                .replace("$schemaName", schemaName())
+                .replace("$tableName", getOutboxTable().getTableName())
                 .replace("$extTableName", sourceTable.getTableName());
         PreparedStatement insertTable = connection.prepareStatement(insertChunkSql);
         insertTable.setString(1, "bublik");
@@ -147,21 +154,21 @@ public class MSSQLStorage extends JDBCStorage {
 
     private void createSequence(Connection connection, boolean sync) throws SQLException {
         Statement createTable = connection.createStatement();
-        createTable.executeUpdate(DDL_CREATE_CHUNK_SEQ);
+        createTable.executeUpdate(DDL_CREATE_CHUNK_SEQ.replace("$schemaName", schemaName()));
         createTable.close();
         connection.commit();
     }
 
     private void dropSequence(Connection connection, boolean sync) throws SQLException {
         Statement createTable = connection.createStatement();
-        createTable.executeUpdate(DDL_DROP_CHUNK_SEQ);
+        createTable.executeUpdate(DDL_DROP_CHUNK_SEQ.replace("$schemaName", schemaName()));
         createTable.close();
         connection.commit();
     }
 
     private void createSchema(Connection connection, boolean sync) throws SQLException {
         Statement createTable = connection.createStatement();
-        createTable.executeUpdate(DDL_CREATE_SCHEMA);
+        createTable.executeUpdate(DDL_CREATE_SCHEMA.replace("$schemaName", schemaName()));
         createTable.close();
         connection.commit();
     }
@@ -170,6 +177,7 @@ public class MSSQLStorage extends JDBCStorage {
         Statement createTable = connection.createStatement();
         String columnList = getStringFromToClusteringKeyWithType(table, ", ");
         String sql = DDL_CREATE_CHUNK_EXT_TABLE
+                .replace("$schemaName", schemaName())
                 .replace("$extTableName", table.getTableName())
                 .replace("$columns", columnList);
         log.info("Creating chunk ext table: {}", sql);
@@ -206,43 +214,58 @@ public class MSSQLStorage extends JDBCStorage {
         return from + delimiter + to;
     }
 
-    private void createChunkTable(Connection connection, boolean sync, String chunkTableName) throws SQLException {
+    private void createChunkTable(Connection connection, boolean sync) throws SQLException {
         Statement createTable = connection.createStatement();
-        createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName", chunkTableName));
+        createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE
+                .replace("$schemaName", schemaName())
+                .replace("$tableName", getOutboxTable().getTableName()));
         createTable.close();
         connection.commit();
     }
 
+    private String schemaName() {
+        return getOutboxTable().getSchemaName() == null ? "bublik" : getOutboxTable().getSchemaName();
+    }
+
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync, String tableName) throws SQLException {
+    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
         Connection connection = getConnection();
         for (Config config : configs) {
             Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", "_ext_" + config.fromTableName()));
+            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE
+                    .replace("$schemaName", schemaName())
+                    .replace("$tableName", "_ext_" + config.fromTableName()));
             dropTable.close();
         }
         Statement dropTable = connection.createStatement();
-        dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", tableName));
+        dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE
+                .replace("$schemaName", schemaName())
+                .replace("$tableName", getOutboxTable().getTableName()));
         dropTable.close();
         connection.commit();
         Statement dropSchema = connection.createStatement();
-        dropSchema.executeUpdate(DDL_DROP_SCHEMA);
+        dropSchema.executeUpdate(DDL_DROP_SCHEMA.replace("$schemaName", schemaName()));
         dropSchema.close();
         connection.commit();
     }
 
     @Override
-    public void createGlobalOutbox(String tableName) throws SQLException {
+    public void createGlobalOutbox() throws SQLException {
 
     }
 
     @Override
-    public void dropOutboxTable(boolean sync, String tableName) throws SQLException {
+    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk) throws SQLException {
 
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, String chunkTableName, Storage targetStorage) throws SQLException {
+    public void dropOutboxTable(boolean sync) throws SQLException {
+
+    }
+
+    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         for (Config config : configs) {
             Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
@@ -252,7 +275,7 @@ public class MSSQLStorage extends JDBCStorage {
 //            targetTable.getPkColumns().forEach(c -> log.info("PK: {} {} {}", targetTable.getTableName(), c.columnName(), c.columnPosition(), c.ascOrDesc()));
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-            String sql = buildStartEndOfChunk(config, chunkTableName, sourceTable);
+            String sql = buildStartEndOfChunk(config, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
             String alias = config.fromTableAlias();
@@ -295,6 +318,7 @@ public class MSSQLStorage extends JDBCStorage {
         MSSQLTable sourceTable = (MSSQLTable) t2t.sourceTable();
         String columnList = getStringFromToClusteringKey(sourceTable, ", ", "");
         String sql = SQL_VALUES_FROM_EXT_TABLE
+                .replace("$schemaName", schemaName())
                 .replace("$extTableName", sourceTable.getTableName())
                 .replace("$columns", columnList);
         PreparedStatement ps = connection.prepareStatement(sql);
@@ -316,9 +340,10 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public String buildStartEndOfChunk(Config config, String chunkTableName, Table sourceTable) {
-        return "select top(1000) c.chunk_id, c.uuid, c.start_page, c.end_page, c.task_name, c.status from bublik." +
-                chunkTableName + " c, bublik._ext_" + sourceTable.getTableName() + " e where c.chunk_id = e.chunk_id and " +
+    public String buildStartEndOfChunk(Config config, Table sourceTable) {
+        return "select top(1000) c.chunk_id, c.uuid, c.start_page, c.end_page, c.task_name, c.status from " +
+                schemaName() + ".[" + getOutboxTable().getTableName() + "] c, " + schemaName() + ".[_ext_" + sourceTable.getTableName() +
+                "] e where c.chunk_id = e.chunk_id and " +
                 "c.schema_name = ? and c.table_name = ? and c.task_name = ? " +
                 " and c.status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
                 + " order by c.chunk_id ";

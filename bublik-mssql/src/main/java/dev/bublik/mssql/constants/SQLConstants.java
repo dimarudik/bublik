@@ -2,15 +2,15 @@ package dev.bublik.mssql.constants;
 
 public abstract class SQLConstants {
     public static final String DDL_CREATE_SCHEMA =
-        "create schema bublik";
+        "create schema $schemaName";
     public static final String DDL_DROP_SCHEMA =
-        "drop schema if exists bublik";
+        "drop schema if exists $schemaName";
     public static final String DDL_CREATE_CHUNK_SEQ =
-        "create sequence bublik.chunk_seq as int start with 1 increment by 1";
+        "create sequence $schemaName.chunk_seq as int start with 1 increment by 1";
     public static final String DDL_DROP_CHUNK_SEQ =
-            "drop sequence bublik.chunk_seq";
+            "drop sequence $schemaName.chunk_seq";
     public static final String DDL_CREATE_CHUNK_TABLE = """
-            create table bublik.[$tableName] (
+            create table $schemaName.[$tableName] (
                 chunk_id int primary key,
                 uuid varchar(36),
                 start_page bigint,
@@ -28,15 +28,15 @@ public abstract class SQLConstants {
                 err_msg varchar(2048))
             """;
     public static final String DDL_CREATE_CHUNK_EXT_TABLE = """
-        \n create table bublik.[_ext_$extTableName] (
+        \n create table $schemaName.[_ext_$extTableName] (
             chunk_id int,
             page int,
             $columns
             )""";
     public static final String SQL_VALUES_FROM_EXT_TABLE =
-            "select $columns from bublik.[_ext_$extTableName] where chunk_id = ?";
+            "select $columns from $schemaName.[_ext_$extTableName] where chunk_id = ?";
     public static final String DDL_DROP_CHUNK_TABLE =
-        "drop table if exists bublik.[$tableName]";
+        "drop table if exists $schemaName.[$tableName]";
     public static final String SQL_CLUSTERING_KEY =
         "SELECT ic.key_ordinal, c.name as column_name, t.name as column_type, ic.is_descending_key, c.max_length, c.is_nullable " +
             "FROM sys.indexes i " +
@@ -46,7 +46,7 @@ public abstract class SQLConstants {
             "WHERE i.object_id = OBJECT_ID(?) " +
             "AND i.type = 1 ";
     public static final String DML_INSERT_CHUNKS = """
-            \n insert into bublik.[$tableName] (chunk_id, ext_schema, ext_table, schema_name, table_name, required, task_name)
+            \n insert into $schemaName.[$tableName] (chunk_id, ext_schema, ext_table, schema_name, table_name, required, task_name)
                 (select chunk_id, ?, ?, ?, ?, ?, ? from bublik.[_ext_$extTableName])
             """;
     public static final String DML_INSERT_EXT_CHUNKS = """
@@ -58,13 +58,13 @@ public abstract class SQLConstants {
                 ) AS t
                 WHERE RowNum % ? = 0 OR RowNum = 1
             )
-            INSERT INTO bublik.[_ext_$extTableName] (chunk_id, page, $fromToColumns)
-            SELECT NEXT VALUE FOR bublik.chunk_seq, rNum as page, $leadColumns FROM ChunkPoints
+            INSERT INTO $schemaName.[_ext_$extTableName] (chunk_id, page, $fromToColumns)
+            SELECT NEXT VALUE FOR $schemaName.chunk_seq, rNum as page, $leadColumns FROM ChunkPoints
             """;
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
-            "update bublik.[$tableName] set status = ?, err_msg = null where chunk_id = ?";
+            "update $tableName set status = ?, err_msg = null where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
-            "update bublik.[$tableName] set status = ?, err_msg = ? where chunk_id = ?";
+            "update $tableName set status = ?, err_msg = ? where chunk_id = ?";
     public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =
-            "update bublik.[$tableName] set copied = ? where chunk_id = ?";
+            "update $tableName set copied = ? where chunk_id = ?";
 }

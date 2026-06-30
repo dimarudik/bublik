@@ -21,7 +21,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import static dev.bublik.core.constants.Constants.CHUNK_TABLE_NAME;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public abstract class JDBCStorage extends Storage
@@ -31,29 +30,33 @@ public abstract class JDBCStorage extends Storage
     private Connection connection;
     private final boolean isManagedPool;
 
-    public JDBCStorage(DataSource dataSource) {
-        super(new ConnectionProperty());
+    public JDBCStorage(DataSource dataSource, Table outboxTable) {
+        super(new ConnectionProperty(), outboxTable);
         this.dataSource = dataSource;
         this.threadCount = getMaxPoolSize(dataSource, 10);
         this.isManagedPool = false;
     }
 
-    public JDBCStorage(DataSource dataSource, int threadCount) {
-        super(new ConnectionProperty());
+    public JDBCStorage(DataSource dataSource, int threadCount, Table outboxTable) {
+        super(new ConnectionProperty(), outboxTable);
         this.dataSource = dataSource;
         this.threadCount = threadCount;
         this.isManagedPool = false;
     }
 
-    protected JDBCStorage(DataSource dataSource, ConnectionProperty connectionProperty) {
-        super(connectionProperty);
+    protected JDBCStorage(DataSource dataSource,
+                          ConnectionProperty connectionProperty,
+                          Table outboxTable) {
+        super(connectionProperty, outboxTable);
         this.dataSource = dataSource;
         this.threadCount = connectionProperty.getThreadCount();
         this.isManagedPool = false;
     }
 
-    public JDBCStorage(StorageClass storageClass, ConnectionProperty connectionProperty) throws SQLException {
-        super(storageClass, connectionProperty);
+    public JDBCStorage(StorageClass storageClass,
+                       ConnectionProperty connectionProperty,
+                       Table outboxTable) throws SQLException {
+        super(storageClass, connectionProperty, outboxTable);
         HikariConfig hikariConfig = buildConfiguration(storageClass.getProperties(), connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
@@ -133,22 +136,17 @@ public abstract class JDBCStorage extends Storage
 
     @Override
     public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-        start(targetStorage, configs, rows, CHUNK_TABLE_NAME);
+        start(targetStorage, configs, rows, false);
     }
 
     @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
-        start(targetStorage, configs, rows, tableName, false);
-    }
-
-    @Override
-    public void start(Storage targetStorage, List<Config> cfgs, int rows, String tableName, boolean sync) throws SQLException {
+    public void start(Storage targetStorage, List<Config> cfgs, int rows, boolean sync) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (!sync) {
-            startNOSync(targetStorage, configs, rows, tableName);
+            startNOSync(targetStorage, configs, rows);
         } else {
             try {
-                startSync(targetStorage, configs, rows, tableName);
+                startSync(targetStorage, configs, rows);
             } catch (Exception e) {
                 log.info("{}", getStackTrace(e));
                 targetStorage.closeStorage();
@@ -166,35 +164,34 @@ public abstract class JDBCStorage extends Storage
         return configs;
     }
 
-    private void startNOSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+    private void startNOSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
 
-//        Storage<K, T, S, R> sourceStorage = this;
         if (rows > 0) {
-            dropChunkTable(configs,false, tableName);
-            fulfillChunks(configs, false, rows, tableName);
-            targetStorage.dropOutboxTable(false, tableName);
-            targetStorage.createGlobalOutbox(tableName);
+            dropChunkTable(configs,false);
+            fulfillChunks(configs, false, rows);
+            targetStorage.dropOutboxTable(false);
+            targetStorage.createGlobalOutbox();
         }
         log.info("SOURCE version: {}", getStorageMajorVersion());
         sourceConnection.close();
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
-            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, tableName, targetStorage);
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
             chunks.forEach(chunk -> futures.add(
                     service
                             .submit(() -> {
                                 try {
-                                    return chunk.allStages(false, tableName);
+                                    return chunk.allStages(false, getOutboxTable());
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                                     try {
                                         if (((Connection)chunk.getSourceSession()).isValid(0)) {
                                             log.warn("Saving info about error to database");
-                                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), tableName);
+                                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
                                             (chunk.getSourceSession()).close();
                                         }
                                         if (targetStorage instanceof  JDBCStorage &&  ((Connection)chunk.getTargetSession()).isValid(0)) {
@@ -258,21 +255,17 @@ public abstract class JDBCStorage extends Storage
 
         Connection dropChunkConnection = this.getPoolConnection();
         setConnection(dropChunkConnection);
-        dropChunkTable(configs, false, tableName);
+        dropChunkTable(configs, false);
         dropChunkConnection.close();
-        targetStorage.dropOutboxTable(false, tableName);
+        targetStorage.dropOutboxTable(false);
     }
 
     @Override
-    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk, String tableName) {
+    public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) {
         return false;
     }
 
-    @Override
-    public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk, String tableName) {
-    }
-
-    private void startSync(Storage targetStorage, List<Config> configs, int rows, String tableName) throws SQLException {
+    private void startSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
 /*
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
@@ -330,30 +323,6 @@ public abstract class JDBCStorage extends Storage
             log.debug("DataSource is managed by external system (e.g. Spring). Skipping closure.");
         }
     }
-
-/*
-    @Override
-    public void enrichTargetTables() {
-        Map<Table<S>, Table<S>> tables = getTables();
-        for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-            Table<S> sourceTable = entry.getKey();
-            Table<S> targetTable = entry.getValue();
-
-            targetTable.setColumns(sourceTable.getColumns());
-            targetTable.setPkColumns(sourceTable.getPkColumns());
-            targetTable.setIndexes(sourceTable.getIndexes());
-            targetTable.setOptions(sourceTable.getOptions());
-            targetTable.setUniqueConstraints(sourceTable.getUniqueConstraints());
-            targetTable.setForeignKeys(sourceTable.getForeignKeys());
-        }
-    }
-*/
-
-/*
-    private <S extends AutoCloseable> boolean inList(List<Table<S>> tables, Table<S> table) {
-        return tables.contains(table);
-    }
-*/
 
     @Override
     public Table getTargetTableBySourceTable(Table sourceTable) {
