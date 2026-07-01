@@ -55,7 +55,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void allTypes() throws IOException, InterruptedException {
+    void allTypes() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
@@ -76,7 +76,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void columnOrder() throws IOException, InterruptedException {
+    void columnOrder() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/columnOrder.json",
@@ -95,12 +95,12 @@ public class PostgresToPostgresTest {
                 PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/isNotPartitioned.json"));
 
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                StorageService.init(property, configs, false, 50_000, "_bublik"));
+                        StorageService.init(property, configs, rows, chunkTable, outboxTable));
         assertTrue(ex.getMessage().contains("Partitioned tables are not supported"));
     }
 
     @Test
-    void targetTableNotExists() throws IOException, InterruptedException {
+    void targetTableNotExists() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/targetTableNotExists.json",
@@ -114,25 +114,27 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void notNullFailure() throws IOException, InterruptedException {
-        TestResult result = getResultCount(
-                "./postgresql/postgresql/yaml/pg2pg.yaml",
-                "postgresql/postgresql/json/notNullFailure.json",
-                rows,
-                sync,
-                getJdbcProperties(source),
-                getJdbcProperties(target));
+    void notNullFailure() throws Exception {
+        try {
+            TestResult result = getResultCount(
+                    "./postgresql/postgresql/yaml/pg2pg.yaml",
+                    "postgresql/postgresql/json/notNullFailure.json",
+                    rows,
+                    sync,
+                    getJdbcProperties(source),
+                    getJdbcProperties(target));
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Ending write to copy failed"));
+        }
 
-        if (result.sourceCount() != result.targetCount()) {
-            String jdbcUrl = source.getJdbcUrl();
-            String username = source.getUsername();
-            String password = source.getPassword();
-            try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
-                PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
+        String jdbcUrl = source.getJdbcUrl();
+        String username = source.getUsername();
+        String password = source.getPassword();
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+            PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
 
         TestResult result2 = getResultCount(
@@ -146,7 +148,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void serialColumn() throws IOException, InterruptedException {
+    void serialColumn() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/serialColumn.json",
@@ -160,7 +162,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void emptySourceTable() throws IOException, InterruptedException {
+    void emptySourceTable() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/emptySourceTable.json",

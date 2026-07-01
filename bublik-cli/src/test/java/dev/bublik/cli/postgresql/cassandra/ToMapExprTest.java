@@ -83,7 +83,7 @@ public class ToMapExprTest {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        App.runProcess(cp, configs, rows, sync);
+        App.runProcess(cp, configs, rows);
 
         return resultCassandra();
     }

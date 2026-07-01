@@ -1,6 +1,9 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
+import dev.bublik.core.service.TableService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -16,8 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResultCount;
+import static dev.bublik.cli.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ManyToOneTest {
@@ -58,7 +60,7 @@ public class ManyToOneTest {
     }
 
     @Test
-    void ManyToOne() throws IOException {
+    void manyToOne() throws Exception {
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
         long targetCount = 0;
@@ -71,7 +73,8 @@ public class ManyToOneTest {
                 sync,
                 getJdbcProperties(source1),
                 getJdbcProperties(target),
-                "_bublik_chunk_01")
+                chunkTable,
+                outboxTable)
         ));
 
         futures.add(service.submit(() -> getResultCount(
@@ -81,7 +84,8 @@ public class ManyToOneTest {
                 sync,
                 getJdbcProperties(source2),
                 getJdbcProperties(target),
-                "_bublik_chunk_02")
+                chunkTable2,
+                outboxTable2)
         ));
 
         for (Future<?> future : futures) {

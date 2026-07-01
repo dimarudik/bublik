@@ -99,7 +99,7 @@ public class ToListAllTest {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        App.runProcess(cp, configs, rows, sync, chunkTableName);
+        App.runProcess(cp, configs, rows);
 
         String fromQuery = "SELECT count(1) FROM test.users";
         Long sourceCount = countRows(sourceProperties, fromQuery);

@@ -78,7 +78,7 @@ public class PostgresMigrationTest {
 
     @Test
     void testMssqlToPostgresMigration() throws Exception {
-        Table sourceOutboxTable = new PseudoTable("bublik", "bublik");
+        Table sourceOutboxTable = new PseudoTable("dbo", "bublik");
         Table targetOutboxTable = new PseudoTable("public", "bublik");
         Storage sourceStorage = new MSSQLStorage(sourceDataSource, sourceOutboxTable);
         Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);

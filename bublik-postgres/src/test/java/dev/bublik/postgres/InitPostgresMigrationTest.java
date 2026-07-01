@@ -61,9 +61,10 @@ public class InitPostgresMigrationTest {
         );
         configs.add(tableConfig);
 
-        Table outboxTable = new PseudoTable("public", "\"bublik\"");
+        Table chunkTable = new PseudoTable("public", "chunk");
+        Table outboxTable = new PseudoTable("public", "outbox");
 
-        StorageService.init(connectionProperty, configs, 1000, outboxTable);
+        StorageService.init(connectionProperty, configs, 1000, chunkTable, outboxTable);
 
         try (Connection conn = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
              Statement stmt = conn.createStatement();

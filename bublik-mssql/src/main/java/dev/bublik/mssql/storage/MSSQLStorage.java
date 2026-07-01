@@ -69,7 +69,7 @@ public class MSSQLStorage extends JDBCStorage {
     @Override
     public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
         Connection connection = getConnection();
-        createSchema(connection, sync);
+//        createSchema(connection, sync);
         createSequence(connection, sync);
         createChunkTable(connection, sync);
         connection.commit();
@@ -243,10 +243,10 @@ public class MSSQLStorage extends JDBCStorage {
                 .replace("$tableName", getOutboxTable().getTableName()));
         dropTable.close();
         connection.commit();
-        Statement dropSchema = connection.createStatement();
-        dropSchema.executeUpdate(DDL_DROP_SCHEMA.replace("$schemaName", schemaName()));
-        dropSchema.close();
-        connection.commit();
+//        Statement dropSchema = connection.createStatement();
+//        dropSchema.executeUpdate(DDL_DROP_SCHEMA.replace("$schemaName", schemaName()));
+//        dropSchema.close();
+//        connection.commit();
     }
 
     @Override

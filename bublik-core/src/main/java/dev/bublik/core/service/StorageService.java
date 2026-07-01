@@ -116,15 +116,16 @@ public interface StorageService {
     }
 
     @Deprecated
-    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String outboxTable) throws SQLException, IOException {
-        init(property, configs, rows, stringToTable(outboxTable), sync);
+    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String table) throws SQLException, IOException {
+        throw new RuntimeException("Deprecated");
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows, Table outboxTable) throws SQLException, IOException {
-        init(property, configs, rows, outboxTable, false);
+    static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable) throws SQLException, IOException {
+        Table outboxTable = new PseudoTable(chunkTable.getSchemaName(), chunkTable.getTableName() + "_outbox");
+        init(property, configs, rows, chunkTable, outboxTable);
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows, Table outboxTable, boolean sync) throws SQLException, IOException {
+    static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
         log.info("Bublik starting...");
         log.info("VERSION : {}", getVersion());
         try {
@@ -166,10 +167,10 @@ public interface StorageService {
 */
         StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
         StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property, outboxTable);
+        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property, chunkTable);
              Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property, outboxTable)) {
             assert sourceStorage != null;
-            sourceStorage.start(targetStorage, configs, rows, sync);
+            sourceStorage.start(targetStorage, configs, rows);
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {

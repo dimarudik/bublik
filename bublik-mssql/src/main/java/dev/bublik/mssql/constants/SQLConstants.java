@@ -47,7 +47,7 @@ public abstract class SQLConstants {
             "AND i.type = 1 ";
     public static final String DML_INSERT_CHUNKS = """
             \n insert into $schemaName.[$tableName] (chunk_id, ext_schema, ext_table, schema_name, table_name, required, task_name)
-                (select chunk_id, ?, ?, ?, ?, ?, ? from bublik.[_ext_$extTableName])
+                (select chunk_id, ?, ?, ?, ?, ?, ? from $schemaName.[_ext_$extTableName])
             """;
     public static final String DML_INSERT_EXT_CHUNKS = """
             WITH ChunkPoints AS (

@@ -52,7 +52,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void pgBinaryWriter() throws IOException, InterruptedException {
+    void pgBinaryWriter() throws Exception {
         Properties targetProp = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
@@ -143,7 +143,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void columnOrder() throws IOException, InterruptedException {
+    void columnOrder() throws Exception {
         TestResult result = getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/columnOrder.json",
@@ -155,7 +155,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void parted() throws IOException, InterruptedException {
+    void parted() throws Exception {
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/parted.json",
@@ -169,7 +169,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void leftJoin() throws IOException, InterruptedException {
+    void leftJoin() throws Exception {
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/leftJoin.json",
@@ -183,7 +183,7 @@ public class OracleToPostgresTest {
         assertEquals(result.targetCount(), result.sourceCount());
     }
 
-    void columnFromMany() throws IOException, InterruptedException {
+    void columnFromMany() throws Exception {
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/columnFromMany.json",
@@ -198,7 +198,7 @@ public class OracleToPostgresTest {
     }
 
     @Test
-    void interval() throws IOException, InterruptedException {
+    void interval() throws Exception {
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/interval.json",

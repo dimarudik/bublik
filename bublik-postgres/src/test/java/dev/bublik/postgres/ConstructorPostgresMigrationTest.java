@@ -29,6 +29,7 @@ public class ConstructorPostgresMigrationTest {
 
     static HikariDataSource sourceDataSource;
     static HikariDataSource targetDataSource;
+    static int threadCount = 5;
 
     @BeforeAll
     static void beforeAll() throws Exception {
@@ -38,14 +39,14 @@ public class ConstructorPostgresMigrationTest {
         sourceConfig.setJdbcUrl(postgres.getJdbcUrl());
         sourceConfig.setUsername(postgres.getUsername());
         sourceConfig.setPassword(postgres.getPassword());
-        sourceConfig.setMaximumPoolSize(5);
+        sourceConfig.setMaximumPoolSize(threadCount);
         sourceDataSource = new HikariDataSource(sourceConfig);
 
         HikariConfig targetConfig = new HikariConfig();
         targetConfig.setJdbcUrl(postgres.getJdbcUrl());
         targetConfig.setUsername(postgres.getUsername());
         targetConfig.setPassword(postgres.getPassword());
-        targetConfig.setMaximumPoolSize(5);
+        targetConfig.setMaximumPoolSize(threadCount);
         targetDataSource = new HikariDataSource(targetConfig);
 
         try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
@@ -65,9 +66,9 @@ public class ConstructorPostgresMigrationTest {
 
     @Test
     void testPostgresToPostgresMigration() throws Exception {
-        Table sourceOutboxTable = new PseudoTable("public", "bublik");
+        Table sourceChunkTable = new PseudoTable("public", "bublik");
         Table targetOutboxTable = new PseudoTable("public", "_bublik");
-        Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceOutboxTable);
+        Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceChunkTable);
         Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
 
         List<Config> configs = new ArrayList<>();

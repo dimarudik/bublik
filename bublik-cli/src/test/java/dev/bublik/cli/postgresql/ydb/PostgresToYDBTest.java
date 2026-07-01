@@ -126,7 +126,7 @@ public class PostgresToYDBTest {
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
         Config config = configs.getFirst();
 
-        App.runProcess(cp, configs, rows, sync, chunkTableName);
+        App.runProcess(cp, configs, rows);
 
         String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
                 config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());

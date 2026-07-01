@@ -1,6 +1,8 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -53,7 +55,7 @@ public class PgBinaryWriterTest {
     }
 
     @Test
-    void pgBinaryWriter() throws IOException, InterruptedException {
+    void pgBinaryWriter() throws Exception {
         Properties targetProp = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
@@ -168,16 +170,20 @@ public class PgBinaryWriterTest {
     }
 
     @Test
-    void pgBinaryWriter2() throws IOException, InterruptedException {
+    void pgBinaryWriter2() throws Exception {
         Properties targetProp = getJdbcProperties(target);
+        Table chunk = new PseudoTable(null, "_chunk");
+        Table outbox = new PseudoTable(null, "_outbox");
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/pgBinaryWriter2.json",
                 rows,
                 sync,
                 getJdbcProperties(source),
-                targetProp);
-//        Thread.sleep(90_000);
+                targetProp,
+                chunk,
+                outbox);
+//        Thread.sleep(190_000);
         assertEquals(result.sourceCount(), result.targetCount());
 
         try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {

@@ -58,7 +58,7 @@ public class V2103Test {
     }
 
     @Test
-    void allTypes() throws IOException, InterruptedException {
+    void allTypes() throws Exception {
         TestResult result = getResultCount(
                 "./oracle/clickhouse/yaml/ora2click.yaml",
                 "./oracle/clickhouse/json/ora2click.json",

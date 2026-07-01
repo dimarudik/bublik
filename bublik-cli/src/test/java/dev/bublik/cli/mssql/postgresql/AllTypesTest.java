@@ -2,6 +2,8 @@ package dev.bublik.cli.mssql.postgresql;
 
 import dev.bublik.cli.TestResult;
 import dev.bublik.cli.TestUtils;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
@@ -18,6 +20,7 @@ import java.util.Properties;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class AllTypesTest {
     private static int rows = 50_000;
@@ -61,16 +64,20 @@ public class AllTypesTest {
     }
 
     @Test
-    void allTypes() throws InterruptedException, IOException {
+    void allTypes() throws Exception {
+        Table chunkTable = new PseudoTable("test", "chunk");
+        Table outboxTable = new PseudoTable("public", "outbox");
         TestResult result = TestUtils.getResultCount(
                 "./mssql/postgresql/yaml/mssql2pg.yaml",
                 "./mssql/postgresql/json/allTypes.json",
                 rows,
                 sync,
                 getMSSQLJdbcProperties(source),
-                getJdbcProperties(target));
+                getJdbcProperties(target),
+                chunkTable,
+                outboxTable);
 //        Thread.sleep(1_000_000);
-//        assertEquals(result.sourceCount(), result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
 

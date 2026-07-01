@@ -1,6 +1,8 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -19,9 +21,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResultCount;
+import static dev.bublik.cli.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 //@Disabled
 public class OneToManyTest {
@@ -62,7 +64,7 @@ public class OneToManyTest {
     }
 
     @Test
-    void OneToMany() throws IOException, InterruptedException {
+    void oneToMany() throws Exception {
         ExecutorService service = Executors.newFixedThreadPool(2);
         List<Future<TestResult>> futures = new ArrayList<>();
         long targetCount = 0;
@@ -75,7 +77,8 @@ public class OneToManyTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target1),
-                "_bublik_chunk_01")
+                chunkTable,
+                outboxTable)
         ));
 
         futures.add(service.submit(() -> getResultCount(
@@ -85,7 +88,8 @@ public class OneToManyTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target2),
-                "_bublik_chunk_02")
+                chunkTable2,
+                outboxTable2)
         ));
 
         for (Future<?> future : futures) {
@@ -107,7 +111,7 @@ public class OneToManyTest {
     }
 
     @Test
-    void notNullFailure2() throws IOException, InterruptedException {
+    void notNullFailure2() throws Exception {
         long targetCount = 0;
         long sourceCount = 0;
 
@@ -120,16 +124,18 @@ public class OneToManyTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target1),
-                "_bublik_chunk_01")
+                chunkTable,
+                outboxTable)
         ));
         futures.add(service.submit(() -> getResultCount(
-                "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
-                "postgresql/postgresql/json/notNullFailure2.json",
-                rows,
-                sync,
-                getJdbcProperties(source),
-                getJdbcProperties(target2),
-                "_bublik_chunk_02")
+                            "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
+                            "postgresql/postgresql/json/notNullFailure2.json",
+                            rows,
+                            sync,
+                            getJdbcProperties(source),
+                            getJdbcProperties(target2),
+                            chunkTable2,
+                            outboxTable2)
         ));
 
         for (Future<?> future : futures) {
@@ -139,25 +145,23 @@ public class OneToManyTest {
                 sourceCount += c.sourceCount();
                 Thread.sleep(2);
             } catch (Exception e) {
+                assertTrue(e.getMessage().contains("Ending write to copy failed"));
                 service.shutdownNow();
-                throw new RuntimeException(e);
             }
         }
         service.shutdown();
         service.close();
 
-        if (sourceCount != targetCount) {
-            targetCount = 0;
-            sourceCount = 0;
-            String jdbcUrl = source.getJdbcUrl();
-            String username = source.getUsername();
-            String password = source.getPassword();
-            try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
-                PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
-                ps.executeUpdate();
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
-            }
+        targetCount = 0;
+        sourceCount = 0;
+        String jdbcUrl = source.getJdbcUrl();
+        String username = source.getUsername();
+        String password = source.getPassword();
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+            PreparedStatement ps = connection.prepareStatement("update public.not_null_failure set name = 'a' where id = 1000");
+            ps.executeUpdate();
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
 
         System.out.println("sourceCount = " + sourceCount + "\ntargetCount = " + targetCount);
@@ -171,7 +175,8 @@ public class OneToManyTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target1),
-                "_bublik_chunk_01")
+                chunkTable,
+                outboxTable)
         ));
         futures2.add(service2.submit(() -> getResultCount(
                 "postgresql/postgresql/yaml/oneToManyTarget2.yaml",
@@ -180,7 +185,8 @@ public class OneToManyTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target2),
-                "_bublik_chunk_02")
+                chunkTable2,
+                outboxTable2)
         ));
 
         for (Future<?> future : futures2) {

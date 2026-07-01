@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.bublik.core.constants.ENVProperties;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import org.apache.commons.cli.*;
 import org.slf4j.Logger;
@@ -89,13 +91,12 @@ public class App {
         } else if(!cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
             // how to run with chunk creation from ENV
             List<Config> configs = getConfigs(cmd.getOptionValue(mappingDefOption));
-            run(configs, Integer.parseInt(cmd.getOptionValue(createChunkOption)),
-                    cmd.hasOption(SyncOption));
+            run(configs, Integer.parseInt(cmd.getOptionValue(createChunkOption)));
         } else if(cmd.hasOption("c") && cmd.hasOption("m") && !cmd.hasOption("i") && cmd.hasOption(createChunkOption)) {
             // how to run with chunk creation from yaml config file
             List<Config> configs = getConfigs(cmd.getOptionValue(mappingDefOption));
             run(cmd.getOptionValue(connectionConfigOption), configs,
-                    Integer.parseInt(cmd.getOptionValue(createChunkOption)), cmd.hasOption(SyncOption));
+                    Integer.parseInt(cmd.getOptionValue(createChunkOption)));
         } else {
             formatter.printHelp( HELP_MESSAGE, options );
         }
@@ -120,22 +121,22 @@ public class App {
     }
 
     private static void run(List<Config> configs) {
-        run(configs,0, false);
+        run(configs,0);
     }
 
-    private static void run(List<Config> configs, int rowsParameter, boolean sync) {
+    private static void run(List<Config> configs, int rowsParameter) {
         ConnectionProperty connectionProperty = envConnectionProperty();
-        runProcess(connectionProperty, configs, rowsParameter, sync);
+        runProcess(connectionProperty, configs, rowsParameter);
     }
 
     private static void run(String configFileName, List<Config> configs) {
-        run(configFileName, configs, 0, false);
+        run(configFileName, configs, 0);
     }
 
-    private static void run(String configFileName, List<Config> configs, int rowsParameter, boolean sync) {
+    private static void run(String configFileName, List<Config> configs, int rowsParameter) {
         try {
             ConnectionProperty properties = connectionProperty(configFileName);
-            runProcess(properties, configs, rowsParameter, sync);
+            runProcess(properties, configs, rowsParameter);
         } catch (Exception e) {
             log.error("{}", getStackTrace(e));
         }
@@ -143,22 +144,12 @@ public class App {
 
     public static void runProcess(ConnectionProperty property,
                                   List<Config> configs,
-                                  int rowsParameter,
-                                  boolean sync) {
-        runProcess(property, configs, rowsParameter, false, null);
-    }
-
-    public static void runProcess(ConnectionProperty property,
-                                  List<Config> configs,
-                                  int rowsParameter,
-                                  boolean sync,
-                                  String chunkTable) {
+                                  int rowsParameter) {
         try {
-            StorageService.init(property, configs, sync, rowsParameter,
-                    chunkTable == null ? "\"_bublik\"" : chunkTable);
+            Table table = new PseudoTable(null, "bublik");
+            StorageService.init(property, configs, rowsParameter, table);
         } catch (SQLException e) {
             log.error("{} {}", e.getSQLState(), getStackTrace(e));
-//            throw new RuntimeException(e);
         } catch (Exception r) {
             log.error("{}", getStackTrace(r));
         }

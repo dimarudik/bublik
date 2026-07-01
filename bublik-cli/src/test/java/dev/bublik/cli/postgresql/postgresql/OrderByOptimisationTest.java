@@ -52,7 +52,7 @@ public class OrderByOptimisationTest {
     }
 
     @Test
-    void orderByOptimisation() throws IOException, InterruptedException {
+    void orderByOptimisation() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/orderByOptimisation.json",

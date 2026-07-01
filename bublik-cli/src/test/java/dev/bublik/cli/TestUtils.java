@@ -1,5 +1,8 @@
 package dev.bublik.cli;
 
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
+import dev.bublik.core.service.StorageService;
 import lombok.extern.slf4j.Slf4j;
 import dev.bublik.cli.addons.Utils;
 import dev.bublik.core.model.Config;
@@ -21,6 +24,12 @@ import static dev.bublik.cli.App.getConfigs;
 
 @Slf4j
 public class TestUtils {
+    static public Table chunkTable = new PseudoTable("public", "_chunk");
+    static public Table outboxTable = new PseudoTable("public", "_outbox");
+
+    static public Table chunkTable2 = new PseudoTable("public", "_chunk2");
+    static public Table outboxTable2 = new PseudoTable("public", "_outbox2");
+
     public static String getFilePath(String resourceFileName){
         java.net.URL cfg = TestUtils.class.getClassLoader().getResource(resourceFileName);
         if(cfg == null){
@@ -34,8 +43,8 @@ public class TestUtils {
                                             int rows,
                                             boolean sync,
                                             Properties sourceProperties,
-                                            Properties targetProperties) throws IOException {
-        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, null);
+                                            Properties targetProperties) throws IOException, SQLException {
+        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, chunkTable, outboxTable);
     }
 
     public static TestResult getResultCount(String connectionPropertyFile,
@@ -44,11 +53,13 @@ public class TestUtils {
                                             boolean sync,
                                             Properties sourceProperties,
                                             Properties targetProperties,
-                                            String chunkTableName) throws IOException {
+                                            Table chunkTable,
+                                            Table outboxTable) throws IOException, SQLException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        App.runProcess(cp, configs, rows, sync, chunkTableName);
+//        App.runProcess(cp, configs, rows);
+        StorageService.init(cp, configs, rows, chunkTable, outboxTable);
 
         long sourceCount = 0;
         long targetCount = 0;

@@ -2,17 +2,14 @@
 # Tool for Data Transfer between databases
 
 
-| SOURCE     | TARGET     |
-|:-----------|:-----------|
-| Cassandra  | Cassandra  |
-| Cassandra  | PostgreSQL |
-| MS SQL     | PostgreSQL |
-| Oracle     | Cassandra  |
-| Oracle     | PostgreSQL |
-| Oracle     | YDB        |
-| PostgreSQL | Cassandra  |
-| PostgreSQL | PostgreSQL |
-| PostgreSQL | YDB        |
+| TO ➔ <br> FROM ⬇ | Cassandra | ClickHouse | MS SQL | Oracle | PostgreSQL | YDB |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Cassandra** | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **ClickHouse** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **MS SQL** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Oracle** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| **PostgreSQL** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| **YDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 
 This tool facilitates the efficient transfer of data between databases.
@@ -71,6 +68,9 @@ You can find more details and examples below.
   * [PostgreSQL To YDB Run](#postgresql-to-ydb-run)
 * [For Developers](#for-developers)
   * [init method](#init-method)
+  * [Datasource](#datasource)
+  * [CqlSession](#cqlsession)
+  * [Client](#client)
 
 ## Build
 
@@ -1766,7 +1766,7 @@ ConnectionProperty getConnectionProperty() {
     toProps.put("password", postgres.getPassword());
 
     return new ConnectionProperty(
-            4,
+            4, // number of threads
             fromProps,
             toProps,
             new HashMap<>(),
@@ -1787,14 +1787,188 @@ Config tableConfig = new Config(
 configs.add(tableConfig);
 ```
 
-Create outbox table (table will be created at source and target side):
+Create chunk and outbox tables (the tables will be created at source and target side):
 ```java
-Table outboxTable = new PseudoTable("public", "bublik");
+Table chunkTable = new PseudoTable("public", "chunk");
+Table outboxTable = new PseudoTable("public", "outbox");
 ```
 
 Run the migration:
 ```java
-StorageService.init(connectionProperty, configs, 1000, outboxTable);
+StorageService.init(connectionProperty, configs, 1000, chunkTable, outboxTable);
 ```
 
-Full example `[InitPostgresMigrationTest.java](./bublik-postgres/src/test/java/dev/bublik/postgres/InitPostgresMigrationTest.java)`
+Full example [`InitPostgresMigrationTest.java`](bublik-postgres/src/test/java/dev/bublik/postgres/InitPostgresMigrationTest.java)
+
+
+### Datasource
+
+You can provide your own datasource to the migration.<br>
+The usage of datasource applicable only for jdbc-like storages.
+
+Create two datasources for source and target:
+
+```java
+HikariConfig sourceConfig = new HikariConfig();
+sourceConfig.setJdbcUrl(oracle.getJdbcUrl());
+sourceConfig.setUsername(oracle.getUsername());
+sourceConfig.setPassword(oracle.getPassword());
+sourceConfig.setMaximumPoolSize(5);
+HikariDataSource sourceDataSource = new HikariDataSource(sourceConfig);
+
+HikariConfig targetConfig = new HikariConfig();
+targetConfig.setJdbcUrl(postgres.getJdbcUrl());
+targetConfig.setUsername(postgres.getUsername());
+targetConfig.setPassword(postgres.getPassword());
+targetConfig.setMaximumPoolSize(5);
+HikariDataSource targetDataSource = new HikariDataSource(targetConfig);
+```
+
+Create chunk and outbox tables (the tables will be created at source and target side):
+```java
+Table sourceChunkTable = new PseudoTable(null, "foo");
+Table targetOutboxTable = new PseudoTable("public", "bublik");
+```
+
+Create two storages (source and target):
+```java
+Storage sourceStorage = new OracleStorage(sourceDataSource, sourceChunkTable);
+Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
+```
+
+Create Config:
+```java
+List<Config> configs = new ArrayList<>();
+Config tableConfig = new Config(
+        oracle.getUsername().toUpperCase(),
+        "SOURCE_USERS",
+        "public",
+        "target_users"
+);
+configs.add(tableConfig);
+```
+Run the migration:
+```java
+sourceStorage.start(targetStorage, configs, 1000);
+```
+
+Full example: [`ConstructorPostgresMigrationTest.java`](bublik-postgres/src/test/java/dev/bublik/postgres/ConstructorPostgresMigrationTest.java)
+
+### CqlSession
+
+For Cassandra you can provide your own CqlSession to the migration.
+
+Create two CqlSession objects or CqlSession and Datasource:
+```java
+DriverConfigLoader configLoader = DriverConfigLoader.programmaticBuilder()
+        .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, expectedPoolSize)
+        .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, expectedPoolSize)
+        .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(10))
+        .build();
+
+InetSocketAddress contactPoint = new InetSocketAddress(
+        cassandraContainer.getHost(),
+        cassandraContainer.getMappedPort(9042)
+);
+
+CqlSession sourceSession = CqlSession.builder()
+        .addContactPoint(contactPoint)
+        .withConfigLoader(configLoader)
+        .withAuthCredentials(cassandraContainer.getUsername(), cassandraContainer.getPassword())
+        .withLocalDatacenter(cassandraContainer.getLocalDatacenter())
+        .build();
+
+CqlSession targetSession = CqlSession.builder()
+                .addContactPoint(contactPoint)
+                .withConfigLoader(configLoader)
+                .withAuthCredentials(cassandraContainer.getUsername(), cassandraContainer.getPassword())
+        .withLocalDatacenter(cassandraContainer.getLocalDatacenter())
+        .build();
+```
+
+Create chunk and outbox tables (the tables will be created at source and target side):
+```java
+Table sourceOutboxTable = new PseudoTable(sourceKeyspace, "bublik");
+Table targetOutboxTable = new PseudoTable(targetKeyspace, "bublik");
+```
+
+Create two storages (source and target):
+```java
+Storage sourceStorage = new CassandraStorage(sourceSession, batchSize, sourceOutboxTable);
+Storage targetStorage = new CassandraStorage(targetSession, batchSize, targetOutboxTable);
+```
+
+Create Config:
+```java
+        List<Config> configs = new ArrayList<>();
+        Config tableConfig = new Config(
+                "bublik_source",
+                "source_users",
+                "bublik_target",
+                "target_users"
+        );
+        configs.add(tableConfig);
+```
+
+Run the migration:
+```java
+sourceStorage.start(targetStorage, configs, 1000);
+```
+
+Full example: [`CassandraMigrationTest.java`](bublik-cassandra/src/test/java/dev/bublik/cassandra/CassandraMigrationTest.java)
+
+### Client
+
+For Clickhouse you can provide your own Client to the migration.
+
+Create Datasource and Client:
+```java
+HikariConfig sourceConfig = new HikariConfig();
+sourceConfig.setJdbcUrl(oracle.getJdbcUrl());
+sourceConfig.setUsername(oracle.getUsername());
+sourceConfig.setPassword(oracle.getPassword());
+sourceConfig.setMaximumPoolSize(5);
+HikariDataSource sourceDataSource = new HikariDataSource(sourceConfig);
+
+int expectedClickhousePoolSize = 5;
+String clickhouseHttpUrl = "http://" + clickhouse.getHost() + ":" + clickhouse.getMappedPort(8123);
+Client clickhouseClient = new Client.Builder()
+        .addEndpoint(clickhouseHttpUrl)
+        .setDefaultDatabase("default")
+        .setUsername(clickhouse.getUsername())
+        .setPassword(clickhouse.getPassword())
+        .setMaxConnections(expectedClickhousePoolSize)
+        .setConnectTimeout(10, ChronoUnit.SECONDS)
+        .setSocketTimeout(5, ChronoUnit.MINUTES)
+        .build();
+```
+
+Create chunk and outbox tables (the tables will be created at source and target side):
+```java
+Table sourceOutboxTable = new PseudoTable("public", "source_outbox");
+Table targetOutboxTable = new PseudoTable(null, "target_outbox");
+```
+
+Create two storages (source and target):
+```java
+Storage sourceStorage = new OracleStorage(sourceDataSource, sourceOutboxTable);
+Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
+```
+
+Create Config:
+```java
+List<Config> configs = new ArrayList<>();
+Config tableConfig = new Config(
+        oracle.getUsername().toUpperCase(),
+        "SOURCE_USERS",
+        "default",
+        "target_users"
+);
+configs.add(tableConfig);
+```
+Run the migration:
+```java
+sourceStorage.start(targetStorage, configs, 1000);
+```
+
+Full example: [`ClickHouseMigrationTest.java`](bublik-oracle/src/test/java/dev/bublik/oracle/ClickHouseMigrationTest.java)

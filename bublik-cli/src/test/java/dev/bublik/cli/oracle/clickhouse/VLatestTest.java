@@ -54,7 +54,7 @@ public class VLatestTest {
     }
 
     @Test
-    void allTypes() throws IOException, InterruptedException {
+    void allTypes() throws Exception {
         Properties targetProps = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./oracle/clickhouse/yaml/ora2click.yaml",
@@ -166,7 +166,7 @@ public class VLatestTest {
     }
 
     @Test
-    void column2Column() throws IOException, InterruptedException {
+    void column2Column() throws Exception {
         Properties targetProps = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./oracle/clickhouse/yaml/ora2click.yaml",
@@ -231,7 +231,7 @@ public class VLatestTest {
     }
 
     @Test
-    void expression2Column() throws IOException, InterruptedException {
+    void expression2Column() throws Exception {
         Properties targetProps = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./oracle/clickhouse/yaml/ora2click.yaml",

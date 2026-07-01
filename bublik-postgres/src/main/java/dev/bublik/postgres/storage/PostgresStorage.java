@@ -1713,7 +1713,7 @@ public class PostgresStorage extends JDBCStorage {
         if (!sync) {
             connection.commit();
         }
-        log.info("Ctid chunks created successfully");
+        log.info("Chunk table {} fulfilled successfully", getOutboxTable().tableToString());
     }
 
     @Override
@@ -1722,12 +1722,12 @@ public class PostgresStorage extends JDBCStorage {
         try {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName",
-                    getOutboxTable().tableToString().toUpperCase()));
+                    getOutboxTable().tableToString()));
             createTable.close();
             connection.commit();
-            log.info("Outbox table created successfully");
+            log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
-            log.warn("Outbox table already exists");
+            log.warn("Outbox table {} already exists", getOutboxTable().tableToString());
 //            log.warn("{}", getStackTrace(e));
         }
         connection.close();
@@ -1742,6 +1742,7 @@ public class PostgresStorage extends JDBCStorage {
             if (!sync) {
                 connection.commit();
             }
+            log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
 //            log.error("{}", getStackTrace(e));
             throw e;
@@ -1774,7 +1775,7 @@ public class PostgresStorage extends JDBCStorage {
         Connection connection = getPoolConnection();
         try (Statement dropTable = connection.createStatement()){
             dropTable.executeUpdate(DDL_DROP_OUTBOX_TABLE.replace("$tableName",
-                    getOutboxTable().tableToString().toUpperCase()));
+                    getOutboxTable().tableToString()));
             dropTable.close();
             connection.commit();
             connection.close();
@@ -1792,7 +1793,7 @@ public class PostgresStorage extends JDBCStorage {
         try {
             Connection connectionTo = (Connection) chunk.getTargetSession();
             PreparedStatement ps = connectionTo.prepareStatement(DML_SELECT_OUTBOX_TABLE.replace(
-                    "$tableName", getOutboxTable().tableToString().toUpperCase()));
+                    "$tableName", getOutboxTable().tableToString()));
             ps.setInt(1, (int) chunk.getId());
             ResultSet rs = ps.executeQuery();
             boolean result = rs.next();
@@ -1809,7 +1810,7 @@ public class PostgresStorage extends JDBCStorage {
         try {
             Connection connection = (Connection) chunk.getTargetSession();
             PreparedStatement ps = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace(
-                    "$tableName", getOutboxTable().tableToString().toUpperCase()));
+                    "$tableName", getOutboxTable().tableToString()));
             ps.setInt(1, (int) chunk.getId());
             ps.setString(2, chunk.getConfig().fromTaskName());
             ps.setLong(3, chunk.getCopied());

@@ -98,7 +98,7 @@ public class ModelTransformationTest {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        App.runProcess(cp, configs, rows, sync, chunkTableName);
+        App.runProcess(cp, configs, rows);
 
         String fromQuery = "SELECT count(1) * 2 FROM public.likes l left join users u on u.id = l.user_id left join items i on i.id = l.item_id";
         Long sourceCount = countRows(sourceProperties, fromQuery);

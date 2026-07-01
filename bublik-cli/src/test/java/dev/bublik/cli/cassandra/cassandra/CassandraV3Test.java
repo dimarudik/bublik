@@ -332,7 +332,7 @@ public class CassandraV3Test {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        App.runProcess(cp, configs, rows, sync, null);
+        App.runProcess(cp, configs, rows);
 
         long sourceCount = 0;
         long targetCount = 0;

@@ -243,7 +243,7 @@ public class PgToPgEnvSwitchoverTest {
     }
 
 //    @Test
-    public void switchoverTest() throws IOException, InterruptedException, ExecutionException {
+    public void switchoverTest() throws Exception {
         Properties sourceProperties = getJdbcPropertiesOfGeneric(patroni1, patroni2);
         Properties targetProperties = getJdbcProperties(target);
         prepareSource(sourceProperties);
@@ -256,7 +256,7 @@ public class PgToPgEnvSwitchoverTest {
                         sync,
                         sourceProperties,
                         targetProperties);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
