@@ -1,0 +1,12 @@
+threadCount: 4
+
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/test?targetServerType=primary&options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+toProperties:
+  class: dev.bublik.clickhouse.storage.ClickHouseStorage
+  url: http://localhost:8123
+  database: default
+  user: test
+  password: test

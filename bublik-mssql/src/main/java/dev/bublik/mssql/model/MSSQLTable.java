@@ -96,7 +96,8 @@ public class MSSQLTable extends Table {
                 String isAutoIncrement = isAuto ? "YES" : "NO";
                 columns.add(new Column(
                         ordinalPosition,
-                        columnName,
+                        isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
+//                        columnName,
                         columnType,
                         dataType,
                         nullable,

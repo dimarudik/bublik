@@ -528,7 +528,6 @@ public class ClickHouseStorage extends ClickStorage {
                 }
 
                 case "string": {
-                    // Захватываем метаданные сорса на этапе компиляции плана
                     final String finalSrcName = c2c.sourceColumn().columnName();
                     final String srcType = c2c.sourceColumn().columnType().toLowerCase();
 
@@ -544,9 +543,9 @@ public class ClickHouseStorage extends ClickStorage {
 
                         byte[] bytes;
 
-                        // 1. ПЕРЕХВАТ ТИПА RAW -> HEX STRING
-                        if (srcType.contains("raw")) {
-                            byte[] rawBytes = r.getBytes(finalSrcName);
+                        // 1. ПЕРЕХВАТ ТИПОВ RAW ИЛИ BYTEA (Сырые массивы байт Postgres / Oracle) -> HEX STRING
+                        if (srcType.contains("raw") || srcType.contains("bytea") || v instanceof byte[]) {
+                            byte[] rawBytes = (v instanceof byte[]) ? (byte[]) v : r.getBytes(finalSrcName);
                             if (rawBytes != null && rawBytes.length > 0) {
                                 String hexStr = java.util.HexFormat.of()
                                         .withUpperCase()
@@ -556,7 +555,7 @@ public class ClickHouseStorage extends ClickStorage {
                                 bytes = new byte[0];
                             }
                         }
-                        // 2. ИСПРАВЛЕНИЕ: ПЕРЕХВАТ ТИПА BLOB -> HEX STRING
+                        // 2. ПЕРЕХВАТ ТИПА BLOB -> HEX STRING (Oracle)
                         else if (srcType.contains("blob")) {
                             java.sql.Blob blob = r.getBlob(finalSrcName);
                             if (blob != null) {
@@ -574,7 +573,7 @@ public class ClickHouseStorage extends ClickStorage {
                                 bytes = new byte[0];
                             }
                         }
-                        // 3. ПЕРЕХВАТ ТИПА CLOB -> TEXT STRING
+                        // 3. ПЕРЕХВАТ ТИПА CLOB -> TEXT STRING (Oracle / Postgres Text)
                         else if (v instanceof java.sql.Clob clob) {
                             long length = clob.length();
                             if (length > 0) {
@@ -589,13 +588,13 @@ public class ClickHouseStorage extends ClickStorage {
                                 bytes = new byte[0];
                             }
                         }
-                        // 4. СТАНДАРТНЫЕ СТРОКИ VARCHAR2 / NVARCHAR2 / TEXT
+                        // 4. СТАНДАРТНЫЕ СТРОКИ VARCHAR2 / TEXT / JSON
                         else {
                             String s = v.toString().replace("\u0000", "");
                             bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
                         }
 
-                        // Кодируем Varint/LEB128 префикс длины полученной HEX или текстовой строки
+                        // Кодируем Varint/LEB128 префикс длины полученной строки
                         long val = bytes.length;
                         while ((val & 0xFFFFFFFFFFFFFF80L) != 0L) {
                             out.writeByte(((int) val & 0x7F) | 0x80);

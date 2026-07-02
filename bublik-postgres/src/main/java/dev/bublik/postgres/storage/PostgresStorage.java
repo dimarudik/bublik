@@ -1525,11 +1525,19 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public String buildFetchStatement(Config config, Table2Table t2t) {
+        List<Column2Column> sortedColumn2Columns = t2t.getSortedColumn2ColumnByTargetColumnPosition();
+        List<String> asColumns = new ArrayList<>(sortedColumn2Columns
+                .stream()
+                .filter(c2c -> c2c.sourceColumn() != null)
+                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
+                .toList());
+/*
         List<String> asColumns = t2t.column2Columns()
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
+*/
         List<String> asList = t2t.column2Columns()
                 .stream()
                 .map(Column2Column::asList)
@@ -1559,14 +1567,17 @@ public class PostgresStorage extends JDBCStorage {
                 .distinct()
                 .toList();
 //        asMap.forEach(kv -> log.info("asMap: {} -> {}", kv.key(), kv.value()));
-        Set<String> set = new HashSet<>(asColumns);
+//        Set<String> set = new HashSet<>(asColumns);
+        Set<String> set = new HashSet<>();
         set.addAll(asList);
         set.addAll(asSet);
         set.addAll(asMap.stream().map(KV::key).toList());
         set.addAll(asMap.stream().map(KV::value).toList());
         set.addAll(asUDT);
-        List<String> finalList = set.stream().toList();
-        String columnToColumn = String.join(", ", finalList);
+        asColumns.addAll(set);
+//        List<String> finalList = set.stream().toList();
+//        String columnToColumn = String.join(", ", finalList);
+        String columnToColumn = String.join(", ", asColumns);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
                 (t2t.ttlColumn() == null ? "" : ( ", " + t2t.ttlColumn().defaultValue() + " as " + t2t.ttlColumn().columnName() + " ")) +

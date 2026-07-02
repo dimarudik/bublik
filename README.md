@@ -6,7 +6,7 @@
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Cassandra** | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
 | **ClickHouse** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **MS SQL** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **MS SQL** | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | **Oracle** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
 | **PostgreSQL** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
 | **YDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -68,7 +68,7 @@ You can find more details and examples below.
   * [PostgreSQL To YDB Run](#postgresql-to-ydb-run)
 * [For Developers](#for-developers)
   * [init method](#init-method)
-  * [Datasource](#datasource)
+  * [DataSource](#datasource)
   * [CqlSession](#cqlsession)
   * [Client](#client)
 
@@ -117,7 +117,8 @@ docker run --name cassandra1 \
         -e MAX_HEAP_SIZE=1024M \
         -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
         -e CASSANDRA_DC=datacenter1 \
-        -d cassandra
+        -d cassandra \
+        bash -c "sed -i 's/user_defined_functions_enabled: false/user_defined_functions_enabled: true/' /etc/cassandra/cassandra.yaml && exec docker-entrypoint.sh cassandra -f"
 ```
 
 To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
@@ -353,10 +354,12 @@ CREATE OR REPLACE FUNCTION test.concat (s1 TEXT, s2 TEXT)
 If you are about do the transfer without downtime, you should parallel the payload to the source and target database. You must save the data to the source database ahead of target database, so that Bublik can not overwrite the data in the target database as per TIMESTAMP value.
 
 ```shell
+mvn clean package -DskipTests
+
 java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -k 50000 \
     -c ./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml \
-    -m ./bublik-cli/src/test/resources/cassandra/cassandra/json/<json-file>.json
+    -m ./bublik-cli/src/test/resources/cassandra/cassandra/json/cs2cs1.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -393,7 +396,8 @@ docker run --name cassandra1 \
         -e MAX_HEAP_SIZE=1024M \
         -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
         -e CASSANDRA_DC=datacenter1 \
-        -d cassandra
+        -d cassandra \
+        bash -c "sed -i 's/user_defined_functions_enabled: false/user_defined_functions_enabled: true/' /etc/cassandra/cassandra.yaml && exec docker-entrypoint.sh cassandra -f"
 ```
 
 To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
@@ -1108,7 +1112,7 @@ Halt any changes to the movable tables in the source database (Oracle) and run:
 java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -k 50000 \
     -c ./bublik-cli/src/test/resources/oracle/postgres/yaml/ora2pg.yaml \
-    -m ./bublik-cli/src/test/resources/oracle/postgres/json/ora2pg.json
+    -m ./bublik-cli/src/test/resources/oracle/postgres/json/leftJoin.json
 ```
 
 Chunks will be created automatically with parameter -k at startup
@@ -1688,6 +1692,11 @@ Chunks will be created automatically with parameter -k at startup
 
 ## For Developers
 
+* [init method](#init-method)
+* [DataSource](#datasource)
+* [CqlSession](#cqlsession)
+* [Client](#client)
+
 You can use Bublik's libs in your own projects by adding the following dependency to your pom.xml:
 
 ```xml
@@ -1801,7 +1810,7 @@ StorageService.init(connectionProperty, configs, 1000, chunkTable, outboxTable);
 Full example [`InitPostgresMigrationTest.java`](bublik-postgres/src/test/java/dev/bublik/postgres/InitPostgresMigrationTest.java)
 
 
-### Datasource
+### DataSource
 
 You can provide your own datasource to the migration.<br>
 The usage of datasource applicable only for jdbc-like storages.

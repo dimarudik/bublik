@@ -55,7 +55,7 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
     }
 
     private String schemaName() {
-        return getSourceStorage().getOutboxTable().getSchemaName() == null ? "bublik"
+        return getSourceStorage().getOutboxTable().getSchemaName() == null ? "dbo"
                 : getSourceStorage().getOutboxTable().getSchemaName();
     }
 

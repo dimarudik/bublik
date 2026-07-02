@@ -224,7 +224,7 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     private String schemaName() {
-        return getOutboxTable().getSchemaName() == null ? "bublik" : getOutboxTable().getSchemaName();
+        return getOutboxTable().getSchemaName() == null ? "dbo" : getOutboxTable().getSchemaName();
     }
 
     @Override
@@ -356,14 +356,23 @@ public class MSSQLStorage extends JDBCStorage {
 
     @Override
     public String buildFetchStatement(Config config, Table2Table t2t) {
+        List<Column2Column> sortedColumn2Columns = t2t.getSortedColumn2ColumnByTargetColumnPosition();
+        List<String> asColumns = new ArrayList<>(sortedColumn2Columns
+                .stream()
+                .filter(c2c -> c2c.sourceColumn() != null)
+                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
+                .toList());
+/*
         List<String> asColumns = t2t.column2Columns()
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList();
-        Set<String> set = new HashSet<>(asColumns);
-        List<String> finalList = set.stream().toList();
-        String columnToColumn = String.join(", ", finalList);
+*/
+//        Set<String> set = new HashSet<>();
+//        Set<String> set = new HashSet<>(asColumns);
+//        List<String> finalList = set.stream().toList();
+        String columnToColumn = String.join(", ", asColumns);
 //        String alias = (config.fromTableAlias() == null ? "" : config.fromTableAlias());
         String alias = config.fromTableAlias();
         return PGKeywords.SELECT + " " +
