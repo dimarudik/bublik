@@ -6,11 +6,10 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.2.59</version>
+        <version>26.3.1</version>
     </parent>
 
     <artifactId>bublik-cassandra</artifactId>
-    <version>${project.parent.version}</version>
     <packaging>jar</packaging>
 
     <developers>
