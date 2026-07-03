@@ -27,7 +27,6 @@ public class AllTypesTest {
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
             .acceptLicense()
-//            .withDatabaseName("test");
             .withInitScript("mssql/postgresql/sql/mssql-allTypes.sql");
     private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")

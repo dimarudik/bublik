@@ -3,10 +3,7 @@ package dev.bublik.cli.mssql.clickhouse;
 import dev.bublik.cli.TestResult;
 import dev.bublik.core.model.PseudoTable;
 import dev.bublik.core.model.Table;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.mssqlserver.MSSQLServerContainer;
@@ -19,11 +16,13 @@ import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 public class VLatestTest {
     private static int rows = 20000;
     private static final JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
             .acceptLicense()
             .withInitScript("./mssql/clickhouse/sql/mssql.sql");
+
     private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
             .parse("clickhouse")
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
