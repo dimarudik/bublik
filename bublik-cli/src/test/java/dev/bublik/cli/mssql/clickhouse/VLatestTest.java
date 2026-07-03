@@ -16,7 +16,6 @@ import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
 public class VLatestTest {
     private static int rows = 20000;
     private static final JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
