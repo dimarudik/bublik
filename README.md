@@ -1,15 +1,15 @@
 ![Bublik](/sql/bublik.png)
 # Tool for Data Transfer between databases
 
-
-| TO ➔ <br> FROM ⬇ | Cassandra | ClickHouse | MS SQL | Oracle | PostgreSQL | YDB |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Cassandra** | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| **ClickHouse** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **MS SQL** | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ |
-| **Oracle** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
-| **PostgreSQL** | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
-| **YDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| TO ➔ <br> FROM ⬇ | Cassandra | ClickHouse | Kafka | MS SQL | Oracle | PostgreSQL | YDB |
+| :--- | :---: |:----------:| :---: | :---: | :---: |:----------:| :---: |
+| **Cassandra** | ✅ |     ❌      | ❌ | ❌ | ❌ |     ✅      | ❌ |
+| **ClickHouse** | ❌ |     ❌      | ❌ | ❌ | ❌ |     ❌      | ❌ |
+| **Kafka** | ❌ |     ❌      | ❌ | ❌ | ❌ |      ❌      | ❌ |
+| **MS SQL** | ❌ |      ✅     | ✅ | ❌ | ❌ |     ✅      | ❌ |
+| **Oracle** | ✅ |     ✅      | ✅ | ❌ | ❌ |     ✅      | ✅ |
+| **PostgreSQL** | ✅ |     ✅      | ✅ | ❌ | ❌ |     ✅      | ✅ |
+| **YDB** | ❌ |     ❌      | ❌ | ❌ | ❌ |     ❌      | ❌ |
 
 
 This tool facilitates the efficient transfer of data between databases.

@@ -1,0 +1,18 @@
+threadCount: 4
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
+  user: test
+  password: test
+
+toProperties:
+  class: dev.bublik.kafka.storage.KafkaStorage
+  servers: localhost:9092
+  topic: test
+  user: test
+  password: test
+  jaasCfg.formatter: org.apache.kafka.common.security.scram.ScramLoginModule required username="%s" password="%s";
+  ssl.truststore.location: /var/tls/kafka.client.truststore.jks
+  ssl.truststore.password: test
+  security.protocol: SASL_SSL
+  sasl.mechanism: SCRAM-SHA-512

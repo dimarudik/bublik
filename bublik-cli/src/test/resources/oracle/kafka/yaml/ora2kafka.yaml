@@ -1,0 +1,16 @@
+threadCount: 4
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1))) # Переопределится тест-контейнером Oracle
+  user: test
+  password: test
+
+toProperties:
+  class: dev.bublik.kafka.storage.KafkaStorage
+  servers: localhost:9092 # Переопределится динамическим портом target.getBootstrapServers()
+  topic: test
+  user: test
+  password: test
+  jaasCfg.formatter: org.apache.kafka.common.security.plain.PlainLoginModule required username="%s" password="%s";
+  security.protocol: SASL_PLAINTEXT
+  sasl.mechanism: PLAIN

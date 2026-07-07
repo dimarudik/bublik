@@ -247,7 +247,7 @@ public class OracleStorage extends JDBCStorage {
         if (config.columnToColumn() == null && config.expressionToColumn() == null && config.asList() == null) {
             column2Column.addAll(matchColumns(sourceTable, targetTable));
         }
-        if (config.columnToColumn() != null) {
+        if (config.columnToColumn() != null && config.avroSchema() == null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
@@ -264,7 +264,7 @@ public class OracleStorage extends JDBCStorage {
                 column2Column.add(new Column2Column(sourceColumn, targetColumn));
             }
         }
-        if (config.expressionToColumn() != null) {
+        if (config.expressionToColumn() != null && config.avroSchema() == null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
@@ -273,6 +273,25 @@ public class OracleStorage extends JDBCStorage {
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(column, column, entry.getKey()));
+            }
+        }
+        int avroFieldPosition = 1;
+        if (config.columnToColumn() != null && config.avroSchema() != null) {
+            for (Map.Entry<String, String> entry : config.columnToColumn().entrySet()) {
+                Column sourceColumn = sourceTable.getColumns().stream()
+                        .filter(c -> c.getNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
+            }
+        }
+        if (config.expressionToColumn() != null && config.avroSchema() != null) {
+            for (Map.Entry<String, String> entry : config.expressionToColumn().entrySet()) {
+                Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
+                column2Column.add(new Column2Column(targetColumn, targetColumn, entry.getKey()));
             }
         }
         if (config.asList() != null) {
@@ -382,25 +401,12 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public String buildFetchStatement(Config config, Table2Table t2t) {
-/*
-        List<Column2Column> originalColumns = t2t.column2Columns();
-        List<Column2Column> sortedColumn2Columns = originalColumns.stream()
-                .sorted(Comparator.comparingInt(c2c -> c2c.targetColumn().columnPosition()))
-                .toList();
-*/
         List<Column2Column> sortedColumn2Columns = t2t.getSortedColumn2ColumnByTargetColumnPosition();
         List<String> asColumns = new ArrayList<>(sortedColumn2Columns
                 .stream()
                 .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList());
-/*
-        List<String> asColumns = t2t.column2Columns()
-                .stream()
-                .filter(c2c -> c2c.sourceColumn() != null)
-                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
-                .toList();
-*/
         List<String> asList = t2t.column2Columns()
                 .stream()
                 .map(Column2Column::asList)
@@ -482,24 +488,6 @@ public class OracleStorage extends JDBCStorage {
     public void createUniqueConstraints() {
 
     }
-
-/*
-    @Override
-    public void enrichSourceTables(Connection connection) {
-        Map<Table<S>, Table<S>> tables = getTables();
-        try {
-            Connection sourceConnection = getPoolConnection();
-            for (Map.Entry<Table<S>, Table<S>> entry : tables.entrySet()) {
-                Table<S> sourceTable = entry.getKey();
-                List<Column> allSourceColumns = sourceTable.getAllColumns((S)sourceConnection);
-                sourceTable.setColumns(allSourceColumns);
-            }
-            sourceConnection.close();
-        } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
-        }
-    }
-*/
 
     @Override
     public Table configToTable(String schemaName, String tableName) {

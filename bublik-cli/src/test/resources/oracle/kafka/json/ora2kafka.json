@@ -1,0 +1,23 @@
+[
+  {
+    "fromSchemaName": "TEST",
+    "fromTableName": "A",
+    "columnToColumn" : {
+      "a"       : "a",
+      "b"       : "b"
+    },
+    "expressionToColumn" : {
+      "TRUNC(created) as c" : "c"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "UserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "a", "type": ["null", "int"],    "default": null },
+        { "name": "b", "type": ["null", "double"], "default": null },
+        { "name": "c", "type": ["null", "string"], "default": null }
+      ]
+    }
+  }
+]

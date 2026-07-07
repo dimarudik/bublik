@@ -11,6 +11,14 @@
             <AppenderRef ref="Console"/>
         </Logger>
 
+        <Logger name="org.apache.kafka" level="ERROR" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="com.microsoft.sqlserver" level="ERROR" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
         <Root level="INFO">
             <AppenderRef ref="Console"/>
         </Root>

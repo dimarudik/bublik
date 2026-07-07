@@ -2,12 +2,16 @@
 <Configuration status="WARN">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %highlight{%-5level} %logger{1} - %msg%n"/>
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %highlight{%-5level} %logger{36} - %msg%n"/>
         </Console>
     </Appenders>
 
     <Loggers>
         <Logger name="dev.bublik" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="org.apache.kafka" level="ERROR" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
 

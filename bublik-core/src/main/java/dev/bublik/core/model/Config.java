@@ -25,14 +25,29 @@ public record Config(
         Map<String, List<String>> asList,
         Map<String, List<String>> asSet,
         Map<String, List<KV>> asMap,
-        Map<String, List<String>> asUDT
+        Map<String, List<String>> asUDT,
+        Map<String, Object> avroSchema
 ) {
 
     public Config(String fromSchemaName,
                   String fromTableName,
                   String toSchemaName,
                   String toTableName) {
-        this(fromSchemaName, fromTableName, null, null, toSchemaName, toTableName, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        this(fromSchemaName, fromTableName, null, null, toSchemaName, toTableName,
+                null, null, null, null, null,
+                null, null, null, null, null,
+                null, null, null, null, null);
+    }
+
+    public Config(String fromSchemaName,
+                  String fromTableName,
+                  String toSchemaName,
+                  String toTableName,
+                  Map<String, Object> avroSchema) {
+        this(fromSchemaName, fromTableName, null, null, toSchemaName, toTableName,
+                null, null, null, null, null,
+                null, null, null, null, null,
+                null, null, null, null, avroSchema);
     }
 
     public Config(String fromSchemaName,
@@ -45,7 +60,27 @@ public record Config(
                   List<String> tryCharIfAny,
                   Map<String, String> columnToColumn,
                   Map<String, String> expressionToColumn) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null, fetchWhereClause, null, null, null, null, tryCharIfAny, columnToColumn, expressionToColumn, null, null, null, null, null);
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null,
+                fetchWhereClause, null, null, null, null, tryCharIfAny,
+                columnToColumn, expressionToColumn, null, null, null, null,
+                null, null);
+    }
+
+    public Config(String fromSchemaName,
+                  String fromTableName,
+                  String fromTableAlias,
+                  String fromTableAdds,
+                  String toSchemaName,
+                  String toTableName,
+                  String fetchWhereClause,
+                  List<String> tryCharIfAny,
+                  Map<String, String> columnToColumn,
+                  Map<String, String> expressionToColumn,
+                  Map<String, Object> avroSchema) {
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null,
+                fetchWhereClause, null, null, null, null, tryCharIfAny,
+                columnToColumn, expressionToColumn, null, null, null, null,
+                null, avroSchema);
     }
 
     public Config(String fromSchemaName,
@@ -64,7 +99,9 @@ public record Config(
                   Map<String, String> columnToColumn,
                   Map<String, String> expressionToColumn,
                   Map<String, List<String>> columnFromMany) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause, fetchWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany, null, null, null, null);
+        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause,
+                fetchWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn,
+                expressionToColumn, columnFromMany, null, null, null, null, null);
     }
 
     public Config copy() {
@@ -90,7 +127,8 @@ public record Config(
                 this.asList,
                 this.asSet,
                 this.asMap,
-                this.asUDT
+                this.asUDT,
+                this.avroSchema == null ? null : Map.copyOf(this.avroSchema)
         );
     }
 }

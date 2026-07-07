@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.2</version>
+        <version>26.3.4</version>
     </parent>
 
     <artifactId>bublik-cli</artifactId>
@@ -104,6 +104,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-kafka</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <version>6.0.0</version>
@@ -127,6 +133,11 @@
                 <dependency>
                     <groupId>dev.bublik</groupId>
                     <artifactId>bublik-cassandra</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>dev.bublik</groupId>
+                    <artifactId>bublik-kafka</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
                 <dependency>
@@ -212,6 +223,16 @@
                 <dependency>
                     <groupId>dev.bublik</groupId>
                     <artifactId>bublik-clickhouse</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>kafka</id>
+            <dependencies>
+                <dependency>
+                    <groupId>dev.bublik</groupId>
+                    <artifactId>bublik-kafka</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>

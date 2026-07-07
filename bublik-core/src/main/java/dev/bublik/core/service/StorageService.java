@@ -56,6 +56,7 @@ public interface StorageService {
     void enrichTable(Table sourceTable, Table targetTable) throws SQLException;
     List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config);
     Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config);
+    Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position);
 
     static Storage getStorage(StorageClass storageClass,
                               Properties properties,
@@ -89,8 +90,6 @@ public interface StorageService {
 
     static StorageClass getStorageClass(Properties properties) throws SQLException {
         String className = properties.getProperty("class");
-        String url = properties.getProperty("url");
-//        if (className != null && url == null) {
         if (className != null) {
             return new AutoColseableStorageClass(AutoCloseable.class, properties);
         } else {

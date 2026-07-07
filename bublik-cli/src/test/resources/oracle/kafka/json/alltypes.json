@@ -1,0 +1,61 @@
+[
+  {
+    "fromSchemaName": "TEST",
+    "fromTableName": "B",
+    "columnToColumn" : {
+      "ID": "id",
+      "A": "a",
+      "B": "b",
+      "C": "c",
+      "D": "d",
+      "\"ALL\"": "all_field",
+      "\"LEVEL\"": "level_field",
+      "E": "e",
+      "T": "t",
+      "CREATE_AT": "create_at",
+      "GENDER": "gender",
+      "BYTEABLOB": "byteablob",
+      "TEXTCLOB": "textclob",
+      "\"CaseSensitive\"": "case_sensitive",
+      "COUNTRY_ID": "country_id",
+      "RAWBYTEA": "rawbytea",
+      "JSON_LIKE": "json_like",
+      "DOC": "doc",
+      "UUID": "uuid",
+      "INT16_T": "int16_t",
+      "INT128_T": "int128_t",
+      "INT256_T": "int256_t",
+      "BFLOAT16_T": "bfloat16_t"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "ExtendedUserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "id",             "type": ["null", "int"],    "default": null },
+        { "name": "a",              "type": ["null", "double"], "default": null },
+        { "name": "b",              "type": ["null", "long"],   "default": null },
+        { "name": "c",              "type": ["null", "string"], "default": null },
+        { "name": "d",              "type": ["null", "string"], "default": null },
+        { "name": "all_field",      "type": ["null", "string"], "default": null },
+        { "name": "level_field",    "type": ["null", "string"], "default": null },
+        { "name": "e",              "type": ["null", "float"],  "default": null },
+        { "name": "t",              "type": ["null", "string"], "default": null },
+        { "name": "create_at",      "type": ["null", "string"], "default": null },
+        { "name": "gender",         "type": ["null", "int"],    "default": null },
+        { "name": "byteablob",      "type": ["null", "bytes"],  "default": null },
+        { "name": "textclob",       "type": ["null", "string"], "default": null },
+        { "name": "case_sensitive", "type": ["null", "string"], "default": null },
+        { "name": "country_id",     "type": ["null", "int"],    "default": null },
+        { "name": "rawbytea",       "type": ["null", "bytes"],  "default": null },
+        { "name": "json_like",      "type": ["null", "string"], "default": null },
+        { "name": "doc",            "type": ["null", "string"], "default": null },
+        { "name": "uuid",           "type": ["null", "string"], "default": null },
+        { "name": "int16_t",        "type": ["null", "int"],    "default": null },
+        { "name": "int128_t",       "type": ["null", "string"], "default": null },
+        { "name": "int256_t",       "type": ["null", "string"], "default": null },
+        { "name": "bfloat16_t",     "type": ["null", "double"], "default": null }
+      ]
+    }
+  }
+]

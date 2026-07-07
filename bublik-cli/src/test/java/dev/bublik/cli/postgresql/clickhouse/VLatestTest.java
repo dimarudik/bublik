@@ -23,14 +23,14 @@ public class VLatestTest {
             .withDatabaseName("test")
             .withUsername("test")
             .withPassword("test")
-            .withInitScript("postgresql/clickhouse/sql/alltypes.sql");
+            .withInitScript("./postgresql/clickhouse/sql/alltypes.sql");
 
     private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
             .parse("clickhouse")
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
 
-    private static final ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
-            .withInitScript("postgresql/clickhouse/sql/click.sql");
+    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
+            .withInitScript("./postgresql/clickhouse/sql/click.sql");
 
     @BeforeAll
     static void setUp() throws SQLException {

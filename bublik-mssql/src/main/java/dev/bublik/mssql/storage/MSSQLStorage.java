@@ -469,7 +469,7 @@ public class MSSQLStorage extends JDBCStorage {
                 column2Column.addAll(matchColumns(sourceTable, targetTable));
             }
         }
-        if (config.columnToColumn() != null) {
+        if (config.columnToColumn() != null && config.avroSchema() == null) {
 //            sourceTable.getColumns().forEach(c -> log.info("{}", c.columnName()));
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
@@ -488,7 +488,7 @@ public class MSSQLStorage extends JDBCStorage {
                 column2Column.add(new Column2Column(sourceColumn, targetColumn));
             }
         }
-        if (config.expressionToColumn() != null) {
+        if (config.expressionToColumn() != null && config.avroSchema() == null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
@@ -497,6 +497,25 @@ public class MSSQLStorage extends JDBCStorage {
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(column, column, entry.getKey()));
+            }
+        }
+        int avroFieldPosition = 1;
+        if (config.columnToColumn() != null && config.avroSchema() != null) {
+            for (Map.Entry<String, String> entry : config.columnToColumn().entrySet()) {
+                Column sourceColumn = sourceTable.getColumns().stream()
+                        .filter(c -> c.getNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
+            }
+        }
+        if (config.expressionToColumn() != null && config.avroSchema() != null) {
+            for (Map.Entry<String, String> entry : config.expressionToColumn().entrySet()) {
+                Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
+                column2Column.add(new Column2Column(targetColumn, targetColumn, entry.getKey()));
             }
         }
         return column2Column;

@@ -18,16 +18,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class VLatestTest {
     private static int rows = 20000;
-    private static final JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
+    private static JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
             .acceptLicense()
-            .withInitScript("mssql/clickhouse/sql/mssql.sql");
+            .withInitScript("./mssql/clickhouse/sql/mssql.sql");
 
     private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
             .parse("clickhouse")
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
 
-    private static final ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
-            .withInitScript("mssql/clickhouse/sql/click.sql");
+    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
+            .withInitScript("./mssql/clickhouse/sql/click.sql");
 
     @BeforeAll
     static void setUp() {

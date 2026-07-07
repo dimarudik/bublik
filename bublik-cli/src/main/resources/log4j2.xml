@@ -32,6 +32,8 @@
         <Logger name="com.datastax.dse.driver.internal.core.type.codec" level="error"/>
         <Logger name="com.clickhouse" level="error"/>
         <Logger name="org.apache.hc" level="error"/>
+        <Logger name="org.apache.kafka" level="error"/>
+        <Logger name="com.github.dockerjava" level="error"/>
         <Logger name="org.bublik" level="all"/>
         <Logger name="org.postgresql" level="all"/>
     </Loggers>

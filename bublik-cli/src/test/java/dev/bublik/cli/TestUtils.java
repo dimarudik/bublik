@@ -164,7 +164,7 @@ public class TestUtils {
         }
     }
 
-    private static String getQuery(String tableName, String whereClause) {
+    public static String getQuery(String tableName, String whereClause) {
         return "SELECT count(1) from " + tableName + " where " + whereClause;
     }
 
