@@ -1,4 +1,4 @@
-![Bublik](/sql/bublik.png)
+![Bublik](./bublik-cli/src/test/resources/images/bublik.png)
 # Tool for Data Transfer between databases
 
 | TO ➔ <br> FROM ⬇ | Cassandra | ClickHouse | Kafka | MS SQL | Oracle | PostgreSQL | YDB |
@@ -1691,6 +1691,7 @@ Chunks will be created automatically with parameter -k at startup
 
 
 ## For Developers
+![For Developers](./bublik-cli/src/test/resources/images/girl.png)
 
 * [init method](#init-method)
 * [DataSource](#datasource)
@@ -1835,13 +1836,12 @@ HikariDataSource targetDataSource = new HikariDataSource(targetConfig);
 
 Create chunk and outbox tables (the tables will be created at source and target side):
 ```java
-Table sourceChunkTable = new PseudoTable(null, "foo");
 Table targetOutboxTable = new PseudoTable("public", "bublik");
 ```
 
 Create two storages (source and target):
 ```java
-Storage sourceStorage = new OracleStorage(sourceDataSource, sourceChunkTable);
+Storage sourceStorage = new OracleStorage(sourceDataSource);
 Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
 ```
 
@@ -1954,13 +1954,12 @@ Client clickhouseClient = new Client.Builder()
 
 Create chunk and outbox tables (the tables will be created at source and target side):
 ```java
-Table sourceOutboxTable = new PseudoTable("public", "source_outbox");
 Table targetOutboxTable = new PseudoTable(null, "target_outbox");
 ```
 
 Create two storages (source and target):
 ```java
-Storage sourceStorage = new OracleStorage(sourceDataSource, sourceOutboxTable);
+Storage sourceStorage = new OracleStorage(sourceDataSource);
 Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
 ```
 

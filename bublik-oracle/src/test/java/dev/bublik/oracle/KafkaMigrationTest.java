@@ -81,13 +81,8 @@ public class KafkaMigrationTest {
     @Test
     @DisplayName("Миграция из Oracle в Kafka через явный конструктор")
     void testOracleToKafkaMigration() throws Exception {
-        // 1. Готовим мета-таблицы для чанков фреймворка
-        Table sourceChunkTable = new PseudoTable(oracle.getUsername().toUpperCase(), "BUBLIK");
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
 
-        // 2. Инициализируем хранилище источника (OracleStorage)
-        Storage sourceStorage = new OracleStorage(sourceDataSource, sourceChunkTable);
-
-        // 3. Создаем KafkaProducer, принудительно защищаясь от ошибок импорта StringSerializer
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
 

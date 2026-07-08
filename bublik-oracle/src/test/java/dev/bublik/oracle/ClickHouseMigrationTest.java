@@ -85,9 +85,8 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testOracleToClickHouseMigration() throws Exception {
-        Table sourceOutboxTable = new PseudoTable("public", "source_outbox");
         Table targetOutboxTable = new PseudoTable(null, "target_outbox");
-        Storage sourceStorage = new OracleStorage(sourceDataSource, sourceOutboxTable);
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
         Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
 
         assertEquals(5, targetStorage.getThreadCount(),

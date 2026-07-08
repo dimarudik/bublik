@@ -78,9 +78,8 @@ public class PostgresMigrationTest {
 
     @Test
     void testOracleToOracleMigration() throws Exception {
-        Table sourceChunkTable = new PseudoTable(null, "foo");
         Table targetOutboxTable = new PseudoTable("public", "bublik");
-        Storage sourceStorage = new OracleStorage(sourceDataSource, sourceChunkTable);
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
 
         List<Config> configs = new ArrayList<>();

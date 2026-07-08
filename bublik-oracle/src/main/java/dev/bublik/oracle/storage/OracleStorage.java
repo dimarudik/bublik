@@ -24,21 +24,18 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 public class OracleStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
 
-    public OracleStorage(DataSource dataSource,
-                         Table outboxTable) {
-        super(dataSource, outboxTable);
+    public OracleStorage(DataSource dataSource) {
+        super(dataSource, new PseudoTable("foo", "bar"));
     }
 
     public OracleStorage(DataSource dataSource,
-                         int threadCount,
-                         Table outboxTable) {
-        super(dataSource, threadCount, outboxTable);
+                         int threadCount) {
+        super(dataSource, threadCount, new PseudoTable("foo", "bar"));
     }
 
     protected OracleStorage(DataSource dataSource,
-                            ConnectionProperty connectionProperty,
-                            Table outboxTable) {
-        super(dataSource, connectionProperty, outboxTable);
+                            ConnectionProperty connectionProperty) {
+        super(dataSource, connectionProperty, new PseudoTable("foo", "bar"));
     }
 
     public OracleStorage(StorageClass storageClass,
