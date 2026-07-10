@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-cassandra</artifactId>
@@ -22,7 +22,7 @@
     </developers>
 
     <name>bublik-cassandra</name>
-    <description>Bublik cassandra module</description>
+    <description>Apache Cassandra plugin for Bublik data migration tool. Enables high-performance data transfer using token range chunking, TTL, and custom timestamp mappings.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

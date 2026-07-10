@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-mssql</artifactId>
@@ -22,7 +22,7 @@
     </developers>
 
     <name>bublik-mssql</name>
-    <description>Bublik mssql module</description>
+    <description>Microsoft SQL Server plugin for Bublik data migration tool. Core engine for high-performance multi-column clustering key split supporting composite ASC/DESC sorting ranges.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

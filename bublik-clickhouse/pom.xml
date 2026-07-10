@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-clickhouse</artifactId>
@@ -23,7 +23,7 @@
     </developers>
 
     <name>bublik-clickhouse</name>
-    <description>Bublik clickhouse module</description>
+    <description>ClickHouse plugin for Bublik data migration tool. Acts as a high-performance target storage using the native ClickHouse Client v2 for optimized batch insertions.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

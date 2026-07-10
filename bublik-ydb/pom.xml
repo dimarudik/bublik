@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-ydb</artifactId>
@@ -23,7 +23,7 @@
     </developers>
 
     <name>bublik-ydb</name>
-    <description>Bublik ydb module</description>
+    <description>YDB (Yandex Database) plugin for Bublik data migration tool. Acts as a distributed target storage for high-performance batch data insertion and loading.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

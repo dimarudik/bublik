@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-kafka</artifactId>
@@ -22,7 +22,7 @@
     </developers>
 
     <name>bublik-kafka</name>
-    <description>Bublik kafka module</description>
+    <description>Apache Kafka plugin for Bublik data migration tool. Acts as a high-performance streaming target storage using native KafkaProducer for optimized async chunk publishing.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

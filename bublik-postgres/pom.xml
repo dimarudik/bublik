@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-postgres</artifactId>
@@ -22,7 +22,7 @@
     </developers>
 
     <name>bublik-postgres</name>
-    <description>Bublik postgres module</description>
+    <description>PostgreSQL plugin for Bublik data migration tool. Core engine for high-performance data transfer using CTID range scanning and binary format COPY commands.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

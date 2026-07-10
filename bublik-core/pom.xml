@@ -6,11 +6,10 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-core</artifactId>
-<!--    <version>${project.parent.version}</version>-->
     <packaging>jar</packaging>
 
     <developers>
@@ -23,7 +22,7 @@
     </developers>
 
     <name>bublik-core</name>
-    <description>Bublik core module</description>
+    <description>Core engine and orchestration API for Bublik: a high-performance database migration and ETL tool.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>

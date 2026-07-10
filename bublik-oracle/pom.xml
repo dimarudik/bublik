@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.8</version>
+        <version>26.3.9</version>
     </parent>
 
     <artifactId>bublik-oracle</artifactId>
@@ -22,7 +22,7 @@
     </developers>
 
     <name>bublik-oracle</name>
-    <description>Bublik oracle module</description>
+    <description>Oracle Database plugin for Bublik data migration tool. Core engine for high-performance data transfer using ROWID chunking via dbms_parallel_execute orchestration.</description>
     <url>https://github.com/dimarudik/bublik/tree/stable</url>
 
     <licenses>
