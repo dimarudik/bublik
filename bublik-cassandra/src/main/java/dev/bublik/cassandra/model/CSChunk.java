@@ -38,8 +38,13 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         CqlSession cqlSession = getSourceSession();
         boolean applied;
         try {
+//            log.info("{}", DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
             PreparedStatement psDelete = cqlSession.prepare(DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
-            BoundStatement bsDelete = psDelete.bind(getId(), getChunkStatus().toString(), getConfig().fromSchemaName(), getConfig().fromTableName())
+            BoundStatement bsDelete = psDelete.bind(
+                            getId(),
+                            getChunkStatus().toString(),
+                            getConfig().fromSchemaName(),
+                            getConfig().fromTableName())
                     .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM);
             applied = cqlSession.execute(bsDelete).wasApplied();
         } catch (Exception e) {
@@ -145,6 +150,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         } else {
             outboxTable = getSourceStorage().getOutboxTable().tableToString();
         }
+//        System.out.println("outboxTable = " + outboxTable);
         return outboxTable;
     }
 

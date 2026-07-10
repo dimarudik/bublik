@@ -66,17 +66,17 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, V, W>  void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, V>  void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException {
 
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, W>  W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException {
+    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, W>  void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R>  void closeWriter(Chunk<K, T, S, R> chunk, String tableName) {
 
     }
 

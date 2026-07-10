@@ -61,13 +61,11 @@ public class KafkaMigrationTest {
         sourceConfig.setMaximumPoolSize(threadCount);
         sourceDataSource = new HikariDataSource(sourceConfig);
 
-        // Создаем таблицу в схеме по умолчанию и наполняем тестовыми данными (3 строки)
         try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE source_users (id INT PRIMARY KEY, name VARCHAR2(100))");
             stmt.execute("INSERT INTO source_users (id, name) VALUES (1, 'Alice')");
             stmt.execute("INSERT INTO source_users (id, name) VALUES (2, 'Bob')");
             stmt.execute("INSERT INTO source_users (id, name) VALUES (3, 'Charlie')");
-//            conn.commit();
         }
     }
 
@@ -86,7 +84,6 @@ public class KafkaMigrationTest {
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
 
-        // КРИТИЧЕСКИ ВАЖНО: Жестко прописываем полные имена классов сериализаторов Kafka
         kafkaProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
         kafkaProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
 
@@ -96,14 +93,12 @@ public class KafkaMigrationTest {
 
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        // 4. Создаем Хранилище Приемника через целевой конструктор
         Storage targetStorage = new KafkaStorage(producer, TOPIC_NAME);
 
-        // 5. Программно собираем Config со схемой Avro (Используем ваш красивый компактный конструктор)
         List<Config> configs = new ArrayList<>();
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
-        columnToColumn.put("ID", "id");   // Oracle драйвер возвращает имена в UPPERCASE
+        columnToColumn.put("ID", "id");
         columnToColumn.put("NAME", "name");
 
         Map<String, Object> avroSchema = new LinkedHashMap<>();
@@ -127,30 +122,26 @@ public class KafkaMigrationTest {
         fields.add(nameField);
         avroSchema.put("fields", fields);
 
-        // Пользуемся вашим лаконичным конструктором рекорда
         Config tableConfig = new Config(
-                oracle.getUsername().toUpperCase(), // fromSchemaName (в Oracle Free обычно SYSTEM или DB USER)
-                "SOURCE_USERS",                     // fromTableName (в верхнем регистре)
+                oracle.getUsername().toUpperCase(),
+                "SOURCE_USERS",
                 null,
                 null,
                 null,
-                TOPIC_NAME,      // toTableName (топик назначения)
+                TOPIC_NAME,
                 null,
                 null,
-                columnToColumn,  // columnToColumn маппинг
+                columnToColumn,
                 null,
-                avroSchema       // Наша динамическая Avro схема
+                avroSchema
         );
         configs.add(tableConfig);
 
-        // 6. ЗАПУСК МИГРАЦИИ ФРЕЙМВОРКА
         sourceStorage.start(targetStorage, configs, 1000);
 
-        // 7. ВЕРИФИКАЦИЯ: Извлекаем сообщения из Kafka через Consumer
         long kafkaMessageCount = countMessagesInKafka(kafkaContainer.getBootstrapServers(), TOPIC_NAME);
         assertEquals(3, kafkaMessageCount, "В топик Kafka должно приехать ровно 3 записи из СУБД Oracle!");
 
-        // Закрываем хранилища
         sourceStorage.closeStorage();
         targetStorage.closeStorage();
     }

@@ -1,11 +1,13 @@
 package dev.bublik.kafka.storage;
 
-import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
+import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 import dev.bublik.kafka.model.FieldRuntimeContext;
 import dev.bublik.kafka.service.AvroTypeMapper;
+import dev.bublik.kafka.service.ObjectTypeMapper;
+import dev.bublik.kafka.service.ObjectTypeMapperFactory;
 import dev.bublik.kafka.service.TypeMapperFactory;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -19,26 +21,24 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class KafkaStorage extends Storage {
-    private static final Logger log = LoggerFactory.getLogger(KafkaStorage.class);
 
     private final KafkaProducer<String, byte[]> kafkaProducer;
     private final String topic;
     private final Map<String, AvroRowProducer> producerCache = new ConcurrentHashMap<>();
+    private final Map<String, ObjectRowProducer> cassandraCache = new ConcurrentHashMap<>();
 
     public KafkaStorage(KafkaProducer<String, byte[]> kafkaProducer, String topic) {
         super(new ConnectionProperty());
@@ -60,25 +60,24 @@ public class KafkaStorage extends Storage {
     @Override
     public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         try {
-            ResultSet rs = (ResultSet) chunk.getResultSet();
             List<Column2Column> c2c = chunk.getT2t().column2Columns();
+            if (chunk.getSourceStorage() instanceof JDBCStorage) {
 
-            AvroRowProducer currentTableProducer = producerCache.computeIfAbsent(tableName, tName -> {
-                Schema dynamicSchema = buildAvroSchemaFromC2C(c2c, chunk.getConfig());
-                return new AvroRowProducer(this.kafkaProducer, dynamicSchema, c2c);
-            });
+                AvroRowProducer currentTableProducer = producerCache.computeIfAbsent(tableName, tName -> {
+                    Schema dynamicSchema = buildAvroSchemaFromC2C(c2c, chunk.getConfig());
+                    return new AvroRowProducer(this.kafkaProducer, dynamicSchema, c2c);
+                });
 
-            return currentTableProducer.streamResultSetToKafka(rs, topic);
+                return currentTableProducer.streamResultSetToKafka(chunk, topic);
+            } else {
 
+                return chunk.getSourceStorage().transfer(chunk, tableName);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    /**
-     * Программная высокопроизводительная сборка Avro схемы из List<Column2Column>
-     * Гарантирует Nullable-статус (UNION) для всех полей, защищая от NullPointerException.
-     */
     private Schema buildAvroSchemaFromC2C(List<Column2Column> c2c, Config config) {
         Map<String, Object> avroSchemaMap = config.avroSchema();
 
@@ -99,7 +98,6 @@ public class KafkaStorage extends Storage {
             String avroFieldName = link.targetColumn().columnName();
             String avroType = link.targetColumn().columnType().toLowerCase();
 
-            // Создаем базовую схему типа
             Schema fieldSchema = switch (avroType) {
                 case "int" -> Schema.create(Schema.Type.INT);
                 case "long" -> Schema.create(Schema.Type.LONG);
@@ -110,12 +108,9 @@ public class KafkaStorage extends Storage {
                 default -> Schema.create(Schema.Type.STRING);
             };
 
-            // ЖЕЛЕЗОБЕТОННАЯ ЗАЩИТА: Каждое поле принудительно делаем союзом [NULL, ТИП].
-            // Это полностью соответствует вашему JSON-файлу маппинга таблиц.
             Schema nullSchema = Schema.create(Schema.Type.NULL);
             Schema unionSchema = Schema.createUnion(java.util.List.of(nullSchema, fieldSchema));
 
-            // Добавляем поле в сборщик с обязательным дефолтом null
             fieldsAssembler = fieldsAssembler.name(avroFieldName)
                     .type(unionSchema)
                     .withDefault(null);
@@ -127,18 +122,15 @@ public class KafkaStorage extends Storage {
     private Properties buildKafkaProperties(Map<String, String> yamlProps) {
         Properties props = new Properties();
 
-        // 1. Проверяем обязательный параметр серверов
         String servers = yamlProps.get("servers");
         if (servers == null || servers.isEmpty()) {
             throw new IllegalArgumentException("Параметр 'servers' (адрес брокеров Kafka) обязателен в конфигурации!");
         }
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, servers);
 
-        // Стандартные сериализаторы всегда заполняем жестко
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
 
-        // 2. Безопасное извлечение и форматирование JAAS
         String user = yamlProps.get("user");
         String password = yamlProps.get("password");
         String jaasFormatter = yamlProps.get("jaasCfg.formatter");
@@ -148,14 +140,11 @@ public class KafkaStorage extends Storage {
             props.put("sasl.jaas.config", finalJaasConfig);
         }
 
-        // 3. БЕЗОПАСНОЕ КОПИРОВАНИЕ ОПЦИОНАЛЬНЫХ ПАРАМЕТРОВ (Защита от NullPointerException)
-        // Используем приватный хелпер putIfNotNull для проверки каждой строки
         putIfNotNull(props, "security.protocol", yamlProps.get("security.protocol"));
         putIfNotNull(props, "sasl.mechanism", yamlProps.get("sasl.mechanism"));
         putIfNotNull(props, "ssl.truststore.location", yamlProps.get("ssl.truststore.location"));
         putIfNotNull(props, "ssl.truststore.password", yamlProps.get("ssl.truststore.password"));
 
-        // 4. Системные оптимизации для многопоточного стриминга (threadCount: 4)
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
@@ -187,8 +176,6 @@ public class KafkaStorage extends Storage {
             this.producer = producer;
             this.schema = schema;
 
-            // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ ПАМЯТИ: Сборка и компиляция контекста полей
-            // Происходит СТРОГО один раз при создании продюсера для таблицы, а не на миллионах строк!
             this.cachedFieldsContext = c2c.stream().map(link -> {
                 String dbLookupName = (link.sourceExpression() != null)
                         ? link.targetColumn().columnName()
@@ -197,58 +184,48 @@ public class KafkaStorage extends Storage {
                 String avroFieldName = link.targetColumn().columnName();
                 String avroType = link.targetColumn().columnType();
 
-                // Находим нужный синглтон-маппер для этого поля один раз
                 AvroTypeMapper mapper = TypeMapperFactory.getMapper(avroType);
 
                 return new FieldRuntimeContext(avroFieldName, dbLookupName, mapper);
             }).toList();
 
-            // Кешируем имя первого поля для генерации messageKey
             this.firstFieldName = c2c.get(0).targetColumn().columnName();
         }
 
-        public LogMessage streamResultSetToKafka(ResultSet rs, String topicName) throws SQLException, IOException {
+        public LogMessage streamResultSetToKafka(Chunk<?,?,?,?> chunk, String topicName) throws SQLException, IOException {
             int rowCount = 0;
 
-            // Буферы изолированы в стеке вызывающего потока (Thread-safe)
+            ResultSet rs = (ResultSet) chunk.getResultSet();
+
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(schema);
             GenericRecord record = new GenericData.Record(schema);
             BinaryEncoder encoder = null;
 
             while (rs.next()) {
-
-                // Полиморфизм в действии: итерируемся по готовому кешу контекста полей
                 for (FieldRuntimeContext context : cachedFieldsContext) {
-
-                    // Вызов стратегии маппинга без спагетти-кода и switch-case
                     Object value = context.mapper().getValue(rs, context.dbLookupName());
-
-                    // Записываем значение в Avro-record по имени поля
                     record.put(context.avroFieldName(), value);
                 }
 
-                // --- БИНАРНАЯ СЕРИАЛИЗАЦИЯ И ОТПРАВКА ---
                 out.reset();
-
                 encoder = EncoderFactory.get().binaryEncoder(out, encoder);
                 writer.write(record, encoder);
                 encoder.flush();
 
                 byte[] rowBytes = out.toByteArray();
 
-                // Извлекаем ключ сообщения из кешированного имени первого поля
                 Object keyObj = record.get(firstFieldName);
                 String messageKey = (keyObj != null) ? keyObj.toString() : String.valueOf(rowCount);
 
-                // Асинхронно бросаем в сетевой буфер Kafka
                 producer.send(new ProducerRecord<>(topicName, messageKey, rowBytes));
                 rowCount++;
             }
 
             producer.flush();
-            System.out.println("Поток [" + Thread.currentThread().getName() + "] успешно завершил чанк. Отправлено строк: " + rowCount);
-            return new LogMessage(0, System.currentTimeMillis(), " To Kafka");
+
+            chunk.setCopied(rowCount);
+            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), " To Kafka");
         }
     }
 
@@ -268,17 +245,82 @@ public class KafkaStorage extends Storage {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                                                        Chunk<K, T, S, R> chunk) {
+        try {
+            String tableName = chunk.getConfig().fromTableName();
 
+            ObjectRowProducer currentTableProcessor = cassandraCache.computeIfAbsent(tableName, tName -> {
+                List<Column2Column> c2c = chunk.getT2t().column2Columns();
+                Schema dynamicSchema = buildAvroSchemaFromC2C(c2c, chunk.getConfig());
+                return new ObjectRowProducer(dynamicSchema, c2c);
+            });
+
+            currentTableProcessor.sendSingleRowToKafka(columnValues, topic);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException {
+    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
 
+    private class ObjectRowProducer {
+        private final Schema schema;
+        private final Map<String, ObjectTypeMapper> cachedMappers = new ConcurrentHashMap<>();
+        private final String firstFieldName;
+
+        public ObjectRowProducer(Schema schema, List<Column2Column> c2c) {
+            this.schema = schema;
+
+            for (Column2Column link : c2c) {
+                String avroFieldName = link.targetColumn().columnName().toLowerCase();
+                String avroType = link.targetColumn().columnType();
+                ObjectTypeMapper mapper = ObjectTypeMapperFactory.getMapper(avroType);
+                this.cachedMappers.put(avroFieldName, mapper);
+            }
+
+            this.firstFieldName = c2c.get(0).targetColumn().columnName();
+        }
+
+        public <V> void sendSingleRowToKafka(List<ColumnValue<V>> columnValues, String topicName) throws IOException {
+            GenericRecord record = new GenericData.Record(schema);
+
+            for (ColumnValue<V> colValue : columnValues) {
+                String avroFieldName = colValue.targetColumn().columnName();
+
+                ObjectTypeMapper mapper = cachedMappers.get(avroFieldName.toLowerCase());
+                if (mapper == null) {
+                    continue;
+                }
+
+                Object rawValue = colValue.value();
+                Object avroValue = mapper.convert(rawValue);
+
+                record.put(avroFieldName, avroValue);
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(schema);
+            BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+
+            writer.write(record, encoder);
+            encoder.flush();
+
+            byte[] rowBytes = out.toByteArray();
+
+            Object keyObj = record.get(firstFieldName);
+            String messageKey = (keyObj != null) ? keyObj.toString() : UUID.randomUUID().toString();
+
+            kafkaProducer.send(new ProducerRecord<>(topicName, messageKey, rowBytes));
+        }
+    }
+
     @Override
-    public <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> void closeWriter(Chunk<K, T, S, R> chunk, String tableName) {
 
     }
 

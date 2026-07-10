@@ -444,6 +444,7 @@ public class PostgresStorage extends JDBCStorage {
         return columnMap;
     }
 
+/*
     protected Map<List<String>, Column> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
         Map<List<String>, Column> columnMap = new HashMap<>();
         try {
@@ -479,6 +480,7 @@ public class PostgresStorage extends JDBCStorage {
         }
         return columnMap;
     }
+*/
 
 /*
     private LogMessage fetchAndCopy(ResultSet fetchResultSet,
@@ -1878,7 +1880,7 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public  <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk,
-                            String tableName) throws SQLException, SourceSQLException, IOException {
+                            String tableName) throws SQLException {
         Connection connectionTo = (Connection) chunk.getTargetSession();
         List<Column2Column> columnToColumnMap = chunk.getT2t().column2Columns();
         List<String> columnNames = columnToColumnMap.stream().map(Column2Column::targetColumn).map(Column::columnName).toList();
@@ -1886,15 +1888,17 @@ public class PostgresStorage extends JDBCStorage {
         String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                 chunk.getT2t().targetTable().getFinalTableName(true);
         String sql = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
-//        System.out.println(sql);
 
         int pgStreamBufferSize = 1024 * 1024;
         int javaBufferSize = 64 * 1024;
         PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
         PGCopyOutputStream os = new PGCopyOutputStream(pgConnection, sql, pgStreamBufferSize);
-        PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize);
-//        writer.startRow((short) columnNames.size());
-        return (W) writer;
+        try {
+            PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize);
+            return (W) writer;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 /*
@@ -1924,29 +1928,18 @@ public class PostgresStorage extends JDBCStorage {
 */
 
     @Override
-    public <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
-                                         Chunk<K, T, S, R> chunk,
-                                         W writer) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                         Chunk<K, T, S, R> chunk) throws SQLException {
         try {
-            ((PgBinaryWriter)writer).startRow((short) columnValues.size());
-//            System.out.println(columnValues.size());
-            writeValue((PgBinaryWriter) writer, columnValues, chunk);
+            PgBinaryWriter pgBinaryWriter = (PgBinaryWriter) chunk.getWriter();
+            pgBinaryWriter.startRow((short) columnValues.size());
+            writeValue(pgBinaryWriter, columnValues, chunk);
+//            ((PgBinaryWriter)writer).startRow((short) columnValues.size());
+//            writeValue((PgBinaryWriter) writer, columnValues, chunk);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-/*
-    @Override
-    public <V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
-                                         Chunk<K, T, S, R> chunk,
-                                         W writer) throws SQLException {
-        Consumer<SimpleRow> simpleRowConsumer =
-                s -> consume(s, columnValues, chunk);
-
-        ((SimpleRowWriter) writer).startRow(simpleRowConsumer);
-    }
-*/
 
     private <K, T, S extends AutoCloseable, R, V> void writeValue(PgBinaryWriter writer,
                                                                   List<ColumnValue<V>> columnValues,
@@ -2369,25 +2362,17 @@ public class PostgresStorage extends JDBCStorage {
 */
 
     @Override
-    public <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> void closeWriter(Chunk<K, T, S, R> chunk, String tableName) {
         Connection connectionTo = (Connection) chunk.getTargetSession();
         try {
-            PgBinaryWriter w = (PgBinaryWriter) writer;
+//            PgBinaryWriter w = (PgBinaryWriter) writer;
+            PgBinaryWriter w = (PgBinaryWriter) chunk.getWriter();
             DataOutputStream os = w.getOut();
             w.close();
             os.close();
-        } catch (IOException e) {
+            connectionTo.commit();
+        } catch (IOException | SQLException e) {
             throw new RuntimeException(e);
         }
-        connectionTo.commit();
     }
-
-/*
-    @Override
-    public <W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        Connection connectionTo = chunk.getTargetSession();
-        ((SimpleRowWriter) writer).close();
-        connectionTo.commit();
-    }
-*/
 }

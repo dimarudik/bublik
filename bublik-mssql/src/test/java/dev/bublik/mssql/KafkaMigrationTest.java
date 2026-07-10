@@ -54,11 +54,9 @@ public class KafkaMigrationTest {
 
     @BeforeAll
     static void beforeAll() throws Exception {
-        // Стартуем контейнеры
         mssql.start();
         kafkaContainer.start();
 
-        // Конфигурируем пул для MSSQL
         HikariConfig sourceConfig = new HikariConfig();
         sourceConfig.setJdbcUrl(mssql.getJdbcUrl());
         sourceConfig.setUsername(mssql.getUsername());
@@ -66,7 +64,6 @@ public class KafkaMigrationTest {
         sourceConfig.setMaximumPoolSize(threadCount);
         sourceDataSource = new HikariDataSource(sourceConfig);
 
-        // Создаем схему, таблицу и наполняем тестовыми данными (3 строки)
         try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE SCHEMA test");
             stmt.execute("CREATE TABLE test.source_users (id INT PRIMARY KEY, user_name VARCHAR(100))");

@@ -109,7 +109,6 @@ public class CassandraMigrationTest {
 
         sourceStorage.start(targetStorage, configs, 1000);
 
-//        Thread.sleep(100_000);
         ResultSet rs = cassandraSession.execute("SELECT id, user_name FROM bublik.target_users;");
         List<Row> rows = rs.all();
 

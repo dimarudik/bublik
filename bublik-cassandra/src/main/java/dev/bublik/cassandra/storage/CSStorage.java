@@ -110,43 +110,41 @@ abstract class CSStorage extends Storage implements Source {
 //        log.info("TARGET Cassandra version: {}", targetStorage.getStorageMajorVersion());
 
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        int timeoutCounter = 0;
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
-//            String tName = getChunkTableName(outboxTable);
+            String table = getConnectionProperty() == null ? oTable(null) :
+                    oTable(getConnectionProperty().getFromProperty());
 
             chunks.forEach(chunk -> futures.add(
                     service.submit(() -> {
                         try {
-//                            log.info("chunk: {}", chunk.getId());
-//                            String chunkTable = getConnectionProperty() == null ? oTable(null) :
-//                                    oTable(getConnectionProperty().getFromProperty());
                             return chunk.allStages(false, getOutboxTable());
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e), getOutboxTable().tableToString());
+                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e), table);
                             throw e;
                         }
                     }))
             );
 
-            int timeoutCounter = 0;
             for (Future<?> future : futures) {
                 try {
                     Chunk<?, ?, ?, ?> c = (Chunk<?, ?, ?, ?>) future.get();
-                    Thread.sleep(2);
+                    Thread.sleep(10);
                 } catch (Exception e) {
                     if ((e.getMessage().contains("Query timed out after PT") ||
                             e.getMessage().contains("Cassandra timeout during BATCH") ||
                             e.getMessage().contains("failure during write query at consistency"))
-                            && timeoutCounter / threadCount < 20) {
+                            && timeoutCounter / threadCount < 1) {
                         try {
                             Thread.sleep(1_000);
                         } catch (InterruptedException ex) {
                             throw new RuntimeException(ex);
                         }
                         timeoutCounter++;
-                        log.error("{}", getStackTrace(e));
+                        log.error("Try:({}) {}", timeoutCounter, getStackTrace(e));
                     } else {
                         log.error("{}", getStackTrace(e));
                         service.shutdownNow();
@@ -278,49 +276,14 @@ abstract class CSStorage extends Storage implements Source {
     @Override
     public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
-        String chunk = getConnectionProperty() == null ? oTable(null) :
+        String table = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getFromProperty());
         try {
-            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", chunk));
+            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", table));
         } catch (Exception e) {
-            log.warn("Chunk table {} not found", chunk);
+            log.warn("Chunk table {} not found", table);
         }
     }
-
-/*
-    private String getChunkTableName(String tableName) {
-        String[] t = tableName.split("\\.");
-        String tmpName;
-        if (t.length == 1) {
-            tmpName = t[0];
-        } else {
-            tmpName = t[1];
-        }
-        String keyspace = getConnectionProperty().getFromProperties() == null
-                ? outboxKeyspace : getConnectionProperty().getFromProperty().getProperty("keyspace");
-        String kSpace = "\"" + keyspace + "\"";
-//        String kSpace = "\"" + this.getConnectionProperty().getFromProperty().getProperty("keyspace") + "\"";
-        return kSpace + "." + "\"" + tmpName + "\"";
-    }
-*/
-
-/*
-    public String getOutboxTableName(String tName) {
-        String tableName = tName.replace("\"", "");
-        String[] t = tableName.split("\\.");
-        String tmpName;
-        if (t.length == 1) {
-            tmpName = t[0];
-        } else {
-            tmpName = t[1];
-        }
-        String keyspace = getConnectionProperty().getToProperties() == null
-                ? outboxKeyspace : getConnectionProperty().getToProperty().getProperty("keyspace");
-        String kSpace = "\"" + keyspace + "\"";
-//        String kSpace = "\"" + getConnectionProperty().getToProperty().getProperty("keyspace") + "\"";
-        return kSpace + "." + "\"" + tmpName + "_outbox" + "\"";
-    }
-*/
 
     @Override
     public void createGlobalOutbox() throws SQLException {
@@ -353,7 +316,6 @@ abstract class CSStorage extends Storage implements Source {
                 .setTimeout(Duration.ofSeconds(1))
                 .setConsistencyLevel(ConsistencyLevel.QUORUM);
         cqlSession.execute(boundStatement);
-//        cqlSession.execute(insertCQL, chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied());
     }
 
     @Override
@@ -370,9 +332,9 @@ abstract class CSStorage extends Storage implements Source {
 
     private void createChunkTable(boolean sync) {
         CqlSession cqlSession = csPool.getCqlSession();
-        String chunk = getConnectionProperty() == null ? oTable(null) :
+        String table = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getFromProperty());
-        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", chunk));
+        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", table));
     }
 
     private String oTable(Properties properties) {
@@ -482,7 +444,7 @@ abstract class CSStorage extends Storage implements Source {
                                 .filter(c1 -> c1.columnName().equals(c.columnName())).findFirst().orElseThrow())));
             }
         }
-        if (config.columnToColumn() != null) {
+        if (config.columnToColumn() != null && config.avroSchema() == null) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes().equals(entry.getKey().replaceAll("\"", "")))
@@ -497,7 +459,7 @@ abstract class CSStorage extends Storage implements Source {
                 column2Column.add(new Column2Column(sourceColumn, targetColumn));
             }
         }
-        if (config.expressionToColumn() != null) {
+        if (config.expressionToColumn() != null && config.avroSchema() == null) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes().equals(entry.getValue().replace("\"", "")))
@@ -505,6 +467,25 @@ abstract class CSStorage extends Storage implements Source {
                         .orElseThrow(() -> new RuntimeException(entry.getValue() + " not found in target table " +
                                 targetTable.getSchemaName() + "." + targetTable.getTableName()));
                 column2Column.add(new Column2Column(column, column, entry.getKey()));
+            }
+        }
+        int avroFieldPosition = 1;
+        if (config.columnToColumn() != null && config.avroSchema() != null) {
+            for (Map.Entry<String, String> entry : config.columnToColumn().entrySet()) {
+                Column sourceColumn = sourceTable.getColumns().stream()
+                        .filter(c -> c.getNameWithoutQuotes()
+                                .equalsIgnoreCase(entry.getKey().replace("\"", "")))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException(entry.getKey() + " not found in source table " +
+                                sourceTable.getSchemaName() + "." + sourceTable.getTableName()));
+                Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
+                column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
+            }
+        }
+        if (config.expressionToColumn() != null && config.avroSchema() != null) {
+            for (Map.Entry<String, String> entry : config.expressionToColumn().entrySet()) {
+                Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
+                column2Column.add(new Column2Column(targetColumn, targetColumn, entry.getKey()));
             }
         }
 //        logColumn2Column(column2Column);
@@ -649,20 +630,17 @@ abstract class CSStorage extends Storage implements Source {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues,
-                                                                           Chunk<K, T, S, R> chunk,
-                                                                           W writer) {
+    public <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                                                           Chunk<K, T, S, R> chunk) {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName)
-            throws SQLException {
+    public <K, T, S extends AutoCloseable, R> void closeWriter(Chunk<K, T, S, R> chunk, String tableName) {
+
+    }
+
+    @Override
+    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
-    }
-
-    @Override
-    public <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName)
-            throws SQLException {
-
     }
 }

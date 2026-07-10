@@ -1,15 +1,15 @@
 ![Bublik](./bublik-cli/src/test/resources/images/bublik.png)
 # Tool for Data Transfer between databases
 
-| TO ➔ <br> FROM ⬇ | Cassandra | ClickHouse | Kafka | MS SQL | Oracle | PostgreSQL | YDB |
-| :--- | :---: |:----------:| :---: | :---: | :---: |:----------:| :---: |
-| **Cassandra** | ✅ |     ❌      | ❌ | ❌ | ❌ |     ✅      | ❌ |
-| **ClickHouse** | ❌ |     ❌      | ❌ | ❌ | ❌ |     ❌      | ❌ |
-| **Kafka** | ❌ |     ❌      | ❌ | ❌ | ❌ |      ❌      | ❌ |
-| **MS SQL** | ❌ |      ✅     | ✅ | ❌ | ❌ |     ✅      | ❌ |
-| **Oracle** | ✅ |     ✅      | ✅ | ❌ | ❌ |     ✅      | ✅ |
-| **PostgreSQL** | ✅ |     ✅      | ✅ | ❌ | ❌ |     ✅      | ✅ |
-| **YDB** | ❌ |     ❌      | ❌ | ❌ | ❌ |     ❌      | ❌ |
+| TO ➔ <br> FROM ⬇ | Cassandra | ClickHouse | Kafka | MS SQL | Oracle | Postgres | YDB |
+|:-----------------| :---: |:----------:| :---: | :---: | :---: |:--------:| :---: |
+| **Cassandra**    | ✅ |     ❌      | ✅ | ❌ | ❌ |    ✅     | ❌ |
+| **ClickHouse**   | ❌ |     ❌      | ❌ | ❌ | ❌ |    ❌     | ❌ |
+| **Kafka**        | ❌ |     ❌      | ❌ | ❌ | ❌ |    ❌     | ❌ |
+| **MS SQL**       | ❌ |      ✅     | ✅ | ❌ | ❌ |    ✅     | ❌ |
+| **Oracle**       | ✅ |     ✅      | ✅ | ❌ | ❌ |    ✅     | ✅ |
+| **Postgres**     | ✅ |     ✅      | ✅ | ❌ | ❌ |    ✅     | ✅ |
+| **YDB**          | ❌ |     ❌      | ❌ | ❌ | ❌ |    ❌     | ❌ |
 
 
 This tool facilitates the efficient transfer of data between databases.
@@ -68,9 +68,12 @@ You can find more details and examples below.
   * [PostgreSQL To YDB Run](#postgresql-to-ydb-run)
 * [For Developers](#for-developers)
   * [init method](#init-method)
-  * [DataSource](#datasource)
-  * [CqlSession](#cqlsession)
-  * [Client](#client)
+  * [Constructor](#constructor)
+    * [DataSource](#datasource)
+    * [CqlSession](#cqlsession)
+    * [Client](#client)
+    * [KafkaProducer](#kafkaproducer)
+    * [Examples](#examples)
 
 ## Build
 
@@ -1694,9 +1697,12 @@ Chunks will be created automatically with parameter -k at startup
 ![For Developers](./bublik-cli/src/test/resources/images/girl.png)
 
 * [init method](#init-method)
-* [DataSource](#datasource)
-* [CqlSession](#cqlsession)
-* [Client](#client)
+* [Constructor](#constructor)
+  * [DataSource](#datasource)
+  * [CqlSession](#cqlsession)
+  * [Client](#client)
+  * [KafkaProducer](#kafkaproducer)
+  * [Examples](#examples)
 
 You can use Bublik's libs in your own projects by adding the following dependency to your pom.xml:
 
@@ -1811,7 +1817,11 @@ StorageService.init(connectionProperty, configs, 1000, chunkTable, outboxTable);
 Full example [`InitPostgresMigrationTest.java`](bublik-postgres/src/test/java/dev/bublik/postgres/InitPostgresMigrationTest.java)
 
 
-### DataSource
+### Constructor
+
+If you already have a DataSource or Cassandra CqlSession or ClickHouse Client or KafkaProducer you can use the constructor to create source or target storage.
+
+#### DataSource
 
 You can provide your own datasource to the migration.<br>
 The usage of datasource applicable only for jdbc-like storages.
@@ -1861,9 +1871,7 @@ Run the migration:
 sourceStorage.start(targetStorage, configs, 1000);
 ```
 
-Full example: [`ConstructorPostgresMigrationTest.java`](bublik-postgres/src/test/java/dev/bublik/postgres/ConstructorPostgresMigrationTest.java)
-
-### CqlSession
+#### CqlSession
 
 For Cassandra you can provide your own CqlSession to the migration.
 
@@ -1924,9 +1932,7 @@ Run the migration:
 sourceStorage.start(targetStorage, configs, 1000);
 ```
 
-Full example: [`CassandraMigrationTest.java`](bublik-cassandra/src/test/java/dev/bublik/cassandra/CassandraMigrationTest.java)
-
-### Client
+#### Client
 
 For Clickhouse you can provide your own Client to the migration.
 
@@ -1979,4 +1985,42 @@ Run the migration:
 sourceStorage.start(targetStorage, configs, 1000);
 ```
 
-Full example: [`ClickHouseMigrationTest.java`](bublik-oracle/src/test/java/dev/bublik/oracle/ClickHouseMigrationTest.java)
+
+#### KafkaProducer
+
+For Kafka you can provide your own KafkaProducer to the migration.
+
+```java
+Properties kafkaProps = new Properties();
+kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
+kafkaProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+kafkaProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+kafkaProps.put("security.protocol", "SASL_PLAINTEXT");
+kafkaProps.put("sasl.mechanism", "PLAIN");
+kafkaProps.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test\";");
+KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
+```
+
+Create two storages (source and target):
+```java
+Storage sourceStorage = new CassandraStorage(cassandraSession, batchSize, sourceChunkTable);
+Storage targetStorage = new KafkaStorage(producer, TOPIC_NAME);
+```
+
+Run the migration:
+```java
+sourceStorage.start(targetStorage, configs, 1000);
+```
+
+#### Examples
+
+
+| TO ➔ <br> FROM ⬇ |                                                                                             Cassandra                                                                                             |                                                                                                                                              ClickHouse                                                                                                                                               |                                                                                                                                                                           Kafka                                                                                                                                                                            | MS SQL | Oracle |                                                                                                 Postgres                                                                                                  | YDB |
+|:-----------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------:|:------:|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:--:|
+| **Cassandra**    |                                                      [Test](bublik-cassandra/src/test/java/dev/bublik/cassandra/CassandraMigrationTest.java)                                                      |                                                                                                                                                                                                                                                                                                       |                                                                                                                                    [Test](bublik-cassandra/src/test/java/dev/bublik/cassandra/KafkaMigrationTest.java)                                                                                                                                     |        |        |                                                                                                     ✅                                                                                                     |    |
+| **ClickHouse**   |                                                                                                                                                                                                   |                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                                                                                                                                                            |        |        |                                                                                                                                                                                                           |    |
+| **Kafka**        |                                                                                                                                                                                                   |                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                                                                                                                                                            |        |        |                                                                                                                                                                                                           |    |
+| **MS SQL**       |                                                                                                                                                                                                   |                                                                                                                                                   ✅                                                                                                                                                   |                                                                                                                                        [Test](bublik-mssql/src/test/java/dev/bublik/mssql/KafkaMigrationTest.java)                                                                                                                                         |        |        |                                                              [Test](bublik-mssql/src/test/java/dev/bublik/mssql/PostgresMigrationTest.java)                                                               |    |
+| **Oracle**       |                                                                                                 ✅                                                                                                 |                                                                                                          [Test](bublik-oracle/src/test/java/dev/bublik/oracle/ClickHouseMigrationTest.java)                                                                                                           |                                                                                                                                       [Test](bublik-oracle/src/test/java/dev/bublik/oracle/KafkaMigrationTest.java)                                                                                                                                        |        |        |                                                             [Test](bublik-oracle/src/test/java/dev/bublik/oracle/PostgresMigrationTest.java)                                                              |  ✅ |
+| **Postgres**     |                                           [Test](bublik-postgres/src/test/java/dev/bublik/postgres/CassandraMigrationTest.java)                                            |                                                                                                        [Test](bublik-postgres/src/test/java/dev/bublik/postgres/ClickHouseMigrationTest.java)                                                                                                         |                                                                                                                            [Test](bublik-postgres/src/test/java/dev/bublik/postgres/KafkaMigrationTest.java)                                                                                                                            |        |        |                                                                                                     ✅                                                                                                     |  ✅ |
+| **YDB**          |                                                                                                                                                                                                   |                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                                                                                                                                                            |        |        |                                                                                                                                                                                                           |    |

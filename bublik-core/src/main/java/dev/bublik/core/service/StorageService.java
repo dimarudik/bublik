@@ -1,6 +1,5 @@
 package dev.bublik.core.service;
 
-import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.AutoColseableStorageClass;
 import dev.bublik.core.storage.JDBCStorageClass;
@@ -16,12 +15,12 @@ import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.*;
-
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.ServiceLoader;
 
 import static dev.bublik.core.constants.CLassConstants.*;
-import static dev.bublik.core.constants.Constants.CHUNK_SCHEMA_NAME;
-import static dev.bublik.core.service.TableService.stringToTable;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public interface StorageService {
@@ -30,9 +29,9 @@ public interface StorageService {
     void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
     void start(Storage targetStorage, List<Config> configs, int rows, boolean sync) throws SQLException;
     void createGlobalOutbox() throws SQLException;
-    <K, T, S extends AutoCloseable, R, V, W> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk, W writer) throws SQLException;
-    <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException, SourceSQLException, IOException;
-    <K, T, S extends AutoCloseable, R, W> void closeWriter(W writer, Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException;
+    <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    <K, T, S extends AutoCloseable, R> void closeWriter(Chunk<K, T, S, R> chunk, String tableName);
     void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk) throws SQLException;
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) throws SQLException;
     void dropOutboxTable(boolean sync) throws SQLException;

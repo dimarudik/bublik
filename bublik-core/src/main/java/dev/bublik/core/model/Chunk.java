@@ -32,6 +32,7 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private Instant startTs;
     private Instant endTs;
     private final String orderByClause;
+    private S writer;
 
     public Chunk(K id, T start, T end, Config config, Table2Table t2t, ChunkStatus status,
                  String fetchQuery, Storage sourceStorage, Storage targetStorage, String orderByClause) {
@@ -169,6 +170,14 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
 
     public void setEndTs(Instant endTs) {
         this.endTs = endTs;
+    }
+
+    public S getWriter() {
+        return writer;
+    }
+
+    public void setWriter(S writer) {
+        this.writer = writer;
     }
 
     public void logChunkInfo() {

@@ -1,13 +1,12 @@
-package dev.bublik.postgres;
+package dev.bublik.cassandra;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.datastax.oss.driver.api.core.CqlSession;
+import dev.bublik.cassandra.storage.CassandraStorage;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.PseudoTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.kafka.storage.KafkaStorage;
-import dev.bublik.postgres.storage.PostgresStorage;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -21,23 +20,21 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.CassandraContainer;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
-import java.sql.Connection;
-import java.sql.Statement;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class KafkaMigrationTest {
-
-    static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
-            DockerImageName.parse("postgres"));
+    int batchSize = 256;
+    static final CassandraContainer<?> cassandra = new CassandraContainer<>(
+            DockerImageName.parse("cassandra"));
 
     static final ConfluentKafkaContainer kafkaContainer = new ConfluentKafkaContainer("confluentinc/cp-kafka:8.2.2")
             .withCopyFileToContainer(
@@ -48,41 +45,41 @@ public class KafkaMigrationTest {
             .withEnv("KAFKA_SASL_ENABLED_MECHANISMS", "PLAIN")
             .withEnv("KAFKA_OPTS", "-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_plain_jaas.conf");
 
-    static HikariDataSource sourceDataSource;
-    static int threadCount = 5;
-    static final String TOPIC_NAME = "users-topic";
+    static CqlSession cassandraSession;
+    static final String TOPIC_NAME = "cassandra-users-topic";
+    static final String KEYSPACE = "bublik_keyspace";
+    static final String TABLE_NAME = "source_users";
 
     @BeforeAll
     static void beforeAll() throws Exception {
-        postgres.start();
+        cassandra.start();
         kafkaContainer.start();
 
-        HikariConfig sourceConfig = new HikariConfig();
-        sourceConfig.setJdbcUrl(postgres.getJdbcUrl());
-        sourceConfig.setUsername(postgres.getUsername());
-        sourceConfig.setPassword(postgres.getPassword());
-        sourceConfig.setMaximumPoolSize(threadCount);
-        sourceDataSource = new HikariDataSource(sourceConfig);
+        cassandraSession = CqlSession.builder()
+                .addContactPoint(new InetSocketAddress(cassandra.getHost(), cassandra.getMappedPort(9042)))
+                .withLocalDatacenter("datacenter1")
+                .build();
 
-        try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE source_users (id SERIAL PRIMARY KEY, user_name VARCHAR(100))");
-            stmt.execute("INSERT INTO source_users (id, user_name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
-        }
+        cassandraSession.execute("CREATE KEYSPACE " + KEYSPACE + " WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};");
+        cassandraSession.execute("CREATE TABLE " + KEYSPACE + "." + TABLE_NAME + " (id int PRIMARY KEY, user_name text);");
+        cassandraSession.execute("INSERT INTO " + KEYSPACE + "." + TABLE_NAME + " (id, user_name) VALUES (1, 'Alice');");
+        cassandraSession.execute("INSERT INTO " + KEYSPACE + "." + TABLE_NAME + " (id, user_name) VALUES (2, 'Bob');");
+        cassandraSession.execute("INSERT INTO " + KEYSPACE + "." + TABLE_NAME + " (id, user_name) VALUES (3, 'Charlie');");
     }
 
     @AfterAll
     static void afterAll() {
-        if (sourceDataSource != null) sourceDataSource.close();
-        postgres.stop();
+        if (cassandraSession != null) cassandraSession.close();
+        cassandra.stop();
         kafkaContainer.stop();
     }
 
     @Test
-    @DisplayName("Миграция из Postgres в Kafka через явный конструктор")
-    void testPostgresToKafkaMigration() throws Exception {
-        Table sourceChunkTable = new PseudoTable("public", "bublik");
+    @DisplayName("Миграция из Cassandra в Kafka через явный конструктор")
+    void testCassandraToKafkaMigration() throws Exception {
+        Table sourceChunkTable = new PseudoTable(KEYSPACE, "bublik");
 
-        Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceChunkTable);
+        Storage sourceStorage = new CassandraStorage(cassandraSession, batchSize, sourceChunkTable);
 
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
@@ -123,8 +120,8 @@ public class KafkaMigrationTest {
         avroSchema.put("fields", fields);
 
         Config tableConfig = new Config(
-                "public",
-                "source_users",
+                KEYSPACE,
+                TABLE_NAME,
                 null,
                 null,
                 null,
@@ -140,7 +137,7 @@ public class KafkaMigrationTest {
         sourceStorage.start(targetStorage, configs, 1000);
 
         long kafkaMessageCount = countMessagesInKafka(kafkaContainer.getBootstrapServers(), TOPIC_NAME);
-        assertEquals(3, kafkaMessageCount, "В топик Kafka должно быть успешно отправлено 3 Avro-записи!");
+        assertEquals(3, kafkaMessageCount, "В топик Kafka должно быть успешно отправлено 3 Avro-записи из Cassandra!");
 
         sourceStorage.closeStorage();
         targetStorage.closeStorage();
@@ -149,7 +146,7 @@ public class KafkaMigrationTest {
     private static long countMessagesInKafka(String bootstrapServers, String topic) {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "verification-group-" + System.currentTimeMillis());
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "cassandra-verification-group-" + System.currentTimeMillis());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         props.put("security.protocol", "SASL_PLAINTEXT");
