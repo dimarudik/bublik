@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.7</version>
+        <version>26.3.8</version>
     </parent>
 
     <artifactId>bublik-cli</artifactId>
@@ -256,9 +256,8 @@
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
                 <version>0.9.0</version>
-                <extensions>true</extensions>
                 <configuration>
-                    <publishingServerId>central</publishingServerId>
+                    <skipPublishing>true</skipPublishing>
                 </configuration>
             </plugin>
             <plugin>
