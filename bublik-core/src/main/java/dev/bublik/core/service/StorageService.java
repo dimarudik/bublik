@@ -32,6 +32,7 @@ public interface StorageService {
     <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException;
     <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     <K, T, S extends AutoCloseable, R> void closeWriter(Chunk<K, T, S, R> chunk, String tableName);
+    <K, T, S extends AutoCloseable, R> void flushBuffer(Chunk<K, T, S, R> chunk);
     void insertProcessedChunkInfo(Chunk <?, ?, ?, ?> chunk) throws SQLException;
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) throws SQLException;
     void dropOutboxTable(boolean sync) throws SQLException;

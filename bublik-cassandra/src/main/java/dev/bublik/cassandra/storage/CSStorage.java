@@ -643,4 +643,9 @@ abstract class CSStorage extends Storage implements Source {
     public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
+
+    @Override
+    public <K, T, S extends AutoCloseable, R> void flushBuffer(Chunk<K, T, S, R> chunk) {
+
+    }
 }

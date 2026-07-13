@@ -2,19 +2,15 @@ package dev.bublik.clickhouse.storage;
 
 import com.clickhouse.client.api.Client;
 import dev.bublik.clickhouse.model.ClickTable;
-import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-
-import static dev.bublik.core.constants.Constants.CHUNK_TABLE_NAME;
 
 abstract class ClickStorage extends Storage implements Source {
     protected ClickClient clickClient;
@@ -66,12 +62,7 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R, V>  void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException {
-
-    }
-
-    @Override
-    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) {
         return null;
     }
 

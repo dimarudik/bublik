@@ -38,7 +38,7 @@ public class KafkaStorage extends Storage {
     private final KafkaProducer<String, byte[]> kafkaProducer;
     private final String topic;
     private final Map<String, AvroRowProducer> producerCache = new ConcurrentHashMap<>();
-    private final Map<String, ObjectRowProducer> cassandraCache = new ConcurrentHashMap<>();
+    private final Map<String, ObjectRowProducer> valueCache = new ConcurrentHashMap<>();
 
     public KafkaStorage(KafkaProducer<String, byte[]> kafkaProducer, String topic) {
         super(new ConnectionProperty());
@@ -63,18 +63,27 @@ public class KafkaStorage extends Storage {
             List<Column2Column> c2c = chunk.getT2t().column2Columns();
             if (chunk.getSourceStorage() instanceof JDBCStorage) {
 
-                AvroRowProducer currentTableProducer = producerCache.computeIfAbsent(tableName, tName -> {
+                String schemaName = chunk.getConfig().fromSchemaName();
+                String globalCacheKey = (schemaName != null && !schemaName.isBlank())
+                        ? schemaName + "." + tableName
+                        : tableName;
+
+                AvroRowProducer currentTableProducer = producerCache.get(globalCacheKey);
+
+                if (currentTableProducer == null) {
                     Schema dynamicSchema = buildAvroSchemaFromC2C(c2c, chunk.getConfig());
-                    return new AvroRowProducer(this.kafkaProducer, dynamicSchema, c2c);
-                });
+                    AvroRowProducer newProducer = new AvroRowProducer(this.kafkaProducer, dynamicSchema, c2c);
+
+                    AvroRowProducer existing = producerCache.putIfAbsent(globalCacheKey, newProducer);
+                    currentTableProducer = (existing != null) ? existing : newProducer;
+                }
 
                 return currentTableProducer.streamResultSetToKafka(chunk, topic);
             } else {
-
                 return chunk.getSourceStorage().transfer(chunk, tableName);
             }
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("KafkaStorage transfer pipeline failed", e);
         }
     }
 
@@ -248,18 +257,25 @@ public class KafkaStorage extends Storage {
     public <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues,
                                                                         Chunk<K, T, S, R> chunk) {
         try {
+            String schemaName = chunk.getConfig().fromSchemaName();
             String tableName = chunk.getConfig().fromTableName();
+            String globalCacheKey = schemaName + "." + tableName;
 
-            ObjectRowProducer currentTableProcessor = cassandraCache.computeIfAbsent(tableName, tName -> {
+            ObjectRowProducer currentTableProcessor = valueCache.get(globalCacheKey);
+
+            if (currentTableProcessor == null) {
                 List<Column2Column> c2c = chunk.getT2t().column2Columns();
                 Schema dynamicSchema = buildAvroSchemaFromC2C(c2c, chunk.getConfig());
-                return new ObjectRowProducer(dynamicSchema, c2c);
-            });
+                ObjectRowProducer newProducer = new ObjectRowProducer(dynamicSchema, c2c);
+
+                ObjectRowProducer existing = valueCache.putIfAbsent(globalCacheKey, newProducer);
+                currentTableProcessor = (existing != null) ? existing : newProducer;
+            }
 
             currentTableProcessor.sendSingleRowToKafka(columnValues, topic);
 
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to push parallel row to KafkaStorage", e);
         }
     }
 
@@ -442,5 +458,10 @@ public class KafkaStorage extends Storage {
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
         return false;
+    }
+
+    @Override
+    public <K, T, S extends AutoCloseable, R> void flushBuffer(Chunk<K, T, S, R> chunk) {
+
     }
 }

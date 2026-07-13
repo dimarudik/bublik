@@ -7,14 +7,17 @@ import com.clickhouse.client.api.insert.InsertSettings;
 import com.clickhouse.client.api.metadata.TableSchema;
 import com.clickhouse.data.ClickHouseColumn;
 import com.clickhouse.data.ClickHouseFormat;
+import com.google.common.io.LittleEndianDataOutputStream;
 import dev.bublik.clickhouse.model.TransferPlan;
 import dev.bublik.clickhouse.service.ColumnTransfer;
+import dev.bublik.clickhouse.service.ValueTransfer;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 import dev.bublik.core.util.Utils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
@@ -23,6 +26,10 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class ClickHouseStorage extends ClickStorage {
+    private ByteArrayOutputStream bufferStream;
+    private LittleEndianDataOutputStream leOut;
+    private ValueTransfer[] pushPlan;
+    private long rowCount = 0;
 
     public ClickHouseStorage(Client client,
                              Table outboxTable) {
@@ -44,50 +51,31 @@ public class ClickHouseStorage extends ClickStorage {
     @Override
     public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         Storage sourceStorage = chunk.getSourceStorage();
-        if (sourceStorage instanceof ClickStorage) {
-            if (chunk.getTargetStorage() instanceof JDBCStorage) {
-                return new LogMessage(0, 0, "ClickHouse -> JDBC");
-            } else {
-                return new LogMessage(0, 0, "ClickHouse -> ClickHouse");
-            }
-        } else if (sourceStorage instanceof JDBCStorage) {
-            ResultSet resultSet = (ResultSet) chunk.getResultSet();
-            return jdbcToClickHouse(chunk, resultSet);
+        if (sourceStorage instanceof JDBCStorage) {
+            return jdbcToClickHouse(chunk);
+        } else {
+            return sourceStorage.transfer(chunk, tableName);
         }
-        throw new RuntimeException("Unknown storage type");
     }
 
-    public LogMessage jdbcToClickHouse(Chunk<?, ?, ?, ?> chunk, ResultSet rs) {
+    public LogMessage jdbcToClickHouse(Chunk<?, ?, ?, ?> chunk) {
         long start = System.currentTimeMillis();
         Client client = getSession();
         Table targetTable = chunk.getT2t().targetTable();
         TableSchema targetTableSchema = client.getTableSchema(
                 targetTable.getTableName(), targetTable.getSchemaName());
 
-//        List<Column2Column> originalColumns = chunk.getT2t().column2Columns();
         List<Column2Column> sortedColumn2Columns = chunk.getT2t().getSortedColumn2ColumnByTargetColumnPosition();
-
-/*
-        List<Column2Column> sortedColumn2Columns = originalColumns.stream()
-                .sorted(Comparator.comparingInt(c2c -> c2c.targetColumn().columnPosition()))
-                .toList();
-*/
 
         List<String> targetColumnNames = sortedColumn2Columns.stream()
                 .map(c2c -> c2c.targetColumn().columnName())
                 .toList();
 
         TransferPlan plan = buildTransferPlan(targetTableSchema, sortedColumn2Columns);
+        ResultSet rs = (ResultSet) chunk.getResultSet();
         DataStreamWriter writer = getWriter(rs, targetTableSchema, plan);
 
         InsertSettings settings = new InsertSettings();
-/*
-        settings.compressClientRequest(false);
-        settings.useHttpCompression(false);
-        settings.serverSetting("async_insert", "0");
-        settings.serverSetting("wait_for_async_insert", "0");
-        settings.serverSetting("insert_deduplicate", "0");
-*/
 
         try (InsertResponse response = client.insert(
                 targetTable.getSchemaName() + "." + targetTable.getTableName(),
@@ -124,14 +112,11 @@ public class ClickHouseStorage extends ClickStorage {
 
                 try {
                     while (rs.next()) {
-                        // Отсекаем фантомные зацикленные строки скроллируемого курсора ojdbc
                         for (int i = 0; i < columnsCount; i++) {
-                            // Стримим примитивы напрямую в ClickHouse со скоростью процессора
                             transfers[i].transfer(rs, (i + 1), leOut);
                         }
                     }
                     leOut.flush();
-                    // Метод close() убран, закрытием сокета управляет HttpClient
                 } catch (Exception e) {
                     log.error("Error during binary streaming: {}", Utils.getStackTrace(e));
                     throw new IOException("Error processing RowBinary transfer", e);
@@ -420,7 +405,6 @@ public class ClickHouseStorage extends ClickStorage {
                             case Boolean bool -> out.writeDouble(bool ? 1.0 : 0.0);
                             default -> {
                                 try {
-                                    // НАДЁЖНО: парсим из строки, уничтожая округления ojdbc!
                                     out.writeDouble(Double.parseDouble(v.toString().trim()));
                                 } catch (Exception ex) {
                                     out.writeDouble(0.0);
@@ -436,10 +420,10 @@ public class ClickHouseStorage extends ClickStorage {
                         Object v = r.getObject(jdbcIdx);
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1); // NULL - ничего не следует
+                                out.writeByte(1);
                                 return;
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);
                         }
 
                         float fVal;
@@ -456,14 +440,8 @@ public class ClickHouseStorage extends ClickStorage {
                             }
                         }
 
-                        // КОНВЕРТАЦИЯ FLOAT32 -> BFLOAT16 STRICTLY BY SPECIFICATION:
-                        // 1. Получаем полные 32-битные аппаратно-зависимые биты IEEE 754
                         int bits = Float.floatToIntBits(fVal);
-
-                        // 2. Сдвигаем на 16 бит вправо, оставляя старшие 2 байта (знак + экспонента + мантисса)
                         int bfloatBits = bits >>> 16;
-
-                        // 3. Записываем ровно 2 байта в Little-Endian поток
                         out.writeShort((short) bfloatBits);
                     };
                     break;
@@ -474,14 +452,13 @@ public class ClickHouseStorage extends ClickStorage {
                         Object v = r.getObject(jdbcIdx);
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1); // NULL - ничего не следует
+                                out.writeByte(1);
                                 return;
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);
                         }
 
                         BigDecimal bd;
-                        // ВАШЕ ОТЛИЧНОЕ УЛУЧШЕНИЕ: Строгое приведение типов через строковое представление
                         switch (v) {
                             case null -> bd = BigDecimal.ZERO;
                             case BigDecimal bigDecimal -> bd = bigDecimal;
@@ -495,33 +472,28 @@ public class ClickHouseStorage extends ClickStorage {
                             }
                         }
 
-                        // Сдвигаем запятую вправо на scale знаков ClickHouse (для 123456.78 при scale=2 станет 12345678)
                         BigDecimal moved = bd.movePointRight(scale);
                         java.math.BigInteger bigInt = moved.setScale(0,
                                 java.math.RoundingMode.HALF_UP).toBigInteger();
 
                         byte[] rawBytes = bigInt.toByteArray();
 
-                        // Вычисляем строгую бинарную ширину Decimal по спецификации ClickHouse
-                        int byteWidth = 8; // По умолчанию Decimal64 (8 байт)
-                        if (precision <= 9) byteWidth = 4;        // Decimal32 (4 байта)
-                        else if (precision <= 18) byteWidth = 8;   // Decimal64 (8 байт)
-                        else if (precision <= 38) byteWidth = 16;  // Decimal128 (16 байт)
-                        else byteWidth = 32;                       // Decimal256 (32 байта)
+                        int byteWidth = 8;
+                        if (precision <= 9) byteWidth = 4;
+                        else if (precision <= 18) byteWidth = 8;
+                        else if (precision <= 38) byteWidth = 16;
+                        else byteWidth = 32;
 
                         byte[] finalBytes = new byte[byteWidth];
 
-                        // Заполняем массив с учетом знака (дополнительного кода для отрицательных чисел)
                         byte signByte = (byte) (bigInt.signum() < 0 ? 0xFF : 0x00);
                         java.util.Arrays.fill(finalBytes, signByte);
 
-                        // Переворачиваем байты в формат Little-Endian строго в границах byteWidth!
                         int bytesToCopy = Math.min(rawBytes.length, byteWidth);
                         for (int j = 0; j < bytesToCopy; j++) {
                             finalBytes[j] = rawBytes[rawBytes.length - 1 - j];
                         }
 
-                        // Записываем фиксированное количество байт (4, 8, 16 или 32)
                         out.write(finalBytes);
                     };
                     break;
@@ -555,7 +527,7 @@ public class ClickHouseStorage extends ClickStorage {
                                 bytes = new byte[0];
                             }
                         }
-                        // 2. ПЕРЕХВАТ ТИПА BLOB -> HEX STRING (Oracle)
+
                         else if (srcType.contains("blob")) {
                             java.sql.Blob blob = r.getBlob(finalSrcName);
                             if (blob != null) {
@@ -573,7 +545,7 @@ public class ClickHouseStorage extends ClickStorage {
                                 bytes = new byte[0];
                             }
                         }
-                        // 3. ПЕРЕХВАТ ТИПА CLOB -> TEXT STRING (Oracle / Postgres Text)
+
                         else if (v instanceof java.sql.Clob clob) {
                             long length = clob.length();
                             if (length > 0) {
@@ -588,13 +560,12 @@ public class ClickHouseStorage extends ClickStorage {
                                 bytes = new byte[0];
                             }
                         }
-                        // 4. СТАНДАРТНЫЕ СТРОКИ VARCHAR2 / TEXT / JSON
+
                         else {
                             String s = v.toString().replace("\u0000", "");
                             bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
                         }
 
-                        // Кодируем Varint/LEB128 префикс длины полученной строки
                         long val = bytes.length;
                         while ((val & 0xFFFFFFFFFFFFFF80L) != 0L) {
                             out.writeByte(((int) val & 0x7F) | 0x80);
@@ -602,7 +573,6 @@ public class ClickHouseStorage extends ClickStorage {
                         }
                         out.writeByte((int) val & 0x7F);
 
-                        // Записываем байты текста в сокет ClickHouse
                         out.write(bytes);
                     };
                     break;
@@ -613,10 +583,10 @@ public class ClickHouseStorage extends ClickStorage {
                         Object v = r.getObject(jdbcIdx);
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1); // NULL - ничего не следует
+                                out.writeByte(1);
                                 return;
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);
                         }
 
                         byte[] srcBytes;
@@ -643,13 +613,12 @@ public class ClickHouseStorage extends ClickStorage {
                         Object v = r.getObject(jdbcIdx);
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1); // NULL - ничего не следует
+                                out.writeByte(1);
                                 return;
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);
                         }
 
-                        // Чистим дефисы из строки UUID
                         String uuidStr = v.toString().trim().replace("-", "");
                         if (uuidStr.length() != 32) {
                             out.writeLong(0L);
@@ -657,14 +626,9 @@ public class ClickHouseStorage extends ClickStorage {
                             return;
                         }
 
-                        // ЖЕСТКО ПО ДОКУМЕНТАЦИИ:
-                        // Берем первую половину строки (символы 0-16)
                         long mostSig = Long.parseUnsignedLong(uuidStr.substring(0, 16), 16);
-                        // Берем вторую половину строки (символы 16-32)
                         long leastSig = Long.parseUnsignedLong(uuidStr.substring(16, 32), 16);
 
-                        // Стримим в leOut: сначала Most, затем Least!
-                        // Обертка LittleEndianDataOutputStream сама развернет байты каждой половины!
                         out.writeLong(mostSig);
                         out.writeLong(leastSig);
                     };
@@ -676,10 +640,10 @@ public class ClickHouseStorage extends ClickStorage {
                         Object v = r.getObject(jdbcIdx);
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1); // NULL - ничего не следует
+                                out.writeByte(1);
                                 return;
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);
                         }
 
                         java.sql.Timestamp ts;
@@ -693,12 +657,10 @@ public class ClickHouseStorage extends ClickStorage {
                             try {
                                 ts = java.sql.Timestamp.valueOf(v.toString().trim());
                             } catch (Exception ex) {
-                                ts = new java.sql.Timestamp(0L); // Дефолт: 1970-01-01
+                                ts = new java.sql.Timestamp(0L);
                             }
                         }
 
-                        // Переводим миллисекунды Java в секунды Unix для DateTime (4 байта)
-                        // Обертка LittleEndianDataOutputStream автоматически запишет их в LE-формате!
                         int seconds = (int) (ts.getTime() / 1000);
                         out.writeInt(seconds);
                     };
@@ -709,13 +671,10 @@ public class ClickHouseStorage extends ClickStorage {
                     transfers[i] = (r, jdbcIdx, out) -> {
                         java.sql.Timestamp ts = null;
                         try {
-                            // ЭТАЛОННОЕ РЕШЕНИЕ: Вычитываем TIMESTAMP WITH TIME ZONE
-                            // строго в контексте UTC-календаря, полностью ликвидируя сдвиги зон!
                             java.util.Calendar utcCal = java.util.Calendar.getInstance(
                                     java.util.TimeZone.getTimeZone("UTC"));
                             ts = r.getTimestamp(jdbcIdx, utcCal);
                         } catch (Exception ex) {
-                            // Резервный вариант, если getTimestamp по календарю не поддерживается
                             Object v = r.getObject(jdbcIdx);
                             if (v instanceof java.sql.Timestamp timestamp) {
                                 ts = timestamp;
@@ -726,17 +685,16 @@ public class ClickHouseStorage extends ClickStorage {
 
                         if (isNullable) {
                             if (ts == null) {
-                                out.writeByte(1); // NULL - ничего не следует
+                                out.writeByte(1);
                                 return;
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);
                         }
 
                         if (ts == null) {
                             ts = new java.sql.Timestamp(0L);
                         }
 
-                        // Переводим чистые UTC-миллисекунды в микросекунды для DateTime64(6)
                         long millis = ts.getTime();
                         long microseconds = millis * 1000;
 
@@ -755,5 +713,185 @@ public class ClickHouseStorage extends ClickStorage {
             }
         }
         return new TransferPlan(transfers, sourceColumnNames, null);
+    }
+
+    @Override
+    public <K, T, S extends AutoCloseable, R, V>  void insertColumnValue(List<ColumnValue<V>> columnValues,
+                                                                         Chunk<K, T, S, R> chunk) {
+        try {
+            if (bufferStream == null) {
+                bufferStream = new ByteArrayOutputStream(1024 * 1024); // 1 MB начальный буфер
+                leOut = new LittleEndianDataOutputStream(bufferStream);
+
+                Client client = getSession();
+                Table targetTable = chunk.getT2t().targetTable();
+                TableSchema targetTableSchema = client.getTableSchema(
+                        targetTable.getTableName(), targetTable.getSchemaName());
+
+                pushPlan = buildPushTransferPlan(targetTableSchema, columnValues);
+            }
+
+            int columnsCount = columnValues.size();
+            for (int i = 0; i < columnsCount; i++) {
+                Object value = columnValues.get(i).value();
+                pushPlan[i].transfer(value, leOut);
+            }
+
+            rowCount++;
+
+            if (rowCount >= 50000) {
+                flushBuffer(chunk);
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to process push row in ClickHouseStorage", e);
+        }
+    }
+
+    @Override
+    public <K, T, S extends AutoCloseable, R> void flushBuffer(Chunk<K, T, S, R> chunk) {
+        if (rowCount == 0 || bufferStream == null) return;
+
+//        log.info("flushBuffer called. Current rowCount: {}, bufferStream is null: {}",
+//                this.rowCount, (this.bufferStream == null));
+
+        long start = System.currentTimeMillis();
+        Client client = getSession();
+        Table targetTable = chunk.getT2t().targetTable();
+
+        List<Column2Column> sortedColumn2Columns = chunk.getT2t().getSortedColumn2ColumnByTargetColumnPosition();
+        List<String> targetColumnNames = sortedColumn2Columns.stream()
+                .map(c2c -> c2c.targetColumn().columnName())
+                .toList();
+
+        try {
+            leOut.flush();
+            byte[] binaryData = bufferStream.toByteArray();
+
+            InsertSettings settings = new InsertSettings();
+            settings.serverSetting("insert_deduplicate", "1");
+
+            try (InsertResponse response = client.insert(
+                    targetTable.getSchemaName() + "." + targetTable.getTableName(),
+                    targetColumnNames,
+                    new DataStreamWriter() {
+                        @Override
+                        public void onOutput(OutputStream out) throws IOException {
+                            out.write(binaryData);
+                        }
+                        @Override
+                        public void onRetry() throws IOException {
+                            throw new IOException("Retry not supported for raw memory buffer");
+                        }
+                    },
+                    ClickHouseFormat.RowBinary,
+                    settings
+            ).join()) {
+
+                long stop = System.currentTimeMillis();
+                log.info("Push CDC -> ClickHouse success. Rows: {}, Size: {} bytes, Time: {} ms",
+                        rowCount, binaryData.length, (stop - start));
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("ClickHouse bundle push failed: " + e.getMessage(), e);
+        } finally {
+            bufferStream = null;
+            leOut = null;
+            pushPlan = null;
+            rowCount = 0;
+        }
+    }
+
+    private <V> ValueTransfer[] buildPushTransferPlan(
+            TableSchema tableSchema,
+            List<ColumnValue<V>> columnValues) {
+
+        int targetColumnsCount = columnValues.size();
+        ValueTransfer[] transfers = new ValueTransfer[targetColumnsCount];
+
+        for (int i = 0; i < targetColumnsCount; i++) {
+            ColumnValue<?> cv = columnValues.get(i);
+            String targetColumnName = cv.targetColumn().columnName();
+
+            if (targetColumnName.startsWith("\"") &&
+                    targetColumnName.endsWith("\"") &&
+                    targetColumnName.length() > 1) {
+                targetColumnName = targetColumnName.substring(
+                        1, targetColumnName.length() - 1);
+            }
+
+            ClickHouseColumn chColumn = tableSchema.getColumnByName(targetColumnName);
+            final boolean isNullable = chColumn.isNullable();
+            String baseTypeName = chColumn.getDataType().getName().toLowerCase();
+
+            switch (baseTypeName) {
+
+                case "int32", "uint32": {
+                    transfers[i] = (v, out) -> {
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+                        switch (v) {
+                            case null -> {
+                                out.writeInt(0);
+                                return;
+                            }
+                            case Number number -> out.writeInt(number.intValue());
+                            case Boolean bool -> out.writeInt(bool ? 1 : 0);
+                            default -> {
+                                try {
+                                    out.writeInt(Integer.parseInt(v.toString().trim()));
+                                } catch (Exception ex) {
+                                    out.writeInt(0);
+                                }
+                            }
+                        }
+                    };
+                    break;
+                }
+
+                case "string": {
+                    transfers[i] = (v, out) -> {
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+
+                        byte[] bytes;
+                        switch (v) {
+                            case null -> bytes = new byte[0];
+                            case byte[] byteArray -> bytes = byteArray;
+                            default -> {
+                                String s = v.toString().replace("\u0000", "");
+                                bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                            }
+                        }
+
+                        long val = bytes.length;
+                        while ((val & 0xFFFFFFFFFFFFFF80L) != 0L) {
+                            out.writeByte(((int) val & 0x7F) | 0x80);
+                            val >>>= 7;
+                        }
+                        out.writeByte((int) val & 0x7F);
+
+                        out.write(bytes);
+                    };
+                    break;
+                }
+
+                default:
+                    transfers[i] = (v, out) -> {};
+                    break;
+            }
+        }
+        return transfers;
     }
 }

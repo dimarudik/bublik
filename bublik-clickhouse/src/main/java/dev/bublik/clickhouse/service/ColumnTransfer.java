@@ -1,6 +1,5 @@
 package dev.bublik.clickhouse.service;
 
-import java.io.OutputStream;
 import java.sql.ResultSet;
 
 @FunctionalInterface
