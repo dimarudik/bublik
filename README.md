@@ -110,38 +110,38 @@ The mapping file is a JSON file that contains the mapping between the source and
 ```bash
 [
   {
-    "fromSchemaName" : "schema",  /* source schema or Cassandra keyspace name (Required) */
-    "fromTableName" : "table",    /* source table name (Required) */
-    "fromTableAlias" : "t",       /* source table alias (Optional - used in FROM clause) */
-    "fromTableAdds" : "join users u on u.id = t.user_id", /* source table adds (Optional - used in FROM clause to join additional tables) */
-    "fetchHintClause" : "/*+ no_index(t) */", /* fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method) */
-    "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", /* for filtering source chunks, applicable only for Oracle (Optional) */
+    "fromSchemaName" : "schema",  # source schema or Cassandra keyspace name (Required)
+    "fromTableName" : "table",    # source table name (Required)
+    "fromTableAlias" : "t",       # source table alias (Optional - used in FROM clause) 
+    "fromTableAdds" : "join users u on u.id = t.user_id", # source table adds (Optional - used in FROM clause to join additional tables) 
+    "fetchHintClause" : "/*+ no_index(t) */", # fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method) 
+    "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", # for filtering source chunks, applicable only for Oracle (Optional) 
     
-    "toSchemaName" : "schema",    /* target schema or Cassandra keyspace name (Optional - if omitted, the source schema name will be used) */
-    "toTableName" : "table",      /* target table name (Optional - if omitted, the source table name will be used) */
+    "toSchemaName" : "schema",    # target schema or Cassandra keyspace name (Optional - if omitted, the source schema name will be used) 
+    "toTableName" : "table",      # target table name (Optional - if omitted, the source table name will be used) 
     
-    "tryCharIfAny" : ["col1", "col2"], /* columns to try to convert to char for user-defined types (Optional) */
+    "tryCharIfAny" : ["col1", "col2"], # columns to try to convert to char for user-defined types (Optional) 
     
-    "columnToColumn" : {          /* column to column mapping (Optional) */
+    "columnToColumn" : {          # column to column mapping (Optional) 
       "col1"   : "col1",
-      "col2"   : "newcolumn",     /* rename column */
+      "col2"   : "newcolumn",     # rename column 
       "col3"   : "col3"
     },
     
-    "expressionToColumn" : {            /* expression to column mapping (Optional - used in SELECT clause to calculate new columns) */
+    "expressionToColumn" : {            # expression to column mapping (Optional - used in SELECT clause to calculate new columns) 
       "u.col4 as col4"        : "col4",
-      "TRUNC(u.col5) as col5" : "col5"  /* column transformation via TRUNC function */
+      "TRUNC(u.col5) as col5" : "col5"  # column transformation via TRUNC function 
     },
     
-    "withTTL"   : "(int)9999",    /* defines TTL for Cassandra (Optional) */
-    "timestamp" : "(bigint)9999", /* defines timestamp for Cassandra (Optional) */
+    "withTTL"   : "(int)9999",    # defines TTL for Cassandra (Optional) 
+    "timestamp" : "(bigint)9999", # defines timestamp for Cassandra (Optional) 
     
-    "avroSchema" : {              /* defines avro schema for Kafka (Optional) */
+    "avroSchema" : {              # defines avro schema for Kafka (Optional) 
       "type": "record",
       "name": "UserRecord",
       "namespace": "dev.bublik",
       "fields": [
-        { "name": "col1",     "type": ["null", "int"], "default": null }, /* name of column should be the same as in columnToColumn or expressionToColumn right part */
+        { "name": "col1",     "type": ["null", "int"], "default": null }, # name of column should be the same as in columnToColumn or expressionToColumn right part 
         { "name": "newcolumn","type": ["null", "int"], "default": null },
         { "name": "col3",     "type": ["null", "int"], "default": null },
         { "name": "col4",     "type": ["null", "int"], "default": null },
