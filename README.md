@@ -107,14 +107,14 @@ mvn clean package -DskipTests
 
 The mapping file is a JSON file that contains the mapping between the source and target tables.
 
-```java
+```bash
 [
   {
     "fromSchemaName" : "schema",  /* source schema or Cassandra keyspace name (Required) */
     "fromTableName" : "table",    /* source table name (Required) */
     "fromTableAlias" : "t",       /* source table alias (Optional - used in FROM clause) */
     "fromTableAdds" : "join users u on u.id = t.user_id", /* source table adds (Optional - used in FROM clause to join additional tables) */
-    "fetchHintClause" : "/*+ no_index(t) */", /* fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to ovid index access method) */
+    "fetchHintClause" : "/*+ no_index(t) */", /* fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method) */
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", /* for filtering source chunks, applicable only for Oracle (Optional) */
     
     "toSchemaName" : "schema",    /* target schema or Cassandra keyspace name (Optional - if omitted, the source schema name will be used) */
