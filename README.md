@@ -21,6 +21,7 @@ This tool facilitates the efficient transfer of data between databases.
 You can find more details and examples below.
 
 * [Build](#Build)
+* [Mapping File Format](#mapping-file-format)
 * [Cassandra To Cassandra](#cassandra-to-cassandra)
     * [Prepare Cassandra To Cassandra environment](#prepare-cassandra-to-cassandra-environment)
     * [Prepare Cassandra To Cassandra Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
@@ -100,6 +101,32 @@ Build and package all dependencies
 
 ```
 mvn clean package -DskipTests
+```
+
+## Mapping File Format
+
+The mapping file is a JSON file that contains the mapping between the source and target tables.
+
+```json
+[
+  {
+    "fromSchemaName" : "schema",  /* source schema or Cassandra keyspace name (Required) */
+    "fromTableName" : "table",  /* source table name (Required) */
+    "fromTableAlias" : "t",   /* source table alias (Optional - used in FROM clause) */
+    "fromTableAdds" : "join users u on u.id = t.user_id", /* source table adds (Optional - used in FROM clause to join additional tables) */
+    "fetchHintClause" : "/*+ no_index(t) */", /* fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to ovid index access method) */
+    "toSchemaName" : "schema",  /* target schema or Cassandra keyspace name (Optional - if omitted, the source schema name will be used) */
+    "toTableName" : "table",  /* target table name (Optional - if omitted, the source table name will be used) */
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    }
+  }
+]
 ```
 
 ## Cassandra To Cassandra
@@ -498,7 +525,7 @@ toProperties:
 ```
 
 
-### Prepare Cassandra To Kafka Mapping File
+### Prepare Cassandra To Kafka Mapping Files
 
 
 [cs2kafka.json](./bublik-cli/src/test/resources/cassandra/kafka/json/cs2kafka.json)
@@ -1193,7 +1220,7 @@ toProperties:
   sasl.mechanism: SCRAM-SHA-512
 ```
 
-### Prepare Oracle To Kafka Mapping File
+### Prepare Oracle To Kafka Mapping Files
 
 [ora2kafka.json](bublik-cli/src/test/resources/oracle/kafka/json/ora2kafka.json)
 
