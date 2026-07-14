@@ -26,6 +26,11 @@ You can find more details and examples below.
     * [Prepare Cassandra To Cassandra Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
     * [Prepare Cassandra To Cassandra Mapping Files](#prepare-cassandra-to-cassandra-mapping-files)
     * [Cassandra To Cassandra Run](#cassandra-to-cassandra-run)
+* [Cassandra To Kafka](#cassandra-to-kafka)
+  * [Prepare Cassandra To Kafka environment](#prepare-cassandra-to-kafka-environment)
+  * [Prepare Cassandra To Kafka Connection Settings](#prepare-cassandra-to-kafka-connection-settings)
+  * [Prepare Cassandra To Kafka Mapping Files](#prepare-cassandra-to-kafka-mapping-files)
+  * [Cassandra To Kafka Run](#cassandra-to-kafka-run)
 * [Cassandra To PostgreSQL](#cassandra-to-postgresql)
     * [Prepare Cassandra To PostgreSQL environment](#prepare-cassandra-to-postgresql-environment)
     * [Prepare Cassandra To PostgreSQL Connection Settings](#prepare-cassandra-to-postgresql-connection-settings)
@@ -41,6 +46,11 @@ You can find more details and examples below.
     * [Prepare Oracle To Cassandra Connection Settings](#prepare-oracle-to-cassandra-connection-settings)
     * [Prepare Oracle To Cassandra Mapping File](#prepare-oracle-to-cassandra-mapping-file)
     * [Oracle To Cassandra Run](#oracle-to-cassandra-run)
+* [Oracle To Kafka](#oracle-to-kafka)
+  * [Prepare Oracle To Kafka environment](#prepare-oracle-to-kafka-environment)
+  * [Prepare Oracle To Kafka Connection Settings](#prepare-oracle-to-kafka-connection-settings)
+  * [Prepare Oracle To Kafka Mapping Files](#prepare-oracle-to-kafka-mapping-files)
+  * [Oracle To Kafka Run](#oracle-to-kafka-run)
 * [Oracle To PostgreSQL](#oracle-to-postgresql)
   * [Prepare Oracle To PostgreSQL environment](#prepare-oracle-to-postgresql-environment)
   * [Prepare Oracle To PostgreSQL Connection Settings](#prepare-oracle-to-postgresql-connection-settings)
@@ -153,7 +163,8 @@ cqlsh localhost 9043 -f ./bublik-cli/src/test/resources/cassandra/cassandra/sql/
 
 ### Prepare Cassandra To Cassandra Connection Settings
 
-Cassandra connection settings `./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml`:
+Cassandra connection settings [cs2cs.yaml](bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml):
+
 
 ```yaml
 threadCount: 10
@@ -178,7 +189,7 @@ toProperties:
 
 ### Prepare Cassandra To Cassandra Mapping Files
 
-You can run the tool by using json files in folder `./bublik-cli/src/test/resources/cassandra/cassandra/json`.<br>
+You can run the tool by using json files in folder [json](bublik-cli/src/test/resources/cassandra/cassandra/json).<br>
 Moreover you can define the behavior for values of TTL and TIMESTAMP Cassandra internal columns in the mapping file.
 
 > [!IMPORTANT]
@@ -369,7 +380,207 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transfered
+
+
+## Cassandra To Kafka
+![Cassandra To Kafka](./bublik-cli/src/test/resources/images/cs2kafka.png)
+
+The objective is to migrate data from Cassandra to Kafka database.
+To split data into chunks we use Token Ranges ring of Cassandra.
+Such method helps to minimize the workload on the source database.
+
+### Prepare Cassandra To Kafka environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn test -Dtest="dev/bublik/cli/cassandra/kafka/*" -Dsurefire.failIfNoSpecifiedTests=false 
+```
+Or you can run test case in docker containers manually:
+
+#### Prepare Cassandra Source environment
+
+```shell
+docker run --name cassandra1 \
+        -h cassandra1 \
+        -p 9042:9042 \
+        -e CASSANDRA_SNITCH=GossipingPropertyFileSnitch \
+        -e JVM_OPTS="-Dcassandra.skip_wait_for_gossip_to_settle=0 -Dcassandra.initial_token=0" \
+        -e HEAP_NEWSIZE=128M \
+        -e MAX_HEAP_SIZE=1024M \
+        -e CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch \
+        -e CASSANDRA_DC=datacenter1 \
+        -d cassandra \
+        bash -c "sed -i 's/user_defined_functions_enabled: false/user_defined_functions_enabled: true/' /etc/cassandra/cassandra.yaml && exec docker-entrypoint.sh cassandra -f"
+```
+
+To create keyspace and tables run [cqlsh](https://docs.datastax.com/en/dse/6.9/installing/cqlsh.html) script:
+
+```shell
+cqlsh -f ./bublik-cli/src/test/resources/cassandra/kafka/sql/cs-init.cql
+```
+
+#### Prepare Kafka Target environment
+
+```shell
+docker run -d \
+  --name kafka \
+  -p 9092:9092 \
+  -v ./bublik-cli/src/test/resources/ssl/kafka_plain_jaas.conf:/etc/kafka/secrets/kafka_plain_jaas.conf \
+  -e KAFKA_NODE_ID=1 \
+  -e KAFKA_PROCESS_ROLES=broker,controller \
+  -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  -e CLUSTER_ID=4L6g3nShT-eMCtK--X86sw \
+  -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT \
+  -e KAFKA_SASL_ENABLED_MECHANISMS=PLAIN \
+  -e KAFKA_OPTS="-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_plain_jaas.conf" \
+  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
+  -e KAFKA_NUM_PARTITIONS=1 \
+  confluentinc/cp-kafka:8.2.2
+```
+
+### Prepare Cassandra To Kafka Connection Settings
+
+Connection settings [cs2kafka.yaml](bublik-cli/src/test/resources/cassandra/kafka/yaml/cs2kafka.yaml) :
+
+```yaml
+threadCount: 10
+
+fromProperties:
+  class: dev.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: cassandra
+  password: cassandra
+  batchSize: 256
+
+toProperties:
+  class: dev.bublik.kafka.storage.KafkaStorage
+  servers: localhost:9092
+  topic: test
+  user: test
+  password: test
+  jaasCfg.formatter: org.apache.kafka.common.security.plain.PlainLoginModule required username="%s" password="%s";
+  security.protocol: SASL_PLAINTEXT
+  sasl.mechanism: PLAIN
+```
+
+Example for SSL + SCRAM-SHA-512 connection:
+
+```yaml
+threadCount: 10
+
+fromProperties:
+  class: dev.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: cassandra
+  password: cassandra
+  batchSize: 256
+
+toProperties:
+  class: dev.bublik.kafka.storage.KafkaStorage
+  servers: localhost:9092
+  topic: test
+  user: test
+  password: test
+  jaasCfg.formatter: org.apache.kafka.common.security.scram.ScramLoginModule required username="%s" password="%s";
+  ssl.truststore.location: kafka.client.truststore.jks
+  ssl.truststore.password: test
+  security.protocol: SASL_SSL
+  sasl.mechanism: SCRAM-SHA-512
+```
+
+
+### Prepare Cassandra To Kafka Mapping File
+
+
+[cs2kafka.json](./bublik-cli/src/test/resources/cassandra/kafka/json/cs2kafka.json)
+```json
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t4",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "UserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "id", "type": ["null", "int"],    "default": null },
+        { "name": "uid","type": ["null", "int"],    "default": null },
+        { "name": "v1", "type": ["null", "int"],    "default": null },
+        { "name": "v2", "type": ["null", "int"],    "default": null },
+        { "name": "v3", "type": ["null", "int"],    "default": null },
+        { "name": "v4", "type": ["null", "string"], "default": null }
+      ]
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t5",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "UserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "id", "type": ["null", "int"],    "default": null },
+        { "name": "uid","type": ["null", "int"],    "default": null },
+        { "name": "v1", "type": ["null", "int"],    "default": null },
+        { "name": "v2", "type": ["null", "int"],    "default": null },
+        { "name": "v3", "type": ["null", "int"],    "default": null },
+        { "name": "v4", "type": ["null", "string"], "default": null }
+      ]
+    }
+  }
+]
+```
+
+> [!NOTE]
+> Pay attention to the "avroSchema" field. It is used to define the schema of the data that will be sent to the Apache Kafka.
+
+
+### Cassandra To Kafka Run
+
+Run the migration:
+
+```shell
+mvn clean package -DskipTests
+
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/cassandra/kafka/yaml/cs2kafka.yaml \
+    -m ./bublik-cli/src/test/resources/cassandra/kafka/json/cs2kafka.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transferred.
+
+
 
 ## Cassandra To PostgreSQL
 ![Cassandra To PostgreSQL](./bublik-cli/src/test/resources/images/cs2pg.png)
@@ -431,7 +642,7 @@ psql postgresql://test:test@localhost/postgres
 
 ### Prepare Cassandra To PostgreSQL Connection Settings
 
-Cassandra and PostgreSQL connection settings `./bublik-cli/src/test/resources/cassandra/postgresql/yaml/cs2pg.yaml`:
+Cassandra and PostgreSQL connection settings [cs2pg.yaml](bublik-cli/src/test/resources/cassandra/postgresql/yaml/cs2pg.yaml):
 
 ```yaml
 threadCount: 10
@@ -451,8 +662,6 @@ toProperties:
 ```
 
 ### Prepare Cassandra To PostgreSQL Mapping Files
-
-You can run the tool by using json file in folder `./bublik-cli/src/test/resources/cassandra/postgresql/json/cs2pg.json`
 
 [cs2pg.json](bublik-cli/src/test/resources/cassandra/postgresql/json/cs2pg.json)
 
@@ -567,7 +776,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred.
 
 ## MS SQL To PostgreSQL
 ![MS SQL To PostgreSQL](./bublik-cli/src/test/resources/images/mssql2pg.png)
@@ -730,7 +939,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred.
 
 ## Oracle To Cassandra
 ![Oracle To Cassandra](./bublik-cli/src/test/resources/images/ora2cs.png)
@@ -882,7 +1091,183 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred
+
+## Oracle To Kafka
+![Oracle To Kafka](./bublik-cli/src/test/resources/images/ora2kafka.png)
+
+The objective is to migrate data from Cassandra to Kafka database.
+To split data into chunks we use Token Ranges ring of Cassandra.
+Such method helps to minimize the workload on the source database.
+
+### Prepare Oracle To Kafka environment
+
+You can run test in TestContainers environment by executing the command below:
+
+```shell
+mvn test -Dtest="dev/bublik/cli/oracle/kafka/*" -Dsurefire.failIfNoSpecifiedTests=false 
+```
+Or you can run test case in docker containers manually:
+
+#### Prepare Oracle Source environment
+
+```shell
+docker run --name oracle \
+    -p 1521:1521 \
+    -e ORACLE_PASSWORD=oracle_4U \
+    -v ./bublik-cli/src/test/resources/oracle/kafka/sql/oracle:/docker-entrypoint-initdb.d \
+    -d gvenzl/oracle-free:slim-faststart
+```
+
+How to connect to Oracle by [Instant Client](https://www.oracle.com/database/technologies/instant-client.html):
+
+```shell
+sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
+```
+
+#### Prepare Kafka Target environment
+
+```shell
+docker run -d \
+  --name kafka \
+  -p 9092:9092 \
+  -v ./bublik-cli/src/test/resources/ssl/kafka_plain_jaas.conf:/etc/kafka/secrets/kafka_plain_jaas.conf \
+  -e KAFKA_NODE_ID=1 \
+  -e KAFKA_PROCESS_ROLES=broker,controller \
+  -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  -e CLUSTER_ID=4L6g3nShT-eMCtK--X86sw \
+  -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT \
+  -e KAFKA_SASL_ENABLED_MECHANISMS=PLAIN \
+  -e KAFKA_OPTS="-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_plain_jaas.conf" \
+  -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
+  -e KAFKA_NUM_PARTITIONS=1 \
+  confluentinc/cp-kafka:8.2.2
+```
+
+### Prepare Oracle To Kafka Connection Settings
+
+Connection settings [ora2kafka.yaml](bublik-cli/src/test/resources/oracle/kafka/yaml/ora2kafka.yaml) :
+
+```yaml
+threadCount: 4
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1))) # Переопределится тест-контейнером Oracle
+  user: test
+  password: test
+
+toProperties:
+  class: dev.bublik.kafka.storage.KafkaStorage
+  servers: localhost:9092
+  topic: test
+  user: test
+  password: test
+  jaasCfg.formatter: org.apache.kafka.common.security.plain.PlainLoginModule required username="%s" password="%s";
+  security.protocol: SASL_PLAINTEXT
+  sasl.mechanism: PLAIN
+```
+
+Example for SSL + SCRAM-SHA-512 connection:
+
+```yaml
+threadCount: 4
+
+fromProperties:
+  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1))) # Переопределится тест-контейнером Oracle
+  user: test
+  password: test
+
+toProperties:
+  class: dev.bublik.kafka.storage.KafkaStorage
+  servers: localhost:9092
+  topic: test
+  user: test
+  password: test
+  jaasCfg.formatter: org.apache.kafka.common.security.scram.ScramLoginModule required username="%s" password="%s";
+  ssl.truststore.location: kafka.client.truststore.jks
+  ssl.truststore.password: test
+  security.protocol: SASL_SSL
+  sasl.mechanism: SCRAM-SHA-512
+```
+
+### Prepare Oracle To Kafka Mapping File
+
+[ora2kafka.json](bublik-cli/src/test/resources/oracle/kafka/json/ora2kafka.json)
+
+```json
+[
+  {
+    "fromSchemaName": "TEST",
+    "fromTableName": "A",
+    "columnToColumn" : {
+      "a"       : "a",
+      "b"       : "b"
+    },
+    "expressionToColumn" : {
+      "TRUNC(created) as c" : "c"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "UserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "a", "type": ["null", "int"],    "default": null },
+        { "name": "b", "type": ["null", "double"], "default": null },
+        { "name": "c", "type": ["null", "string"], "default": null }
+      ]
+    }
+  }
+]
+```
+
+> [!NOTE]
+> Pay attention to the "avroSchema" field. It is used to define the schema of the data that will be sent to the Apache Kafka.
+
+
+### Oracle To Kafka Run
+
+Run the migration:
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/oracle/kafka/yaml/ora2kafka.yaml \
+    -m ./bublik-cli/src/test/resources/oracle/kafka/json/ora2kafka.json
+```
+
+Chunks will be created automatically with parameter -k at startup
+
+> [!NOTE]
+> If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
+> In this case unprocessed chunks of data will be transferred
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Oracle To PostgreSQL
 ![Oracle To PostgreSQL](./bublik-cli/src/test/resources/images/ora2pg.png)
@@ -1122,7 +1507,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer 
+> In this case unprocessed chunks of data will be transferred. 
 
 
 ## Oracle To YDB
@@ -1246,7 +1631,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred. 
 
 
 
@@ -1417,7 +1802,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred. 
 
 
 ## PostgreSQL To PostgreSQL
@@ -1555,7 +1940,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred.
 
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table
@@ -1686,7 +2071,7 @@ Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
-> In this case unprocessed chunks of data will be transfer
+> In this case unprocessed chunks of data will be transferred.
 
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table

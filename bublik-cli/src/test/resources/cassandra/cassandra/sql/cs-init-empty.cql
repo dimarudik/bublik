@@ -126,3 +126,9 @@ create table test.filter1 (
     v3 int static,
     v4 varchar,
     primary key (id, uid));
+
+create table test.t_blob (
+    key blob,
+    value blob,
+    v blob,
+    primary key (key, value));

@@ -158,3 +158,13 @@ insert into test.filter1 (id, uid, v1, v2, v3, v4) values (1, 0, 11, 21, 30, 'a'
 insert into test.filter1 (id, uid, v1, v2, v3, v4) values (1, 2, 11, 21, 32, 'a');
 insert into test.filter1 (id, uid, v1, v2, v3, v4) values (2, 1, 11, 21, 36, 'a');
 insert into test.filter1 (id, uid, v1, v2, v3, v4) values (2, 2, 11, 21, 37, 'a');
+
+create table test.t_blob (
+    key blob,
+    value blob,
+    v blob,
+    primary key (key, value));
+
+insert into test.t_blob (key, value, v)
+values
+    (0x0102030405060708090a0b0c0d0e0f101112131415161718 , 0x0102030405060708090a0b0c0d0e0f101112131415161718, 0x0102030405060708090a0b0c0d0e0f101112131415161718);

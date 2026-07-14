@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.10</version>
+        <version>26.3.11</version>
     </parent>
 
     <artifactId>bublik-postgres</artifactId>
@@ -39,7 +39,7 @@
     </scm>
 
     <properties>
-        <postgresql.version>42.7.11</postgresql.version>
+        <postgresql.version>42.7.13</postgresql.version>
     </properties>
 
     <dependencies>

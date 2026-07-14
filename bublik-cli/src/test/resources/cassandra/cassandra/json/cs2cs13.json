@@ -2,7 +2,7 @@
   {
     "fromSchemaName" : "test",
     "fromTableName" : "t_blob",
-    "toSchemaName" : "test2",
+    "toSchemaName" : "test",
     "toTableName" : "t_blob",
     "columnToColumn" : {
       "key": "key",

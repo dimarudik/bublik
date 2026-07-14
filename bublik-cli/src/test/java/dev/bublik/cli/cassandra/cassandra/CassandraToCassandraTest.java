@@ -239,6 +239,25 @@ public class CassandraToCassandraTest {
     }
 
     @Test
+    public void toBlob() throws InterruptedException, IOException {
+        Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
+        Properties targetProperties = sourceProperties;
+        TestResult result = getResult(
+                "./cassandra/cassandra/yaml/cs2cs-blob.yaml",
+                "./cassandra/cassandra/json/cs2cs13.json",
+                rows,
+                sync,
+                sourceProperties,
+                targetProperties,
+                "SELECT key, value FROM ",
+                null,
+                null);
+//        Thread.sleep(360_000);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
     public void recordCount() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");

@@ -93,23 +93,6 @@ public class TestUtils {
         return 0;
     }
 
-/*
-    public static Long countRows(Properties p, String query) {
-        Properties cleanProps = new Properties();
-        cleanProps.putAll(p);
-        cleanProps.remove("url");
-        try (Connection connection =
-                     DriverManager.getConnection(p.getProperty("url"), cleanProps)) {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(query);
-            resultSet.next();
-            return resultSet.getLong(1);
-        }
-        catch (SQLException e){
-            throw new RuntimeException(e);
-        }
-    }
-*/
     public static Long countRows(Properties p, String query) {
         String rawUrl = p.getProperty("url");
 

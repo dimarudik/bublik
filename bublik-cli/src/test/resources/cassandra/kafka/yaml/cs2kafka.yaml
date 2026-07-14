@@ -1,9 +1,13 @@
-threadCount: 4
+threadCount: 10
 
 fromProperties:
-  url: jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))
-  user: test
-  password: test
+  class: dev.bublik.cassandra.storage.CassandraStorage
+  datacenter: datacenter1
+  hosts: localhost
+  keyspace: test
+  user: cassandra
+  password: cassandra
+  batchSize: 256
 
 toProperties:
   class: dev.bublik.kafka.storage.KafkaStorage

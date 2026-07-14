@@ -1,0 +1,52 @@
+[
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t4",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "UserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "id", "type": ["null", "int"],    "default": null },
+        { "name": "uid","type": ["null", "int"],    "default": null },
+        { "name": "v1", "type": ["null", "int"],    "default": null },
+        { "name": "v2", "type": ["null", "int"],    "default": null },
+        { "name": "v3", "type": ["null", "int"],    "default": null },
+        { "name": "v4", "type": ["null", "string"], "default": null }
+      ]
+    }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "t5",
+    "columnToColumn" : {
+      "id"    : "id",
+      "uid"   : "uid",
+      "v1"    : "v1",
+      "v2"    : "v2",
+      "v3"    : "v3",
+      "v4"    : "v4"
+    },
+    "avroSchema" : {
+      "type": "record",
+      "name": "UserRecord",
+      "namespace": "dev.bublik",
+      "fields": [
+        { "name": "id", "type": ["null", "int"],    "default": null },
+        { "name": "uid","type": ["null", "int"],    "default": null },
+        { "name": "v1", "type": ["null", "int"],    "default": null },
+        { "name": "v2", "type": ["null", "int"],    "default": null },
+        { "name": "v3", "type": ["null", "int"],    "default": null },
+        { "name": "v4", "type": ["null", "string"], "default": null }
+      ]
+    }
+  }
+]
