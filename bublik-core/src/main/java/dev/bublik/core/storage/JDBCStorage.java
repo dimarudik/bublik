@@ -177,12 +177,18 @@ public abstract class JDBCStorage extends Storage
                                 } catch (Exception e) {
                                     log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                                     try {
+                                        log.warn("Saving info about error to database");
+                                        chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
+                                        (chunk.getSourceSession()).close();
+/*
                                         if (((Connection)chunk.getSourceSession()).isValid(0)) {
                                             log.warn("Saving info about error to database");
                                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
                                             (chunk.getSourceSession()).close();
                                         }
-                                        if (targetStorage instanceof  JDBCStorage &&  ((Connection)chunk.getTargetSession()).isValid(0)) {
+*/
+//                                        if (targetStorage instanceof  JDBCStorage &&  ((Connection)chunk.getTargetSession()).isValid(0)) {
+                                        if (targetStorage instanceof  JDBCStorage) {
                                             (chunk.getTargetSession()).close();
                                         }
                                     } catch (SQLException exception) {

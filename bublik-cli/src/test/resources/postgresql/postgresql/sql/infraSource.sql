@@ -7,6 +7,6 @@ create table public.s (
 
 insert into public.s (id1, id2, name)
 select n as id1, n * -1 as id2, 'PostgreSQL ' || n as name
-from generate_series(1, 1910023) as n;
+from generate_series(1, 1210023) as n;
 
 analyze public.s;

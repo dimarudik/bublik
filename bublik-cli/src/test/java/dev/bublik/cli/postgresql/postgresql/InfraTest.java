@@ -1,37 +1,45 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
-import org.junit.jupiter.api.*;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.Table;
+import dev.bublik.core.service.StorageService;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Collections;
-import java.util.Properties;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import static dev.bublik.cli.TestUtils.getJdbcProperties;
-import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
 public class InfraTest {
-    private static int rows = 10_000;
-    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
+    private static final JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("postgresql/postgresql/sql/infraSource.sql");
-    private static JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
+    private static final JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("postgresql/postgresql/sql/infraTarget.sql");
 
+    private final ConnectionProperty connectionProperty = getConnectionProperty();
+    private final Table chunkTable = new PseudoTable("public", "chunk");
+    private final Table outboxTable = new PseudoTable("public", "outbox");
+
+    List<Config> configs = new ArrayList<>(Collections.singleton(new Config(
+            "public",
+            "s",
+            "public",
+            "t"
+    )));
+
     @BeforeAll
     static void setUp() throws SQLException {
-        source.setPortBindings(Collections.singletonList("5432:5432"));
         source.start();
-        target.setPortBindings(Collections.singletonList("5433:5432"));
         target.start();
     }
 
@@ -39,113 +47,77 @@ public class InfraTest {
     static void clear() {
         source.stop();
         target.stop();
-        while (source.isRunning() || target.isRunning()) {
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
-    @BeforeEach
-    void clearTables() throws SQLException {
-        String jdbcUrl = target.getJdbcUrl();
-        String username = target.getUsername();
-        String password = target.getPassword();
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
-            PreparedStatement ps = connection.prepareStatement("truncate table public.t");
-            ps.executeUpdate();
+    @Test
+    void infraFailure() throws Exception {
+
+        CompletableFuture<Boolean> migrationTask = CompletableFuture.supplyAsync(() -> {
+            try {
+                StorageService.init(connectionProperty, configs, 30_000, chunkTable, outboxTable);
+            } catch (Exception e) {
+                throw new RuntimeException("Bublik migration thread failed unexpectedly", e);
+            }
+            return true;
+        });
+
+        Thread.sleep(500);
+        source.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
+                "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
+
+        Thread.sleep(1_000);
+        target.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
+                "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
+
+        try {
+            boolean r = migrationTask.get(60, java.util.concurrent.TimeUnit.SECONDS);
+            if (r) System.out.println("[TEST] Bublik finished its execution cycle.");
+            int sourceCount = countRows(source, "select count(*) from public.s");
+            int targetCount = countRows(target, "select count(*) from public.t");
+            TestResult result = new TestResult(sourceCount, targetCount);
+            System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+
+            assertEquals(result.sourceCount(), result.targetCount(),
+                    "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
+        } catch (java.util.concurrent.TimeoutException e) {
+            migrationTask.cancel(true);
+            throw new AssertionError("Test failed: Bublik hung or didn't finish within 60 seconds after recovery", e);
+        }
+
+    }
+
+    private ConnectionProperty getConnectionProperty() {
+        Map<String, String> fromProps = new HashMap<>();
+        fromProps.put("url", source.getJdbcUrl());
+        fromProps.put("user", source.getUsername());
+        fromProps.put("password", source.getPassword());
+
+        Map<String, String> toProps = new HashMap<>();
+        toProps.put("url", target.getJdbcUrl());
+        toProps.put("user", target.getUsername());
+        toProps.put("password", target.getPassword());
+
+        return new ConnectionProperty(
+                10,
+                fromProps,
+                toProps,
+                new HashMap<>(),
+                new HashMap<>()
+        );
+    }
+
+    private int countRows(JdbcDatabaseContainer<?> container, String sql) {
+        String jdbcUrl = container.getJdbcUrl();
+        String username = container.getUsername();
+        String password = container.getPassword();
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
+             Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            rs.next();
+            return rs.getInt(1);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Test
-    void infraSourceFailure() throws Exception {
-        CompletableFuture<TestResult> migrationTask = CompletableFuture.supplyAsync(() -> {
-            try {
-                return getResultCount(
-                        "./postgresql/postgresql/yaml/infra.yaml",
-                        "./postgresql/postgresql/json/infra.json",
-                        rows,
-                        false,
-                        getJdbcProperties(source),
-                        getJdbcProperties(target));
-            } catch (Exception e) {
-                throw new RuntimeException("Bublik migration thread failed unexpectedly", e);
-            }
-        });
-
-        Thread.sleep(1_000);
-
-        System.out.println("[TEST] CRITICAL: Stopping source database container mid-flight...");
-        String containerId = source.getContainerId();
-        source.getDockerClient().stopContainerCmd(containerId).exec();
-        System.out.println("[TEST] Source container is now STOPPED.");
-
-        System.out.println("[TEST] RECOVERY: Starting source database container back up...");
-        source.getDockerClient().startContainerCmd(containerId).exec();
-        System.out.println("[TEST] Source container is STARTING...");
-
-        System.out.println("[TEST] Waiting for the background migration task to complete...");
-
-        TestResult result;
-        try {
-            result = migrationTask.get(60, java.util.concurrent.TimeUnit.SECONDS);
-            System.out.println("[TEST] Bublik finished its execution cycle.");
-        } catch (java.util.concurrent.TimeoutException e) {
-            migrationTask.cancel(true);
-            throw new AssertionError("Test failed: Bublik hung or didn't finish within 60 seconds after recovery", e);
-        }
-
-        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-
-        assertEquals(result.sourceCount(), result.targetCount(),
-                "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
-    }
-
-    @Test
-    void infraTargetFailure() throws Exception {
-        CompletableFuture<TestResult> migrationTask = CompletableFuture.supplyAsync(() -> {
-            try {
-                return getResultCount(
-                        "./postgresql/postgresql/yaml/infra.yaml",
-                        "./postgresql/postgresql/json/infra.json",
-                        rows,
-                        false,
-                        getJdbcProperties(source),
-                        getJdbcProperties(target));
-            } catch (Exception e) {
-                throw new RuntimeException("Bublik migration thread failed unexpectedly", e);
-            }
-        });
-
-        Thread.sleep(1_000);
-
-        System.out.println("[TEST] CRITICAL: Stopping target database container mid-flight...");
-        String containerId = target.getContainerId();
-        target.getDockerClient().stopContainerCmd(containerId).exec();
-        System.out.println("[TEST] Target container is now STOPPED.");
-
-        System.out.println("[TEST] RECOVERY: Starting target database container back up...");
-        target.getDockerClient().startContainerCmd(containerId).exec();
-        System.out.println("[TEST] Target container is STARTING...");
-
-        System.out.println("[TEST] Waiting for the background migration task to complete...");
-
-        TestResult result;
-        try {
-            result = migrationTask.get(60, java.util.concurrent.TimeUnit.SECONDS);
-            System.out.println("[TEST] Bublik finished its execution cycle.");
-        } catch (java.util.concurrent.TimeoutException e) {
-            migrationTask.cancel(true);
-            throw new AssertionError("Test failed: Bublik hung or didn't finish within 60 seconds after recovery", e);
-        }
-
-        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-
-        assertEquals(result.sourceCount(), result.targetCount(),
-                "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
     }
 }
