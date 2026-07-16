@@ -38,6 +38,13 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 public class CassandraStorage extends CSStorage {
     private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
 
+/*
+    public CassandraStorage(CqlSession cqlSession, int batchSize) {
+        super(cqlSession, null);
+        this.batchSize = batchSize;
+    }
+*/
+
     public CassandraStorage(CqlSession cqlSession, int batchSize, Table outboxTable) {
         super(cqlSession, outboxTable);
         this.batchSize = batchSize;

@@ -8,6 +8,7 @@ import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -20,10 +21,9 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class ConstructorPostgresMigrationTest {
+public class ToPostgresMigrationTest {
     static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres"));
 
@@ -64,8 +64,47 @@ public class ConstructorPostgresMigrationTest {
         postgres.stop();
     }
 
+    @AfterEach
+    void afterEach() throws Exception {
+        try (Connection conn = targetDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("TRUNCATE TABLE target_users");
+        }
+    }
+
     @Test
     void testPostgresToPostgresMigration() throws Exception {
+        Storage sourceStorage = new PostgresStorage(sourceDataSource);
+        Storage targetStorage = new PostgresStorage(targetDataSource);
+
+        List<Config> configs = new ArrayList<>();
+        Config tableConfig = new Config(
+                "public",
+                "source_users",
+                "public",
+                "target_users"
+        );
+        configs.add(tableConfig);
+
+        sourceStorage.start(targetStorage, configs, 1000);
+
+        try (Connection conn = targetDataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {
+
+            assertTrue(rs.next());
+            int count = rs.getInt(1);
+            String firstUser = rs.getString(2);
+
+            assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
+        }
+
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
+    }
+
+    @Test
+    void testPostgresToPostgresMigration2() throws Exception {
         Table sourceChunkTable = new PseudoTable("public", "bublik");
         Table targetOutboxTable = new PseudoTable("public", "_bublik");
         Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceChunkTable);
@@ -94,7 +133,7 @@ public class ConstructorPostgresMigrationTest {
             assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
         }
 
-        sourceStorage.closeStorage();
-        targetStorage.closeStorage();
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
     }
 }

@@ -101,12 +101,12 @@ public class TestUtils {
             Properties cleanProps = new Properties();
             cleanProps.putAll(p);
             cleanProps.remove("url");
-            try (java.sql.Connection connection = java.sql.DriverManager.getConnection(rawUrl, cleanProps);
-                 java.sql.Statement statement = connection.createStatement();
-                 java.sql.ResultSet resultSet = statement.executeQuery(query)) {
+            try (Connection connection = DriverManager.getConnection(rawUrl, cleanProps);
+                 Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery(query)) {
                 resultSet.next();
                 return resultSet.getLong(1);
-            } catch (java.sql.SQLException e) {
+            } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
         }

@@ -37,12 +37,17 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
+    public <S> void createChunkTable(S session) throws SQLException {
+
+    }
+
+    @Override
     public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
 
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
+    public void dropChunkTable(List<Config> configs) throws SQLException {
 
     }
 
@@ -194,5 +199,10 @@ abstract class ClickStorage extends Storage implements Source {
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
         return false;
+    }
+
+    @Override
+    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+
     }
 }

@@ -23,6 +23,10 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 public class MSSQLStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
 
+    public MSSQLStorage(DataSource dataSource) {
+        super(dataSource, null);
+    }
+
     public MSSQLStorage(DataSource dataSource,
                         Table outboxTable) {
         super(dataSource, outboxTable);
@@ -69,10 +73,8 @@ public class MSSQLStorage extends JDBCStorage {
     @Override
     public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
         Connection connection = getConnection();
-//        createSchema(connection, sync);
-        createSequence(connection, sync);
-        createChunkTable(connection, sync);
-        connection.commit();
+//        createChunkTable(connection);
+//        connection.commit();
         for (Config config : configs) {
             MSSQLTable sourceTable = (MSSQLTable) configToTable(config.fromSchemaName(), config.fromTableName());
             List<Column> clusteringKey = sourceTable.getClusteringKeyColumns(connection);
@@ -86,6 +88,11 @@ public class MSSQLStorage extends JDBCStorage {
         }
         dropSequence(connection, sync);
         log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
+    }
+
+    @Override
+    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+
     }
 
     private void insertChunkTable(Connection connection,
@@ -214,7 +221,11 @@ public class MSSQLStorage extends JDBCStorage {
         return from + delimiter + to;
     }
 
-    private void createChunkTable(Connection connection, boolean sync) throws SQLException {
+    @Override
+    public  <S> void createChunkTable(S session) throws SQLException {
+        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("dbo", "_chunk"));
+        Connection connection = (Connection) session;
+        createSequence(connection, false);
         Statement createTable = connection.createStatement();
         createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE
                 .replace("$schemaName", schemaName())
@@ -228,7 +239,7 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
+    public void dropChunkTable(List<Config> configs) throws SQLException {
         Connection connection = getConnection();
         for (Config config : configs) {
             Statement dropTable = connection.createStatement();

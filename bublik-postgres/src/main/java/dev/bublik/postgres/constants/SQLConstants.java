@@ -32,8 +32,10 @@ public abstract class SQLConstants {
                     "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
-    public static final String DML_UPDATE_STATUS_CHUNK_TABLE =
-            "update $tableName set status = ?, err_msg = null where chunk_id = ?";
+    public static final String DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED =
+            "update $tableName set status = ?, err_msg = null, start_ts = now() where chunk_id = ?";
+    public static final String DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED =
+            "update $tableName set status = ?, err_msg = null, end_ts = now() where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
             "update $tableName set status = ?, err_msg = ? where chunk_id = ?";
     public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =

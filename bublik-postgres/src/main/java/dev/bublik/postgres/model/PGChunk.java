@@ -30,10 +30,22 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
             Connection connection = this.getSourceSession();
             PreparedStatement updateStatus;
             if (errMsg == null) {
-                updateStatus = connection.prepareStatement(
-                        DML_UPDATE_STATUS_CHUNK_TABLE.replace("$tableName", chunkTableName));
-                updateStatus.setString(1, newStatus.toString());
-                updateStatus.setLong(2, this.getId());
+                switch (newStatus) {
+                    case ASSIGNED:
+                        updateStatus = connection.prepareStatement(
+                                DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED.replace("$tableName", chunkTableName));
+                        updateStatus.setString(1, newStatus.toString());
+                        updateStatus.setLong(2, this.getId());
+                        break;
+                    case PROCESSED:
+                        updateStatus = connection.prepareStatement(
+                                DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED.replace("$tableName", chunkTableName));
+                        updateStatus.setString(1, newStatus.toString());
+                        updateStatus.setLong(2, this.getId());
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unknown status: " + newStatus);
+                }
             } else {
                 updateStatus = connection.prepareStatement(
                         DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS.replace("$tableName", chunkTableName));

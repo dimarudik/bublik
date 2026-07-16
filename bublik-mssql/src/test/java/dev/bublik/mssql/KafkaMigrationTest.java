@@ -81,7 +81,7 @@ public class KafkaMigrationTest {
     @Test
     @DisplayName("Миграция из MSSQL в Kafka через явный конструктор")
     void testMssqlToKafkaMigration() throws Exception {
-        Table sourceChunkTable = new PseudoTable("test", "bublik");
+        Table sourceChunkTable = new PseudoTable("dbo", "bublik");
 
         Storage sourceStorage = new MSSQLStorage(sourceDataSource, sourceChunkTable);
 

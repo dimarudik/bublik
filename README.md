@@ -18,6 +18,16 @@ This tool facilitates the efficient transfer of data between databases.
 * If you are using <strong>Cassandra</strong>, you can split the data into chunks based on Token Ranges.
 * When you are transferring data from <strong>MS SQL</strong> to <strong>PostgreSQL</strong>, the only way to speed up the process is to rely on the clustering key of SQL Server table.
 
+### Data Consistency and Fault Tolerance (Exactly-Once Semantics)
+
+Bublik guarantees **Exactly-Once** data delivery semantics at the database level by combining the *Transactional Outbox* and *Idempotent Consumer* architectural patterns:
+
+1. **Chunk Coordination on the Source**: Migration progress is tracked in an isolated chunk metadata table on the source database side. A chunk's status is updated only after receiving a definitive success confirmation from the target storage.
+2. **Idempotency on the Target (Outbox)**: An `outbox` table is maintained on the target database side, utilizing the source's `chunk_id` as a unique idempotency key.
+3. **Atomic Pipeline Commit**: When utilizing the high-speed native `COPY` command in binary format (PostgreSQL), both the bulk data insertion and the `chunk_id` logging into the `outbox` table are executed **strictly within a single transaction** on the target.
+4. **Crash Recovery Protection**: Before processing any chunk, the Bublik engine queries the target's `outbox` table. If the chunk was already successfully committed during a prior infrastructure crash, it is safely skipped, completely preventing data duplication.
+
+
 You can find more details and examples below.
 
 * [Build](#Build)
@@ -2279,15 +2289,10 @@ targetConfig.setMaximumPoolSize(5);
 HikariDataSource targetDataSource = new HikariDataSource(targetConfig);
 ```
 
-Create chunk and outbox tables (the tables will be created at source and target side):
-```java
-Table targetOutboxTable = new PseudoTable("public", "bublik");
-```
-
 Create two storages (source and target):
 ```java
 Storage sourceStorage = new OracleStorage(sourceDataSource);
-Storage targetStorage = new PostgresStorage(targetDataSource, targetOutboxTable);
+Storage targetStorage = new PostgresStorage(targetDataSource);
 ```
 
 Create Config:
@@ -2393,15 +2398,10 @@ Client clickhouseClient = new Client.Builder()
         .build();
 ```
 
-Create chunk and outbox tables (the tables will be created at source and target side):
-```java
-Table targetOutboxTable = new PseudoTable(null, "target_outbox");
-```
-
 Create two storages (source and target):
 ```java
 Storage sourceStorage = new OracleStorage(sourceDataSource);
-Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
+Storage targetStorage = new ClickHouseStorage(clickhouseClient);
 ```
 
 Create Config:
@@ -2415,6 +2415,7 @@ Config tableConfig = new Config(
 );
 configs.add(tableConfig);
 ```
+
 Run the migration:
 ```java
 sourceStorage.start(targetStorage, configs, 1000);

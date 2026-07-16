@@ -114,7 +114,17 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
+    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+
+    }
+
+    @Override
+    public <S> void createChunkTable(S session) throws SQLException {
+
+    }
+
+    @Override
+    public void dropChunkTable(List<Config> configs) throws SQLException {
         Connection connection = getConnection();
         for (Config config : configs) {
             try {

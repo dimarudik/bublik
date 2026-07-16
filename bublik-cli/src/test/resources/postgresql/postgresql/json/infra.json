@@ -1,0 +1,9 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "s",
+    "fromTableAlias": "source",
+    "toSchemaName": "public",
+    "toTableName": "t"
+  }
+]

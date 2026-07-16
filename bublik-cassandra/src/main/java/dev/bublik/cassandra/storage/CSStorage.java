@@ -98,8 +98,7 @@ abstract class CSStorage extends Storage implements Source {
     public void start(Storage targetStorage, List<Config> cfgs, int rows, boolean sync) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (rows > 0) {
-            dropChunkTable(configs, sync);
-            createChunkTable(sync);
+            createChunkTable(csPool.getCqlSession());
             fulfillChunks(configs, sync, rows);
             if (targetStorage instanceof JDBCStorage) {
                 targetStorage.createGlobalOutbox();
@@ -158,7 +157,7 @@ abstract class CSStorage extends Storage implements Source {
                 break;
             }
         } while (true);
-        dropChunkTable(configs, sync);
+        dropChunkTable(configs);
 //        targetStorage.dropOutboxTable(false, tableName);
 
         service.shutdown();
@@ -274,7 +273,7 @@ abstract class CSStorage extends Storage implements Source {
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync) throws SQLException {
+    public void dropChunkTable(List<Config> configs) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
         String table = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getFromProperty());
@@ -330,8 +329,10 @@ abstract class CSStorage extends Storage implements Source {
         }
     }
 
-    private void createChunkTable(boolean sync) {
-        CqlSession cqlSession = csPool.getCqlSession();
+    @Override
+    public <S> void createChunkTable(S session) {
+//        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("public", "_chunk"));
+        CqlSession cqlSession = (CqlSession) session;
         String table = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getFromProperty());
         cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", table));
@@ -646,6 +647,11 @@ abstract class CSStorage extends Storage implements Source {
 
     @Override
     public <K, T, S extends AutoCloseable, R> void flushBuffer(Chunk<K, T, S, R> chunk) {
+
+    }
+
+    @Override
+    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
 
     }
 }

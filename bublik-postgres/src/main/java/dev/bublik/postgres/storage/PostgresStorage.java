@@ -32,12 +32,14 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.postgres.constants.SQLConstants.*;
 import static dev.bublik.postgres.util.ColumnUtil.*;
 
-// <K extends Integer, T extends Long, S extends Connection, R extends ResultSet>
 public class PostgresStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
 
-    public PostgresStorage(DataSource dataSource,
-                           Table outboxTable) {
+    public PostgresStorage(DataSource dataSource) {
+        super(dataSource, null);
+    }
+
+    public PostgresStorage(DataSource dataSource, Table outboxTable) {
         super(dataSource, outboxTable);
     }
 
@@ -1692,11 +1694,23 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
+    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+        Connection connection = (Connection) session;
+        for (Config config : configs) {
+            Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+            TableAttrs tableAttrs = getTableAttrs(connection, table);
+            if (tableAttrs.relkind() == 'p') {
+                throw new RuntimeException("Partitioned tables are not supported: "
+                        + table.getSchemaName() + '.' + table.getTableName());
+            }
+        }
+    }
+
+    @Override
     public void fulfillChunks(List<Config> configs,
                               boolean sync,
                               int required) throws SQLException {
         Connection connection = getConnection();
-        createChunkTable(connection, sync);
         for (Config config : configs) {
             long reltuples = 0;
             long relpages = 0;
@@ -1710,11 +1724,6 @@ public class PostgresStorage extends JDBCStorage {
             while (resultSet.next()) {
                 reltuples = resultSet.getLong("reltuples");
                 relpages = resultSet.getLong("relpages");
-                char relkind = resultSet.getString("relkind").charAt(0);
-                if (relkind == 'p') {
-                    throw new RuntimeException("Partitioned tables are not supported: "
-                            + config.fromSchemaName() + '.' + config.fromTableName());
-                }
             }
             resultSet.close();
             preparedStatement.close();
@@ -1748,8 +1757,29 @@ public class PostgresStorage extends JDBCStorage {
         log.info("Chunk table {} fulfilled successfully", getOutboxTable().tableToString());
     }
 
+    record TableAttrs (long reltuples, long relpages, char relkind){}
+
+    private TableAttrs getTableAttrs(Connection connection, Table table) throws SQLException {
+        PreparedStatement preparedStatement = connection.prepareStatement(SQL_NUMBER_OF_TUPLES);
+        preparedStatement.setString(1, table.getSchemaName().toLowerCase());
+        preparedStatement.setString(2, table.getFinalTableName(false));
+        ResultSet resultSet = preparedStatement.executeQuery();
+        if (resultSet.next()) {
+            TableAttrs tableAttrs = new TableAttrs(
+                    resultSet.getLong("reltuples"),
+                    resultSet.getLong("relpages"),
+                    resultSet.getString("relkind").charAt(0));
+            resultSet.close();
+            preparedStatement.close();
+            return tableAttrs;
+        } else {
+            throw new RuntimeException("Table " + table.getSchemaName() + "." + table.getFinalTableName(false) + " not found");
+        }
+    }
+
     @Override
     public void createGlobalOutbox() throws SQLException {
+        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("public", "_outbox"));
         Connection connection = getPoolConnection();
         try {
             Statement createTable = connection.createStatement();
@@ -1765,41 +1795,30 @@ public class PostgresStorage extends JDBCStorage {
         connection.close();
     }
 
-    private void createChunkTable(Connection connection, boolean sync) throws SQLException {
+    @Override
+    public <S> void createChunkTable(S session) throws SQLException {
+        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("public", "_chunk"));
         try {
+            Connection connection = (Connection) session;
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
                     getOutboxTable().tableToString()));
             createTable.close();
-            if (!sync) {
-                connection.commit();
-            }
+            connection.commit();
             log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
-//            log.error("{}", getStackTrace(e));
+            log.error("Chunk table {} already exists", getOutboxTable().tableToString());
             throw e;
         }
     }
 
     @Override
-    public void dropChunkTable(List<Config> configs, boolean sync) {
+    public void dropChunkTable(List<Config> configs) throws SQLException {
         Connection connection = getConnection();
-        try (Statement dropTable = connection.createStatement()) {
-            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
-            dropTable.close();
-            connection.commit();
-            if (!sync) {
-                connection.commit();
-            }
-        } catch (SQLException e) {
-            try {
-                connection.rollback();
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
-            }
-            log.warn("Chunk table {} does not exist", getOutboxTable().tableToString());
-//            log.warn("{}", getStackTrace(e));
-        }
+        Statement dropTable = connection.createStatement();
+        dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
+        dropTable.close();
+        connection.commit();
     }
 
     @Override

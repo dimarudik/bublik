@@ -21,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -31,8 +32,11 @@ public class ClickHouseStorage extends ClickStorage {
     private ValueTransfer[] pushPlan;
     private long rowCount = 0;
 
-    public ClickHouseStorage(Client client,
-                             Table outboxTable) {
+    public ClickHouseStorage(Client client) {
+        super(client, null);
+    }
+
+    public ClickHouseStorage(Client client, Table outboxTable) {
         super(client, outboxTable);
     }
 

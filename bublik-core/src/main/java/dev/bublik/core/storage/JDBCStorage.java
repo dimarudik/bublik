@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
@@ -140,22 +141,6 @@ public abstract class JDBCStorage extends Storage
     }
 
     @Override
-    public void start(Storage targetStorage, List<Config> cfgs, int rows, boolean sync) throws SQLException {
-        List<Config> configs = copyConfigs(cfgs);
-        if (!sync) {
-            startNOSync(targetStorage, configs, rows);
-        } else {
-            try {
-                startSync(targetStorage, configs, rows);
-            } catch (Exception e) {
-                log.info("{}", getStackTrace(e));
-                targetStorage.closeStorage();
-                this.closeStorage();
-            }
-        }
-    }
-
-    @Override
     public List<Config> copyConfigs(List<Config> cfgs) {
         List<Config> configs = new ArrayList<>();
         for (Config c : cfgs) {
@@ -164,19 +149,22 @@ public abstract class JDBCStorage extends Storage
         return configs;
     }
 
-    private void startNOSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+    @Override
+    public void start(Storage targetStorage, List<Config> cfgs, int rows, boolean sync) throws SQLException {
+        List<Config> configs = copyConfigs(cfgs);
         Connection sourceConnection = this.getPoolConnection();
         setConnection(sourceConnection);
 
         if (rows > 0) {
-            dropChunkTable(configs,false);
+            preChecks(connection, configs);
+            createChunkTable(connection);
             fulfillChunks(configs, false, rows);
-            targetStorage.dropOutboxTable(false);
             targetStorage.createGlobalOutbox();
         }
         log.info("SOURCE version: {}", getStorageMajorVersion());
         sourceConnection.close();
 
+        int errorCounter = 0;
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
@@ -198,23 +186,35 @@ public abstract class JDBCStorage extends Storage
                                             (chunk.getTargetSession()).close();
                                         }
                                     } catch (SQLException exception) {
-                                        log.error("{}", getStackTrace(exception));
+                                        log.error("Trying to close session: {}", getStackTrace(exception));
                                     }
-                                    throw e;
+                                    throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
                                 }
                             })
                     )
             );
 
-            int timeoutCounter = 0;
-            int errorCounter = 0;
             for (Future<?> future : futures) {
-//                Chunk<K, T, S, R> c = null;
                 try {
-//                    Chunk<K, T, S, R> c = (Chunk<K, T, S, R>) future.get();
+//                    future.get(10, TimeUnit.MILLISECONDS);
                     future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
+                    errorCounter++;
+                    if (errorCounter < (3 * threadCount)) {
+                        log.error("Try: {} Repeatable error: {}", errorCounter, e.getMessage());
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    } else {
+                        log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(e));
+                        log.info("Finishing...");
+                        service.shutdownNow();
+                        throw new RuntimeException(e);
+                    }
+/*
                     if ((
                                 e.getMessage().contains("terminating connection due to administrator command") ||
                                 e.getMessage().contains("Database connection failed when ending copy") ||
@@ -223,8 +223,6 @@ public abstract class JDBCStorage extends Storage
                         ) && errorCounter / threadCount < 20) {
                         errorCounter++;
                         log.error("REPEATABLE ISSUE: {}", e.getMessage());
-//                        service.shutdownNow();
-//                        break;
                     } else if ((
                             e.getMessage().contains("Query timed out after PT2S") ||
                             e.getMessage().contains("Cassandra timeout during BATCH"))
@@ -241,6 +239,7 @@ public abstract class JDBCStorage extends Storage
                         service.shutdownNow();
                         throw new RuntimeException(e);
                     }
+*/
                 }
             }
 
@@ -253,9 +252,17 @@ public abstract class JDBCStorage extends Storage
         service.shutdown();
         service.close();
 
+/*
+        try {
+            Thread.sleep(300_000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+*/
+
         Connection dropChunkConnection = this.getPoolConnection();
         setConnection(dropChunkConnection);
-        dropChunkTable(configs, false);
+        dropChunkTable(configs);
         dropChunkConnection.close();
         targetStorage.dropOutboxTable(false);
     }
@@ -265,47 +272,9 @@ public abstract class JDBCStorage extends Storage
         return false;
     }
 
-    private void startSync(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-/*
-        Connection sourceConnection = this.getPoolConnection();
-        setConnection(sourceConnection);
-        sourceConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-
-        Storage sourceStorage = this;
-        if (rows > 0) {
-            fulfillChunks(configs, true, rows, tableName);
-            targetStorage.createGlobalOutbox(tableName);
-        }
-        Map<Table, Table> sourceTables = configsToTables(configs, targetStorage);
-        sourceStorage.setTables(sourceTables);
-
-        Map.Entry<String,Long> lsnXid = this.getSystemChangeNumberWithTrxId();
-        log.info("{} {}", lsnXid.getKey(), lsnXid.getValue());
-
-        List<Chunk<K, T, S, R>> chunks = getChunkList(configs, tableName, targetStorage);
-        chunks.forEach(chunk -> {
-            try {
-                chunk.allStages(true, tableName);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-        sourceConnection.commit();
-        JDBCStorage targetJDBCStorage = targetStorage.unwrap(JDBCStorage.class);
-        Connection targetConnection = targetJDBCStorage.getPoolConnection();
-        targetJDBCStorage.setTables(getTables());
-        targetJDBCStorage.createPrimaryKeys();
-        targetJDBCStorage.createUniqueConstraints();
-        targetJDBCStorage.createIndexes();
-        targetJDBCStorage.createForeignKeys();
-        sourceConnection.close();
-        targetConnection.close();
-*/
-    }
-
     @Override
     public void closeStorage() {
-        if (dataSource instanceof HikariDataSource hikariDataSource) {
+        if (dataSource instanceof HikariDataSource hikariDataSource && isManagedPool) {
             hikariDataSource.close();
             log.info("HikariDataSource closed successfully.");
         } else {

@@ -85,9 +85,8 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testOracleToClickHouseMigration() throws Exception {
-        Table targetOutboxTable = new PseudoTable(null, "target_outbox");
         Storage sourceStorage = new OracleStorage(sourceDataSource);
-        Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
+        Storage targetStorage = new ClickHouseStorage(clickhouseClient);
 
         assertEquals(5, targetStorage.getThreadCount(),
                 "Количество потоков Бублика должно автоматически подстроиться под размер maxConnections нативного клиента ClickHouse");

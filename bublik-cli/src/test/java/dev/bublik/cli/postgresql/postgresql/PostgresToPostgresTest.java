@@ -13,10 +13,12 @@ import org.testcontainers.utility.MountableFile;
 import java.io.IOException;
 import java.sql.*;
 import java.util.List;
+import java.util.Properties;
 
 import static dev.bublik.cli.App.getConfigs;
 import static dev.bublik.cli.TestUtils.*;
 import static dev.bublik.cli.addons.Utils.connectionProperty;
+import static dev.bublik.core.util.Utils.getStackTrace;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PostgresToPostgresTest {
@@ -55,6 +57,18 @@ public class PostgresToPostgresTest {
     }
 
     @Test
+    void orderByOptimisation() throws Exception {
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/json/orderByOptimisation.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
     void allTypes() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
@@ -85,6 +99,36 @@ public class PostgresToPostgresTest {
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
+    void chunkTableAlreadyExists() throws Exception {
+        Properties sourceProperties = getJdbcProperties(source);
+        try (Connection connection = DriverManager.getConnection(sourceProperties.getProperty("url"), sourceProperties);
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "create table " + chunkTable.getSchemaName() + "." + chunkTable.getTableName() + " (id int primary key)");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        SQLException ex = assertThrows(SQLException.class, () ->
+                getResultCount(
+                        "./postgresql/postgresql/yaml/pg2pg.yaml",
+                        "./postgresql/postgresql/json/columnOrder.json",
+                        rows,
+                        sync,
+                        sourceProperties,
+                        getJdbcProperties(target)));
+        assertTrue(ex.getMessage().contains("relation \"" + chunkTable.getTableName() + "\" already exists"));
+
+        try (Connection connection = DriverManager.getConnection(sourceProperties.getProperty("url"), sourceProperties);
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "drop table " + chunkTable.getSchemaName() + "." + chunkTable.getTableName());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -124,7 +168,8 @@ public class PostgresToPostgresTest {
                     getJdbcProperties(source),
                     getJdbcProperties(target));
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Ending write to copy failed"));
+//            System.out.println("Ошибка: " + getStackTrace(e));
+            assertTrue(getStackTrace(e).contains("violates not-null constraint"));
         }
 
         String jdbcUrl = source.getJdbcUrl();

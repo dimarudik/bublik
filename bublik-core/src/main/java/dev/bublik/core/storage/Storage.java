@@ -13,7 +13,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable 
     private final StorageClass storageClass;
     protected int threadCount;
     private final ConnectionProperty connectionProperty;
-    private final Table outboxTable;
+    private Table outboxTable;
     private Map<Table, Table> tables;
 
     public Storage(ConnectionProperty connectionProperty) {
@@ -56,6 +56,10 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable 
 
     public Table getOutboxTable() {
         return outboxTable;
+    }
+
+    public void setOutboxTable(Table outboxTable) {
+        this.outboxTable = outboxTable;
     }
 
     public Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position) {
