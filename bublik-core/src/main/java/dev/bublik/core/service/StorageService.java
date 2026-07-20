@@ -132,6 +132,12 @@ public interface StorageService {
         } catch (Exception e) {
             log.info("Unknown workstation");
         }
+        int vCPU = Runtime.getRuntime().availableProcessors();
+        log.info("CPU: {}", vCPU);
+        if (vCPU <= 4 && vCPU < property.getThreadCount()) {
+            property.setThreadCount(vCPU);
+            log.info("Thread count throttled to {}", property.getThreadCount());
+        }
         log.info("THREADS: {}", property.getThreadCount());
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");

@@ -71,6 +71,7 @@ public class CSPool {
                 .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, size)
                 .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, size)
                 .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(14))
+                .withDuration(DefaultDriverOption.CONNECTION_INIT_QUERY_TIMEOUT, Duration.ofSeconds(14))
                 .build();
     }
 

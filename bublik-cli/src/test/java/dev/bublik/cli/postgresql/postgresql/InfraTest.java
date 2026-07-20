@@ -98,7 +98,7 @@ public class InfraTest {
         toProps.put("password", target.getPassword());
 
         return new ConnectionProperty(
-                10,
+                24,
                 fromProps,
                 toProps,
                 new HashMap<>(),

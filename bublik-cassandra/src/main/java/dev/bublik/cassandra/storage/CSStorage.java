@@ -577,29 +577,34 @@ abstract class CSStorage extends Storage implements Source {
                 .stream()
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList());
-        List<String> ttlColumns = columns
-                .stream()
-                .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
-                .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
-                .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
-                .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
-                .map(s -> "ttl(" + s + ")")
-                .toList();
-        List<String> timestampColumns = columns
-                .stream()
-                .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
-                .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
-                .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
-                .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
-                .map(s -> "writetime(" + s + ")")
-                .toList();
-        columns.addAll(ttlColumns);
-        columns.addAll(timestampColumns);
+        if (t2t.ttlColumn() == null) {
+            List<String> ttlColumns = columns
+                    .stream()
+                    .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
+                    .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
+                    .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
+                    .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
+                    .map(s -> "ttl(" + s + ")")
+                    .toList();
+            columns.addAll(ttlColumns);
+        }
+        if (t2t.timestampColumn() == null) {
+            List<String> timestampColumns = columns
+                    .stream()
+                    .filter(s -> pkColumns.stream().noneMatch(pk -> pk.columnName().equals(s)))
+                    .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
+                    .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
+                    .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
+                    .map(s -> "writetime(" + s + ")")
+                    .toList();
+            columns.addAll(timestampColumns);
+        }
         String columnToColumn = String.join(", ", columns);
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
 //                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", cast((int)0 + " + t2t.ttlColumn().defaultValue() + " as int ) as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
-                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", " + t2t.ttlColumn().defaultValue() + " as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
+//                (t2t.ttlColumn() == null ? "" : ( t2t.ttlColumn().defaultValue().equals("NULL")  ?  (" , (int)NULL as  \""  + t2t.ttlColumn().columnName() + "\" ") : (", " + t2t.ttlColumn().defaultValue() + " as \"" + t2t.ttlColumn().columnName() + "\" ")  ) ) +
+                getTtlColumnClause(t2t) +
                 (t2t.timestampColumn() == null ? "" : ( ", " + t2t.timestampColumn().defaultValue() + " as \"" + t2t.timestampColumn().columnName() + "\" ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
@@ -614,6 +619,11 @@ abstract class CSStorage extends Storage implements Source {
                 pkColumnsJoined +
                 ") < ?" +
                 (config.fetchWhereClause().equals(DEFAULT_FETCH_WHERE_CLAUSE) ? "" : " allow filtering ");
+    }
+
+    private String getTtlColumnClause(Table2Table t2t) {
+        return t2t.ttlColumn() == null ? "" :
+                (t2t.ttlColumn().defaultValue().equals("NULL") ? (" , (int)NULL as  \"" + t2t.ttlColumn().columnName() + "\" ") : (", " + t2t.ttlColumn().defaultValue() + " as \"" + t2t.ttlColumn().columnName() + "\" "));
     }
 
     @Override

@@ -3,6 +3,7 @@ package dev.bublik.cli.oracle.clickhouse;
 import dev.bublik.cli.TestResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -231,6 +232,7 @@ public class VLatestTest {
     }
 
     @Test
+    @DisplayName("Upsert to ReplacingMergeTree engine")
     void expression2Column() throws Exception {
         Properties targetProps = getJdbcProperties(target);
         TestResult result = getResultCount(
@@ -265,5 +267,4 @@ public class VLatestTest {
             throw new RuntimeException(e);
         }
     }
-
 }

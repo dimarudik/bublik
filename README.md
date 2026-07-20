@@ -165,6 +165,16 @@ The mapping file is a JSON file that contains the mapping between the source and
 ## Cassandra To Cassandra
 ![Cassandra To Cassandra](./bublik-cli/src/test/resources/images/cs2cs.png)
 
+#### Smart NoSQL Chunking Engine: Adaptive Token Range Sampling
+
+Unlike generic migration tools that split the Cassandra token ring blindly, Bublik implements an **Adaptive Hierarchical Sampling** algorithm to guarantee evenly balanced chunk sizes (e.g., target 50k rows per chunk) and eliminate partition hotspots:
+
+1. **Ring Range Segmentation**: The migration engine discovers the live cluster topology and breaks down the complete Token Ring into primary token ranges.
+2. **Two-Stage Density Profiling (1/100th Probe)**: For each token range, Bublik executes a highly optimized, non-blocking sampling probe. It mathematically divides the range into 10 primary sectors, then sub-divides each sector into 10 smaller micro-segments (effectively profiling at a 1/100th granularity) to calculate the actual row count distribution.
+3. **Statistical Boundaries Correction**: Based on the gathered row-density metadata, the engine dynamically calculates the specific token boundaries (`token(...) >= ? AND token(...) < ?`) required to pack approximately 50,000 rows into each final workload.
+4. **Hotspot Mitigation**: Assuming the cluster utilizes a uniform partition key distribution (e.g., Murmur3Partitioner), this recursive profiling provides exceptional accuracy, keeping concurrent worker threads perfectly synchronized with symmetrical data volumes.
+
+
 The objective is to migrate data from Cassandra to Cassandra database.
 To split data into chunks we use Token Ranges ring of Cassandra. 
 Such method helps to minimize the workload on the source database and improves the performance of the data transfer to target database.

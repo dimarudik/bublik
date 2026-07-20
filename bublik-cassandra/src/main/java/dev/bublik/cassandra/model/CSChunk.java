@@ -125,7 +125,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
             PreparedStatement statement = cqlSession.prepare(query);
             BoundStatement boundStatement = statement.bind(getStart(), getEnd())
                     .setPageSize(1_000)
-                    .setTimeout(Duration.ofSeconds(1))
+                    .setTimeout(Duration.ofSeconds(14))
                     .setConsistencyLevel(ConsistencyLevel.QUORUM);
             ResultSet resultSet = cqlSession.execute(boundStatement);
             return (R) resultSet;
