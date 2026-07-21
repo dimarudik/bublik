@@ -404,8 +404,8 @@ public class OracleStorage extends JDBCStorage {
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
         return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
                 "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
-                (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause());
-
+                (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
+                + " and rownum <= 1000 ";
     }
 
     @Override

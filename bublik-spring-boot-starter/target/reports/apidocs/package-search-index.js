@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html","k":"18"},{"l":"dev.bublik.starter.autoconfigure"},{"l":"dev.bublik.starter.properties"}];updateSearchResults();

@@ -1,0 +1,3 @@
+dev/bublik/starter/autoconfigure/BublikStarterPostgresMigrationTest.class
+dev/bublik/starter/autoconfigure/BublikStarterTest.class
+dev/bublik/starter/autoconfigure/BublikStarterOracleToPostgresTest.class

@@ -1,0 +1,174 @@
+-J-Duser.language=
+-J-Duser.country=
+@options
+@packages
+--no-fonts
+-classpath
+'/Users/d.rudik/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/4.1.0/spring-boot-autoconfigure-4.1.0.jar:/Users/d.rudik/.m2/repository/org/springframework/boot/spring-boot/4.1.0/spring-boot-4.1.0.jar:/Users/d.rudik/.m2/repository/org/springframework/spring-core/7.0.8/spring-core-7.0.8.jar:/Users/d.rudik/.m2/repository/commons-logging/commons-logging/1.3.5/commons-logging-1.3.5.jar:/Users/d.rudik/.m2/repository/org/springframework/spring-context/7.0.8/spring-context-7.0.8.jar:/Users/d.rudik/.m2/repository/org/springframework/spring-aop/7.0.8/spring-aop-7.0.8.jar:/Users/d.rudik/.m2/repository/org/springframework/spring-beans/7.0.8/spring-beans-7.0.8.jar:/Users/d.rudik/.m2/repository/org/springframework/spring-expression/7.0.8/spring-expression-7.0.8.jar:/Users/d.rudik/.m2/repository/io/micrometer/micrometer-observation/1.16.6/micrometer-observation-1.16.6.jar:/Users/d.rudik/.m2/repository/io/micrometer/micrometer-commons/1.16.6/micrometer-commons-1.16.6.jar:/Users/d.rudik/.m2/repository/org/springframework/boot/spring-boot-configuration-processor/4.1.0/spring-boot-configuration-processor-4.1.0.jar:/Users/d.rudik/.m2/repository/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar:/Users/d.rudik/IdeaProjects/bublik/bublik-core/target/bublik-core-26.3.20.jar:/Users/d.rudik/.m2/repository/org/apache/logging/log4j/log4j-slf4j-impl/3.0.0-beta2/log4j-slf4j-impl-3.0.0-beta2.jar:/Users/d.rudik/.m2/repository/org/apache/logging/log4j/log4j-api/3.0.0-beta2/log4j-api-3.0.0-beta2.jar:/Users/d.rudik/.m2/repository/org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar:/Users/d.rudik/.m2/repository/com/zaxxer/HikariCP/5.1.0/HikariCP-5.1.0.jar:/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/target/bublik-cassandra-26.3.20.jar:/Users/d.rudik/.m2/repository/io/netty/netty-all/4.2.6.Final/netty-all-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-buffer/4.2.6.Final/netty-buffer-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-base/4.2.6.Final/netty-codec-base-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec/4.2.6.Final/netty-codec-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-dns/4.2.6.Final/netty-codec-dns-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-haproxy/4.2.6.Final/netty-codec-haproxy-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-compression/4.2.6.Final/netty-codec-compression-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-http/4.2.6.Final/netty-codec-http-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-http2/4.2.6.Final/netty-codec-http2-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-http3/4.2.6.Final/netty-codec-http3-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/org/jctools/jctools-core/4.0.5/jctools-core-4.0.5.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-native-unix-common/4.2.6.Final/netty-transport-native-unix-common-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/org/bouncycastle/bcprov-jdk18on/1.80/bcprov-jdk18on-1.80.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-memcache/4.2.6.Final/netty-codec-memcache-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-mqtt/4.2.6.Final/netty-codec-mqtt-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-redis/4.2.6.Final/netty-codec-redis-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-smtp/4.2.6.Final/netty-codec-smtp-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-socks/4.2.6.Final/netty-codec-socks-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-stomp/4.2.6.Final/netty-codec-stomp-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-xml/4.2.6.Final/netty-codec-xml-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-protobuf/4.2.6.Final/netty-codec-protobuf-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-marshalling/4.2.6.Final/netty-codec-marshalling-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-common/4.2.6.Final/netty-common-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-handler/4.2.6.Final/netty-handler-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-handler-proxy/4.2.6.Final/netty-handler-proxy-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-handler-ssl-ocsp/4.2.6.Final/netty-handler-ssl-ocsp-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-resolver/4.2.6.Final/netty-resolver-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-resolver-dns/4.2.6.Final/netty-resolver-dns-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport/4.2.6.Final/netty-transport-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-rxtx/4.2.6.Final/netty-transport-rxtx-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-sctp/4.2.6.Final/netty-transport-sctp-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-udt/4.2.6.Final/netty-transport-udt-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-classes-epoll/4.2.6.Final/netty-transport-classes-epoll-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-classes-kqueue/4.2.6.Final/netty-transport-classes-kqueue-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-resolver-dns-classes-macos/4.2.6.Final/netty-resolver-dns-classes-macos-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-transport-classes-io_uring/4.2.6.Final/netty-transport-classes-io_uring-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/io/netty/netty-codec-classes-quic/4.2.6.Final/netty-codec-classes-quic-4.2.6.Final.jar:/Users/d.rudik/.m2/repository/org/apache/cassandra/java-driver-core/4.19.3/java-driver-core-4.19.3.jar:/Users/d.rudik/.m2/repository/com/datastax/oss/native-protocol/1.5.2/native-protocol-1.5.2.jar:/Users/d.rudik/.m2/repository/org/apache/cassandra/java-driver-guava-shaded/4.19.3/java-driver-guava-shaded-4.19.3.jar:/Users/d.rudik/.m2/repository/com/typesafe/config/1.4.1/config-1.4.1.jar:/Users/d.rudik/.m2/repository/com/github/jnr/jnr-posix/3.1.15/jnr-posix-3.1.15.jar:/Users/d.rudik/.m2/repository/com/github/jnr/jnr-ffi/2.2.11/jnr-ffi-2.2.11.jar:/Users/d.rudik/.m2/repository/com/github/jnr/jffi/1.3.9/jffi-1.3.9.jar:/Users/d.rudik/.m2/repository/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.jar:/Users/d.rudik/.m2/repository/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.jar:/Users/d.rudik/.m2/repository/org/ow2/asm/asm-tree/9.2/asm-tree-9.2.jar:/Users/d.rudik/.m2/repository/org/ow2/asm/asm-util/9.2/asm-util-9.2.jar:/Users/d.rudik/.m2/repository/com/github/jnr/jnr-a64asm/1.0.0/jnr-a64asm-1.0.0.jar:/Users/d.rudik/.m2/repository/com/github/jnr/jnr-x86asm/1.0.2/jnr-x86asm-1.0.2.jar:/Users/d.rudik/.m2/repository/com/github/jnr/jnr-constants/0.10.3/jnr-constants-0.10.3.jar:/Users/d.rudik/.m2/repository/io/dropwizard/metrics/metrics-core/4.1.18/metrics-core-4.1.18.jar:/Users/d.rudik/.m2/repository/org/hdrhistogram/HdrHistogram/2.1.12/HdrHistogram-2.1.12.jar:/Users/d.rudik/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.20.1/jackson-core-2.20.1.jar:/Users/d.rudik/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.20.1/jackson-databind-2.20.1.jar:/Users/d.rudik/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.20/jackson-annotations-2.20.jar:/Users/d.rudik/.m2/repository/org/reactivestreams/reactive-streams/1.0.3/reactive-streams-1.0.3.jar:/Users/d.rudik/IdeaProjects/bublik/bublik-clickhouse/target/bublik-clickhouse-26.3.20.jar:/Users/d.rudik/.m2/repository/com/clickhouse/client-v2/0.9.8/client-v2-0.9.8.jar:/Users/d.rudik/.m2/repository/com/clickhouse/clickhouse-data/0.9.8/clickhouse-data-0.9.8.jar:/Users/d.rudik/.m2/repository/org/roaringbitmap/RoaringBitmap/1.0.6/RoaringBitmap-1.0.6.jar:/Users/d.rudik/.m2/repository/com/clickhouse/clickhouse-client/0.9.8/clickhouse-client-0.9.8.jar:/Users/d.rudik/.m2/repository/org/apache/httpcomponents/client5/httpclient5/5.4.4/httpclient5-5.4.4.jar:/Users/d.rudik/.m2/repository/org/apache/httpcomponents/core5/httpcore5/5.3.4/httpcore5-5.3.4.jar:/Users/d.rudik/.m2/repository/org/apache/httpcomponents/core5/httpcore5-h2/5.3.4/httpcore5-h2-5.3.4.jar:/Users/d.rudik/.m2/repository/at/yawk/lz4/lz4-java/1.10.4/lz4-java-1.10.4.jar:/Users/d.rudik/.m2/repository/org/apache/commons/commons-compress/1.28.0/commons-compress-1.28.0.jar:/Users/d.rudik/.m2/repository/commons-codec/commons-codec/1.19.0/commons-codec-1.19.0.jar:/Users/d.rudik/.m2/repository/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar:/Users/d.rudik/.m2/repository/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar:/Users/d.rudik/.m2/repository/org/ow2/asm/asm/9.7/asm-9.7.jar:/Users/d.rudik/.m2/repository/com/google/guava/guava/33.4.6-jre/guava-33.4.6-jre.jar:/Users/d.rudik/.m2/repository/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar:/Users/d.rudik/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/Users/d.rudik/.m2/repository/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar:/Users/d.rudik/.m2/repository/com/google/errorprone/error_prone_annotations/2.36.0/error_prone_annotations-2.36.0.jar:/Users/d.rudik/.m2/repository/com/google/j2objc/j2objc-annotations/3.0.0/j2objc-annotations-3.0.0.jar:/Users/d.rudik/IdeaProjects/bublik/bublik-mssql/target/bublik-mssql-26.3.20.jar:/Users/d.rudik/.m2/repository/com/microsoft/sqlserver/mssql-jdbc/13.3.1.jre11-preview/mssql-jdbc-13.3.1.jre11-preview.jar:/Users/d.rudik/IdeaProjects/bublik/bublik-kafka/target/bublik-kafka-26.3.20.jar:/Users/d.rudik/.m2/repository/org/apache/avro/avro/1.12.1/avro-1.12.1.jar:/Users/d.rudik/.m2/repository/org/apache/kafka/kafka-clients/4.3.1/kafka-clients-4.3.1.jar:/Users/d.rudik/IdeaProjects/bublik/bublik-ydb/target/bublik-ydb-26.3.20.jar:/Users/d.rudik/.m2/repository/tech/ydb/jdbc/ydb-jdbc-driver/2.3.17/ydb-jdbc-driver-2.3.17.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-query/2.3.20/ydb-sdk-query-2.3.20.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-core/2.3.20/ydb-sdk-core-2.3.20.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-proto-api/1.7.1/ydb-proto-api-1.7.1.jar:/Users/d.rudik/.m2/repository/io/grpc/grpc-stub/1.59.1/grpc-stub-1.59.1.jar:/Users/d.rudik/.m2/repository/io/grpc/grpc-api/1.59.1/grpc-api-1.59.1.jar:/Users/d.rudik/.m2/repository/io/grpc/grpc-protobuf/1.59.1/grpc-protobuf-1.59.1.jar:/Users/d.rudik/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar:/Users/d.rudik/.m2/repository/com/google/protobuf/protobuf-java/3.24.0/protobuf-java-3.24.0.jar:/Users/d.rudik/.m2/repository/com/google/api/grpc/proto-google-common-protos/2.22.0/proto-google-common-protos-2.22.0.jar:/Users/d.rudik/.m2/repository/io/grpc/grpc-protobuf-lite/1.59.1/grpc-protobuf-lite-1.59.1.jar:/Users/d.rudik/.m2/repository/io/grpc/grpc-netty-shaded/1.59.1/grpc-netty-shaded-1.59.1.jar:/Users/d.rudik/.m2/repository/io/grpc/grpc-core/1.59.1/grpc-core-1.59.1.jar:/Users/d.rudik/.m2/repository/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.jar:/Users/d.rudik/.m2/repository/com/google/code/gson/gson/2.8.9/gson-2.8.9.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-table/2.3.20/ydb-sdk-table-2.3.20.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-common/2.3.20/ydb-sdk-common-2.3.20.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-scheme/2.3.20/ydb-sdk-scheme-2.3.20.jar:/Users/d.rudik/.m2/repository/tech/ydb/auth/yc-auth-provider/2.2.0/yc-auth-provider-2.2.0.jar:/Users/d.rudik/.m2/repository/tech/ydb/ydb-auth-api/1.0.0/ydb-auth-api-1.0.0.jar:/Users/d.rudik/.m2/repository/com/yandex/cloud/java-sdk-auth/2.6.4/java-sdk-auth-2.6.4.jar:/Users/d.rudik/.m2/repository/com/yandex/cloud/java-genproto/2.6.4/java-genproto-2.6.4.jar:/Users/d.rudik/.m2/repository/org/bouncycastle/bcprov-jdk15on/1.61/bcprov-jdk15on-1.61.jar:/Users/d.rudik/.m2/repository/io/jsonwebtoken/jjwt-api/0.10.8/jjwt-api-0.10.8.jar:/Users/d.rudik/.m2/repository/io/jsonwebtoken/jjwt-impl/0.10.8/jjwt-impl-0.10.8.jar:/Users/d.rudik/.m2/repository/io/jsonwebtoken/jjwt-jackson/0.10.8/jjwt-jackson-0.10.8.jar'
+-encoding
+'UTF-8'
+-protected
+-source
+'21'
+-sourcepath
+'/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/src/main/java:/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/generated-sources/annotations'
+-author
+-bottom
+'Copyright &#169; 2026. All rights reserved.'
+-charset
+'UTF-8'
+-d
+'/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs'
+-docencoding
+'UTF-8'
+-doctitle
+'bublik-spring-boot-starter 26.3.20 API'
+-use
+-version
+-windowtitle
+'bublik-spring-boot-starter 26.3.20 API'
+dev.bublik.starter.properties
+dev.bublik.starter.autoconfigure
+/Users/d.rudik/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/4.1.0/spring-boot-autoconfigure-4.1.0.jar = 1781114342000
+/Users/d.rudik/.m2/repository/org/springframework/boot/spring-boot/4.1.0/spring-boot-4.1.0.jar = 1781114343000
+/Users/d.rudik/.m2/repository/org/springframework/spring-core/7.0.8/spring-core-7.0.8.jar = 1780940551000
+/Users/d.rudik/.m2/repository/commons-logging/commons-logging/1.3.5/commons-logging-1.3.5.jar = 1738337232000
+/Users/d.rudik/.m2/repository/org/springframework/spring-context/7.0.8/spring-context-7.0.8.jar = 1780940551000
+/Users/d.rudik/.m2/repository/org/springframework/spring-aop/7.0.8/spring-aop-7.0.8.jar = 1780940551000
+/Users/d.rudik/.m2/repository/org/springframework/spring-beans/7.0.8/spring-beans-7.0.8.jar = 1780940551000
+/Users/d.rudik/.m2/repository/org/springframework/spring-expression/7.0.8/spring-expression-7.0.8.jar = 1780940551000
+/Users/d.rudik/.m2/repository/io/micrometer/micrometer-observation/1.16.6/micrometer-observation-1.16.6.jar = 1780901240000
+/Users/d.rudik/.m2/repository/io/micrometer/micrometer-commons/1.16.6/micrometer-commons-1.16.6.jar = 1780901241000
+/Users/d.rudik/.m2/repository/org/springframework/boot/spring-boot-configuration-processor/4.1.0/spring-boot-configuration-processor-4.1.0.jar = 1781114337000
+/Users/d.rudik/.m2/repository/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar = 1743423692000
+/Users/d.rudik/IdeaProjects/bublik/bublik-core/target/bublik-core-26.3.20.jar = 1784642804955
+/Users/d.rudik/.m2/repository/org/apache/logging/log4j/log4j-slf4j-impl/3.0.0-beta2/log4j-slf4j-impl-3.0.0-beta2.jar = 1708195932000
+/Users/d.rudik/.m2/repository/org/apache/logging/log4j/log4j-api/3.0.0-beta2/log4j-api-3.0.0-beta2.jar = 1708195797000
+/Users/d.rudik/.m2/repository/org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar = 1644327230000
+/Users/d.rudik/.m2/repository/com/zaxxer/HikariCP/5.1.0/HikariCP-5.1.0.jar = 1699102053000
+/Users/d.rudik/IdeaProjects/bublik/bublik-cassandra/target/bublik-cassandra-26.3.20.jar = 1784642877228
+/Users/d.rudik/.m2/repository/io/netty/netty-all/4.2.6.Final/netty-all-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-buffer/4.2.6.Final/netty-buffer-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-base/4.2.6.Final/netty-codec-base-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec/4.2.6.Final/netty-codec-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-dns/4.2.6.Final/netty-codec-dns-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-haproxy/4.2.6.Final/netty-codec-haproxy-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-compression/4.2.6.Final/netty-codec-compression-4.2.6.Final.jar = 1757322323000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-http/4.2.6.Final/netty-codec-http-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-http2/4.2.6.Final/netty-codec-http2-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-http3/4.2.6.Final/netty-codec-http3-4.2.6.Final.jar = 1757322320000
+/Users/d.rudik/.m2/repository/org/jctools/jctools-core/4.0.5/jctools-core-4.0.5.jar = 1717253539000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-native-unix-common/4.2.6.Final/netty-transport-native-unix-common-4.2.6.Final.jar = 1757322320000
+/Users/d.rudik/.m2/repository/org/bouncycastle/bcprov-jdk18on/1.80/bcprov-jdk18on-1.80.jar = 1736884832000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-memcache/4.2.6.Final/netty-codec-memcache-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-mqtt/4.2.6.Final/netty-codec-mqtt-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-redis/4.2.6.Final/netty-codec-redis-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-smtp/4.2.6.Final/netty-codec-smtp-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-socks/4.2.6.Final/netty-codec-socks-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-stomp/4.2.6.Final/netty-codec-stomp-4.2.6.Final.jar = 1757322320000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-xml/4.2.6.Final/netty-codec-xml-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-protobuf/4.2.6.Final/netty-codec-protobuf-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-marshalling/4.2.6.Final/netty-codec-marshalling-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-common/4.2.6.Final/netty-common-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-handler/4.2.6.Final/netty-handler-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-handler-proxy/4.2.6.Final/netty-handler-proxy-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-handler-ssl-ocsp/4.2.6.Final/netty-handler-ssl-ocsp-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-resolver/4.2.6.Final/netty-resolver-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-resolver-dns/4.2.6.Final/netty-resolver-dns-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport/4.2.6.Final/netty-transport-4.2.6.Final.jar = 1757322320000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-rxtx/4.2.6.Final/netty-transport-rxtx-4.2.6.Final.jar = 1757322320000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-sctp/4.2.6.Final/netty-transport-sctp-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-udt/4.2.6.Final/netty-transport-udt-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-classes-epoll/4.2.6.Final/netty-transport-classes-epoll-4.2.6.Final.jar = 1757322321000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-classes-kqueue/4.2.6.Final/netty-transport-classes-kqueue-4.2.6.Final.jar = 1757322323000
+/Users/d.rudik/.m2/repository/io/netty/netty-resolver-dns-classes-macos/4.2.6.Final/netty-resolver-dns-classes-macos-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-transport-classes-io_uring/4.2.6.Final/netty-transport-classes-io_uring-4.2.6.Final.jar = 1757322322000
+/Users/d.rudik/.m2/repository/io/netty/netty-codec-classes-quic/4.2.6.Final/netty-codec-classes-quic-4.2.6.Final.jar = 1757322320000
+/Users/d.rudik/.m2/repository/org/apache/cassandra/java-driver-core/4.19.3/java-driver-core-4.19.3.jar = 1779837729000
+/Users/d.rudik/.m2/repository/com/datastax/oss/native-protocol/1.5.2/native-protocol-1.5.2.jar = 1741818322000
+/Users/d.rudik/.m2/repository/org/apache/cassandra/java-driver-guava-shaded/4.19.3/java-driver-guava-shaded-4.19.3.jar = 1779837659000
+/Users/d.rudik/.m2/repository/com/typesafe/config/1.4.1/config-1.4.1.jar = 1603405931000
+/Users/d.rudik/.m2/repository/com/github/jnr/jnr-posix/3.1.15/jnr-posix-3.1.15.jar = 1641487913000
+/Users/d.rudik/.m2/repository/com/github/jnr/jnr-ffi/2.2.11/jnr-ffi-2.2.11.jar = 1641487637000
+/Users/d.rudik/.m2/repository/com/github/jnr/jffi/1.3.9/jffi-1.3.9.jar = 1641486906000
+/Users/d.rudik/.m2/repository/org/ow2/asm/asm-commons/9.2/asm-commons-9.2.jar = 1624689708000
+/Users/d.rudik/.m2/repository/org/ow2/asm/asm-analysis/9.2/asm-analysis-9.2.jar = 1624689704000
+/Users/d.rudik/.m2/repository/org/ow2/asm/asm-tree/9.2/asm-tree-9.2.jar = 1624689713000
+/Users/d.rudik/.m2/repository/org/ow2/asm/asm-util/9.2/asm-util-9.2.jar = 1624689718000
+/Users/d.rudik/.m2/repository/com/github/jnr/jnr-a64asm/1.0.0/jnr-a64asm-1.0.0.jar = 1536228345000
+/Users/d.rudik/.m2/repository/com/github/jnr/jnr-x86asm/1.0.2/jnr-x86asm-1.0.2.jar = 1333767016000
+/Users/d.rudik/.m2/repository/com/github/jnr/jnr-constants/0.10.3/jnr-constants-0.10.3.jar = 1635280654000
+/Users/d.rudik/.m2/repository/io/dropwizard/metrics/metrics-core/4.1.18/metrics-core-4.1.18.jar = 1614152644000
+/Users/d.rudik/.m2/repository/org/hdrhistogram/HdrHistogram/2.1.12/HdrHistogram-2.1.12.jar = 1575980578000
+/Users/d.rudik/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.20.1/jackson-core-2.20.1.jar = 1761867199000
+/Users/d.rudik/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.20.1/jackson-databind-2.20.1.jar = 1761867893000
+/Users/d.rudik/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.20/jackson-annotations-2.20.jar = 1756421461000
+/Users/d.rudik/.m2/repository/org/reactivestreams/reactive-streams/1.0.3/reactive-streams-1.0.3.jar = 1566550189000
+/Users/d.rudik/IdeaProjects/bublik/bublik-clickhouse/target/bublik-clickhouse-26.3.20.jar = 1784642807734
+/Users/d.rudik/.m2/repository/com/clickhouse/client-v2/0.9.8/client-v2-0.9.8.jar = 1773873293000
+/Users/d.rudik/.m2/repository/com/clickhouse/clickhouse-data/0.9.8/clickhouse-data-0.9.8.jar = 1773873293000
+/Users/d.rudik/.m2/repository/org/roaringbitmap/RoaringBitmap/1.0.6/RoaringBitmap-1.0.6.jar = 1713570687000
+/Users/d.rudik/.m2/repository/com/clickhouse/clickhouse-client/0.9.8/clickhouse-client-0.9.8.jar = 1773873293000
+/Users/d.rudik/.m2/repository/org/apache/httpcomponents/client5/httpclient5/5.4.4/httpclient5-5.4.4.jar = 1745251787000
+/Users/d.rudik/.m2/repository/org/apache/httpcomponents/core5/httpcore5/5.3.4/httpcore5-5.3.4.jar = 1742114728000
+/Users/d.rudik/.m2/repository/org/apache/httpcomponents/core5/httpcore5-h2/5.3.4/httpcore5-h2-5.3.4.jar = 1742114753000
+/Users/d.rudik/.m2/repository/at/yawk/lz4/lz4-java/1.10.4/lz4-java-1.10.4.jar = 1772472859000
+/Users/d.rudik/.m2/repository/org/apache/commons/commons-compress/1.28.0/commons-compress-1.28.0.jar = 1753562741000
+/Users/d.rudik/.m2/repository/commons-codec/commons-codec/1.19.0/commons-codec-1.19.0.jar = 1752945592000
+/Users/d.rudik/.m2/repository/commons-io/commons-io/2.20.0/commons-io-2.20.0.jar = 1752528590000
+/Users/d.rudik/.m2/repository/org/apache/commons/commons-lang3/3.20.0/commons-lang3-3.20.0.jar = 1762978088000
+/Users/d.rudik/.m2/repository/org/ow2/asm/asm/9.7/asm-9.7.jar = 1711204230000
+/Users/d.rudik/.m2/repository/com/google/guava/guava/33.4.6-jre/guava-33.4.6-jre.jar = 1742918070000
+/Users/d.rudik/.m2/repository/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar = 1742400951000
+/Users/d.rudik/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar = 1536694843000
+/Users/d.rudik/.m2/repository/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar = 1721163610000
+/Users/d.rudik/.m2/repository/com/google/errorprone/error_prone_annotations/2.36.0/error_prone_annotations-2.36.0.jar = 1731976966000
+/Users/d.rudik/.m2/repository/com/google/j2objc/j2objc-annotations/3.0.0/j2objc-annotations-3.0.0.jar = 1710004379000
+/Users/d.rudik/IdeaProjects/bublik/bublik-mssql/target/bublik-mssql-26.3.20.jar = 1784642968620
+/Users/d.rudik/.m2/repository/com/microsoft/sqlserver/mssql-jdbc/13.3.1.jre11-preview/mssql-jdbc-13.3.1.jre11-preview.jar = 1768990993000
+/Users/d.rudik/IdeaProjects/bublik/bublik-kafka/target/bublik-kafka-26.3.20.jar = 1784642806627
+/Users/d.rudik/.m2/repository/org/apache/avro/avro/1.12.1/avro-1.12.1.jar = 1757102782000
+/Users/d.rudik/.m2/repository/org/apache/kafka/kafka-clients/4.3.1/kafka-clients-4.3.1.jar = 1781721995000
+/Users/d.rudik/IdeaProjects/bublik/bublik-ydb/target/bublik-ydb-26.3.20.jar = 1784642907949
+/Users/d.rudik/.m2/repository/tech/ydb/jdbc/ydb-jdbc-driver/2.3.17/ydb-jdbc-driver-2.3.17.jar = 1757002868000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-query/2.3.20/ydb-sdk-query-2.3.20.jar = 1756818393000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-core/2.3.20/ydb-sdk-core-2.3.20.jar = 1756818393000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-proto-api/1.7.1/ydb-proto-api-1.7.1.jar = 1747052193000
+/Users/d.rudik/.m2/repository/io/grpc/grpc-stub/1.59.1/grpc-stub-1.59.1.jar = 1701142337000
+/Users/d.rudik/.m2/repository/io/grpc/grpc-api/1.59.1/grpc-api-1.59.1.jar = 1701142263000
+/Users/d.rudik/.m2/repository/io/grpc/grpc-protobuf/1.59.1/grpc-protobuf-1.59.1.jar = 1701142303000
+/Users/d.rudik/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar = 1490936147000
+/Users/d.rudik/.m2/repository/com/google/protobuf/protobuf-java/3.24.0/protobuf-java-3.24.0.jar = 1691549722000
+/Users/d.rudik/.m2/repository/com/google/api/grpc/proto-google-common-protos/2.22.0/proto-google-common-protos-2.22.0.jar = 1688752339000
+/Users/d.rudik/.m2/repository/io/grpc/grpc-protobuf-lite/1.59.1/grpc-protobuf-lite-1.59.1.jar = 1701142276000
+/Users/d.rudik/.m2/repository/io/grpc/grpc-netty-shaded/1.59.1/grpc-netty-shaded-1.59.1.jar = 1701142405000
+/Users/d.rudik/.m2/repository/io/grpc/grpc-core/1.59.1/grpc-core-1.59.1.jar = 1701142273000
+/Users/d.rudik/.m2/repository/javax/annotation/javax.annotation-api/1.3.2/javax.annotation-api-1.3.2.jar = 1519208663000
+/Users/d.rudik/.m2/repository/com/google/code/gson/gson/2.8.9/gson-2.8.9.jar = 1635537600000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-table/2.3.20/ydb-sdk-table-2.3.20.jar = 1756818393000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-common/2.3.20/ydb-sdk-common-2.3.20.jar = 1756818392000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-sdk-scheme/2.3.20/ydb-sdk-scheme-2.3.20.jar = 1756818392000
+/Users/d.rudik/.m2/repository/tech/ydb/auth/yc-auth-provider/2.2.0/yc-auth-provider-2.2.0.jar = 1711544874000
+/Users/d.rudik/.m2/repository/tech/ydb/ydb-auth-api/1.0.0/ydb-auth-api-1.0.0.jar = 1687165619000
+/Users/d.rudik/.m2/repository/com/yandex/cloud/java-sdk-auth/2.6.4/java-sdk-auth-2.6.4.jar = 1693334941000
+/Users/d.rudik/.m2/repository/com/yandex/cloud/java-genproto/2.6.4/java-genproto-2.6.4.jar = 1693305890000
+/Users/d.rudik/.m2/repository/org/bouncycastle/bcprov-jdk15on/1.61/bcprov-jdk15on-1.61.jar = 1549872321000
+/Users/d.rudik/.m2/repository/io/jsonwebtoken/jjwt-api/0.10.8/jjwt-api-0.10.8.jar = 1580929732000
+/Users/d.rudik/.m2/repository/io/jsonwebtoken/jjwt-impl/0.10.8/jjwt-impl-0.10.8.jar = 1580929819000
+/Users/d.rudik/.m2/repository/io/jsonwebtoken/jjwt-jackson/0.10.8/jjwt-jackson-0.10.8.jar = 1580929743000
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/src/main/java = 1784637290096
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/generated-sources/annotations = 1784644021719
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/tag-search-index.js = 1784644037131
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/overview-tree.html = 1784644037122
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/module-search-index.js = 1784644037130
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/index.html = 1784644037124
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/package-search-index.js = 1784644037130
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/index-all.html = 1784644037135
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/allpackages-index.html = 1784644037129
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/member-search-index.js = 1784644037131
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/overview-summary.html = 1784644037136
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/help-doc.html = 1784644037137
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/element-list = 1784644037103
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/search.html = 1784644037135
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/allclasses-index.html = 1784644037128
+/Users/d.rudik/IdeaProjects/bublik/bublik-spring-boot-starter/target/reports/apidocs/type-search-index.js = 1784644037130

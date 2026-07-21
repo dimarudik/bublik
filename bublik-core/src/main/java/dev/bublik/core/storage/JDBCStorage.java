@@ -130,7 +130,7 @@ public abstract class JDBCStorage extends Storage
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
-        hikariConfig.setConnectionTimeout(3_000);
+        hikariConfig.setConnectionTimeout(10_000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
     }
@@ -180,14 +180,6 @@ public abstract class JDBCStorage extends Storage
                                         log.warn("Saving info about error to database");
                                         chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
                                         (chunk.getSourceSession()).close();
-/*
-                                        if (((Connection)chunk.getSourceSession()).isValid(0)) {
-                                            log.warn("Saving info about error to database");
-                                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
-                                            (chunk.getSourceSession()).close();
-                                        }
-*/
-//                                        if (targetStorage instanceof  JDBCStorage &&  ((Connection)chunk.getTargetSession()).isValid(0)) {
                                         if (targetStorage instanceof  JDBCStorage) {
                                             (chunk.getTargetSession()).close();
                                         }
@@ -200,9 +192,44 @@ public abstract class JDBCStorage extends Storage
                     )
             );
 
+            boolean hasBatchErrors = false;
+            Throwable lastSubmittedException = null;
+
             for (Future<?> future : futures) {
                 try {
-//                    future.get(10, TimeUnit.MILLISECONDS);
+                    future.get();
+                } catch (Exception e) {
+                    hasBatchErrors = true;
+                    lastSubmittedException = e;
+                    errorCounter++;
+                }
+            }
+
+            if (hasBatchErrors) {
+                if (errorCounter < (3 * threadCount)) {
+                    log.warn("Batch execution encountered errors. Cooling down for 3 seconds before retry (Current try: {})...", errorCounter);
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    continue;
+                } else {
+                    log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
+                    log.info("Finishing due to critical stress failure...");
+                    service.shutdownNow();
+                    throw new RuntimeException(lastSubmittedException);
+                }
+            }
+
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+/*
+            for (Future<?> future : futures) {
+                try {
                     future.get();
                     Thread.sleep(2);
                 } catch (Exception e) {
@@ -220,34 +247,9 @@ public abstract class JDBCStorage extends Storage
                         service.shutdownNow();
                         throw new RuntimeException(e);
                     }
-/*
-                    if ((
-                                e.getMessage().contains("terminating connection due to administrator command") ||
-                                e.getMessage().contains("Database connection failed when ending copy") ||
-                                e.getMessage().contains("Write to copy failed") ||
-                                e.getMessage().contains("An I/O error occurred while sending to the backend")
-                        ) && errorCounter / threadCount < 20) {
-                        errorCounter++;
-                        log.error("REPEATABLE ISSUE: {}", e.getMessage());
-                    } else if ((
-                            e.getMessage().contains("Query timed out after PT2S") ||
-                            e.getMessage().contains("Cassandra timeout during BATCH"))
-                            && timeoutCounter / threadCount < 20) {
-                        try {
-                            Thread.sleep(3_000);
-                        } catch (InterruptedException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                        timeoutCounter++;
-                        log.error("{}", getStackTrace(e));
-                    } else {
-                        log.error("{}", getStackTrace(e));
-                        service.shutdownNow();
-                        throw new RuntimeException(e);
-                    }
-*/
                 }
             }
+*/
 
             if (chunks.isEmpty()) {
                 log.info("All chunks are processed");
@@ -257,14 +259,6 @@ public abstract class JDBCStorage extends Storage
 
         service.shutdown();
         service.close();
-
-/*
-        try {
-            Thread.sleep(300_000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-*/
 
         Connection dropChunkConnection = this.getPoolConnection();
         setConnection(dropChunkConnection);

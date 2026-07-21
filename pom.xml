@@ -6,7 +6,7 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>26.3.20</version>
+    <version>26.3.21</version>
     <packaging>pom</packaging>
 
     <developers>
@@ -45,6 +45,7 @@
         <mockito.version>5.23.0</mockito.version>
         <junit-jupiter.version>6.1.0</junit-jupiter.version>
         <testcontainers.version>2.0.5</testcontainers.version>
+        <spring-boot-configuration>4.1.0</spring-boot-configuration>
     </properties>
 
     <dependencyManagement>
@@ -72,6 +73,7 @@
         <module>bublik-oracle</module>
         <module>bublik-postgres</module>
         <module>bublik-ydb</module>
+        <module>bublik-spring-boot-starter</module>
     </modules>
 
     <build>
