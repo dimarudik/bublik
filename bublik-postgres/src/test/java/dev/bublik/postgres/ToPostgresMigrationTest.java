@@ -64,28 +64,17 @@ public class ToPostgresMigrationTest {
         postgres.stop();
     }
 
-/*
-    @AfterEach
-    void afterEach() throws Exception {
-        try (Connection conn = targetDataSource.getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute("TRUNCATE TABLE target_users");
-        }
-    }
-*/
-
     @Test
     void testPostgresToPostgresMigration() throws Exception {
         Storage sourceStorage = new PostgresStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
         List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                "public",
-                "source_users",
-                "public",
-                "target_users"
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from("public", "source_users")
+                .to("public", "target_users")
+                .build();
+        configs.add(config);
 
         sourceStorage.start(targetStorage, configs, 1000);
 

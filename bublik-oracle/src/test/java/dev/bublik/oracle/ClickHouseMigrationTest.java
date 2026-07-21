@@ -92,13 +92,11 @@ public class ClickHouseMigrationTest {
                 "Количество потоков Бублика должно автоматически подстроиться под размер maxConnections нативного клиента ClickHouse");
 
         List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                oracle.getUsername().toUpperCase(),
-                "SOURCE_USERS",
-                "default",
-                "target_users"
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
+                .to("default", "target_users")
+                .build();
+        configs.add(config);
 
         sourceStorage.start(targetStorage, configs, 1000);
 

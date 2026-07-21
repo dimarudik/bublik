@@ -53,13 +53,11 @@ public class InitPostgresMigrationTest {
         ConnectionProperty connectionProperty = getConnectionProperty();
 
         List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                "public",
-                "source_users",
-                "public",
-                "target_users"
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from("public", "source_users")
+                .to("public", "target_users")
+                .build();
+        configs.add(config);
 
         Table chunkTable = new PseudoTable("public", "chunk");
         Table outboxTable = new PseudoTable("public", "outbox");

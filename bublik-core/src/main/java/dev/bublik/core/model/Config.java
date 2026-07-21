@@ -1,5 +1,7 @@
 package dev.bublik.core.model;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,81 +31,6 @@ public record Config(
         Map<String, Object> avroSchema
 ) {
 
-    public Config(String fromSchemaName,
-                  String fromTableName,
-                  String toSchemaName,
-                  String toTableName) {
-        this(fromSchemaName, fromTableName, null, null, toSchemaName, toTableName,
-                null, null, null, null, null,
-                null, null, null, null, null,
-                null, null, null, null, null);
-    }
-
-    public Config(String fromSchemaName,
-                  String fromTableName,
-                  String toSchemaName,
-                  String toTableName,
-                  Map<String, Object> avroSchema) {
-        this(fromSchemaName, fromTableName, null, null, toSchemaName, toTableName,
-                null, null, null, null, null,
-                null, null, null, null, null,
-                null, null, null, null, avroSchema);
-    }
-
-    public Config(String fromSchemaName,
-                  String fromTableName,
-                  String fromTableAlias,
-                  String fromTableAdds,
-                  String toSchemaName,
-                  String toTableName,
-                  String fetchWhereClause,
-                  List<String> tryCharIfAny,
-                  Map<String, String> columnToColumn,
-                  Map<String, String> expressionToColumn) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null,
-                fetchWhereClause, null, null, null, null, tryCharIfAny,
-                columnToColumn, expressionToColumn, null, null, null, null,
-                null, null);
-    }
-
-    public Config(String fromSchemaName,
-                  String fromTableName,
-                  String fromTableAlias,
-                  String fromTableAdds,
-                  String toSchemaName,
-                  String toTableName,
-                  String fetchWhereClause,
-                  List<String> tryCharIfAny,
-                  Map<String, String> columnToColumn,
-                  Map<String, String> expressionToColumn,
-                  Map<String, Object> avroSchema) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, null,
-                fetchWhereClause, null, null, null, null, tryCharIfAny,
-                columnToColumn, expressionToColumn, null, null, null, null,
-                null, avroSchema);
-    }
-
-    public Config(String fromSchemaName,
-                  String fromTableName,
-                  String fromTableAlias,
-                  String fromTableAdds,
-                  String toSchemaName,
-                  String toTableName,
-                  String fetchHintClause,
-                  String fetchWhereClause,
-                  String fromTaskName,
-                  String fromTaskWhereClause,
-                  String timestamp,
-                  String withTTL,
-                  List<String> tryCharIfAny,
-                  Map<String, String> columnToColumn,
-                  Map<String, String> expressionToColumn,
-                  Map<String, List<String>> columnFromMany) {
-        this(fromSchemaName, fromTableName, fromTableAlias, fromTableAdds, toSchemaName, toTableName, fetchHintClause,
-                fetchWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL, tryCharIfAny, columnToColumn,
-                expressionToColumn, columnFromMany, null, null, null, null, null);
-    }
-
     public Config copy() {
         return new Config(
                 this.fromSchemaName,
@@ -130,5 +57,74 @@ public record Config(
                 this.asUDT,
                 this.avroSchema == null ? null : Map.copyOf(this.avroSchema)
         );
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private String fromSchemaName;
+        private String fromTableName;
+        private String fromTableAlias;
+        private String fromTableAdds;
+        private String toSchemaName;
+        private String toTableName;
+        private String fetchHintClause;
+        private String fetchWhereClause;
+        private String fromTaskName;
+        private String fromTaskWhereClause;
+        private String timestamp;
+        private String withTTL;
+        private List<String> tryCharIfAny = new ArrayList<>();
+        private Map<String, String> columnToColumn = new HashMap<>();
+        private Map<String, String> expressionToColumn = new HashMap<>();
+        private Map<String, List<String>> columnFromMany = new HashMap<>();
+        private Map<String, List<String>> asList = new HashMap<>();
+        private Map<String, List<String>> asSet = new HashMap<>();
+        private Map<String, List<KV>> asMap = new HashMap<>();
+        private Map<String, List<String>> asUDT = new HashMap<>();
+        private Map<String, Object> avroSchema = new HashMap<>();
+
+        public Builder from(String schema, String table) {
+            this.fromSchemaName = schema;
+            this.fromTableName = table;
+            return this;
+        }
+
+        public Builder to(String topic) {
+            this.toTableName = topic;
+            return this;
+        }
+
+        public Builder to(String schema, String table) {
+            this.toSchemaName = schema;
+            this.toTableName = table;
+            return this;
+        }
+
+        public Builder fromTableAlias(String fromTableAlias) { this.fromTableAlias = fromTableAlias; return this; }
+        public Builder fromTableAdds(String fromTableAdds) { this.fromTableAdds = fromTableAdds; return this; }
+        public Builder fetchHintClause(String fetchHintClause) { this.fetchHintClause = fetchHintClause; return this; }
+        public Builder fetchWhereClause(String fetchWhereClause) { this.fetchWhereClause = fetchWhereClause; return this; }
+        public Builder fromTaskName(String fromTaskName) { this.fromTaskName = fromTaskName; return this; }
+        public Builder fromTaskWhereClause(String fromTaskWhereClause) { this.fromTaskWhereClause = fromTaskWhereClause; return this; }
+        public Builder timestamp(String timestamp) { this.timestamp = timestamp; return this; }
+        public Builder withTTL(String withTTL) { this.withTTL = withTTL; return this; }
+
+        public Builder tryCharIfAny(List<String> tryCharIfAny) { this.tryCharIfAny = tryCharIfAny; return this; }
+        public Builder columnToColumn(Map<String, String> columnToColumn) { this.columnToColumn = columnToColumn; return this; }
+        public Builder expressionToColumn(Map<String, String> expressionToColumn) { this.expressionToColumn = expressionToColumn; return this; }
+        public Builder avroSchema(Map<String, Object> avroSchema) { this.avroSchema = avroSchema; return this; }
+
+        public Config build() {
+            return new Config(
+                    fromSchemaName, fromTableName, fromTableAlias, fromTableAdds,
+                    toSchemaName, toTableName, fetchHintClause, fetchWhereClause,
+                    fromTaskName, fromTaskWhereClause, timestamp, withTTL,
+                    tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany,
+                    asList, asSet, asMap, asUDT, avroSchema
+            );
+        }
     }
 }

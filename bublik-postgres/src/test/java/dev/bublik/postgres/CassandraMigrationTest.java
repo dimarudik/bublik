@@ -99,13 +99,11 @@ public class CassandraMigrationTest {
                 "Количество потоков Бублика должно автоматически подстроиться под CONNECTION_POOL_LOCAL_SIZE сессии Cassandra");
 
         List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                "public",
-                "source_users",
-                "bublik",
-                "target_users"
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from("public", "source_users")
+                .to("bublik", "target_users")
+                .build();
+        configs.add(config);
 
         sourceStorage.start(targetStorage, configs, 1000);
 

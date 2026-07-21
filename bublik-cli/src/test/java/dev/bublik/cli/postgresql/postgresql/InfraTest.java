@@ -30,12 +30,12 @@ public class InfraTest {
     private final Table chunkTable = new PseudoTable("public", "chunk");
     private final Table outboxTable = new PseudoTable("public", "outbox");
 
-    List<Config> configs = new ArrayList<>(Collections.singleton(new Config(
-            "public",
-            "s",
-            "public",
-            "t"
-    )));
+    List<Config> configs = new ArrayList<>(Collections.singleton(
+            Config.builder()
+                    .from("public", "s")
+                    .to("public", "t")
+                    .build()
+    ));
 
     @BeforeAll
     static void setUp() throws SQLException {

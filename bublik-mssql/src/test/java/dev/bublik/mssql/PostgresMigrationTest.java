@@ -82,13 +82,11 @@ public class PostgresMigrationTest {
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
         List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                "dbo",
-                "source_users",
-                "public",
-                "target_users"
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from("dbo", "source_users")
+                .to("public", "target_users")
+                .build();
+        configs.add(config);
 
         sourceStorage.start(targetStorage, configs, 1000);
 

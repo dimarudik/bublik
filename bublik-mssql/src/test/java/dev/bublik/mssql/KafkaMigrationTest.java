@@ -125,20 +125,13 @@ public class KafkaMigrationTest {
         fields.add(nameField);
         avroSchema.put("fields", fields);
 
-        Config tableConfig = new Config(
-                "test",
-                "source_users",
-                null,
-                null,
-                null,
-                TOPIC_NAME,
-                null,
-                null,
-                columnToColumn,
-                null,
-                avroSchema
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from("test", "source_users")
+                .to(TOPIC_NAME)
+                .columnToColumn(columnToColumn)
+                .avroSchema(avroSchema)
+                .build();
+        configs.add(config);
 
         sourceStorage.start(targetStorage, configs, 1000);
 

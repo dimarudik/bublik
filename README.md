@@ -124,7 +124,8 @@ The mapping file is a JSON file that contains the mapping between the source and
     "fromTableName" : "table",    # source table name (Required)
     "fromTableAlias" : "t",       # source table alias (Optional - used in FROM clause) 
     "fromTableAdds" : "join users u on u.id = t.user_id", # source table adds (Optional - used in FROM clause to join additional tables) 
-    "fetchHintClause" : "/*+ no_index(t) */", # fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method) 
+    "fetchHintClause" : "/*+ no_index(t) */", # fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method)
+    "fetchWhereClause" : "t.id > 1000000000 and gender = 'F'" # fetch where clause (Optional - used in WHERE clause to filter data) 
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", # for filtering source chunks, applicable only for Oracle (Optional) 
     
     "toSchemaName" : "schema",    # target schema or Cassandra keyspace name (Optional - if omitted, the source schema name will be used) 
@@ -2233,13 +2234,11 @@ ConnectionProperty getConnectionProperty() {
 Create Config:
 ```java
 List<Config> configs = new ArrayList<>();
-Config tableConfig = new Config(
-        "public",
-        "source_users",
-        "public",
-        "target_users"
-);
-configs.add(tableConfig);
+Config config = Config.builder()
+        .from("public", "source_users")
+        .to("public", "target_users")
+        .build();
+configs.add(config);
 ```
 
 Create chunk and outbox tables (the tables will be created at source and target side):
@@ -2292,13 +2291,11 @@ Storage targetStorage = new PostgresStorage(targetDataSource);
 Create Config:
 ```java
 List<Config> configs = new ArrayList<>();
-Config tableConfig = new Config(
-        oracle.getUsername().toUpperCase(),
-        "SOURCE_USERS",
-        "public",
-        "target_users"
-);
-configs.add(tableConfig);
+Config config = Config.builder()
+        .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
+        .to("public", "target_users")
+        .build();
+configs.add(config);
 ```
 Run the migration:
 ```java
@@ -2351,14 +2348,12 @@ Storage targetStorage = new CassandraStorage(targetSession, batchSize, targetOut
 
 Create Config:
 ```java
-        List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                "bublik_source",
-                "source_users",
-                "bublik_target",
-                "target_users"
-        );
-        configs.add(tableConfig);
+List<Config> configs = new ArrayList<>();
+Config config = Config.builder()
+        .from("bublik_source", "source_users")
+        .to("bublik_target", "target_users")
+        .build();
+configs.add(config);
 ```
 
 Run the migration:
@@ -2401,13 +2396,11 @@ Storage targetStorage = new ClickHouseStorage(clickhouseClient);
 Create Config:
 ```java
 List<Config> configs = new ArrayList<>();
-Config tableConfig = new Config(
-        oracle.getUsername().toUpperCase(),
-        "SOURCE_USERS",
-        "default",
-        "target_users"
-);
-configs.add(tableConfig);
+Config config = Config.builder()
+        .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
+        .to("public", "target_users")
+        .build();
+configs.add(config);
 ```
 
 Run the migration:
@@ -2429,6 +2422,18 @@ kafkaProps.put("security.protocol", "SASL_PLAINTEXT");
 kafkaProps.put("sasl.mechanism", "PLAIN");
 kafkaProps.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test\";");
 KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
+```
+
+Create Config:
+```java
+List<Config> configs = new ArrayList<>();
+Config config = Config.builder()
+        .from(KEYSPACE, TABLE_NAME)
+        .to(TOPIC_NAME)
+        .columnToColumn(columnToColumn)
+        .avroSchema(avroSchema)
+        .build();
+configs.add(config);
 ```
 
 Create two storages (source and target):

@@ -65,13 +65,11 @@ public class InitCassandraMigrationTest {
         ConnectionProperty connectionProperty = getConnectionProperty();
 
         List<Config> configs = new ArrayList<>();
-        Config tableConfig = new Config(
-                "bublik_source",
-                "source_users",
-                "bublik_target",
-                "target_users"
-        );
-        configs.add(tableConfig);
+        Config config = Config.builder()
+                .from("bublik_source", "source_users")
+                .to("bublik_target", "target_users")
+                .build();
+        configs.add(config);
 
         Table chunkTable = new PseudoTable("bublik_source", "bublik_chunks");
 
