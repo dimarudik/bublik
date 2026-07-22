@@ -116,8 +116,8 @@ public class PgBinaryWriterTest {
             assertEquals("success", hstoreMap.get("status"));
             assertEquals("Postgres", hstoreMap.get("target"));
             assertEquals("Oracle", hstoreMap.get("vendor"));
-            assertNull(hstoreMap.get("nullable_key")); // Проверяем, что вложенный NULL сохранился в hstore
-            assertTrue(hstoreMap.containsKey("nullable_key")); // И ключ при этом присутствует
+            assertNull(hstoreMap.get("nullable_key"));
+            assertTrue(hstoreMap.containsKey("nullable_key"));
 
             java.sql.Array arrayZ = rs.getArray("z_bigint_arr");
             assertNotNull(arrayZ);
@@ -148,6 +148,7 @@ public class PgBinaryWriterTest {
             String xmlDocStr = rs.getString("xml_doc");
             assertNotNull(xmlDocStr);
             assertEquals("<root><element id=\"1\">Текст внутри XML</element></root>", xmlDocStr.trim());
+            assertEquals(0.001, rs.getDouble("nn"));
             rs.close();
 
             ResultSet rsNull = statement.executeQuery("select * from test.b where id = 2");

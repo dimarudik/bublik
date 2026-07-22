@@ -145,7 +145,7 @@ abstract class CSStorage extends Storage implements Source {
             }
 
             if (hasBatchErrors) {
-                if (errorCounter < (3 * threadCount)) {
+                if (errorCounter < (2 * threadCount)) {
                     log.warn("Batch execution encountered errors. Cooling down for 3 seconds before retry (Current try: {})...", errorCounter);
                     try {
                         Thread.sleep(3000);
@@ -199,7 +199,9 @@ abstract class CSStorage extends Storage implements Source {
         } while (true);
 
         dropChunkTable(configs);
-//        targetStorage.dropOutboxTable(false, tableName);
+        if (targetStorage instanceof JDBCStorage) {
+            targetStorage.dropOutboxTable(false);
+        }
 
         service.shutdown();
         service.close();

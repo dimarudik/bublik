@@ -583,8 +583,6 @@ public class PostgresStorage extends JDBCStorage {
                 continue;
             }
 
-//            тут
-//            System.out.println(sourceColumn + " " + targetColumn + " " + targetType);
             switch (targetType) {
                 case "json", "varchar", "bpchar", "char", "character": {
                     String s;

@@ -201,7 +201,7 @@ public abstract class JDBCStorage extends Storage
             }
 
             if (hasBatchErrors) {
-                if (errorCounter < (3 * threadCount)) {
+                if (errorCounter < (2 * threadCount)) {
                     log.warn("Batch execution encountered errors. Cooling down for 3 seconds before retry (Current try: {})...", errorCounter);
                     try {
                         Thread.sleep(3000);
