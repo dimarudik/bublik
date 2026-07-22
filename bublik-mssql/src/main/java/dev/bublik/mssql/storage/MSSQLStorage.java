@@ -406,7 +406,6 @@ public class MSSQLStorage extends JDBCStorage {
     public String buildConditionBlock(List<Column> columns, boolean isStart, String alias) {
         if (columns == null || columns.isEmpty()) return "";
 
-        // Подготавливаем префикс (например, "t." или пустая строка)
         String prefix = (alias != null && !alias.isEmpty()) ? alias + "." : "";
 
         StringBuilder sb = new StringBuilder();
@@ -417,12 +416,10 @@ public class MSSQLStorage extends JDBCStorage {
 
             sb.append("(");
 
-            // 1. Формируем часть с равенством для всех предыдущих колонок
             for (int j = 0; j < i; j++) {
                 sb.append(prefix).append(columns.get(j).columnName()).append(" = ? AND ");
             }
 
-            // 2. Определяем оператор для текущей колонки
             Column current = columns.get(i);
             boolean isLast = (i == size - 1);
             String operator;
@@ -433,7 +430,6 @@ public class MSSQLStorage extends JDBCStorage {
                 operator = isStart ? (isLast ? "<=" : "<") : ">";
             }
 
-            // Добавляем префикс и к текущей колонке
             sb.append(prefix).append(current.columnName()).append(" ").append(operator).append(" ?)");
         }
 

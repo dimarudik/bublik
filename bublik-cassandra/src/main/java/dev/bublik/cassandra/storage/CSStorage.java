@@ -106,10 +106,9 @@ abstract class CSStorage extends Storage implements Source {
         }
 
         log.info("SOURCE Cassandra version: {}", getStorageMajorVersion());
-//        log.info("TARGET Cassandra version: {}", targetStorage.getStorageMajorVersion());
 
+        int errorCounter = 0;
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        int timeoutCounter = 0;
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
@@ -122,12 +121,53 @@ abstract class CSStorage extends Storage implements Source {
                             return chunk.allStages(false, getOutboxTable());
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
+                            log.warn("Saving info about error to database");
                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, sync, null, getStackTrace(e), table);
-                            throw e;
+                            if (targetStorage instanceof  JDBCStorage) {
+                                (chunk.getTargetSession()).close();
+                            }
+                            throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
                         }
                     }))
             );
 
+            boolean hasBatchErrors = false;
+            Throwable lastSubmittedException = null;
+
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (Exception e) {
+                    hasBatchErrors = true;
+                    lastSubmittedException = e;
+                    errorCounter++;
+                }
+            }
+
+            if (hasBatchErrors) {
+                if (errorCounter < (3 * threadCount)) {
+                    log.warn("Batch execution encountered errors. Cooling down for 3 seconds before retry (Current try: {})...", errorCounter);
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    continue;
+                } else {
+                    log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
+                    log.info("Finishing due to critical stress failure...");
+                    service.shutdownNow();
+                    throw new RuntimeException(lastSubmittedException);
+                }
+            }
+
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+
+/*
             for (Future<?> future : futures) {
                 try {
                     Chunk<?, ?, ?, ?> c = (Chunk<?, ?, ?, ?>) future.get();
@@ -136,14 +176,14 @@ abstract class CSStorage extends Storage implements Source {
                     if ((e.getMessage().contains("Query timed out after PT") ||
                             e.getMessage().contains("Cassandra timeout during BATCH") ||
                             e.getMessage().contains("failure during write query at consistency"))
-                            && timeoutCounter / threadCount < 1) {
+                            && errorCounter / threadCount < 1) {
                         try {
                             Thread.sleep(1_000);
                         } catch (InterruptedException ex) {
                             throw new RuntimeException(ex);
                         }
-                        timeoutCounter++;
-                        log.error("Try:({}) {}", timeoutCounter, getStackTrace(e));
+                        errorCounter++;
+                        log.error("Try:({}) {}", errorCounter, getStackTrace(e));
                     } else {
                         log.error("{}", getStackTrace(e));
                         service.shutdownNow();
@@ -151,12 +191,13 @@ abstract class CSStorage extends Storage implements Source {
                     }
                 }
             }
-
+*/
             if (chunks.isEmpty()) {
                 log.info("All chunks are processed");
                 break;
             }
         } while (true);
+
         dropChunkTable(configs);
 //        targetStorage.dropOutboxTable(false, tableName);
 
@@ -357,7 +398,7 @@ abstract class CSStorage extends Storage implements Source {
                 chunk + " where " +
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " and schema_name = ? and table_name = ? " +
-                " per partition limit 1000 ";
+                " per partition limit 100 ";
     }
 
     @Override

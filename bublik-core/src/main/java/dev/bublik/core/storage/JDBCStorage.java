@@ -169,27 +169,22 @@ public abstract class JDBCStorage extends Storage
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
+
             chunks.forEach(chunk -> futures.add(
-                    service
-                            .submit(() -> {
-                                try {
-                                    return chunk.allStages(false, getOutboxTable());
-                                } catch (Exception e) {
-                                    log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-                                    try {
-                                        log.warn("Saving info about error to database");
-                                        chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
-                                        (chunk.getSourceSession()).close();
-                                        if (targetStorage instanceof  JDBCStorage) {
-                                            (chunk.getTargetSession()).close();
-                                        }
-                                    } catch (SQLException exception) {
-                                        log.error("Trying to close session: {}", getStackTrace(exception));
-                                    }
-                                    throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
-                                }
-                            })
-                    )
+                    service.submit(() -> {
+                        try {
+                            return chunk.allStages(false, getOutboxTable());
+                        } catch (Exception e) {
+                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
+                            log.warn("Saving info about error to database");
+                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
+                            (chunk.getSourceSession()).close();
+                            if (targetStorage instanceof  JDBCStorage) {
+                                (chunk.getTargetSession()).close();
+                            }
+                            throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
+                        }
+                    }))
             );
 
             boolean hasBatchErrors = false;

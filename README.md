@@ -852,6 +852,23 @@ Chunks will be created automatically with parameter -k at startup
 ## MS SQL To PostgreSQL
 ![MS SQL To PostgreSQL](./bublik-cli/src/test/resources/images/mssql2pg.png)
 
+
+#### Smart Composite Clustering Key Slicing (Dynamic Predicate Engine)
+
+Bublik features a **Dynamic Predicate Generator** that handles complex multi-column clustering keys, adapting to `ASC/DESC` column sorting to create precise, nested boundary conditions for efficient data partitioning.
+
+##### Algorithm Mechanics
+For a key like `(A DESC, B, C)`, the engine generates optimized SQL:
+*   **Start Bound (`>=`)**: `(A < ? OR (A = ? AND B > ?) OR (A = ? AND B = ? AND C >= ?))`
+*   **End Bound (`<`)**: `(A > ? OR (A = ? AND B < ?) OR (A = ? AND B = ? AND C < ?))`
+
+This approach transforms complex range queries into highly efficient **Index Seeks** on the target database, avoiding heavy full-table scans.
+
+##### Example SQL Signatures
+*   **Key (`A, B`)**: `( (A > ?) OR (A = ? AND B >= ?) ) AND ( (A < ?) OR (A = ? AND B < ?) )`
+*   **Key (`A DESC, B, C`)**: `( (A < ?) OR (A = ? AND B > ?) OR (A = ? AND B = ? AND C >= ?) ) AND ( (A > ?) OR (A = ? AND B < ?) OR (A = ? AND B = ? AND C < ?) )`
+
+
 The objective is to migrate data from MS SQL to PostgreSQL database.
 To split data into chunks we use Clustering Key of Microsoft SQL Server table.
 Such method helps to minimize the workload on the source database and improves the performance of the data transfer to target database.
