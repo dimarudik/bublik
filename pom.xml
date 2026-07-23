@@ -76,6 +76,7 @@
         <module>bublik-spring-boot-starter</module>
     </modules>
 
+    
     <build>
         <plugins>
             <plugin>
