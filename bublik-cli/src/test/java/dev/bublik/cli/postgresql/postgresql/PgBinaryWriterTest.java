@@ -163,6 +163,16 @@ public class PgBinaryWriterTest {
             rsNull.getString("ab_tstzrange"); assertTrue(rsNull.wasNull());
             rsNull.getString("xml_doc"); assertTrue(rsNull.wasNull());
             rsNull.close();
+
+            ResultSet rs3 = statement.executeQuery("select * from test.b where id = 3");
+            assertTrue(rs3.next());
+            assertEquals(3, rs3.getInt("id"));
+            assertEquals(-1, rs3.getDouble("Nam"));
+            assertEquals(-0.001, rs3.getDouble("n"));
+            assertEquals(-0.2, rs3.getDouble("o"));
+            assertEquals(-0.00005, rs3.getDouble("p"));
+            assertEquals(-0.003, rs3.getDouble("nn"));
+            rs3.close();
             statement.close();
 
         } catch (SQLException e) {

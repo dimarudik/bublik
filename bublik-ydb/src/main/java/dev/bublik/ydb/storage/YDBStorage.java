@@ -50,12 +50,12 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+    public void preChecks(List<Config> configs) throws SQLException {
 
     }
 
     @Override
-    public <S> void createChunkTable(S session) throws SQLException {
+    public void createChunkTable() throws SQLException {
 
     }
 

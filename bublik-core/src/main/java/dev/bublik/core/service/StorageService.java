@@ -27,7 +27,6 @@ public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
     void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
-    void start(Storage targetStorage, List<Config> configs, int rows, boolean sync) throws SQLException;
     void createGlobalOutbox() throws SQLException;
     <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException;
     <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;

@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface Source {
     void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException;
-    <S> void preChecks(S session, List<Config> configs) throws SQLException;
-    <S> void createChunkTable(S session) throws SQLException;
+    void preChecks(List<Config> configs) throws SQLException;
+    void createChunkTable() throws SQLException;
     void dropChunkTable(List<Config> configs) throws SQLException;
 }

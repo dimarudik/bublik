@@ -26,8 +26,8 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     @Override
     public PGChunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                          String errMsg, String chunkTableName) throws SQLException {
-        if (newStatus != null) {
-            Connection connection = this.getSourceSession();
+        Connection connection = this.getSourceSession();
+        if (newStatus != null && connection.isValid(1)) {
             PreparedStatement updateStatus;
             if (errMsg == null) {
                 switch (newStatus) {
@@ -56,8 +56,10 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
             }
             int rows = updateStatus.executeUpdate();
             updateStatus.close();
-            if (!sync)
-                connection.commit();
+            connection.commit();
+        } else {
+//            log.error("Chunk: {} Connection is not valid", getId());
+            throw new SQLException("Chunk: " + getId() + " Connection is not valid");
         }
         return this;
     }

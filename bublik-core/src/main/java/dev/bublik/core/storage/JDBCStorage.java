@@ -2,33 +2,22 @@ package dev.bublik.core.storage;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.JDBCStorageService;
-import dev.bublik.core.service.Source;
-import dev.bublik.core.service.Target;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
-import java.io.IOException;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static dev.bublik.core.util.Utils.getStackTrace;
-
 public abstract class JDBCStorage extends Storage
-        implements JDBCStorageService, Source, Target {
+        implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
-    private Connection connection;
     private final boolean isManagedPool;
 
     public JDBCStorage(DataSource dataSource, Table outboxTable) {
@@ -77,7 +66,10 @@ public abstract class JDBCStorage extends Storage
     @Override
     public String getStorageVersion() {
         try {
-            return getConnection().getMetaData().getDatabaseProductVersion();
+            Connection connection = getPoolConnection();
+            String version = connection.getMetaData().getDatabaseProductVersion();
+            connection.close();
+            return version;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -86,7 +78,10 @@ public abstract class JDBCStorage extends Storage
     @Override
     public int getStorageMajorVersion() {
         try {
-            return getConnection().getMetaData().getDatabaseMajorVersion();
+            Connection connection = getPoolConnection();
+            int version = connection.getMetaData().getDatabaseMajorVersion();
+            connection.close();
+            return version;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -94,12 +89,11 @@ public abstract class JDBCStorage extends Storage
 
     @Override
     public <S extends AutoCloseable> S getSession() {
-        return (S) getConnection();
+        return null;
     }
 
     @Override
     public <S extends AutoCloseable> void setSession(S session) {
-        setConnection((Connection) session);
     }
 
     @Override
@@ -114,30 +108,15 @@ public abstract class JDBCStorage extends Storage
         return (S) conn;
     }
 
-    @Override
-    public Connection getConnection() {
-        return connection;
-    }
-
-    @Override
-    public void setConnection(Connection connection) {
-        this.connection = connection;
-    }
-
     private HikariConfig buildConfiguration(Properties property, ConnectionProperty connectionProperty) throws SQLException {
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl(property.getProperty("url"));
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
-        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
+        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount());
         hikariConfig.setConnectionTimeout(10_000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
-    }
-
-    @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-        start(targetStorage, configs, rows, false);
     }
 
     @Override
@@ -147,119 +126,6 @@ public abstract class JDBCStorage extends Storage
             configs.add(c.copy());
         }
         return configs;
-    }
-
-    @Override
-    public void start(Storage targetStorage, List<Config> cfgs, int rows, boolean sync) throws SQLException {
-        List<Config> configs = copyConfigs(cfgs);
-        Connection sourceConnection = this.getPoolConnection();
-        setConnection(sourceConnection);
-
-        if (rows > 0) {
-            preChecks(connection, configs);
-            createChunkTable(connection);
-            fulfillChunks(configs, false, rows);
-            targetStorage.createGlobalOutbox();
-        }
-        log.info("SOURCE version: {}", getStorageMajorVersion());
-        sourceConnection.close();
-
-        int errorCounter = 0;
-        ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        do {
-            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
-            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
-
-            chunks.forEach(chunk -> futures.add(
-                    service.submit(() -> {
-                        try {
-                            return chunk.allStages(false, getOutboxTable());
-                        } catch (Exception e) {
-                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-                            log.warn("Saving info about error to database");
-                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
-                            (chunk.getSourceSession()).close();
-                            if (targetStorage instanceof  JDBCStorage) {
-                                (chunk.getTargetSession()).close();
-                            }
-                            throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
-                        }
-                    }))
-            );
-
-            boolean hasBatchErrors = false;
-            Throwable lastSubmittedException = null;
-
-            for (Future<?> future : futures) {
-                try {
-                    future.get();
-                } catch (Exception e) {
-                    hasBatchErrors = true;
-                    lastSubmittedException = e;
-                    errorCounter++;
-                }
-            }
-
-            if (hasBatchErrors) {
-                if (errorCounter < (2 * threadCount)) {
-                    log.warn("Batch execution encountered errors. Cooling down for 3 seconds before retry (Current try: {})...", errorCounter);
-                    try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                    continue;
-                } else {
-                    log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
-                    log.info("Finishing due to critical stress failure...");
-                    service.shutdownNow();
-                    throw new RuntimeException(lastSubmittedException);
-                }
-            }
-
-            try {
-                Thread.sleep(2);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-/*
-            for (Future<?> future : futures) {
-                try {
-                    future.get();
-                    Thread.sleep(2);
-                } catch (Exception e) {
-                    errorCounter++;
-                    if (errorCounter < (3 * threadCount)) {
-                        log.error("Try: {} Repeatable error: {}", errorCounter, e.getMessage());
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    } else {
-                        log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(e));
-                        log.info("Finishing...");
-                        service.shutdownNow();
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-*/
-
-            if (chunks.isEmpty()) {
-                log.info("All chunks are processed");
-                break;
-            }
-        } while (true);
-
-        service.shutdown();
-        service.close();
-
-        Connection dropChunkConnection = this.getPoolConnection();
-        setConnection(dropChunkConnection);
-        dropChunkTable(configs);
-        dropChunkConnection.close();
-        targetStorage.dropOutboxTable(false);
     }
 
     @Override

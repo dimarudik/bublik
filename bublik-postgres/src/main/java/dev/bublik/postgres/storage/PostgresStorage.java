@@ -77,8 +77,8 @@ public class PostgresStorage extends JDBCStorage {
             String fetchQuery = buildFetchStatement(config, t2t);
             String orderByClause = targetTable.buildOrderBy(config);
             log.info("Fetch query: {} {}", fetchQuery, orderByClause);
-            Connection sourceSession = this.getPoolConnection();
-            PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
+            Connection connection = this.getPoolConnection();
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
             preparedStatement.setString(1, config.fromSchemaName());
             preparedStatement.setString(2, config.fromTableName());
             preparedStatement.setString(3, config.fromTaskName());
@@ -100,19 +100,10 @@ public class PostgresStorage extends JDBCStorage {
             }
             rs.close();
             preparedStatement.close();
-            ((Connection)sourceSession).close();
+            connection.close();
         }
         return chunks;
     }
-
-/*
-    private String getOrderByIfExists(Table<S> targetTable, Config config, String alias) {
-        if (config.columnToColumn() != null && config.expressionToColumn() != null) {
-            return targetTable.buildOrderBy(targetTable.getPkColumns(), alias);
-        }
-        return "";
-    }
-*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,
@@ -447,86 +438,6 @@ public class PostgresStorage extends JDBCStorage {
         }
         return columnMap;
     }
-
-/*
-    protected Map<List<String>, Column> readTargetColumnsAndTypesFromMany(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
-        Map<List<String>, Column> columnMap = new HashMap<>();
-        try {
-            ResultSet resultSet = connectionTo.getMetaData().getColumns(
-                    null,
-                    chunk.getT2t().targetTable().getSchemaName().toLowerCase(),
-                    chunk.getT2t().targetTable().getFinalTableName(false),
-                    null);
-            Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
-
-            while (resultSet.next()) {
-                String columnName = resultSet.getString(4);
-                Integer dataType = resultSet.getInt(5);
-                String columnType = resultSet.getString(6);
-                Integer columnPosition = resultSet.getInt(17);
-
-                if (columnFromManyMap != null) {
-                    columnFromManyMap
-                            .entrySet()
-                            .stream()
-                            .filter(s -> s.getKey().replaceAll("\"", "").equalsIgnoreCase(columnName))
-                            .forEach(i -> columnMap.put(i.getValue(),
-                                    new Column(
-                                            columnPosition,
-                                            i.getKey(),
-                                            columnType.equals("bigserial") ? "bigint" : columnType,
-                                            dataType, null, null, null, null, 0 , null, 0, null, false, false, false)));
-                }
-            }
-            resultSet.close();
-        } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
-        }
-        return columnMap;
-    }
-*/
-
-/*
-    private LogMessage fetchAndCopy(ResultSet fetchResultSet,
-                                    Chunk<?, ?, ?, ?> chunk,
-                                    String tableName) throws SQLException, BinaryWriteFailedException, SourceSQLException{
-        int recordCount = 0;
-        Connection connectionTo = (Connection) chunk.getTargetSession();
-
-        if (!isChunkProcessed(chunk, tableName)) {
-            Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
-                    .stream()
-                    .collect(Collectors.toMap(el -> el.sourceColumn().columnName(), Column2Column::targetColumn));
-
-            Map<List<String>, Column> neededColumnsFromMany = readTargetColumnsAndTypesFromMany(connectionTo, chunk);
-
-            SimpleRowWriter writer = streamApiService.getSimpleRowWriter(connectionTo, chunk,
-                    chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getFinalTableName(true));
-
-            do {
-                writer.startRow(s -> {
-                    try {
-                        simpleRowConsume(s, columnToColumnMap, neededColumnsFromMany,
-                                fetchResultSet, chunk, connectionTo, writer);
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                    }
-                });
-                recordCount++;
-            } while (hasNext(fetchResultSet));
-
-            streamApiService.closeSimpleRowWriter(writer);
-
-            chunk.setCopied(recordCount);
-            insertProcessedChunkInfo(chunk, tableName);
-            connectionTo.commit();
-
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL COPY");
-        } else {
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
-        }
-    }
-*/
 
     private LogMessage fetchAndCopy(ResultSet fetchResultSet,
                                     Chunk<?, ?, ?, ?> chunk,
@@ -998,554 +909,6 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
-/*
-    private boolean hasColumn(java.sql.ResultSet rs, String columnName) {
-        try {
-            rs.findColumn(columnName);
-            return true;
-        } catch (java.sql.SQLException e) {
-            return false;
-        }
-    }
-*/
-
-
-/*
-    private void simpleRowConsume(SimpleRow row,
-                                  Map<String, Column> neededColumnsToDB,
-                                  Map<List<String>, Column> neededColumnsFromMany,
-                                  ResultSet fetchResultSet,
-                                  Chunk<?, ?, ?, ?> chunk,
-                                  Connection connectionTo,
-                                  SimpleRowWriter writer) throws SQLException, BinaryWriteFailedException {
-        for (Map.Entry<String, Column> entry : neededColumnsToDB.entrySet()) {
-            String sourceColumn = entry.getKey().replaceAll("\"", "");
-            String targetColumn = entry.getValue().columnName();
-            String targetType = entry.getValue().columnType();
-
-            switch (targetType) {
-                case "money": {
-                    try {
-                        Number s = fetchResultSet.getBigDecimal(sourceColumn);
-                        if (s == null) {
-                            row.setNumeric(targetColumn, null);
-                            break;
-                        }
-                        row.setNumeric(targetColumn, s);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "hstore": {
-                    try {
-                        String s = fetchResultSet.getString(sourceColumn);
-                        if (s == null) {
-                            row.setHstore(targetColumn, null);
-                            break;
-                        }
-                        Map<String, String> hstoreMap = parseHstoreString(s);
-                        row.setHstore(targetColumn, hstoreMap);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "json", "varchar": {
-                    try {
-                        String s = fetchResultSet.getString(sourceColumn);
-                        if (s == null) {
-                            row.setVarChar(targetColumn, null);
-                            break;
-                        }
-                        row.setVarChar(targetColumn, s.replaceAll("\u0000", ""));
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "_varchar": {
-                    try {
-                        Object s = fetchResultSet.getObject(sourceColumn);
-                        if (s == null) {
-                            row.setVarCharArray(targetColumn, new ArrayList<>());
-                            break;
-                        }
-                        List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
-                        row.setVarCharArray(targetColumn, arr);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "_text": {
-                    try {
-                        Object s = fetchResultSet.getObject(sourceColumn);
-                        if (s == null) {
-                            row.setTextArray(targetColumn, null);
-                            break;
-                        }
-                        List<String> arr = List.of(((String[]) fetchResultSet.getArray(sourceColumn).getArray()));
-                        row.setTextArray(targetColumn, arr);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "bpchar":
-                    try {
-                        String string = fetchResultSet.getString(sourceColumn);
-                        row.setText(targetColumn, string);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "text": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setText(targetColumn, null);
-                            break;
-                        }
-                        String text;
-                        int cIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn);
-                        if (cIndex != 0 && fetchResultSet.getMetaData().getColumnType(cIndex) == 2005) {
-                            text = convertClobToString(fetchResultSet, sourceColumn);
-                        } else {
-                            text = fetchResultSet.getString(sourceColumn);
-                        }
-                        row.setText(targetColumn, text.replaceAll("\u0000", ""));
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "jsonb": {
-                    try {
-                    Object o = fetchResultSet.getObject(sourceColumn);
-                    if (o == null) {
-                        row.setJsonb(targetColumn, null);
-                        break;
-                    }
-                    String s;
-                    if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                            int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
-                            int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                            switch (columnType) {
-                                // CLOB
-                                case 2005:
-                                    s = convertClobToString(fetchResultSet, sourceColumn).replaceAll("\u0000", "");
-                                    break;
-                                // NCLOB
-                                case 2011:
-                                    s = convertClobToString(fetchResultSet, sourceColumn).replaceAll("\u0000", "");
-                                    break;
-                                default:
-                                    s = fetchResultSet.getString(sourceColumn).replaceAll("\u0000", "");
-                                    break;
-                            }
-                        } else {
-                            s = fetchResultSet.getString(sourceColumn);
-                        }
-                        row.setJsonb(targetColumn, s);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "smallserial", "int2": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setShort(targetColumn, null);
-                            break;
-                        }
-                        Short aShort = fetchResultSet.getShort(sourceColumn);
-                        row.setShort(targetColumn, aShort);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "serial", "int4": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setInteger(targetColumn, null);
-                            break;
-                        }
-                        int i = fetchResultSet.getInt(sourceColumn);
-                        row.setInteger(targetColumn, i);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "bigint", "int8": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setLong(targetColumn, null);
-                            break;
-                        }
-                        long l = fetchResultSet.getLong(sourceColumn);
-                        row.setLong(targetColumn, l);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "numeric", "decimal", "NUMBER": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setNumeric(targetColumn, null);
-                            break;
-                        }
-                        row.setNumeric(targetColumn, (Number) o);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "float4" : {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setDouble(targetColumn, null);
-                            break;
-                        }
-                        Float aFloat = fetchResultSet.getFloat(sourceColumn);
-                        row.setFloat(targetColumn, aFloat);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "float8", "double precision": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setDouble(targetColumn, null);
-                            break;
-                        }
-                        Double aDouble = fetchResultSet.getDouble(sourceColumn);
-                        row.setDouble(targetColumn, aDouble);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "time": {
-                    try {
-                        Time time = fetchResultSet.getTime(sourceColumn);
-                        if (time == null) {
-                            row.setTimeStamp(targetColumn, null);
-                            break;
-                        }
-                        long l = time.getTime();
-                        LocalTime localTime = LocalTime.ofInstant(Instant.ofEpochMilli(l),
-                                TimeZone.getDefault().toZoneId());
-                        row.setValue(targetColumn, DataType.Time, localTime);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "timestamp": {
-                    try {
-                        Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-                        if (timestamp == null) {
-                            row.setTimeStamp(targetColumn, null);
-                            break;
-                        }
-                        LocalDateTime localDateTime = timestamp.toLocalDateTime();
-                        row.setTimeStamp(targetColumn, localDateTime);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "timestamptz": {
-                    try {
-                        Timestamp timestamp = fetchResultSet.getTimestamp(sourceColumn);
-                        if (timestamp == null) {
-                            row.setTimeStamp(targetColumn, null);
-                            break;
-                        }
-                        ZonedDateTime zonedDateTime =
-                                ZonedDateTime.ofInstant(timestamp.toInstant(), ZoneId.of("UTC"));
-                        row.setTimeStampTz(targetColumn, zonedDateTime);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "date":
-                    try {
-                        java.sql.Date date = fetchResultSet.getDate(sourceColumn);
-                        if (date == null) {
-                            row.setDate(targetColumn, null);
-                            break;
-                        }
-                        row.setDate(targetColumn, date.toLocalDate());
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "tstzrange":
-                    try {
-                        List<String> sourceColumns = neededColumnsFromMany
-                                .entrySet()
-                                .stream()
-                                .filter(i -> i.getValue().columnName().equals(targetColumn))
-                                .map(Map.Entry::getKey)
-                                .toList().getLast();
-                        Timestamp start = fetchResultSet.getTimestamp(sourceColumns.getFirst());
-                        Timestamp end = fetchResultSet.getTimestamp(sourceColumns.getLast());
-                        ZonedDateTime lowerBound = null;
-                        if (start != null) {
-                             lowerBound = ZonedDateTime.ofInstant(start.toInstant(), ZoneId.of("UTC"));
-                        }
-                        ZonedDateTime upperBound = null;
-                        if (end != null) {
-                            upperBound = ZonedDateTime.ofInstant(end.toInstant(), ZoneId.of("UTC"));
-                        }
-                        Range<ZonedDateTime> localDateTimeRange = new Range<>(
-                                lowerBound,
-                                true,
-                                lowerBound == null,
-                                upperBound,
-                                true,
-                                upperBound == null);
-                        row.setTsTzRange(targetColumn, localDateTimeRange);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("tstzrange : {}.{} - {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "interval":
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setDouble(targetColumn, null);
-                            break;
-                        }
-                        Interval interval = null;
-                        if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                            int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
-                            int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                            JDBCStorage jdbcSourceStorage = chunk.getSourceStorage().unwrap(JDBCStorage.class);
-                            switch (columnType) {
-                                // INTERVALYM
-                                case -103:
-                                    Serializable intervalym = (Serializable) fetchResultSet.getObject(sourceColumn);
-                                    interval = byteArrayYMToInterval(jdbcSourceStorage.intervalYM2Interval(intervalym));
-                                    break;
-                                // INTERVALDS
-                                case -104:
-                                    Serializable intervalds = (Serializable) fetchResultSet.getObject(sourceColumn);
-                                    interval = byteArrayDSToInterval(jdbcSourceStorage.intervalDS2Interval(intervalds));
-                                    break;
-                                default:
-                                    break;
-                            }
-                        } else if (chunk instanceof PGChunk<?, ?, ?, ?>) {
-                            PGInterval pgInterval = (PGInterval) fetchResultSet.getObject(sourceColumn);
-                            interval = new Interval(
-                                    pgInterval.getYears() * 12 + pgInterval.getMonths(),
-                                    pgInterval.getDays(),
-                                    pgInterval.getHours(),
-                                    pgInterval.getMinutes(),
-                                    (int) pgInterval.getSeconds(),
-                                    pgInterval.getMicroSeconds());
-                        }
-                        row.setInterval(targetColumn, interval);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "bytea": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setByteArray(targetColumn, null);
-                            break;
-                        }
-                        byte[] bytes = new byte[0];
-                        if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                            int columnIndex = getColumnIndexByColumnName(fetchResultSet, sourceColumn.toUpperCase());
-                            int columnType = fetchResultSet.getMetaData().getColumnType(columnIndex);
-                            switch (columnType) {
-                                // RAW
-                                case -3:
-                                    bytes = fetchResultSet.getBytes(sourceColumn);
-                                    break;
-                                // LONG RAW
-                                case -4:
-                                    bytes = fetchResultSet.getBytes(sourceColumn);
-                                    break;
-                                // BLOB
-                                case 2004:
-                                    bytes = convertBlobToBytes(fetchResultSet, sourceColumn);
-                                    break;
-                                default:
-                                    break;
-                            }
-                        } else {
-                            bytes = fetchResultSet.getBytes(sourceColumn);
-                        }
-                        row.setByteArray(targetColumn, bytes);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "bool": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setBoolean(targetColumn, null);
-                            break;
-                        }
-                        boolean b = fetchResultSet.getBoolean(sourceColumn);
-                        row.setBoolean(targetColumn, b);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                }
-                case "inet":
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setInet4Addr(targetColumn, null);
-                            break;
-                        }
-                        try {
-                            InetAddress inetAddress = InetAddress.getByName(fetchResultSet.getString(sourceColumn));
-                            if (inetAddress instanceof Inet4Address inet4Address) {
-                                row.setInet4Addr(targetColumn, inet4Address);
-                            } else {
-                                Inet6Address inet6Address = (Inet6Address) inetAddress;
-                                row.setInet6Addr(targetColumn, inet6Address);
-                            }
-                        } catch (UnknownHostException e) {
-                            throw new RuntimeException(e);
-                        }
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "uuid":
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setUUID(targetColumn, null);
-                            break;
-                        }
-                        UUID uuid = null;
-                        try {
-                            uuid = (UUID) o;
-                        } catch (ClassCastException e) {
-                            try {
-                                uuid = UUID.fromString((String) o);
-                            } catch (Exception e1) {
-                                log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
-                                        chunk.getT2t().targetTable().getTableName(), targetColumn, o, getStackTrace(e1));
-                            }
-                        }
-                        row.setUUID(targetColumn, uuid);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "_uuid":
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setUUIDArray(targetColumn, null);
-                            break;
-                        }
-                        List<UUID> arr = List.of(((UUID[]) fetchResultSet.getArray(sourceColumn).getArray()));
-                        row.setUUIDArray(targetColumn, arr);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} : {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), getStackTrace(e));
-                        throw e;
-                    }
-                case "_bigint", "_int8": {
-                    try {
-                        Object o = fetchResultSet.getObject(sourceColumn);
-                        if (o == null) {
-                            row.setLong(targetColumn, null);
-                            break;
-                        }
-                        List<Long> l = List.of((Long[]) fetchResultSet.getArray(sourceColumn).getArray());
-                        row.setLongArray(targetColumn, l);
-                        break;
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("{}.{} {} -> {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(), sourceColumn, targetColumn, getStackTrace(e));
-                        throw e;
-                    }
-                }
-                default:
-                    try {
-                        if (chunk.getConfig().tryCharIfAny() != null) {
-                            if (chunk.getConfig().tryCharIfAny().contains(targetColumn)) {
-                                String s = fetchResultSet.getString(sourceColumn);
-                                if (s == null) {
-                                    row.setText(targetColumn, null);
-                                    break;
-                                }
-                                row.setText(targetColumn, s.replaceAll("\u0000", ""));
-                                break;
-                            } else {
-                                log.error("There is no handler for type: {}  for column: {}", targetType, targetColumn);
-                                streamApiService.closeSimpleRowWriter(writer);
-//                                writer.close();
-                                connectionTo.close();
-                            }
-                        } else {
-                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
-                                    chunk.getT2t().targetTable().getSchemaName(),
-                                    chunk.getT2t().targetTable().getTableName(),
-                                    targetType, targetColumn);
-                            throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumn);
-                        }
-                    } catch (BinaryWriteFailedException | SQLException e) {
-                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),
-                                targetType, targetColumn, getStackTrace(e));
-                        throw e;
-                    }
-            }
-        }
-    }
-*/
-
     @Override
     public String buildFetchStatement(Config config, Table2Table t2t) {
         List<Column2Column> sortedColumn2Columns = t2t.getSortedColumn2ColumnByTargetColumnPosition();
@@ -1554,13 +917,6 @@ public class PostgresStorage extends JDBCStorage {
                 .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList());
-/*
-        List<String> asColumns = t2t.column2Columns()
-                .stream()
-                .filter(c2c -> c2c.sourceColumn() != null)
-                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
-                .toList();
-*/
         List<String> asList = t2t.column2Columns()
                 .stream()
                 .map(Column2Column::asList)
@@ -1694,8 +1050,8 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
-    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
-        Connection connection = (Connection) session;
+    public void preChecks(List<Config> configs) throws SQLException {
+        Connection connection = getPoolConnection();
         for (Config config : configs) {
             Table table = configToTable(config.fromSchemaName(), config.fromTableName());
             TableAttrs tableAttrs = getTableAttrs(connection, table);
@@ -1704,13 +1060,14 @@ public class PostgresStorage extends JDBCStorage {
                         + table.getSchemaName() + '.' + table.getTableName());
             }
         }
+        connection.close();
     }
 
     @Override
     public void fulfillChunks(List<Config> configs,
                               boolean sync,
                               int required) throws SQLException {
-        Connection connection = getConnection();
+        Connection connection = getPoolConnection();
         for (Config config : configs) {
             long reltuples = 0;
             long relpages = 0;
@@ -1751,9 +1108,8 @@ public class PostgresStorage extends JDBCStorage {
                         pagesInChunk, ChunkStatus.UNASSIGNED, required, getOutboxTable().tableToString());
             }
         }
-        if (!sync) {
-            connection.commit();
-        }
+        connection.commit();
+        connection.close();
         log.info("Chunk table {} fulfilled successfully", getOutboxTable().tableToString());
     }
 
@@ -1796,15 +1152,16 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
-    public <S> void createChunkTable(S session) throws SQLException {
+    public void createChunkTable() throws SQLException {
         if (getOutboxTable() == null) setOutboxTable(new PseudoTable("public", "_chunk"));
         try {
-            Connection connection = (Connection) session;
+            Connection connection = this.getPoolConnection();
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
                     getOutboxTable().tableToString()));
             createTable.close();
             connection.commit();
+            connection.close();
             log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
             log.error("Chunk table {} already exists", getOutboxTable().tableToString());
@@ -1814,11 +1171,12 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void dropChunkTable(List<Config> configs) throws SQLException {
-        Connection connection = getConnection();
+        Connection connection = this.getPoolConnection();
         Statement dropTable = connection.createStatement();
         dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
         dropTable.close();
         connection.commit();
+        connection.close();
     }
 
     @Override
@@ -1920,32 +1278,6 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
-/*
-    @Override
-    public <W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
-        Connection connectionTo = chunk.getTargetSession();
-
-        Map<String, Column> columnToColumnMap = chunk.getT2t().column2Columns()
-                .stream()
-                .collect(Collectors.toMap(el -> el.sourceColumn().columnName(), Column2Column::targetColumn));
-
-        PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
-
-        String[] columnNames = columnToColumnMap
-                .values()
-                .stream()
-                .map(Column::columnName)
-                .toList()
-                .toArray(String[]::new);
-        String[] cNames = Arrays.copyOf(columnNames, columnNames.length);
-        SimpleRowWriter.Table table =
-                new SimpleRowWriter.Table(chunk.getT2t().targetTable().getSchemaName(),
-                        chunk.getT2t().targetTable().getFinalTableName(true), cNames);
-        SimpleRowWriter writer = new SimpleRowWriter(table, pgConnection);
-        return (W) writer;
-    }
-*/
-
     @Override
     public <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues,
                                          Chunk<K, T, S, R> chunk) throws SQLException {
@@ -1953,8 +1285,6 @@ public class PostgresStorage extends JDBCStorage {
             PgBinaryWriter pgBinaryWriter = (PgBinaryWriter) chunk.getWriter();
             pgBinaryWriter.startRow((short) columnValues.size());
             writeValue(pgBinaryWriter, columnValues, chunk);
-//            ((PgBinaryWriter)writer).startRow((short) columnValues.size());
-//            writeValue((PgBinaryWriter) writer, columnValues, chunk);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -2181,210 +1511,10 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
-/*
-    private <V> void consume(SimpleRow s, List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) {
-        for (ColumnValue<V> columnValue : columnValues) {
-            String targetColumnName = columnValue.targetColumn().columnName();
-            String targetType = columnValue.targetColumn().columnType();
-            V value = columnValue.value();
-            switch (targetType) {
-                case "int", "serial", "int4": {
-                    if (value != null) {
-                        s.setInteger(targetColumnName, (Integer) value);
-                    } else {
-                        s.setInteger(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "smallserial", "int2": {
-                    if (value != null) {
-                        if (value instanceof Short) {
-                            s.setShort(targetColumnName, (Short) value);
-                        } else {
-                            s.setShort(targetColumnName, ((Integer) value).shortValue());
-                        }
-                    } else {
-                        s.setShort(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "bigint", "int8": {
-                    if (value != null) {
-                        if (value instanceof Long) {
-                            s.setLong(targetColumnName, (Long) value);
-                        } else {
-                            s.setLong(targetColumnName, ((Number) value).longValue());
-                        }
-                    } else {
-                        s.setLong(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "numeric", "decimal": {
-                    if (value != null) {
-                        s.setNumeric(targetColumnName, (BigDecimal) value);
-                    } else {
-                        s.setNumeric(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "float4": {
-                    if (value != null) {
-                        s.setFloat(targetColumnName, (Float) value);
-                    } else {
-                        s.setFloat(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "float8", "double precision": {
-                    if (value != null) {
-                        if (value instanceof Double) {
-                            s.setDouble(targetColumnName, (Double) value);
-                        } else {
-                            Float f = (Float) value;
-                            s.setDouble(targetColumnName, f.doubleValue());
-                        }
-                    } else {
-                        s.setDouble(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "json", "varchar": {
-                    if (value != null) {
-                        s.setVarChar(targetColumnName, (String) value);
-                    } else {
-                        s.setVarChar(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "_text": {
-                    if (value != null) {
-                        if (value instanceof List) {
-                            s.setTextArray(targetColumnName, (List<String>) value);
-                        } else if (value instanceof Set) {
-                            s.setTextArray(targetColumnName, (Set<String>) value);
-                        }
-                    } else {
-                        s.setTextArray(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "text", "bpchar": {
-                    if (value != null) {
-                        s.setText(targetColumnName, (String) value);
-                    } else {
-                        s.setText(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "jsonb": {
-                    if (value != null) {
-                        s.setJsonb(targetColumnName, (String) value);
-                    } else {
-                        s.setJsonb(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "time": {
-                    if (value != null) {
-                        s.setTime(targetColumnName, (LocalTime) value);
-                    } else {
-                        s.setTime(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "timestamp": {
-                    if (value != null) {
-                        ZonedDateTime zonedDateTime = ZonedDateTime.ofInstant((Instant) value, ZoneId.of("UTC"));
-                        s.setTimeStamp(targetColumnName, LocalDateTime.ofInstant((Instant) value, zonedDateTime.getZone()));
-                    } else {
-                        s.setTimeStamp(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "date": {
-                    if (value != null) {
-                        s.setDate(targetColumnName, (LocalDate) value);
-                    } else {
-                        s.setDate(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "bytea": {
-                    if (value != null) {
-                        ByteBuffer buffer = (ByteBuffer) value;
-                        s.setByteArray(targetColumnName, buffer.array());
-                    } else {
-                        s.setByteArray(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "bool": {
-                    if (value != null) {
-                        s.setBoolean(targetColumnName, (Boolean) value);
-                    } else {
-                        s.setBoolean(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "inet": {
-                    if (value != null) {
-                        InetAddress inetAddress = (InetAddress) value;
-                        if (inetAddress instanceof Inet4Address inet4Address) {
-                            s.setInet4Addr(targetColumnName, inet4Address);
-                        } else {
-                            Inet6Address inet6Address = (Inet6Address) inetAddress;
-                            s.setInet6Addr(targetColumnName, inet6Address);
-                        }
-                    } else {
-                        s.setInet4Addr(targetColumnName, null);
-                    }
-                    break;
-                }
-                case "uuid": {
-                    if (value != null) {
-                        s.setUUID(targetColumnName, (UUID) value);
-                    } else {
-                        s.setUUID(targetColumnName, null);
-                    }
-                    break;
-                }
-                default:
-                    try {
-                        if (chunk.getConfig().tryCharIfAny() != null) {
-                            if (chunk.getConfig().tryCharIfAny().contains(targetColumnName)) {
-                                if (value == null) {
-                                    s.setText(targetColumnName, null);
-                                    break;
-                                }
-                                String str = value.toString();
-                                s.setText(targetColumnName, str.replaceAll("\u0000", ""));
-                                break;
-                            } else {
-                                log.error("There is no handler for type: {}  for column: {}", targetType, targetColumnName);
-                            }
-                        } else {
-                            log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
-                                    chunk.getT2t().targetTable().getSchemaName(),
-                                    chunk.getT2t().targetTable().getTableName(),
-                                    targetType, targetColumnName);
-                            throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumnName);
-                        }
-                    } catch (BinaryWriteFailedException e) {
-                        log.error("Table: {}.{} Column: {} Type: {}: {}", chunk.getT2t().targetTable().getSchemaName(), chunk.getT2t().targetTable().getTableName(),
-                                targetType, targetColumnName, getStackTrace(e));
-                        throw e;
-                    }
-            }
-        }
-    }
-*/
-
     @Override
     public <K, T, S extends AutoCloseable, R> void closeWriter(Chunk<K, T, S, R> chunk, String tableName) {
         Connection connectionTo = (Connection) chunk.getTargetSession();
         try {
-//            PgBinaryWriter w = (PgBinaryWriter) writer;
             PgBinaryWriter w = (PgBinaryWriter) chunk.getWriter();
             DataOutputStream os = w.getOut();
             w.close();

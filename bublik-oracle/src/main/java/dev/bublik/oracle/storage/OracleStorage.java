@@ -70,7 +70,7 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public void fulfillChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
-        Connection connection = getConnection();
+        Connection connection = this.getPoolConnection();
         for (Config config : configs) {
             try {
                 CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
@@ -111,21 +111,22 @@ public class OracleStorage extends JDBCStorage {
             }
         }
         log.info("ROWID chunks created successfully");
+        connection.close();
     }
 
     @Override
-    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+    public void preChecks(List<Config> configs) throws SQLException {
 
     }
 
     @Override
-    public <S> void createChunkTable(S session) throws SQLException {
+    public void createChunkTable() throws SQLException {
 
     }
 
     @Override
     public void dropChunkTable(List<Config> configs) throws SQLException {
-        Connection connection = getConnection();
+        Connection connection = this.getPoolConnection();
         for (Config config : configs) {
             try {
                 CallableStatement dropTask = connection.prepareCall(PLSQL_DROP_TASK);
@@ -137,6 +138,7 @@ public class OracleStorage extends JDBCStorage {
                 log.warn("Task {} does not exist", config.fromTaskName());
             }
         }
+        connection.close();
     }
 
     @Override

@@ -73,6 +73,7 @@ insert into test.a (id, name, "Nam", "ALL", d, e, f, g, h, j, jb,
          0.001
         );
 insert into test.a (id) values (2);
+insert into test.a (id, "Nam", n, o, p, nn) values (3, -1, -0.001, -0.2, -0.00005, -0.003);
 create table test.b (
     name varchar(40),
     "Nam" numeric(10,0),

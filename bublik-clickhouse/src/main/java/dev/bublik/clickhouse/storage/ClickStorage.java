@@ -37,7 +37,7 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public <S> void createChunkTable(S session) throws SQLException {
+    public void createChunkTable() throws SQLException {
 
     }
 
@@ -53,11 +53,6 @@ abstract class ClickStorage extends Storage implements Source {
 
     @Override
     public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-        start(targetStorage, configs, rows, false);
-    }
-
-    @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows, boolean sync) throws SQLException {
 
     }
 
@@ -202,7 +197,7 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public <S> void preChecks(S session, List<Config> configs) throws SQLException {
+    public void preChecks(List<Config> configs) throws SQLException {
 
     }
 }

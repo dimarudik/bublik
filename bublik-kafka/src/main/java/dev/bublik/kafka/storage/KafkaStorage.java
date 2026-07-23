@@ -175,6 +175,26 @@ public class KafkaStorage extends Storage {
         kafkaProducer.close();
     }
 
+    @Override
+    public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
+
+    }
+
+    @Override
+    public void preChecks(List<Config> configs) throws SQLException {
+
+    }
+
+    @Override
+    public void createChunkTable() throws SQLException {
+
+    }
+
+    @Override
+    public void dropChunkTable(List<Config> configs) throws SQLException {
+
+    }
+
     private static class AvroRowProducer {
         private final KafkaProducer<String, byte[]> producer;
         private final Schema schema;
@@ -240,11 +260,6 @@ public class KafkaStorage extends Storage {
 
     @Override
     public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-
-    }
-
-    @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows, boolean sync) throws SQLException {
 
     }
 

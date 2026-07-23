@@ -13,6 +13,5 @@ public interface JDBCStorageService extends StorageService {
     void createForeignKeys();
     <W extends Serializable> byte[] intervalYM2Interval(W intervalym);
     <W extends Serializable> byte[] intervalDS2Interval(W intervalds);
-    Connection getConnection() throws SQLException;
-    void setConnection(Connection connection) throws SQLException;
+//    void setConnection(Connection connection) throws SQLException;
 }

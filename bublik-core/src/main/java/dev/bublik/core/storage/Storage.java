@@ -1,15 +1,24 @@
 package dev.bublik.core.storage;
 
-import dev.bublik.core.model.Column;
-import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.Table;
+import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.model.*;
+import dev.bublik.core.service.Source;
 import dev.bublik.core.service.StorageService;
+import dev.bublik.core.service.Target;
 
+import java.sql.SQLException;
 import java.sql.Wrapper;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
-public abstract class Storage implements StorageService, Wrapper, AutoCloseable {
+import static dev.bublik.core.util.Utils.getStackTrace;
+
+public abstract class Storage implements StorageService, Wrapper, AutoCloseable, Source, Target {
     private final StorageClass storageClass;
     protected int threadCount;
     private final ConnectionProperty connectionProperty;
@@ -60,6 +69,101 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable 
 
     public void setOutboxTable(Table outboxTable) {
         this.outboxTable = outboxTable;
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
+        List<Config> configs = copyConfigs(cfgs);
+        if (rows > 0) {
+            preChecks(configs);
+            createChunkTable();
+            fulfillChunks(configs, false, rows);
+            if (targetStorage instanceof JDBCStorage) {
+                targetStorage.createGlobalOutbox();
+            }
+        }
+        log.info("SOURCE version: {}", getStorageMajorVersion());
+
+        int errorCounter = 0;
+        ExecutorService service = Executors.newFixedThreadPool(threadCount);
+        do {
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
+            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
+
+            chunks.forEach(chunk -> futures.add(
+                    service.submit(() -> {
+                        try {
+                            return chunk.allStages(false, getOutboxTable());
+                        } catch (Exception e) {
+                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
+                            log.warn("Saving info about error to database");
+                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
+                            (chunk.getSourceSession()).close();
+                            if (targetStorage instanceof  JDBCStorage) {
+                                (chunk.getTargetSession()).close();
+                            }
+                            throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
+                        }
+                    }))
+            );
+
+            boolean hasBatchErrors = false;
+            Throwable lastSubmittedException = null;
+
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (Exception e) {
+                    hasBatchErrors = true;
+                    lastSubmittedException = e;
+                    errorCounter++;
+                }
+            }
+
+            if (hasBatchErrors) {
+                if (errorCounter <= (threadCount * 2)) {
+                    log.warn("(Current try: {}) Batch execution encountered errors. Cooling down for 2 seconds before retry ...", errorCounter);
+                    try {
+                        Thread.sleep(1_000);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                    continue;
+                } else {
+                    log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
+                    log.info("Finishing due to critical stress failure...");
+                    service.shutdownNow();
+                    try {
+                        service.awaitTermination(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    throw new RuntimeException(lastSubmittedException);
+                }
+            }
+
+            errorCounter = 0;
+
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            if (chunks.isEmpty()) {
+                log.info("All chunks are processed");
+                break;
+            }
+
+        } while (true);
+
+        service.shutdown();
+        service.close();
+
+        dropChunkTable(configs);
+        if (targetStorage instanceof JDBCStorage) {
+            targetStorage.dropOutboxTable(false);
+        }
     }
 
     public Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position) {
