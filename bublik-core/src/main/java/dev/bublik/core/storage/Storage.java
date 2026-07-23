@@ -134,7 +134,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     log.info("Finishing due to critical stress failure...");
                     service.shutdownNow();
                     try {
-                        service.awaitTermination(10, TimeUnit.SECONDS);
+                        service.awaitTermination(3, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
