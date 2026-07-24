@@ -9,6 +9,7 @@ import dev.bublik.core.storage.Storage;
 import dev.bublik.oracle.storage.OracleStorage;
 import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -20,7 +21,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -76,8 +79,15 @@ public class PostgresMigrationTest {
         postgres.stop();
     }
 
+    @AfterEach
+    void afterEach() throws Exception {
+        try (Connection conn = targetDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("TRUNCATE TABLE target_users");
+        }
+    }
+
     @Test
-    void testOracleToOracleMigration() throws Exception {
+    void testOnlyTableNames() throws Exception {
         Storage sourceStorage = new OracleStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
@@ -85,6 +95,116 @@ public class PostgresMigrationTest {
         Config config = Config.builder()
                 .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
                 .to("public", "target_users")
+                .build();
+        configs.add(config);
+
+        sourceStorage.start(targetStorage, configs, 1000);
+
+        try (Connection conn = targetDataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {
+
+            assertTrue(rs.next());
+            int count = rs.getInt(1);
+            String firstUser = rs.getString(2);
+
+            assertEquals(3, count, "Количество перенесенных строк в Postgres должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри Postgres должны совпадать");
+        }
+
+        sourceStorage.closeStorage();
+        targetStorage.closeStorage();
+    }
+
+    @Test
+    void testColumnToColumn() throws Exception {
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
+        Storage targetStorage = new PostgresStorage(targetDataSource);
+
+        Map<String, String> columnToColumn = new LinkedHashMap<>();
+        columnToColumn.put("id", "id");
+        columnToColumn.put("name", "name");
+
+        List<Config> configs = new ArrayList<>();
+        Config config = Config.builder()
+                .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
+                .to("public", "target_users")
+                .columnToColumn(columnToColumn)
+                .build();
+        configs.add(config);
+
+        sourceStorage.start(targetStorage, configs, 1000);
+
+        try (Connection conn = targetDataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {
+
+            assertTrue(rs.next());
+            int count = rs.getInt(1);
+            String firstUser = rs.getString(2);
+
+            assertEquals(3, count, "Количество перенесенных строк в Postgres должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри Postgres должны совпадать");
+        }
+
+        sourceStorage.closeStorage();
+        targetStorage.closeStorage();
+    }
+
+    @Test
+    void testExpressionToColumn() throws Exception {
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
+        Storage targetStorage = new PostgresStorage(targetDataSource);
+
+        Map<String, String> expressionToColumn = new LinkedHashMap<>();
+        expressionToColumn.put("s.id as id", "id");
+        expressionToColumn.put("s.name as name", "name");
+
+        List<Config> configs = new ArrayList<>();
+        Config config = Config.builder()
+                .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
+                .to("public", "target_users")
+                .fromTableAlias("s")
+                .expressionToColumn(expressionToColumn)
+                .build();
+        configs.add(config);
+
+        sourceStorage.start(targetStorage, configs, 1000);
+
+        try (Connection conn = targetDataSource.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*), MIN(name) FROM target_users")) {
+
+            assertTrue(rs.next());
+            int count = rs.getInt(1);
+            String firstUser = rs.getString(2);
+
+            assertEquals(3, count, "Количество перенесенных строк в Postgres должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри Postgres должны совпадать");
+        }
+
+        sourceStorage.closeStorage();
+        targetStorage.closeStorage();
+    }
+
+    @Test
+    void testColumnToColumnExpressionToColumn() throws Exception {
+        Storage sourceStorage = new OracleStorage(sourceDataSource);
+        Storage targetStorage = new PostgresStorage(targetDataSource);
+
+        Map<String, String> columnToColumn = new LinkedHashMap<>();
+        columnToColumn.put("id", "id");
+
+        Map<String, String> expressionToColumn = new LinkedHashMap<>();
+        expressionToColumn.put("s.name as name", "name");
+
+        List<Config> configs = new ArrayList<>();
+        Config config = Config.builder()
+                .from(oracle.getUsername().toUpperCase(), "SOURCE_USERS")
+                .to("public", "target_users")
+                .fromTableAlias("s")
+                .columnToColumn(columnToColumn)
+                .expressionToColumn(expressionToColumn)
                 .build();
         configs.add(config);
 

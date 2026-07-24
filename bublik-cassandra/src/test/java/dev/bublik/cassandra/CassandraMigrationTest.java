@@ -19,7 +19,9 @@ import org.testcontainers.utility.DockerImageName;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -86,7 +88,7 @@ public class CassandraMigrationTest {
     }
 
     @Test
-    void testCassandraToCassandraMigration() throws Exception {
+    void testOnlyTableNames() throws Exception {
         Table sourceOutboxTable = new PseudoTable(sourceKeyspace, "bublik");
         Table targetOutboxTable = new PseudoTable(targetKeyspace, "bublik");
         Storage sourceStorage = new CassandraStorage(sourceSession, batchSize, sourceOutboxTable);

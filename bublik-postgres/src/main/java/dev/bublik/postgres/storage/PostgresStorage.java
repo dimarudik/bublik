@@ -170,7 +170,8 @@ public class PostgresStorage extends JDBCStorage {
                 column2Column.addAll(matchColumns(sourceTable, targetTable));
             }
         }
-        if ((config.columnToColumn() != null && !config.columnToColumn().isEmpty()) && config.avroSchema() == null) {
+        if ((config.columnToColumn() != null && !config.columnToColumn().isEmpty()) &&
+                (config.avroSchema() == null || config.avroSchema().isEmpty())) {
             for (Map.Entry<String,String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
@@ -187,7 +188,8 @@ public class PostgresStorage extends JDBCStorage {
                 column2Column.add(new Column2Column(sourceColumn, targetColumn));
             }
         }
-        if ((config.expressionToColumn() != null && !config.expressionToColumn().isEmpty()) && config.avroSchema() == null) {
+        if ((config.expressionToColumn() != null && !config.expressionToColumn().isEmpty()) &&
+                (config.avroSchema() == null || config.avroSchema().isEmpty())) {
             for (Map.Entry<String,String> entry : config.expressionToColumn().entrySet()) {
                 Column column = targetTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
@@ -199,7 +201,8 @@ public class PostgresStorage extends JDBCStorage {
             }
         }
         int avroFieldPosition = 1;
-        if ((config.columnToColumn() != null && !config.columnToColumn().isEmpty()) && config.avroSchema() != null) {
+        if ((config.columnToColumn() != null && !config.columnToColumn().isEmpty()) &&
+                (config.avroSchema() != null && !config.avroSchema().isEmpty())) {
             for (Map.Entry<String, String> entry : config.columnToColumn().entrySet()) {
                 Column sourceColumn = sourceTable.getColumns().stream()
                         .filter(c -> c.getNameWithoutQuotes()
@@ -211,7 +214,8 @@ public class PostgresStorage extends JDBCStorage {
                 column2Column.add(new Column2Column(sourceColumn, targetColumn, null));
             }
         }
-        if ((config.expressionToColumn() != null && !config.expressionToColumn().isEmpty()) && config.avroSchema() != null) {
+        if ((config.expressionToColumn() != null && !config.expressionToColumn().isEmpty()) &&
+                (config.avroSchema() != null && !config.avroSchema().isEmpty())) {
             for (Map.Entry<String, String> entry : config.expressionToColumn().entrySet()) {
                 Column targetColumn = columnFromAvro(config.avroSchema(), entry.getValue(), avroFieldPosition++);
                 column2Column.add(new Column2Column(targetColumn, targetColumn, entry.getKey()));

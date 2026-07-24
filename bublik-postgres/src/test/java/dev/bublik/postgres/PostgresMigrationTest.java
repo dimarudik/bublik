@@ -1,12 +1,9 @@
-package dev.bublik.mssql;
+package dev.bublik.postgres;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
-import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.mssql.storage.MSSQLStorage;
 import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -14,7 +11,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.mssqlserver.MSSQLServerContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.sql.Connection;
@@ -25,58 +21,40 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PostgresMigrationTest {
-    static final JdbcDatabaseContainer<?> mssql = new MSSQLServerContainer(
-            DockerImageName.parse("mcr.microsoft.com/mssql/server"))
-            .acceptLicense();
-
     static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres"));
 
     static HikariDataSource sourceDataSource;
     static HikariDataSource targetDataSource;
+    static int threadCount = 5;
 
     @BeforeAll
     static void beforeAll() throws Exception {
-        mssql.start();
         postgres.start();
 
         HikariConfig sourceConfig = new HikariConfig();
-        sourceConfig.setJdbcUrl(mssql.getJdbcUrl());
-        sourceConfig.setUsername(mssql.getUsername());
-        sourceConfig.setPassword(mssql.getPassword());
-        sourceConfig.setMaximumPoolSize(5);
+        sourceConfig.setJdbcUrl(postgres.getJdbcUrl());
+        sourceConfig.setUsername(postgres.getUsername());
+        sourceConfig.setPassword(postgres.getPassword());
+        sourceConfig.setMaximumPoolSize(threadCount);
         sourceDataSource = new HikariDataSource(sourceConfig);
 
         HikariConfig targetConfig = new HikariConfig();
         targetConfig.setJdbcUrl(postgres.getJdbcUrl());
         targetConfig.setUsername(postgres.getUsername());
         targetConfig.setPassword(postgres.getPassword());
-        targetConfig.setMaximumPoolSize(5);
+        targetConfig.setMaximumPoolSize(threadCount);
         targetDataSource = new HikariDataSource(targetConfig);
 
         try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE source_users (id INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(100))");
-
-            stmt.execute("INSERT INTO source_users (name) VALUES ('Alice')");
-            stmt.execute("INSERT INTO source_users (name) VALUES ('Bob')");
-            stmt.execute("INSERT INTO source_users (name) VALUES ('Charlie')");
-        }
-
-        try (Connection conn = targetDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE source_users (id SERIAL PRIMARY KEY, name VARCHAR(100))");
             stmt.execute("CREATE TABLE target_users (id INT PRIMARY KEY, name VARCHAR(100))");
-        }
-    }
 
-    @AfterAll
-    static void afterAll() {
-        if (sourceDataSource != null) sourceDataSource.close();
-        if (targetDataSource != null) targetDataSource.close();
-        mssql.stop();
-        postgres.stop();
+            stmt.execute("INSERT INTO source_users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+        }
     }
 
     @AfterEach
@@ -86,14 +64,21 @@ public class PostgresMigrationTest {
         }
     }
 
+    @AfterAll
+    static void afterAll() {
+        if (sourceDataSource != null) sourceDataSource.close();
+        if (targetDataSource != null) targetDataSource.close();
+        postgres.stop();
+    }
+
     @Test
     void testOnlyTableNames() throws Exception {
-        Storage sourceStorage = new MSSQLStorage(sourceDataSource);
+        Storage sourceStorage = new PostgresStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
         List<Config> configs = new ArrayList<>();
         Config config = Config.builder()
-                .from("dbo", "source_users")
+                .from("public", "source_users")
                 .to("public", "target_users")
                 .build();
         configs.add(config);
@@ -108,17 +93,17 @@ public class PostgresMigrationTest {
             int count = rs.getInt(1);
             String firstUser = rs.getString(2);
 
-            assertEquals(3, count, "Количество перенесенных строк в PostgreSQL должно быть равно 3");
-            assertEquals("Alice", firstUser, "Данные внутри PostgreSQL должны совпадать");
+            assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
         }
 
-        sourceStorage.closeStorage();
-        targetStorage.closeStorage();
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
     }
 
     @Test
     void testColumnToColumn() throws Exception {
-        Storage sourceStorage = new MSSQLStorage(sourceDataSource);
+        Storage sourceStorage = new PostgresStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
@@ -127,7 +112,7 @@ public class PostgresMigrationTest {
 
         List<Config> configs = new ArrayList<>();
         Config config = Config.builder()
-                .from("dbo", "source_users")
+                .from("public", "source_users")
                 .to("public", "target_users")
                 .columnToColumn(columnToColumn)
                 .build();
@@ -143,17 +128,17 @@ public class PostgresMigrationTest {
             int count = rs.getInt(1);
             String firstUser = rs.getString(2);
 
-            assertEquals(3, count, "Количество перенесенных строк в PostgreSQL должно быть равно 3");
-            assertEquals("Alice", firstUser, "Данные внутри PostgreSQL должны совпадать");
+            assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
         }
 
-        sourceStorage.closeStorage();
-        targetStorage.closeStorage();
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
     }
 
     @Test
     void testExpressionToColumn() throws Exception {
-        Storage sourceStorage = new MSSQLStorage(sourceDataSource);
+        Storage sourceStorage = new PostgresStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
         Map<String, String> expressionToColumn = new LinkedHashMap<>();
@@ -162,7 +147,7 @@ public class PostgresMigrationTest {
 
         List<Config> configs = new ArrayList<>();
         Config config = Config.builder()
-                .from("dbo", "source_users")
+                .from("public", "source_users")
                 .to("public", "target_users")
                 .fromTableAlias("s")
                 .expressionToColumn(expressionToColumn)
@@ -179,17 +164,17 @@ public class PostgresMigrationTest {
             int count = rs.getInt(1);
             String firstUser = rs.getString(2);
 
-            assertEquals(3, count, "Количество перенесенных строк в PostgreSQL должно быть равно 3");
-            assertEquals("Alice", firstUser, "Данные внутри PostgreSQL должны совпадать");
+            assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
         }
 
-        sourceStorage.closeStorage();
-        targetStorage.closeStorage();
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
     }
 
     @Test
     void testColumnToColumnExpressionToColumn() throws Exception {
-        Storage sourceStorage = new MSSQLStorage(sourceDataSource);
+        Storage sourceStorage = new PostgresStorage(sourceDataSource);
         Storage targetStorage = new PostgresStorage(targetDataSource);
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
@@ -200,7 +185,7 @@ public class PostgresMigrationTest {
 
         List<Config> configs = new ArrayList<>();
         Config config = Config.builder()
-                .from("dbo", "source_users")
+                .from("public", "source_users")
                 .to("public", "target_users")
                 .fromTableAlias("s")
                 .columnToColumn(columnToColumn)
@@ -218,11 +203,11 @@ public class PostgresMigrationTest {
             int count = rs.getInt(1);
             String firstUser = rs.getString(2);
 
-            assertEquals(3, count, "Количество перенесенных строк в PostgreSQL должно быть равно 3");
-            assertEquals("Alice", firstUser, "Данные внутри PostgreSQL должны совпадать");
+            assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
+            assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
         }
 
-        sourceStorage.closeStorage();
-        targetStorage.closeStorage();
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
     }
 }
