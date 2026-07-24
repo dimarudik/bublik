@@ -122,7 +122,7 @@ public abstract class JDBCStorage extends Storage
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
         hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount());
-        hikariConfig.setConnectionTimeout(10_000);
+        hikariConfig.setConnectionTimeout(3_000);
         hikariConfig.setAutoCommit(false);
         return hikariConfig;
     }

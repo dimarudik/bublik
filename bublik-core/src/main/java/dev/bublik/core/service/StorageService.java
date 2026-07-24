@@ -110,7 +110,7 @@ public interface StorageService {
             log.info("Storage class: {} ", className);
             return (Storage) constructor.newInstance(storageClass, connectionProperty, outboxTable);
         } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
+//            log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }

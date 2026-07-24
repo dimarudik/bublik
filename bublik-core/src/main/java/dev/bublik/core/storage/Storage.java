@@ -96,14 +96,15 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                             return chunk.allStages(false, getOutboxTable());
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-                            log.warn("Saving info about error to database");
-                            if (chunk.isValidSourceSession()) {
+//                            if (chunk.isValidSourceSession()) {
+                                log.warn("Saving info about error to database");
                                 chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
                                 (chunk.getSourceSession()).close();
-                            }
-                            if (targetStorage instanceof  JDBCStorage && chunk.isValidTargetSession()) {
+//                            }
+//                            if (targetStorage instanceof  JDBCStorage && chunk.isValidTargetSession()) {
                                 (chunk.getTargetSession()).close();
-                            }
+                                log.warn("Target session has been closed due to error");
+//                            }
                             throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
                         }
                     }))
@@ -124,7 +125,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
             if (hasBatchErrors) {
                 if (errorCounter <= (threadCount * 2)) {
-                    log.warn("(Current try: {}) Batch execution encountered errors. Cooling down for 2 seconds before retry ...", errorCounter);
+                    log.warn("Try: {} Continue...", errorCounter);
 /*
                     try {
                         Thread.sleep(1_000);

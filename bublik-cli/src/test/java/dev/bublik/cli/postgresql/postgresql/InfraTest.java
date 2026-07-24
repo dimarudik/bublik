@@ -67,7 +67,7 @@ public class InfraTest {
         source.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
                 "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
 
-        Thread.sleep(2_000);
+        Thread.sleep(1_000);
         target.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
                 "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
 
