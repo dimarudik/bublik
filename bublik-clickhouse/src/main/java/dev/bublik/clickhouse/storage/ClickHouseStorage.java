@@ -62,6 +62,11 @@ public class ClickHouseStorage extends ClickStorage {
         }
     }
 
+    @Override
+    public int getFetchSize() {
+        return 0;
+    }
+
     public LogMessage jdbcToClickHouse(Chunk<?, ?, ?, ?> chunk) {
         long start = System.currentTimeMillis();
         Client client = getSession();

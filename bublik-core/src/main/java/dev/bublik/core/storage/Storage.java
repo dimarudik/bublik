@@ -97,9 +97,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                             log.warn("Saving info about error to database");
-                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
-                            (chunk.getSourceSession()).close();
-                            if (targetStorage instanceof  JDBCStorage) {
+                            if (chunk.isValidSourceSession()) {
+                                chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
+                                (chunk.getSourceSession()).close();
+                            }
+                            if (targetStorage instanceof  JDBCStorage && chunk.isValidTargetSession()) {
                                 (chunk.getTargetSession()).close();
                             }
                             throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
@@ -123,11 +125,13 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             if (hasBatchErrors) {
                 if (errorCounter <= (threadCount * 2)) {
                     log.warn("(Current try: {}) Batch execution encountered errors. Cooling down for 2 seconds before retry ...", errorCounter);
+/*
                     try {
                         Thread.sleep(1_000);
                     } catch (InterruptedException ex) {
                         throw new RuntimeException(ex);
                     }
+*/
                     continue;
                 } else {
                     log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));

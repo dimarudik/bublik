@@ -466,6 +466,11 @@ public class KafkaStorage extends Storage {
     }
 
     @Override
+    public int getFetchSize() {
+        return 0;
+    }
+
+    @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
         return null;
     }

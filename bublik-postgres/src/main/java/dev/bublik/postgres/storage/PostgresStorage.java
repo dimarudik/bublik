@@ -320,7 +320,7 @@ public class PostgresStorage extends JDBCStorage {
                 getOutboxTable().tableToString() + " where " +
                 "schema_name = ? and table_name = ? and task_name = ? " +
                 " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
-                + " limit 1000 ";
+                + " limit 200 ";
     }
 
     @Override

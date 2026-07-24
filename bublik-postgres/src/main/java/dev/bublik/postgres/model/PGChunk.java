@@ -17,6 +17,16 @@ import static dev.bublik.postgres.constants.SQLConstants.*;
 public class PGChunk<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
 
+    @Override
+    public boolean isValidSourceSession() throws SQLException {
+        return getSourceSession() != null && getSourceSession().isValid(1);
+    }
+
+    @Override
+    public boolean isValidTargetSession() throws SQLException {
+        return getTargetSession() != null && getTargetSession().isValid(1);
+    }
+
     public PGChunk(K id, T start, T end, Config config, Table2Table t2t,
                    ChunkStatus status, String fetchQuery, Storage sourceStorage,
                    Storage targetStorage, String orderByClause) {
@@ -26,7 +36,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     @Override
     public PGChunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                          String errMsg, String chunkTableName) throws SQLException {
-        Connection connection = this.getSourceSession();
+        Connection connection = getSourceSession();
         if (newStatus != null && connection.isValid(1)) {
             PreparedStatement updateStatus;
             if (errMsg == null) {
@@ -82,15 +92,6 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
         String sql = getFetchQuery() + (getOrderByClause() == null ? "" : getOrderByClause());
-//        log.info("{} {} {}", sql, getStart(), getEnd());
-/*
-        String q;
-        if (getConfig().columnToColumn() == null && getConfig().expressionToColumn() == null) {
-            q = getSourceStorage().buildFetchStatement(getConfig(), this);
-        } else {
-            q = getSourceStorage().buildFetchStatement(getConfig());
-        }
-*/
         ResultSet resultSet = getData(sql);
         setResultSet((R) resultSet);
         return this;
@@ -102,7 +103,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
         PreparedStatement statement = connection.prepareStatement(query);
         statement.setLong(1, this.getStart());
         statement.setLong(2, this.getEnd());
-        statement.setFetchSize(10_000);
+        statement.setFetchSize(getSourceStorage().getFetchSize());
         return (R) statement.executeQuery();
     }
 

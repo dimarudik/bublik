@@ -26,6 +26,16 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
     }
 
     @Override
+    public boolean isValidSourceSession() throws SQLException {
+        return getSourceSession() != null && getSourceSession().isValid(1);
+    }
+
+    @Override
+    public boolean isValidTargetSession() throws SQLException {
+        return getTargetSession() != null && getTargetSession().isValid(1);
+    }
+
+    @Override
     public R getData(String query) throws SQLException {
         List<Object> start = this.getStart();
         List<Object> end = this.getEnd();
@@ -50,7 +60,7 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
                 }
             }
         }
-        statement.setFetchSize(10_000);
+        statement.setFetchSize(getSourceStorage().getFetchSize());
         return (R) statement.executeQuery();
     }
 

@@ -14,17 +14,21 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static dev.bublik.core.constants.Constants.FETCH_SIZE;
+
 public abstract class JDBCStorage extends Storage
         implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     private final boolean isManagedPool;
+    private final int fetchSize;
 
     public JDBCStorage(DataSource dataSource, Table outboxTable) {
         super(new ConnectionProperty(), outboxTable);
         this.dataSource = dataSource;
         this.threadCount = getMaxPoolSize(dataSource, 10);
         this.isManagedPool = false;
+        this.fetchSize = FETCH_SIZE;
     }
 
     public JDBCStorage(DataSource dataSource, int threadCount, Table outboxTable) {
@@ -32,6 +36,7 @@ public abstract class JDBCStorage extends Storage
         this.dataSource = dataSource;
         this.threadCount = threadCount;
         this.isManagedPool = false;
+        this.fetchSize = FETCH_SIZE;
     }
 
     protected JDBCStorage(DataSource dataSource,
@@ -41,6 +46,7 @@ public abstract class JDBCStorage extends Storage
         this.dataSource = dataSource;
         this.threadCount = connectionProperty.getThreadCount();
         this.isManagedPool = false;
+        this.fetchSize = FETCH_SIZE;
     }
 
     public JDBCStorage(StorageClass storageClass,
@@ -50,6 +56,8 @@ public abstract class JDBCStorage extends Storage
         HikariConfig hikariConfig = buildConfiguration(storageClass.getProperties(), connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
+        this.fetchSize = storageClass.getProperties().getProperty("fetchSize") == null ?
+                FETCH_SIZE : Integer.parseInt(storageClass.getProperties().getProperty("fetchSize"));
         this.isManagedPool = true;
     }
 
@@ -255,6 +263,10 @@ public abstract class JDBCStorage extends Storage
         }
 
         return matchedPairs;
+    }
+
+    public int getFetchSize() {
+        return fetchSize;
     }
 
     @Override

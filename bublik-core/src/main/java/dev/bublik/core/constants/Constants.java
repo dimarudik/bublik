@@ -6,4 +6,5 @@ public abstract class Constants {
     public static final String DEFAULT_FETCH_WHERE_CLAUSE = "1 = 1";
     public static final String CHUNK_SCHEMA_NAME = "bublik";
     public static final String CHUNK_TABLE_NAME = "bublik_chunks";
+    public static final int FETCH_SIZE = 10_000;
 }

@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+//@Disabled
 public class InfraTest {
     private static final JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
@@ -67,7 +67,7 @@ public class InfraTest {
         source.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
                 "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
 
-        Thread.sleep(1_500);
+        Thread.sleep(2_000);
         target.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
                 "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
 
@@ -93,6 +93,7 @@ public class InfraTest {
         fromProps.put("url", source.getJdbcUrl());
         fromProps.put("user", source.getUsername());
         fromProps.put("password", source.getPassword());
+        fromProps.put("fetchSize", "1000");
 
         Map<String, String> toProps = new HashMap<>();
         toProps.put("url", target.getJdbcUrl());

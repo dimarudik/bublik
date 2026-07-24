@@ -80,6 +80,11 @@ public class CassandraStorage extends CSStorage {
         throw new RuntimeException("Unknown storage type");
     }
 
+    @Override
+    public int getFetchSize() {
+        return 0;
+    }
+
     public <K, T, S extends AutoCloseable, R, V> LogMessage unRanged(Chunk<K, T, S, R> chunk,
                                                                      String tableName) throws SQLException {
         long start = System.currentTimeMillis();

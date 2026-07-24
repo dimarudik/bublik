@@ -33,6 +33,16 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     }
 
     @Override
+    public boolean isValidSourceSession() throws SQLException {
+        return true;
+    }
+
+    @Override
+    public boolean isValidTargetSession() throws SQLException {
+        return true;
+    }
+
+    @Override
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                        String errMsg, String chunkTableName) throws SQLException {
         CqlSession cqlSession = getSourceSession();

@@ -22,6 +22,16 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
     }
 
     @Override
+    public boolean isValidSourceSession() throws SQLException {
+        return getSourceSession() != null && getSourceSession().isValid(1);
+    }
+
+    @Override
+    public boolean isValidTargetSession() throws SQLException {
+        return getTargetSession() != null && getTargetSession().isValid(1);
+    }
+
+    @Override
     public OraChunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
         try {
             Connection connection = this.getSourceSession();
@@ -73,7 +83,7 @@ public class OraChunk<K extends Integer, T extends RowId, S extends Connection, 
         PreparedStatement statement = connection.prepareStatement(sql);
         statement.setRowId(1, this.getStart());
         statement.setRowId(2, this.getEnd());
-        statement.setFetchSize(10_000);
+        statement.setFetchSize(getSourceStorage().getFetchSize());
         return (R) statement.executeQuery();
     }
 

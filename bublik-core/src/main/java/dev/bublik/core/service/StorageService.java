@@ -21,6 +21,7 @@ import java.util.Properties;
 import java.util.ServiceLoader;
 
 import static dev.bublik.core.constants.CLassConstants.*;
+import static dev.bublik.core.constants.Constants.FETCH_SIZE;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public interface StorageService {
@@ -56,6 +57,7 @@ public interface StorageService {
     List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config);
     Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config);
     Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position);
+    int getFetchSize();
 
     static Storage getStorage(StorageClass storageClass,
                               Properties properties,
@@ -142,6 +144,7 @@ public interface StorageService {
         String sourceHosts = property.getFromProperty().getProperty("hosts");
         log.info("SOURCE: {}", sourceUrl == null ? sourceHosts : sourceUrl);
         log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
+        log.info("SOURCE FETCH_SIZE: {}", property.getFromProperty().getProperty("fetchSize") == null ? FETCH_SIZE : property.getFromProperty().getProperty("fetchSize"));
         String targetUrl = property.getToProperty().getProperty("url");
         String targetHosts = property.getToProperty().getProperty("hosts");
         log.info("TARGET: {}", targetUrl == null ? targetHosts : targetUrl);
