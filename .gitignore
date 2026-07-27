@@ -18,3 +18,4 @@ ydb_data/
 *./target
 ./bublik-mssql/target/*/
 target.zip
+bublik-cli/*.hprof

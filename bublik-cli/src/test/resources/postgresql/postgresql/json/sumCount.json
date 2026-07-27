@@ -1,0 +1,19 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "\"Source\"",
+    "toSchemaName" : "public",
+    "toTableName" : "target2",
+    "columnToColumn" : {
+      "id"            : "id",
+      "\"Primary\""   : "\"Primary\"",
+      "int2"          : "int2",
+      "int4"          : "int4",
+      "int8"          : "int8",
+      "smallint"      : "smallint",
+      "bigint"        : "bigint",
+      "numeric"       : "num",
+      "float8"        : "float8"
+    }
+  }
+]

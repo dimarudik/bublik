@@ -126,13 +126,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             if (hasBatchErrors) {
                 if (errorCounter <= (threadCount * 2)) {
                     log.warn("Try: {} Continue...", errorCounter);
-/*
-                    try {
-                        Thread.sleep(1_000);
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
-*/
                     continue;
                 } else {
                     log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
@@ -160,6 +153,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 break;
             }
 
+            printMemInfo();
         } while (true);
 
         service.shutdown();
@@ -169,6 +163,21 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         if (targetStorage instanceof JDBCStorage) {
             targetStorage.dropOutboxTable(false);
         }
+    }
+
+    private void printMemInfo() {
+        Runtime runtime = Runtime.getRuntime();
+        long byteToMb = 1024L * 1024L;
+        long maxMemory = runtime.maxMemory();
+        long totalMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        long usedMemory = totalMemory - freeMemory;
+        log.info("=================== BUBLIK MEMORY INFO ===================");
+        log.info("Max Heap Size (-Xmx):   {} MB", maxMemory == Long.MAX_VALUE ? "Unlimited" : maxMemory / byteToMb);
+        log.info("Allocated Heap Size:    {} MB", totalMemory / byteToMb);
+        log.info("Used Heap Memory:       {} MB", usedMemory / byteToMb);
+        log.info("Free Heap Memory:       {} MB", (maxMemory - usedMemory) / byteToMb);
+        log.info("==========================================================");
     }
 
     public Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position) {

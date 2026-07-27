@@ -86,7 +86,77 @@ public class PostgresToPostgresTest {
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
-//        Thread.sleep(290_000);
+    }
+
+    @Test
+    void sumCountHash() throws Exception {
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/json/sumCount.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        assertEquals(result.sourceCount(), result.targetCount());
+
+        long sCnt, sId, sInt2, sInt4, sInt8, sSmallint, sBigint;
+        double sNum, sFloat;
+        long sPrimary;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(int2) as int2, sum(int4) as int4, " +
+                             "sum(int8) as int8, sum(smallint) as smallint, sum(bigint) as bigint, " +
+                             "sum(numeric) as num, sum(float8) as float8, " +
+                             "sum(hashtext(\"Primary\")::bigint + hashtext(reverse(\"Primary\"))::bigint) as primary " +
+                             "FROM \"Source\"")) {
+            assertTrue(rs.next());
+            sCnt = rs.getLong("cnt");
+            sId = rs.getLong("id");
+            sInt2 = rs.getLong("int2");
+            sInt4 = rs.getLong("int4");
+            sInt8 = rs.getLong("int8");
+            sSmallint = rs.getLong("smallint");
+            sBigint = rs.getLong("bigint");
+            sNum = rs.getDouble("num");
+            sFloat = rs.getFloat("float8");
+            sPrimary = rs.getLong("primary");
+        }
+
+        long tCnt, tId, tInt2, tInt4, tInt8, tSmallint, tBigint;
+        double tNum, tFloat;
+        long tPrimary;
+        try (Connection conn = DriverManager.getConnection(target.getJdbcUrl(), target.getUsername(), target.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(int2) as int2, sum(int4) as int4, " +
+                             "sum(int8) as int8, sum(smallint) as smallint, sum(bigint) as bigint, " +
+                             "sum(num) as num, sum(float8) as float8, " +
+                             "sum(hashtext(\"Primary\")::bigint + hashtext(reverse(\"Primary\"))::bigint) as primary " +
+                             "FROM target2")) {
+            assertTrue(rs.next());
+            tCnt = rs.getLong("cnt");
+            tId = rs.getLong("id");
+            tInt2 = rs.getLong("int2");
+            tInt4 = rs.getLong("int4");
+            tInt8 = rs.getLong("int8");
+            tSmallint = rs.getLong("smallint");
+            tBigint = rs.getLong("bigint");
+            tNum = rs.getDouble("num");
+            tFloat = rs.getFloat("float8");
+            tPrimary = rs.getLong("primary");
+        }
+
+        assertEquals(sCnt, tCnt);
+        assertEquals(sId, tId);
+        assertEquals(sInt2, tInt2);
+        assertEquals(sInt4, tInt4);
+        assertEquals(sInt8, tInt8);
+        assertEquals(sSmallint, tSmallint);
+        assertEquals(sBigint, tBigint);
+        assertEquals(sNum, tNum, 0.000001f);
+        assertEquals(sFloat, tFloat, 0.000001d);
+        assertEquals(sPrimary, tPrimary);
     }
 
     @Test

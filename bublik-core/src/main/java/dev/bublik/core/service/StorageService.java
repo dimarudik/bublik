@@ -133,12 +133,26 @@ public interface StorageService {
         } catch (Exception e) {
             log.info("Unknown workstation");
         }
-        int vCPU = Runtime.getRuntime().availableProcessors();
-        log.info("CPU: {}", vCPU);
+        Runtime runtime = Runtime.getRuntime();
+        int vCPU = runtime.availableProcessors();
+        log.info("===================== CPU ==============================");
+        log.info("CPU onboard: {}", vCPU);
         if (vCPU <= 4 && vCPU < property.getThreadCount()) {
             property.setThreadCount(vCPU);
             log.info("Thread count throttled to {}", property.getThreadCount());
         }
+        long byteToMb = 1024L * 1024L;
+        long maxMemory = runtime.maxMemory();
+        long totalMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        long usedMemory = totalMemory - freeMemory;
+        log.info("=================== BUBLIK MEMORY INFO ===================");
+        log.info("Max Heap Size (-Xmx):   {} MB", maxMemory == Long.MAX_VALUE ? "Unlimited" : maxMemory / byteToMb);
+        log.info("Allocated Heap Size:    {} MB", totalMemory / byteToMb);
+        log.info("Used Heap Memory:       {} MB", usedMemory / byteToMb);
+        log.info("Free Heap Memory:       {} MB", (maxMemory - usedMemory) / byteToMb);
+        log.info("==========================================================");
+
         log.info("THREADS: {}", property.getThreadCount());
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");

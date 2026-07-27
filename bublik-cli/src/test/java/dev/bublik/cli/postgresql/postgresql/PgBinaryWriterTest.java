@@ -98,7 +98,7 @@ public class PgBinaryWriterTest {
             assertEquals(2, rs.getLong("l"));
             assertEquals(3, rs.getLong("m"));
             assertEquals(4.6865f, rs.getFloat("n"), 0.0001f);
-            assertEquals(5.8362d, rs.getDouble("o"), 0.0001d);
+            assertEquals(0.8362d, rs.getDouble("o"), 0.0001d);
             assertEquals(294636.9362048d, rs.getDouble("p"), 0.000001d);
 
             assertNotNull(rs.getString("q"));

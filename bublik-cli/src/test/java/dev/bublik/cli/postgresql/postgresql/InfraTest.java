@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.postgresql.util.PSQLException;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -17,9 +18,8 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
-//@Disabled
 public class InfraTest {
     private static final JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
@@ -51,6 +51,24 @@ public class InfraTest {
         target.stop();
     }
 
+/*
+    @Test
+    void bigDataFailure() throws Exception {
+        ConnectionProperty cp = getConnectionPropertyBigData();
+        List<Config> cfgs = new ArrayList<>(Collections.singleton(
+                Config.builder()
+                        .from("public", "big")
+                        .to("public", "big")
+                        .build()
+        ));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+            StorageService.init(cp, cfgs, 10_000, chunkTable, outboxTable);
+        });
+        assertTrue(ex.getMessage().contains("Ran out of memory"));
+    }
+*/
+
     @Test
     void infraFailure() throws Exception {
 
@@ -65,7 +83,7 @@ public class InfraTest {
 
         Thread.sleep(500);
         source.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
-                "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
+                "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + source.getUsername() + "' AND pid <> pg_backend_pid();");
 
         Thread.sleep(1_000);
         target.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
@@ -102,6 +120,27 @@ public class InfraTest {
 
         return new ConnectionProperty(
                 10,
+                fromProps,
+                toProps,
+                new HashMap<>(),
+                new HashMap<>()
+        );
+    }
+
+    private ConnectionProperty getConnectionPropertyBigData() {
+        Map<String, String> fromProps = new HashMap<>();
+        fromProps.put("url", source.getJdbcUrl());
+        fromProps.put("user", source.getUsername());
+        fromProps.put("password", source.getPassword());
+        fromProps.put("fetchSize", "10");
+
+        Map<String, String> toProps = new HashMap<>();
+        toProps.put("url", target.getJdbcUrl());
+        toProps.put("user", target.getUsername());
+        toProps.put("password", target.getPassword());
+
+        return new ConnectionProperty(
+                2,
                 fromProps,
                 toProps,
                 new HashMap<>(),
