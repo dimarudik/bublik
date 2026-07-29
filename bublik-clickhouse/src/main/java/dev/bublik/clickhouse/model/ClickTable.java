@@ -46,8 +46,9 @@ public class ClickTable extends Table {
     public <S extends AutoCloseable> List<Column> getAllColumns(S session) throws SQLException {
         List<Column> columns = new ArrayList<>();
         Client connection = (Client) session;
+
         List<GenericRecord> records = connection.queryAll(SQL_ALL_COLUMNS,
-                java.util.Map.of("db", getSchemaName(), "table", getTableName()));
+                Map.of("db", getSchemaName(), "table", getTableName()));
 
         for (GenericRecord record : records) {
             long position = record.getLong("position");

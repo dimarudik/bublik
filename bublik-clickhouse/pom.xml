@@ -6,11 +6,10 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.29</version>
+        <version>26.3.30</version>
     </parent>
 
     <artifactId>bublik-clickhouse</artifactId>
-    <version>${project.parent.version}</version>
     <packaging>jar</packaging>
 
     <developers>
@@ -51,8 +50,25 @@
         </dependency>
         <dependency>
             <groupId>com.clickhouse</groupId>
+            <artifactId>clickhouse-http-client</artifactId>
+            <version>${clickhouse.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.clickhouse</groupId>
             <artifactId>client-v2</artifactId>
-            <version>0.9.8</version>
+            <version>${clickhouse.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.clickhouse</groupId>
+            <artifactId>clickhouse-client</artifactId>
+            <version>${clickhouse.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>5.6.2</version>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>

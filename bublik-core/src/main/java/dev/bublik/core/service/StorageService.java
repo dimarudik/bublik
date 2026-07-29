@@ -135,7 +135,7 @@ public interface StorageService {
         }
         Runtime runtime = Runtime.getRuntime();
         int vCPU = runtime.availableProcessors();
-        log.info("===================== CPU ==============================");
+        log.info("===================== CPU INFO ============================");
         log.info("CPU onboard: {}", vCPU);
         if (vCPU <= 4 && vCPU < property.getThreadCount()) {
             property.setThreadCount(vCPU);
@@ -146,7 +146,7 @@ public interface StorageService {
         long totalMemory = runtime.totalMemory();
         long freeMemory = runtime.freeMemory();
         long usedMemory = totalMemory - freeMemory;
-        log.info("=================== BUBLIK MEMORY INFO ===================");
+        log.info("==================== MEMORY INFO =========================");
         log.info("Max Heap Size (-Xmx):   {} MB", maxMemory == Long.MAX_VALUE ? "Unlimited" : maxMemory / byteToMb);
         log.info("Allocated Heap Size:    {} MB", totalMemory / byteToMb);
         log.info("Used Heap Memory:       {} MB", usedMemory / byteToMb);

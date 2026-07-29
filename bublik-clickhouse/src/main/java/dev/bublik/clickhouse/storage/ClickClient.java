@@ -2,9 +2,11 @@ package dev.bublik.clickhouse.storage;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.ClientConfigProperties;
+import com.clickhouse.client.api.query.QueryResponse;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 public class ClickClient {
     private final int size;
@@ -38,5 +40,12 @@ public class ClickClient {
 
     public int getSize() {
         return size;
+    }
+
+    public void ping() {
+        try (QueryResponse response = client.query("SELECT 1").get(10, TimeUnit.SECONDS)) {
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to connect to ClickHouse server", e);
+        }
     }
 }

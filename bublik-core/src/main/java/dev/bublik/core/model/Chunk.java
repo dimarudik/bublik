@@ -6,11 +6,10 @@ import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
 import java.time.Instant;
 
 
-public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkService<K, T, S, R> {
+public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkService {
     private static final Logger log = LoggerFactory.getLogger(Chunk.class);
 
     private final K id;
@@ -34,9 +33,6 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
     private Instant endTs;
     private final String orderByClause;
     private S writer;
-
-    public abstract boolean isValidSourceSession() throws SQLException;
-    public abstract boolean isValidTargetSession() throws SQLException;
 
     public Chunk(K id, T start, T end, Config config, Table2Table t2t, ChunkStatus status,
                  String fetchQuery, Storage sourceStorage, Storage targetStorage, String orderByClause) {

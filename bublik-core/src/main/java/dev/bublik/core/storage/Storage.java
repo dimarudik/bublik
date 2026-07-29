@@ -83,6 +83,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             }
         }
         log.info("SOURCE version: {}", getStorageMajorVersion());
+        log.info("TARGET version: {}", targetStorage.getStorageVersion());
 
         int errorCounter = 0;
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
@@ -96,15 +97,24 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                             return chunk.allStages(false, getOutboxTable());
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-//                            if (chunk.isValidSourceSession()) {
+                            try {
                                 log.warn("Saving info about error to database");
                                 chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
+                            } catch (SQLException ex) {
+                                log.error("Error while saving info about error to database. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            }
+                            try {
                                 (chunk.getSourceSession()).close();
-//                            }
-//                            if (targetStorage instanceof  JDBCStorage && chunk.isValidTargetSession()) {
+                                log.warn("Source session has been closed due to error");
+                            } catch (SQLException ex) {
+                                log.error("Error while closing source session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            }
+                            try {
                                 (chunk.getTargetSession()).close();
                                 log.warn("Target session has been closed due to error");
-//                            }
+                            } catch (SQLException ex) {
+                                log.error("Error while closing target session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            }
                             throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
                         }
                     }))
@@ -142,11 +152,13 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
             errorCounter = 0;
 
+/*
             try {
                 Thread.sleep(2);
             } catch (InterruptedException ex) {
                 throw new RuntimeException(ex);
             }
+*/
 
             if (chunks.isEmpty()) {
                 log.info("All chunks are processed");
@@ -158,6 +170,14 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
         service.shutdown();
         service.close();
+
+/*
+        try {
+            Thread.sleep(500_000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+*/
 
         dropChunkTable(configs);
         if (targetStorage instanceof JDBCStorage) {
@@ -172,7 +192,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         long totalMemory = runtime.totalMemory();
         long freeMemory = runtime.freeMemory();
         long usedMemory = totalMemory - freeMemory;
-        log.info("=================== BUBLIK MEMORY INFO ===================");
+        log.info("=================== MEMORY INFO =========================");
         log.info("Max Heap Size (-Xmx):   {} MB", maxMemory == Long.MAX_VALUE ? "Unlimited" : maxMemory / byteToMb);
         log.info("Allocated Heap Size:    {} MB", totalMemory / byteToMb);
         log.info("Used Heap Memory:       {} MB", usedMemory / byteToMb);

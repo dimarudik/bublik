@@ -1,6 +1,7 @@
 package dev.bublik.oracle.storage;
 
 import dev.bublik.core.model.*;
+import dev.bublik.oracle.model.OraChunkRowId;
 import oracle.sql.INTERVALDS;
 import oracle.sql.INTERVALYM;
 import dev.bublik.core.constants.ChunkStatus;
@@ -8,7 +9,6 @@ import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
-import dev.bublik.oracle.model.OraChunk;
 import dev.bublik.oracle.model.OraTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,10 +63,12 @@ public class OracleStorage extends JDBCStorage {
         return null;
     }
 
+/*
     @Override
     public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
         return null;
     }
+*/
 
     @Override
     public void fulfillChunks(List<Config> configs, boolean synz, int rows) throws SQLException {
@@ -177,8 +179,8 @@ public class OracleStorage extends JDBCStorage {
             log.info("Fetch query: {} {}", fetchQuery, orderByClause);
             while (resultSet.next()) {
                 String status = resultSet.getString("status");
-                Chunk<?, ?, ?, ?> chunk = new OraChunk<>(
-                        Integer.valueOf(resultSet.getInt("chunk_id")),
+                Chunk<?, ?, ?, ?> chunk = new OraChunkRowId<>(
+                        resultSet.getInt("chunk_id"),
                         resultSet.getRowId("start_rowid"),
                         resultSet.getRowId("end_rowid"),
                         config,
@@ -411,7 +413,7 @@ public class OracleStorage extends JDBCStorage {
         return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
                 "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
                 (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
-                + " and rownum <= 1000 ";
+                + " and rownum <= 200 ";
     }
 
     @Override
@@ -450,7 +452,6 @@ public class OracleStorage extends JDBCStorage {
                 .flatMap(Collection::stream)
                 .distinct()
                 .toList();
-//        Set<String> set = new HashSet<>(asColumns);
         Set<String> set = new HashSet<>();
         set.addAll(asList);
         set.addAll(asSet);
@@ -458,9 +459,6 @@ public class OracleStorage extends JDBCStorage {
         set.addAll(asMap.stream().map(KV::value).toList());
         set.addAll(asUDT);
         asColumns.addAll(set);
-//        List<String> finalList = asColumns;
-//        List<String> finalList = set.stream().toList();
-//        String columnToColumn = String.join(", ", finalList);
         String columnToColumn = String.join(", ", asColumns);
         return  PGKeywords.SELECT + " /* bublik */ " +
                 (config.fetchHintClause() == null ? "" : config.fetchHintClause()) + " " +

@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.29</version>
+        <version>26.3.30</version>
     </parent>
 
     <artifactId>bublik-cli</artifactId>
@@ -353,45 +353,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-<!--
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.6.0-M1</version>
-                <executions>
-                    <execution>
-                        <id>default-test</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <configuration>
-                            <argLine>-Xmx1024m</argLine>
-                            <excludes>
-                                <exclude>**/InfraTest.java</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
-
-                    <execution>
-                        <id>infra-oom-test</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <configuration>
-                            <argLine>-Xmx128m -XX:+HeapDumpOnOutOfMemoryError</argLine>
-                            <reuseForks>false</reuseForks>
-                            <includes>
-                                <include>**/InfraTest.java</include>
-                            </includes>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
--->
-
 
         </plugins>
     </build>

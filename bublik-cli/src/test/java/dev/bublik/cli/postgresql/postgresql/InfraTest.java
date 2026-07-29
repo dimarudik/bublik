@@ -82,7 +82,7 @@ public class InfraTest {
         });
 
         Thread.sleep(500);
-        source.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
+        source.execInContainer("psql", "-U", source.getUsername(), "-d", source.getDatabaseName(),
                 "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + source.getUsername() + "' AND pid <> pg_backend_pid();");
 
         Thread.sleep(1_000);
@@ -119,7 +119,7 @@ public class InfraTest {
         toProps.put("password", target.getPassword());
 
         return new ConnectionProperty(
-                10,
+                3,
                 fromProps,
                 toProps,
                 new HashMap<>(),

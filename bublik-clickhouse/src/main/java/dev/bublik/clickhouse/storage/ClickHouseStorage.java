@@ -21,9 +21,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 
 public class ClickHouseStorage extends ClickStorage {
@@ -105,6 +105,7 @@ public class ClickHouseStorage extends ClickStorage {
             throw new RuntimeException("ClickHouse insert failed: " + cause.getMessage(), cause);
         }
     }
+
     public DataStreamWriter getWriter(
             ResultSet rs,
             TableSchema tableSchema,
@@ -165,7 +166,7 @@ public class ClickHouseStorage extends ClickStorage {
 
             final int scale = chColumn.getScale();
             final int precision = chColumn.getPrecision();
-            final int fixedLength = chColumn.getEstimatedLength();
+            final int fixedLength = "fixedstring".equals(baseTypeName) ? precision : chColumn.getEstimatedLength();
 
             switch (baseTypeName) {
 
@@ -179,18 +180,21 @@ public class ClickHouseStorage extends ClickStorage {
                             }
                             out.writeByte(0);
                         }
+
+                        // Страховка для NOT NULL
+                        if (v == null) {
+                            out.writeByte(0);
+                            return;
+                        }
+
                         switch (v) {
-                            case null -> {
-                                out.writeByte(0);
-                                return;
-                            }
                             case Number number -> out.writeByte(number.byteValue());
                             case Boolean bool -> out.writeByte(bool ? 1 : 0);
                             default -> {
                                 try {
                                     out.writeByte(Byte.parseByte(v.toString().trim()));
                                 } catch (Exception ex) {
-                                    out.writeByte(0);
+                                    out.writeByte(0); // ГАРАНТИРУЕМ ЗАПИСЬ 1 БАЙТА ПРИ ЛЮБОМ СБОЕ!
                                 }
                             }
                         }
@@ -208,18 +212,21 @@ public class ClickHouseStorage extends ClickStorage {
                             }
                             out.writeByte(0);
                         }
+
+                        // Страховка для NOT NULL
+                        if (v == null) {
+                            out.writeShort((short) 0);
+                            return;
+                        }
+
                         switch (v) {
-                            case null -> {
-                                out.writeShort((short) 0);
-                                return;
-                            }
                             case Number number -> out.writeShort(number.shortValue());
                             case Boolean bool -> out.writeShort((short) (bool ? 1 : 0));
                             default -> {
                                 try {
                                     out.writeShort(Short.parseShort(v.toString().trim()));
                                 } catch (Exception ex) {
-                                    out.writeShort((short) 0);
+                                    out.writeShort((short) 0); // ГАРАНТИРУЕМ ЗАПИСЬ 2 БАЙТ ПРИ ЛЮБОМ СБОЕ!
                                 }
                             }
                         }
@@ -230,25 +237,29 @@ public class ClickHouseStorage extends ClickStorage {
                 case "int32", "uint32": {
                     transfers[i] = (r, jdbcIdx, out) -> {
                         Object v = r.getObject(jdbcIdx);
+
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1);
-                                return;
+                                out.writeByte(1); // Записали маркер NULL
+                                return;           // Выходим
                             }
-                            out.writeByte(0);
+                            out.writeByte(0);     // Маркер присутствия значения
                         }
+
+                        if (v == null) {
+                            out.writeInt(0);
+                            return;
+                        }
+
                         switch (v) {
-                            case null -> {
-                                out.writeInt(0);
-                                return;
-                            }
+                            case BigDecimal bd -> out.writeInt(bd.intValue());
                             case Number number -> out.writeInt(number.intValue());
                             case Boolean bool -> out.writeInt(bool ? 1 : 0);
                             default -> {
                                 try {
                                     out.writeInt(Integer.parseInt(v.toString().trim()));
                                 } catch (Exception ex) {
-                                    out.writeInt(0);
+                                    out.writeInt(0); // Защита при ошибках парсинга текста
                                 }
                             }
                         }
@@ -266,11 +277,14 @@ public class ClickHouseStorage extends ClickStorage {
                             }
                             out.writeByte(0);
                         }
+
+                        if (v == null) {
+                            out.writeLong(0L);
+                            return;
+                        }
+
                         switch (v) {
-                            case null -> {
-                                out.writeLong(0L);
-                                return;
-                            }
+                            case java.math.BigDecimal bd -> out.writeLong(bd.longValue());
                             case Number number -> out.writeLong(number.longValue());
                             case Boolean bool -> out.writeLong(bool ? 1L : 0L);
                             default -> {
@@ -512,69 +526,77 @@ public class ClickHouseStorage extends ClickStorage {
                     final String finalSrcName = c2c.sourceColumn().columnName();
                     final String srcType = c2c.sourceColumn().columnType().toLowerCase();
 
+
                     transfers[i] = (r, jdbcIdx, out) -> {
-                        Object v = r.getObject(jdbcIdx);
+
+                        Object v = null;
+                        try {
+                            v = r.getObject(jdbcIdx);
+                        } catch (Exception ex) {
+                            v = null;
+                        }
+
+                        // ПУЛЕНЕПРОБИВАЕМАЯ ОЧИСТКА НА САМОМ ВХОДЕ:
+                        // Сначала вырезаем бинарные нули и пробелы Oracle, которые маскируют NULL!
+                        if (v instanceof String s) {
+                            String cleaned = s.replace("\u0000", "").trim();
+                            if (cleaned.isEmpty()) {
+                                v = null; // Если осталась пустота — это честный NULL
+                            } else {
+                                v = cleaned; // Иначе сохраняем очищенную строку
+                            }
+                        }
+
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1); // NULL - дополнительные байты не пишутся
-                                return;
+                                out.writeByte(1); // NULL-маркер ClickHouse (строго 1 байт)
+                                return;           // Немедленный выход!
                             }
-                            out.writeByte(0); // Значение присутствует
+                            out.writeByte(0);     // Маркер присутствия значения (0x00)
+                        }
+
+                        if (v == null) {
+                            out.writeByte(0);     // Страховка для NOT NULL
+                            return;
                         }
 
                         byte[] bytes;
-
-                        // 1. ПЕРЕХВАТ ТИПОВ RAW ИЛИ BYTEA (Сырые массивы байт Postgres / Oracle) -> HEX STRING
-                        if (srcType.contains("raw") || srcType.contains("bytea") || v instanceof byte[]) {
-                            byte[] rawBytes = (v instanceof byte[]) ? (byte[]) v : r.getBytes(finalSrcName);
-                            if (rawBytes != null && rawBytes.length > 0) {
-                                String hexStr = java.util.HexFormat.of()
-                                        .withUpperCase()
-                                        .formatHex(rawBytes);
-                                bytes = hexStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                            } else {
-                                bytes = new byte[0];
-                            }
-                        }
-
-                        else if (srcType.contains("blob")) {
-                            java.sql.Blob blob = r.getBlob(finalSrcName);
-                            if (blob != null) {
-                                long length = blob.length();
-                                if (length > 0) {
-                                    byte[] blobBytes = blob.getBytes(1, (int) length);
-                                    String hexStr = java.util.HexFormat.of()
-                                            .withUpperCase()
-                                            .formatHex(blobBytes);
+                        try {
+                            if (srcType.contains("raw") || srcType.contains("bytea") || v instanceof byte[]) {
+                                byte[] rawBytes = (v instanceof byte[]) ? (byte[]) v : r.getBytes(finalSrcName);
+                                if (rawBytes != null && rawBytes.length > 0) {
+                                    String hexStr = java.util.HexFormat.of().withUpperCase().formatHex(rawBytes);
                                     bytes = hexStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
                                 } else {
                                     bytes = new byte[0];
                                 }
-                            } else {
-                                bytes = new byte[0];
-                            }
-                        }
-
-                        else if (v instanceof java.sql.Clob clob) {
-                            long length = clob.length();
-                            if (length > 0) {
-                                String s = clob.getSubString(1, (int) length);
-                                if (s != null) {
-                                    s = s.replace("\u0000", "");
+                            } else if (srcType.contains("blob")) {
+                                java.sql.Blob blob = r.getBlob(finalSrcName);
+                                if (blob != null && blob.length() > 0) {
+                                    byte[] blobBytes = blob.getBytes(1, (int) blob.length());
+                                    String hexStr = java.util.HexFormat.of().withUpperCase().formatHex(blobBytes);
+                                    bytes = hexStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                                } else {
+                                    bytes = new byte[0];
+                                }
+                            } else if (v instanceof java.sql.Clob clob) {
+                                long clobLen = clob.length();
+                                if (clobLen > 0) {
+                                    String s = clob.getSubString(1, (int) clobLen);
+                                    s = (s != null) ? s.replace("\u0000", "").trim() : "";
                                     bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
                                 } else {
                                     bytes = new byte[0];
                                 }
                             } else {
-                                bytes = new byte[0];
+                                // Поскольку строка ОЧИЩЕНА на самом верху, здесь просто берем байты текста!
+                                bytes = v.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
                             }
+                        } catch (Exception ex) {
+                            bytes = new byte[0];
                         }
 
-                        else {
-                            String s = v.toString().replace("\u0000", "");
-                            bytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                        }
-
+                        // Расчет и запись Varint-префикса длины
                         long val = bytes.length;
                         while ((val & 0xFFFFFFFFFFFFFF80L) != 0L) {
                             out.writeByte(((int) val & 0x7F) | 0x80);
@@ -582,37 +604,57 @@ public class ClickHouseStorage extends ClickStorage {
                         }
                         out.writeByte((int) val & 0x7F);
 
-                        out.write(bytes);
+                        // Запись тела строки
+                        if (bytes.length > 0) {
+                            out.write(bytes);
+                        }
                     };
                     break;
                 }
 
                 case "fixedstring": {
                     transfers[i] = (r, jdbcIdx, out) -> {
-                        Object v = r.getObject(jdbcIdx);
+                        Object v = null;
+                        try {
+                            v = r.getObject(jdbcIdx);
+                        } catch (Exception ex) {
+                            v = null;
+                        }
+
                         if (isNullable) {
                             if (v == null) {
-                                out.writeByte(1);
+                                out.writeByte(1); // NULL маркер Кликхауса
                                 return;
                             }
-                            out.writeByte(0);
+                            out.writeByte(0); // Значение присутствует
                         }
 
-                        byte[] srcBytes;
-                        switch (v) {
-                            case null -> srcBytes = new byte[0];
-                            case byte[] byteArray -> srcBytes = byteArray;
-                            default -> {
-                                String s = v.toString();
-                                srcBytes = s.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        // Локальный буфер строго заданной ширины
+                        byte[] finalBytes = new byte[fixedLength];
+
+                        if (v != null) {
+                            try {
+                                byte[] srcBytes;
+                                if (v instanceof byte[] byteArray) {
+                                    srcBytes = byteArray;
+                                } else {
+                                    srcBytes = v.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                                }
+
+                                // Безопасное копирование данных в буфер
+                                System.arraycopy(srcBytes, 0, finalBytes, 0,
+                                        Math.min(srcBytes.length, fixedLength));
+                            } catch (Exception ex) {
+                                // При любом сбое массив останется заполнен нулевыми байтами 0x00
                             }
                         }
 
-                        byte[] finalBytes = new byte[fixedLength];
-                        System.arraycopy(srcBytes, 0, finalBytes, 0,
-                                Math.min(srcBytes.length, fixedLength));
-
-                        out.write(finalBytes);
+                        // КРИТИЧЕСКИЙ ФИКС: Пишем массив СТРОГО ПОБАЙТОВО через writeByte!
+                        // Это гарантирует, что в сокет улетит ровно fixedLength байт (для CHAR(4) это 4 байта)
+                        // без сбоев буферизации массивов в Google Guava!
+                        for (int bIdx = 0; bIdx < fixedLength; bIdx++) {
+                            out.writeByte(finalBytes[bIdx]);
+                        }
                     };
                     break;
                 }
@@ -715,6 +757,56 @@ public class ClickHouseStorage extends ClickStorage {
                     };
                     break;
                 }
+
+                case "date": {
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        Object v = r.getObject(jdbcIdx);
+
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+
+                        if (v == null) {
+                            out.writeShort((short) 0);
+                            return;
+                        }
+
+                        LocalDate localDate;
+                        try {
+                            if (v instanceof java.sql.Date sd) {
+                                localDate = sd.toLocalDate();
+                            } else if (v instanceof java.sql.Timestamp ts) {
+                                localDate = ts.toLocalDateTime().toLocalDate();
+                            } else if (v instanceof java.time.LocalDate ld) {
+                                localDate = ld;
+                            } else {
+                                String str = v.toString().trim();
+                                if (str.length() >= 10) {
+                                    localDate = java.time.LocalDate.parse(str.substring(0, 10));
+                                } else {
+                                    localDate = java.time.LocalDate.of(1970, 1, 1);
+                                }
+                            }
+                        } catch (Exception ex) {
+                            localDate = java.time.LocalDate.of(1970, 1, 1);
+                        }
+
+                        long daysLong = java.time.temporal.ChronoUnit.DAYS.between(
+                                java.time.LocalDate.of(1970, 1, 1), localDate);
+
+                        if (daysLong < -65535 || daysLong > 65535) {
+                            daysLong = 0;
+                        }
+
+                        out.writeShort((short) daysLong);
+                    };
+                    break;
+                }
+
 
                 default:
                     transfers[i] = (r, jdbcIdx, out) -> {};

@@ -148,7 +148,9 @@ abstract class ClickStorage extends Storage implements Source {
 
     @Override
     public String getStorageVersion() {
-        return "";
+        Client rawClient = clickClient.getClient();
+        var record = rawClient.queryAll("SELECT version()").getFirst();
+        return record.getString(1);
     }
 
     @Override

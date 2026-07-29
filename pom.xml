@@ -6,7 +6,7 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>26.3.29</version>
+    <version>26.3.30</version>
     <packaging>pom</packaging>
 
     <developers>
@@ -46,6 +46,7 @@
         <junit-jupiter.version>6.1.0</junit-jupiter.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <spring-boot-configuration>4.1.0</spring-boot-configuration>
+        <clickhouse.version>0.9.8</clickhouse.version>
     </properties>
 
     <dependencyManagement>
