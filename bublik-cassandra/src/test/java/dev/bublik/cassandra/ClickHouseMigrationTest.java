@@ -106,7 +106,12 @@ public class ClickHouseMigrationTest {
         Table sourceOutboxTable = new PseudoTable(sourceKeyspace, "source_outbox");
         Table targetOutboxTable = new PseudoTable("default", "target_outbox");
 
-        Storage sourceStorage = new CassandraStorage(sourceSession, batchSize, sourceOutboxTable);
+//        Storage sourceStorage = new CassandraStorage(sourceSession, batchSize, sourceOutboxTable);
+        Storage sourceStorage = new CassandraStorage.Builder()
+                .cqlSession(sourceSession)
+                .batchSize(batchSize)
+                .outboxTable(sourceOutboxTable)
+                .build();
         Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
 
         assertEquals(5, targetStorage.getThreadCount(),

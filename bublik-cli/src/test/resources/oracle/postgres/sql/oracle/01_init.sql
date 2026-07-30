@@ -24,12 +24,13 @@ create table test.b (
     rawbytea raw(16),
     json_like varchar2(4000),
     doc varchar2(4000) check (doc is json),
-    uuid char(36)
+    uuid char(36),
+    dd date
 );
 INSERT INTO test.b (
     id, a, b, c, d, "ALL", "LEVEL", e,
     t, create_at, gender, byteablob, textclob, exclude_me,
-    "CaseSensitive", country_id, rawbytea, json_like, doc, uuid
+    "CaseSensitive", country_id, rawbytea, json_like, doc, uuid, dd
 )
 SELECT
     1,
@@ -51,7 +52,8 @@ SELECT
     HEXTORAW('AABBCCDDEEFF00112233445566778899'),
     '{"key": "just_string"}',
     '{"user": "Dmitrii", "role": "admin"}',
-    '3e2e125a-b6c9-4f9b-9682-d21ec40564bc'
+    '3e2e125a-b6c9-4f9b-9682-d21ec40564bc',
+    CURRENT_DATE
 FROM dual;
 INSERT INTO test.b (id) VALUES (2);
 COMMIT;

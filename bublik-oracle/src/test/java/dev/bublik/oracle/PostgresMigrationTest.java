@@ -88,8 +88,12 @@ public class PostgresMigrationTest {
 
     @Test
     void testOnlyTableNames() throws Exception {
-        Storage sourceStorage = new OracleStorage(sourceDataSource);
-        Storage targetStorage = new PostgresStorage(targetDataSource);
+        Storage sourceStorage = new OracleStorage.Builder()
+                .dataSource(sourceDataSource)
+                .build();
+        Storage targetStorage = new PostgresStorage.Builder()
+                .dataSource(targetDataSource)
+                .build();
 
         List<Config> configs = new ArrayList<>();
         Config config = Config.builder()
@@ -118,8 +122,12 @@ public class PostgresMigrationTest {
 
     @Test
     void testColumnToColumn() throws Exception {
-        Storage sourceStorage = new OracleStorage(sourceDataSource);
-        Storage targetStorage = new PostgresStorage(targetDataSource);
+        Storage sourceStorage = new OracleStorage.Builder()
+                .dataSource(sourceDataSource)
+                .build();
+        Storage targetStorage = new PostgresStorage.Builder()
+                .dataSource(targetDataSource)
+                .build();
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
         columnToColumn.put("id", "id");
@@ -153,8 +161,12 @@ public class PostgresMigrationTest {
 
     @Test
     void testExpressionToColumn() throws Exception {
-        Storage sourceStorage = new OracleStorage(sourceDataSource);
-        Storage targetStorage = new PostgresStorage(targetDataSource);
+        Storage sourceStorage = new OracleStorage.Builder()
+                .dataSource(sourceDataSource)
+                .build();
+        Storage targetStorage = new PostgresStorage.Builder()
+                .dataSource(targetDataSource)
+                .build();
 
         Map<String, String> expressionToColumn = new LinkedHashMap<>();
         expressionToColumn.put("s.id as id", "id");
@@ -189,8 +201,12 @@ public class PostgresMigrationTest {
 
     @Test
     void testColumnToColumnExpressionToColumn() throws Exception {
-        Storage sourceStorage = new OracleStorage(sourceDataSource);
-        Storage targetStorage = new PostgresStorage(targetDataSource);
+        Storage sourceStorage = new OracleStorage.Builder()
+                .dataSource(sourceDataSource)
+                .build();
+        Storage targetStorage = new PostgresStorage.Builder()
+                .dataSource(targetDataSource)
+                .build();
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
         columnToColumn.put("id", "id");

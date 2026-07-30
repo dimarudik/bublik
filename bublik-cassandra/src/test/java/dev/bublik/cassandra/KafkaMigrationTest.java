@@ -78,8 +78,11 @@ public class KafkaMigrationTest {
     @DisplayName("Миграция из Cassandra в Kafka через явный конструктор")
     void testCassandraToKafkaMigration() throws Exception {
         Table sourceChunkTable = new PseudoTable(KEYSPACE, "bublik");
-
-        Storage sourceStorage = new CassandraStorage(cassandraSession, batchSize, sourceChunkTable);
+        Storage sourceStorage = new CassandraStorage.Builder()
+                .cqlSession(cassandraSession)
+                .batchSize(batchSize)
+                .outboxTable(sourceChunkTable)
+                .build();
 
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
@@ -90,7 +93,11 @@ public class KafkaMigrationTest {
         kafkaProps.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test\";");
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage(producer, TOPIC_NAME);
+        Storage targetStorage = new KafkaStorage.Builder()
+                .kafkaProducer(producer)
+                .topic(TOPIC_NAME)
+                .build();
+
 
         List<Config> configs = new ArrayList<>();
 

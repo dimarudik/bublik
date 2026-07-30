@@ -3,6 +3,7 @@ package dev.bublik.cassandra.storage;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.slf4j.Logger;
@@ -15,25 +16,19 @@ import java.util.*;
 public class CSPool {
     private static final Logger log = LoggerFactory.getLogger(CSPool.class);
     private final CqlSession cqlSession;
-    private final int size;
     private final Set<TokenRange> tokenRanges;
     private final Metadata metadata;
-    private final int majorVersion;
 
     public CSPool(CqlSession cqlSession) {
         this.cqlSession = cqlSession;
         this.tokenRanges = tokenRanges();
         this.metadata = cqlSession.getMetadata();
-        this.majorVersion = Objects.requireNonNull(cqlSession.getMetadata().getNodes().values().iterator().next().getCassandraVersion()).getMajor();
-        this.size = cqlSession.getContext().getConfigLoader().getInitialConfig().getDefaultProfile().getInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE);
     }
 
     public CSPool(Properties properties, int size) {
-        this.size = size;
-        this.cqlSession = createCqlSession(properties);
+        this.cqlSession = createCqlSession(properties, size);
         this.tokenRanges = tokenRanges();
         this.metadata = cqlSession.getMetadata();
-        this.majorVersion = Objects.requireNonNull(cqlSession.getMetadata().getNodes().values().iterator().next().getCassandraVersion()).getMajor();
     }
 
     public Metadata getMetadata() {
@@ -48,10 +43,10 @@ public class CSPool {
         return cqlSession;
     }
 
-    public CqlSession createCqlSession(Properties properties) {
+    public CqlSession createCqlSession(Properties properties, int size) {
         return CqlSession.builder()
                 .addContactPoints(getAddresses(properties))
-                .withConfigLoader(getConfigLoader(properties))
+                .withConfigLoader(getConfigLoader(size))
                 .withAuthCredentials(properties.getProperty("user"), properties.getProperty("password"))
                 .withLocalDatacenter(properties.getProperty("datacenter"))
                 .build();
@@ -66,7 +61,7 @@ public class CSPool {
                 .toList();
     }
 
-    public DriverConfigLoader getConfigLoader(Properties properties) {
+    public DriverConfigLoader getConfigLoader(int size) {
         return DriverConfigLoader.programmaticBuilder()
                 .withInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE, size)
                 .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, size)
@@ -86,10 +81,12 @@ public class CSPool {
     }
 
     public int getMajorVersion() {
-        return majorVersion;
+        return Objects.requireNonNull(cqlSession.getMetadata().getNodes().values().iterator().next().getCassandraVersion()).getMajor();
     }
 
     public int getSize() {
-        return size;
+        DriverContext driverContext = cqlSession.getContext();
+        return driverContext == null ? 0 :
+                driverContext.getConfigLoader().getInitialConfig().getDefaultProfile().getInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE);
     }
 }

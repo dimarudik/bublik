@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.30</version>
+        <version>26.3.31</version>
     </parent>
 
     <artifactId>bublik-mssql</artifactId>
@@ -69,6 +69,7 @@
             <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-mssqlserver</artifactId>

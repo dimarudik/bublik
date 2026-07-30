@@ -38,23 +38,6 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 public class CassandraStorage extends CSStorage {
     private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
 
-/*
-    public CassandraStorage(CqlSession cqlSession, int batchSize) {
-        super(cqlSession, null);
-        this.batchSize = batchSize;
-    }
-*/
-
-    public CassandraStorage(CqlSession cqlSession, int batchSize, Table outboxTable) {
-        super(cqlSession, outboxTable);
-        this.batchSize = batchSize;
-    }
-
-    public CassandraStorage(CqlSession cqlSession, int batchSize, int threadCount, Table outboxTable) {
-        super(cqlSession, threadCount, outboxTable);
-        this.batchSize = batchSize;
-    }
-
     public CassandraStorage(StorageClass storageClass,
                             ConnectionProperty connectionProperty,
                             Table outboxTable) {
@@ -62,6 +45,21 @@ public class CassandraStorage extends CSStorage {
         this.batchSize = getBatchSize(connectionProperty);
         this.threadCount = connectionProperty.getThreadCount();
         this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+    }
+
+    private CassandraStorage(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends CSStorage.Builder<CassandraStorage, Builder> {
+
+        @Override protected Builder self() {
+            return this;
+        }
+
+        @Override public CassandraStorage build() {
+            return new CassandraStorage(this);
+        }
     }
 
     @Override

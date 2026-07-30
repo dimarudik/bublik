@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.*;
+import java.sql.Date;
 import java.time.*;
 import java.util.*;
 
@@ -35,20 +36,6 @@ import static dev.bublik.postgres.util.ColumnUtil.*;
 public class PostgresStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
 
-    public PostgresStorage(DataSource dataSource) {
-        super(dataSource, null);
-    }
-
-    public PostgresStorage(DataSource dataSource, Table outboxTable) {
-        super(dataSource, outboxTable);
-    }
-
-    public PostgresStorage(DataSource dataSource,
-                           int threadCount,
-                           Table outboxTable) {
-        super(dataSource, threadCount, outboxTable);
-    }
-
     protected PostgresStorage(DataSource dataSource,
                               ConnectionProperty connectionProperty,
                               Table outboxTable) {
@@ -59,6 +46,24 @@ public class PostgresStorage extends JDBCStorage {
                            ConnectionProperty connectionProperty,
                            Table outboxTable) throws SQLException {
         super(storageClass, connectionProperty, outboxTable);
+    }
+
+    private PostgresStorage(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends JDBCStorage.Builder<PostgresStorage, Builder> {
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public PostgresStorage build() {
+            validate();
+            return new PostgresStorage(this);
+        }
     }
 
     @Override
@@ -456,8 +461,6 @@ public class PostgresStorage extends JDBCStorage {
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                     chunk.getT2t().targetTable().getFinalTableName(true);
             String sqlCopy = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
-//            тут
-//            System.out.println(sqlCopy);
 
             int pgStreamBufferSize = 1024 * 1024;
             int javaBufferSize = 64 * 1024;
@@ -511,6 +514,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeString(s != null ? s.replace("\u0000", "") : "");
                     break;
                 }
+
                 case "xml": {
                     String s;
                     if (value instanceof java.sql.SQLXML sqlXml) {
@@ -523,6 +527,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeXml(s != null ? s.replace("\u0000", "") : "");
                     break;
                 }
+
                 case "_text": {
                     String[] arr;
                     if (value instanceof java.sql.Array) {
@@ -533,6 +538,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeTextArray(arr);
                     break;
                 }
+
                 case "_varchar": {
                     String[] arr;
                     if (value instanceof java.sql.Array) {
@@ -543,6 +549,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeVarcharArray(arr);
                     break;
                 }
+
                 case "text": {
                     String s;
                     if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
@@ -557,6 +564,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeString(s != null ? s.replace("\u0000", "") : "");
                     break;
                 }
+
                 case "jsonb": {
                     String s;
                     if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
@@ -577,6 +585,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeJsonb(s);
                     break;
                 }
+
                 case "money", "numeric", "decimal", "NUMBER": {
                     if (value instanceof BigDecimal bd) {
                         writer.writeNumeric(bd);
@@ -587,6 +596,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "int", "serial", "int4": {
                     if (value instanceof Number number) {
                         writer.writeInt(number.intValue());
@@ -595,6 +605,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "smallserial", "int2": {
                     if (value instanceof Number number) {
                         writer.writeShort(number.shortValue());
@@ -603,6 +614,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "bigint", "int8": {
                     if (value instanceof Number number) {
                         writer.writeLong(number.longValue());
@@ -611,6 +623,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "float4", "real" : {
                     if (value instanceof Number number) {
                         writer.writeFloat(number.floatValue());
@@ -619,6 +632,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "float8", "double precision": {
                     if (value instanceof Boolean bool) {
                         writer.writeBoolean(bool);
@@ -629,6 +643,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "bool": {
                     if (value instanceof Number number) {
                         writer.writeBoolean(number.intValue() > 0);
@@ -637,7 +652,8 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
-                case "uuid":
+
+                case "uuid": {
                     UUID uuid = null;
                     try {
                         uuid = (UUID) value;
@@ -651,14 +667,29 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     writer.writeUuid(uuid);
                     break;
+                }
+
                 case "date": {
-                    if (value instanceof java.sql.Date sqlDate) {
+                    switch (value) {
+                        case Timestamp timestamp -> writer.writeDate(timestamp.toLocalDateTime().toLocalDate());
+                        case Date sqlDate -> writer.writeDate(sqlDate.toLocalDate());
+                        case LocalDate localDate -> writer.writeDate(localDate);
+                        default ->
+                                throw new SQLException("Cannot map " + value.getClass().getName() + " to PostgreSQL DATE");
+                    }
+                    break;
+                }
+/*
+                case "date": {
+                    if (value instanceof Date sqlDate) {
                         writer.writeDate(sqlDate.toLocalDate());
                     } else if (value instanceof LocalDate localDate) {
                         writer.writeDate(localDate);
                     }
                     break;
                 }
+*/
+
                 case "timestamp", "timestamp without time zone": {
                     LocalDateTime ldt = null;
                     try {
@@ -679,14 +710,13 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "timestamptz", "timestamp with time zone": {
                     OffsetDateTime odt = null;
                     try {
-                        // Запрашиваем нативный Java 8 тип напрямую у драйвера (Oracle и Postgres это умеют)
                         odt = rs.getObject(sourceColumn, OffsetDateTime.class);
                     } catch (Exception ex) {
-                        // Если ojdbc старый и упал, извлекаем через стандартный Timestamp
-                        java.sql.Timestamp ts = rs.getTimestamp(sourceColumn);
+                        Timestamp ts = rs.getTimestamp(sourceColumn);
                         if (ts != null) {
                             odt = ts.toInstant().atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime();
                         }
@@ -699,6 +729,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "time", "time without time zone": {
                     if (value instanceof java.sql.Time sqlTime) {
                         writer.writeTime(sqlTime.toLocalTime());
@@ -707,6 +738,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "bytea", "blob", "BINARY": {
                     byte[] bytes = null; // По умолчанию null
 
@@ -735,6 +767,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
                 case "inet": {
                     java.net.InetAddress inetAddress;
                     if (value instanceof java.net.InetAddress) {
@@ -746,6 +779,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeInet(inetAddress);
                     break;
                 }
+
                 case "hstore": {
                     java.util.Map<String, String> hstoreMap;
                     if (value instanceof java.util.Map) {
@@ -758,6 +792,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeHstore(hstoreMap);
                     break;
                 }
+
                 case "_bigint", "_int8": {
                     Long[] arr;
                     switch (value) {
@@ -779,6 +814,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeLongArray(arr);
                     break;
                 }
+
                 case "_uuid": {
                     UUID[] arr;
                     if (value instanceof java.sql.Array sqlArray) {
@@ -791,6 +827,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeUuidArray(arr);
                     break;
                 }
+
                 case "tstzrange": {
                     String rangeStr = null;
 
@@ -805,30 +842,24 @@ public class PostgresStorage extends JDBCStorage {
                         break;
                     }
 
-                    // Парсим строку Postgres формата: [lower,upper) или (lower,upper]
                     boolean lowerInclusive = rangeStr.startsWith("[");
                     boolean upperInclusive = rangeStr.endsWith("]");
 
-                    // Отрезаем скобки
                     String content = rangeStr.substring(1, rangeStr.length() - 1);
 
-                    // Сплит по запятой, но учитываем, что значения могут быть в кавычках: "2026-05-26 10:00:00+03"
                     String[] parts = content.split(",");
 
                     ZonedDateTime lowerBound = null;
                     ZonedDateTime upperBound = null;
 
-                    // Парсим нижнюю границу
                     if (parts.length > 0 && !parts[0].trim().isEmpty() && !parts[0].contains("infinity")) {
                         String lowerStr = parts[0].replace("\"", "").trim();
-                        // Заменяем пробел между датой и временем на 'T', если Postgres вернул формат "YYYY-MM-DD HH:MI:SS"
                         if (lowerStr.contains(" ") && !lowerStr.contains("T")) {
                             lowerStr = lowerStr.replace(" ", "T");
                         }
                         lowerBound = java.time.OffsetDateTime.parse(lowerStr).toZonedDateTime();
                     }
 
-                    // Парсим верхнюю границу
                     if (parts.length > 1 && !parts[1].trim().isEmpty() && !parts[1].contains("infinity")) {
                         String upperStr = parts[1].replace("\"", "").trim();
                         if (upperStr.contains(" ") && !upperStr.contains("T")) {
@@ -837,10 +868,10 @@ public class PostgresStorage extends JDBCStorage {
                         upperBound = java.time.OffsetDateTime.parse(upperStr).toZonedDateTime();
                     }
 
-                    // Отправляем разобранные границы в бинарный поток
                     writer.writeTstzRange(lowerBound, lowerInclusive, upperBound, upperInclusive);
                     break;
                 }
+
                 case "interval": {
                     int months = 0;
                     int days = 0;
@@ -888,6 +919,7 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeInterval(months, days, micros);
                     break;
                 }
+
                 default:
                     if (chunk.getConfig().tryCharIfAny() != null) {
                         if (chunk.getConfig().tryCharIfAny().contains(targetColumn)) {
@@ -1528,4 +1560,9 @@ public class PostgresStorage extends JDBCStorage {
             throw new RuntimeException(e);
         }
     }
+
+    public static Config.Builder builder() {
+        return new Config.Builder();
+    }
+
 }

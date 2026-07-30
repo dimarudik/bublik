@@ -23,7 +23,8 @@ CREATE TABLE test.a (
     rawbytea bytea,
     json_like varchar(4000),
     doc jsonb,
-    "uuid" char(36)
+    "uuid" char(36),
+    dd date
 );
 create table test.b (
     b numeric(10,0),

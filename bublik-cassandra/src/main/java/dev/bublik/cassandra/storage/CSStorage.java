@@ -42,23 +42,37 @@ abstract class CSStorage extends Storage implements Source {
     protected CSPool csPool;
     protected int batchSize;
 
-    public CSStorage(CqlSession cqlSession, Table outboxTable) {
-        super(null, outboxTable);
-        CSPool csPool = new CSPool(cqlSession);
-        this.csPool = csPool;
-        this.threadCount = csPool.getSize();
-    }
-
-    public CSStorage(CqlSession cqlSession, int threadCount, Table outboxTable) {
-        super(null, outboxTable);
-        this.threadCount = threadCount;
-        this.csPool = new CSPool(cqlSession);
-    }
-
     protected CSStorage(StorageClass storageClass,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) {
         super(storageClass, connectionProperty, outboxTable);
+    }
+
+    protected CSStorage(Builder<?, ?> builder) {
+        super(builder);
+        this.batchSize = builder.batchSize;
+        if (builder.cqlSession != null) {
+            this.csPool = new CSPool(builder.cqlSession);
+            if (threadCount <= 0) {
+                this.threadCount = this.csPool.getSize();
+            }
+        }
+    }
+
+    static abstract class Builder<C extends CSStorage, B extends Storage.Builder<C, B>>
+            extends Storage.Builder<C, B> {
+        private int batchSize;
+        protected CqlSession cqlSession;
+
+        public B cqlSession(CqlSession cqlSession) {
+            this.cqlSession = cqlSession;
+            return self();
+        }
+
+        public B batchSize(int batchSize) {
+            this.batchSize = batchSize;
+            return self();
+        }
     }
 
     @Override
@@ -109,8 +123,10 @@ abstract class CSStorage extends Storage implements Source {
             }
         }
         log.info("SOURCE version: {}", getStorageMajorVersion());
+        log.info("TARGET version: {}", targetStorage.getStorageVersion());
 
         int errorCounter = 0;
+        log.info("THREADS: {}", threadCount);
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);

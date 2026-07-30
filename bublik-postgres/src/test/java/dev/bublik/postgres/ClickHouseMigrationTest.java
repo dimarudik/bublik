@@ -89,7 +89,10 @@ public class ClickHouseMigrationTest {
         Table sourceOutboxTable = new PseudoTable("public", "source_outbox");
         Table targetOutboxTable = new PseudoTable("default", "target_outbox");
 
-        Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceOutboxTable);
+        Storage sourceStorage = new PostgresStorage.Builder()
+                .dataSource(sourceDataSource)
+                .outboxTable(sourceOutboxTable)
+                .build();
         Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
 
         assertEquals(5, targetStorage.getThreadCount(),

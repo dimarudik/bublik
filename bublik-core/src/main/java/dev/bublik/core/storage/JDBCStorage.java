@@ -16,8 +16,7 @@ import java.util.stream.Collectors;
 
 import static dev.bublik.core.constants.Constants.FETCH_SIZE;
 
-public abstract class JDBCStorage extends Storage
-        implements JDBCStorageService {
+public abstract class JDBCStorage extends Storage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
     private final boolean isManagedPool;
@@ -59,6 +58,39 @@ public abstract class JDBCStorage extends Storage
         this.fetchSize = storageClass.getProperties().getProperty("fetchSize") == null ?
                 FETCH_SIZE : Integer.parseInt(storageClass.getProperties().getProperty("fetchSize"));
         this.isManagedPool = true;
+    }
+
+    protected JDBCStorage(Builder<?, ?> builder) {
+        super(builder);
+        this.dataSource = builder.dataSource;
+        this.isManagedPool = false;
+        this.fetchSize = builder.fetchSize;
+        if (threadCount <= 0) {
+            this.threadCount = getMaxPoolSize(dataSource, 10);
+        }
+    }
+
+    protected static abstract class Builder<C extends JDBCStorage, B extends Builder<C, B>> extends Storage.Builder<C, B> {
+        private DataSource dataSource;
+        private int fetchSize;
+
+        public B dataSource(DataSource dataSource) {
+            this.dataSource = dataSource;
+            return self();
+        }
+
+        public B fetchSize(int fetchSize) {
+            this.fetchSize = fetchSize;
+            return self();
+        }
+
+        @Override
+        protected void validate() {
+            super.validate();
+            if (dataSource == null) {
+                throw new IllegalStateException("DataSource must not be null for JDBC Storage");
+            }
+        }
     }
 
     private static int getMaxPoolSize(DataSource dataSource, int defaultValue) {

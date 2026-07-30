@@ -36,11 +36,11 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, null)
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(tableName.tableToString())
-                .interStageSaveChunkRows(getCopied(), sync, tableName.tableToString())
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.tableToString())
+                .mainStageTransfer(null)
+                .interStageSaveChunkRows(getCopied(), sync, null)
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, null)
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();
         if (getSourceSession().isValid(0)) {

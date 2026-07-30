@@ -112,6 +112,7 @@ public class OracleToPostgresTest {
             assertTrue(docJson.contains("\"role\": \"admin\""));
 
             assertEquals("3e2e125a-b6c9-4f9b-9682-d21ec40564bc", rs.getString("uuid").trim());
+            assertEquals( java.sql.Date.valueOf(java.time.LocalDate.now()) , rs.getDate("dd"));
 
             ResultSet rsNull = statement.executeQuery("select * from test.a where id = 2");
             assertTrue(rsNull.next());
@@ -136,6 +137,7 @@ public class OracleToPostgresTest {
             rsNull.getString("json_like"); assertTrue(rsNull.wasNull());
             rsNull.getString("doc");      assertTrue(rsNull.wasNull());
             rsNull.getString("uuid");     assertTrue(rsNull.wasNull());
+            rsNull.getString("dd");     assertTrue(rsNull.wasNull());
 
         } catch (SQLException e) {
             throw new RuntimeException(e);

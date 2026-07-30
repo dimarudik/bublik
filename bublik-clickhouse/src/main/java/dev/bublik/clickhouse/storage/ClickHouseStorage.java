@@ -52,6 +52,24 @@ public class ClickHouseStorage extends ClickStorage {
         super(storageClass, connectionProperty, outboxTable);
     }
 
+    private ClickHouseStorage(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends ClickStorage.Builder<ClickHouseStorage, Builder> {
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public ClickHouseStorage build() {
+            validate();
+            return new ClickHouseStorage(this);
+        }
+    }
+
     @Override
     public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         Storage sourceStorage = chunk.getSourceStorage();

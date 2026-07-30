@@ -96,7 +96,11 @@ public class KafkaMigrationTest {
 
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage(producer, TOPIC_NAME);
+        Storage targetStorage = new KafkaStorage.Builder()
+                .kafkaProducer(producer)
+                .topic(TOPIC_NAME)
+                .build();
+
 
         List<Config> configs = new ArrayList<>();
 

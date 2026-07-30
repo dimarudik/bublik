@@ -4,6 +4,7 @@ import com.clickhouse.client.api.Client;
 import dev.bublik.clickhouse.model.ClickTable;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
+import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 
@@ -34,6 +35,21 @@ abstract class ClickStorage extends Storage implements Source {
         super(storageClass, connectionProperty, outboxTable);
         this.threadCount = connectionProperty.getThreadCount();
         this.clickClient = new ClickClient(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+    }
+
+    protected ClickStorage(ClickStorage.Builder<?, ?> builder) {
+        super(builder);
+        this.clickClient = builder.clickClient;
+    }
+
+    public static abstract class Builder<C extends ClickStorage, B extends Builder<C, B>>
+            extends Storage.Builder<C, B> {
+        private ClickClient clickClient;
+
+        public B clickClient(ClickClient clickClient) {
+            this.clickClient = clickClient;
+            return self();
+        }
     }
 
     @Override

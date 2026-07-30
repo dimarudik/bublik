@@ -82,7 +82,10 @@ public class KafkaMigrationTest {
     void testPostgresToKafkaMigration() throws Exception {
         Table sourceChunkTable = new PseudoTable("public", "bublik");
 
-        Storage sourceStorage = new PostgresStorage(sourceDataSource, sourceChunkTable);
+        Storage sourceStorage = new PostgresStorage.Builder()
+                .dataSource(sourceDataSource)
+                .outboxTable(sourceChunkTable)
+                .build();
 
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
@@ -93,7 +96,11 @@ public class KafkaMigrationTest {
         kafkaProps.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test\";");
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage(producer, TOPIC_NAME);
+        Storage targetStorage = new KafkaStorage.Builder()
+                .kafkaProducer(producer)
+                .topic(TOPIC_NAME)
+                .build();
+
 
         List<Config> configs = new ArrayList<>();
 

@@ -79,7 +79,9 @@ public class KafkaMigrationTest {
     @Test
     @DisplayName("Миграция из Oracle в Kafka через явный конструктор")
     void testOracleToKafkaMigration() throws Exception {
-        Storage sourceStorage = new OracleStorage(sourceDataSource);
+        Storage sourceStorage = new OracleStorage.Builder()
+                .dataSource(sourceDataSource)
+                .build();
 
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
@@ -93,7 +95,10 @@ public class KafkaMigrationTest {
 
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage(producer, TOPIC_NAME);
+        Storage targetStorage = new KafkaStorage.Builder()
+                .kafkaProducer(producer)
+                .topic(TOPIC_NAME)
+                .build();
 
         List<Config> configs = new ArrayList<>();
 

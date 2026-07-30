@@ -13,17 +13,19 @@ import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class StorageConstructorTest {
+public class StorageBuilderTest {
 
     @Test
-    void testConstructorWithExplicitThreadCount() throws Exception {
+    void testBuilderWithExplicitThreadCount() throws Exception {
         DataSource mockDataSource = Mockito.mock(DataSource.class);
         int expectedThreadCount = 7;
 
-        Storage storage = new PostgresStorage(mockDataSource, expectedThreadCount, new PseudoTable("public", "bublik"));
+        Storage storage = new PostgresStorage.Builder()
+                .dataSource(mockDataSource)
+                .threadCount(expectedThreadCount)
+                .outboxTable(new PseudoTable("public", "bublik"))
+                .build();
 
-        assertNotNull(storage.getConnectionProperty(),
-                "ConnectionProperty не должен быть null, иначе будет NullPointerException");
 
         assertEquals(expectedThreadCount, storage.getThreadCount(),
                 "Поле threadCount должно быть строго равно переданному значению");

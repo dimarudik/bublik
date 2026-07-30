@@ -24,10 +24,6 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 public class OracleStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
 
-    public OracleStorage(DataSource dataSource) {
-        super(dataSource, new PseudoTable("foo", "bar"));
-    }
-
     public OracleStorage(DataSource dataSource,
                          int threadCount) {
         super(dataSource, threadCount, new PseudoTable("foo", "bar"));
@@ -42,6 +38,24 @@ public class OracleStorage extends JDBCStorage {
                          ConnectionProperty connectionProperty,
                          Table outboxTable) throws SQLException {
         super(storageClass, connectionProperty, outboxTable);
+    }
+
+    private OracleStorage(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends JDBCStorage.Builder<OracleStorage, Builder> {
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public OracleStorage build() {
+            validate();
+            return new OracleStorage(this);
+        }
     }
 
     @Override
@@ -62,13 +76,6 @@ public class OracleStorage extends JDBCStorage {
     public <K, T, S extends AutoCloseable, R>  LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
         return null;
     }
-
-/*
-    @Override
-    public Map.Entry<String, Long> getSystemChangeNumberWithTrxId() throws SQLException {
-        return null;
-    }
-*/
 
     @Override
     public void fulfillChunks(List<Config> configs, boolean synz, int rows) throws SQLException {

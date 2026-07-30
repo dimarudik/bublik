@@ -92,8 +92,15 @@ public class CassandraMigrationTest {
     void testPostgresToCassandraMigration() throws Exception {
         Table sourceOutboxTable = new PseudoTable("public", "bublik");
         Table targetOutboxTable = new PseudoTable(outboxKeyspace, "bublik");
-        Storage sourceStorage = new PostgresStorage(postgresDataSource, sourceOutboxTable);
-        Storage targetStorage = new CassandraStorage(cassandraSession, batchSize, targetOutboxTable);
+        Storage sourceStorage = new PostgresStorage.Builder()
+                .dataSource(postgresDataSource)
+                .outboxTable(sourceOutboxTable)
+                .build();
+        Storage targetStorage = new CassandraStorage.Builder()
+                .cqlSession(cassandraSession)
+                .batchSize(batchSize)
+                .outboxTable(targetOutboxTable)
+                .build();
 
         assertEquals(3, targetStorage.getThreadCount(),
                 "Количество потоков Бублика должно автоматически подстроиться под CONNECTION_POOL_LOCAL_SIZE сессии Cassandra");

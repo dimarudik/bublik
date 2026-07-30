@@ -50,6 +50,24 @@ public class MSSQLStorage extends JDBCStorage {
         super(storageClass, connectionProperty, outboxTable);
     }
 
+    private MSSQLStorage(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends JDBCStorage.Builder<MSSQLStorage, Builder> {
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public MSSQLStorage build() {
+            validate();
+            return new MSSQLStorage(this);
+        }
+    }
+
     @Override
     public void createPrimaryKeys() {
 

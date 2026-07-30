@@ -43,6 +43,37 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         this.outboxTable = outboxTable;
     }
 
+    protected Storage(Builder<?, ?> builder) {
+        this.storageClass = null;
+        this.connectionProperty = null;
+        this.tables = null;
+        this.threadCount = builder.threadCount;
+        this.outboxTable = builder.outboxTable;
+    }
+
+    // Curiously Recurring Template Pattern (CRTP)
+    protected static abstract class Builder<C extends Storage, B extends Builder<C, B>> {
+        protected int threadCount;
+        private Table outboxTable;
+
+        protected abstract B self();
+
+        public abstract C build();
+
+        public B threadCount(int threadCount) {
+            this.threadCount = threadCount;
+            return self();
+        }
+
+        public B outboxTable(Table outboxTable) {
+            this.outboxTable = outboxTable;
+            return self();
+        }
+
+        protected void validate() {
+        }
+    }
+
     public Map<Table, Table> getTables() {
         return tables;
     }
@@ -86,6 +117,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         log.info("TARGET version: {}", targetStorage.getStorageVersion());
 
         int errorCounter = 0;
+        log.info("THREADS: {}", threadCount);
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);

@@ -85,7 +85,9 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testOracleToClickHouseMigration() throws Exception {
-        Storage sourceStorage = new OracleStorage(sourceDataSource);
+        Storage sourceStorage = new OracleStorage.Builder()
+                .dataSource(sourceDataSource)
+                .build();
         Storage targetStorage = new ClickHouseStorage(clickhouseClient);
 
         assertEquals(5, targetStorage.getThreadCount(),

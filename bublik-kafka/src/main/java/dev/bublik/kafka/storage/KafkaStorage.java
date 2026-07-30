@@ -34,17 +34,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class KafkaStorage extends Storage {
-
     private final KafkaProducer<String, byte[]> kafkaProducer;
     private final String topic;
     private final Map<String, AvroRowProducer> producerCache = new ConcurrentHashMap<>();
     private final Map<String, ObjectRowProducer> valueCache = new ConcurrentHashMap<>();
-
-    public KafkaStorage(KafkaProducer<String, byte[]> kafkaProducer, String topic) {
-        super(new ConnectionProperty());
-        this.kafkaProducer = kafkaProducer;
-        this.topic = topic;
-    }
 
     protected KafkaStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
         super(storageClass, connectionProperty);
@@ -56,6 +49,39 @@ public class KafkaStorage extends Storage {
     public KafkaStorage(StorageClass storageClass, ConnectionProperty connectionProperty, Table outboxTable) {
         this(storageClass, connectionProperty);
     }
+
+    private KafkaStorage(Builder builder) {
+        super(builder);
+        this.kafkaProducer = builder.kafkaProducer;
+        this.topic = builder.topic;
+    }
+
+    public static class Builder extends Storage.Builder<KafkaStorage, Builder> {
+        private KafkaProducer<String, byte[]> kafkaProducer;
+        private String topic;
+
+        public Builder kafkaProducer(KafkaProducer<String, byte[]> kafkaProducer) {
+            this.kafkaProducer = kafkaProducer;
+            return self();
+        }
+
+        public Builder topic(String topic) {
+            this.topic = topic;
+            return self();
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public KafkaStorage build() {
+            validate();
+            return new KafkaStorage(this);
+        }
+    }
+
 
     @Override
     public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {

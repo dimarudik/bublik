@@ -153,7 +153,6 @@ public interface StorageService {
         log.info("Free Heap Memory:       {} MB", (maxMemory - usedMemory) / byteToMb);
         log.info("==========================================================");
 
-        log.info("THREADS: {}", property.getThreadCount());
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");
         log.info("SOURCE: {}", sourceUrl == null ? sourceHosts : sourceUrl);

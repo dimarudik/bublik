@@ -91,8 +91,16 @@ public class CassandraMigrationTest {
     void testOnlyTableNames() throws Exception {
         Table sourceOutboxTable = new PseudoTable(sourceKeyspace, "bublik");
         Table targetOutboxTable = new PseudoTable(targetKeyspace, "bublik");
-        Storage sourceStorage = new CassandraStorage(sourceSession, batchSize, sourceOutboxTable);
-        Storage targetStorage = new CassandraStorage(targetSession, batchSize, targetOutboxTable);
+        Storage sourceStorage = new CassandraStorage.Builder()
+                .cqlSession(sourceSession)
+                .batchSize(batchSize)
+                .outboxTable(sourceOutboxTable)
+                .build();
+        Storage targetStorage = new CassandraStorage.Builder()
+                .cqlSession(targetSession)
+                .batchSize(batchSize)
+                .outboxTable(targetOutboxTable)
+                .build();
 
         assertEquals(3, sourceStorage.getThreadCount(),
                 "Количество потоков Бублика должно автоматически подстроиться под размер пула CqlSession");
