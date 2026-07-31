@@ -9,7 +9,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.cassandra.storage.CassandraStorage;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
@@ -90,14 +90,12 @@ public class CassandraMigrationTest {
 
     @Test
     void testPostgresToCassandraMigration() throws Exception {
-        Table sourceOutboxTable = new PseudoTable("public", "bublik");
-        Table targetOutboxTable = new PseudoTable(outboxKeyspace, "bublik");
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(postgresDataSource)
+        Table sourceOutboxTable = new DummyTable("public", "bublik");
+        Table targetOutboxTable = new DummyTable(outboxKeyspace, "bublik");
+        Storage sourceStorage = new PostgresStorage.Builder(postgresDataSource)
                 .outboxTable(sourceOutboxTable)
                 .build();
-        Storage targetStorage = new CassandraStorage.Builder()
-                .cqlSession(cassandraSession)
+        Storage targetStorage = new CassandraStorage.Builder(cassandraSession, outboxKeyspace)
                 .batchSize(batchSize)
                 .outboxTable(targetOutboxTable)
                 .build();

@@ -612,4 +612,25 @@ public class PGTable extends Table {
         }
         return optionDefinition.toString();
     }
+
+    private PGTable(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends Table.Builder<PGTable, Builder> {
+        protected Builder(String schemaName, String tableName) {
+            super(schemaName, tableName);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public PGTable build() {
+            validate();
+            return new PGTable(this);
+        }
+    }
 }

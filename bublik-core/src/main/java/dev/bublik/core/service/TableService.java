@@ -43,6 +43,6 @@ public interface TableService {
             tableName = outboxTable;
         }
 
-        return new PseudoTable(schemaName, tableName);
+        return new DummyTable(schemaName, tableName);
     }
 }

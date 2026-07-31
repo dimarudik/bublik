@@ -35,7 +35,6 @@ class BublikStarterTest {
 
     @Test
     void shouldCorrectlyMapYamlPropertiesToPropertiesClass() {
-        // Проверяем, как Spring Binder переносит вложенные структуры (мапы и списки) из YAML в Java-объекты
         this.contextRunner
                 .withPropertyValues(
                         "bublik.thread-count=8",

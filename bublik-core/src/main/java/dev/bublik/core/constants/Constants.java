@@ -7,4 +7,5 @@ public abstract class Constants {
     public static final String CHUNK_SCHEMA_NAME = "bublik";
     public static final String CHUNK_TABLE_NAME = "bublik_chunks";
     public static final int FETCH_SIZE = 10_000;
+    public static final int POOL_SIZE = 10;
 }

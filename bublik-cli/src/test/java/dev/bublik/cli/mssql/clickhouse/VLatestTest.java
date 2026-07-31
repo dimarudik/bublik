@@ -1,7 +1,7 @@
 package dev.bublik.cli.mssql.clickhouse;
 
 import dev.bublik.cli.TestResult;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.*;
 import org.testcontainers.clickhouse.ClickHouseContainer;
@@ -49,8 +49,8 @@ public class VLatestTest {
     void mssqlAllTypes() throws Exception {
         Properties targetProps = getJdbcProperties(target);
 
-        Table chunkTable = new PseudoTable("test", "chunk");
-        Table outboxTable = new PseudoTable("test", "outbox");
+        Table chunkTable = new DummyTable("test", "chunk");
+        Table outboxTable = new DummyTable("test", "outbox");
         TestResult result = getResultCount(
                 "./mssql/clickhouse/yaml/mssql2click.yaml",
                 "./mssql/clickhouse/json/mssql2click.json",

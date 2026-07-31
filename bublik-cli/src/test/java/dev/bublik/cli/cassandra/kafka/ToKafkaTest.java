@@ -11,7 +11,7 @@ import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -108,7 +108,7 @@ public class ToKafkaTest {
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
         cp.getToProperties().put("servers", kafkaContainer.getBootstrapServers());
-        Table chunkTable = new PseudoTable(cp.getToProperty().getProperty("keyspace"), "chunk");
+        Table chunkTable = new DummyTable(cp.getToProperty().getProperty("keyspace"), "chunk");
 
         StorageService.init(cp, configs, rows, chunkTable);
 

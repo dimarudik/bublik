@@ -36,11 +36,13 @@ import static dev.bublik.postgres.util.ColumnUtil.*;
 public class PostgresStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
 
+/*
     protected PostgresStorage(DataSource dataSource,
                               ConnectionProperty connectionProperty,
                               Table outboxTable) {
         super(dataSource, connectionProperty, outboxTable);
     }
+*/
 
     public PostgresStorage(StorageClass storageClass,
                            ConnectionProperty connectionProperty,
@@ -53,6 +55,10 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     public static class Builder extends JDBCStorage.Builder<PostgresStorage, Builder> {
+
+        public Builder(DataSource dataSource) {
+            super(dataSource);
+        }
 
         @Override
         protected Builder self() {
@@ -679,16 +685,6 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
-/*
-                case "date": {
-                    if (value instanceof Date sqlDate) {
-                        writer.writeDate(sqlDate.toLocalDate());
-                    } else if (value instanceof LocalDate localDate) {
-                        writer.writeDate(localDate);
-                    }
-                    break;
-                }
-*/
 
                 case "timestamp", "timestamp without time zone": {
                     LocalDateTime ldt = null;
@@ -1171,7 +1167,7 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void createGlobalOutbox() throws SQLException {
-        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("public", "_outbox"));
+        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_outbox"));
         Connection connection = getPoolConnection();
         try {
             Statement createTable = connection.createStatement();
@@ -1189,7 +1185,7 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void createChunkTable() throws SQLException {
-        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("public", "_chunk"));
+        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_chunk"));
         try {
             Connection connection = this.getPoolConnection();
             Statement createTable = connection.createStatement();

@@ -3,7 +3,7 @@ package dev.bublik.mssql;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.kafka.storage.KafkaStorage;
@@ -81,9 +81,11 @@ public class KafkaMigrationTest {
     @Test
     @DisplayName("Миграция из MSSQL в Kafka через явный конструктор")
     void testMssqlToKafkaMigration() throws Exception {
-        Table sourceChunkTable = new PseudoTable("dbo", "bublik");
+        Table sourceChunkTable = new DummyTable("dbo", "bublik");
 
-        Storage sourceStorage = new MSSQLStorage(sourceDataSource, sourceChunkTable);
+        Storage sourceStorage = new MSSQLStorage.Builder(sourceDataSource)
+                .outboxTable(sourceChunkTable)
+                .build();
 
         Properties kafkaProps = new Properties();
         kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
@@ -96,9 +98,7 @@ public class KafkaMigrationTest {
 
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage.Builder()
-                .kafkaProducer(producer)
-                .topic(TOPIC_NAME)
+        Storage targetStorage = new KafkaStorage.Builder(producer, TOPIC_NAME)
                 .build();
 
 

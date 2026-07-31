@@ -57,9 +57,15 @@ public class KafkaStorage extends Storage {
     }
 
     public static class Builder extends Storage.Builder<KafkaStorage, Builder> {
-        private KafkaProducer<String, byte[]> kafkaProducer;
-        private String topic;
+        private final KafkaProducer<String, byte[]> kafkaProducer;
+        private final String topic;
 
+        public Builder(KafkaProducer<String, byte[]> kafkaProducer, String topic) {
+            this.kafkaProducer = kafkaProducer;
+            this.topic = topic;
+        }
+
+/*
         public Builder kafkaProducer(KafkaProducer<String, byte[]> kafkaProducer) {
             this.kafkaProducer = kafkaProducer;
             return self();
@@ -69,6 +75,7 @@ public class KafkaStorage extends Storage {
             this.topic = topic;
             return self();
         }
+*/
 
         @Override
         protected Builder self() {
@@ -290,6 +297,11 @@ public class KafkaStorage extends Storage {
     }
 
     @Override
+    public void validate(Storage targetStorage, List<Config> configs) throws SQLException {
+
+    }
+
+    @Override
     public void createGlobalOutbox() throws SQLException {
 
     }
@@ -433,7 +445,7 @@ public class KafkaStorage extends Storage {
 
     @Override
     public Table configToTable(String schemaName, String tableName) {
-        return new PseudoTable(schemaName, tableName);
+        return new DummyTable(schemaName, tableName);
     }
 
     @Override

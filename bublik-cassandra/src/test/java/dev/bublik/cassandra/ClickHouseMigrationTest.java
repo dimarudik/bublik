@@ -7,7 +7,7 @@ import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import dev.bublik.cassandra.storage.CassandraStorage;
 import dev.bublik.clickhouse.storage.ClickHouseStorage;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import org.junit.jupiter.api.AfterAll;
@@ -103,16 +103,18 @@ public class ClickHouseMigrationTest {
     @Test
     @DisplayName("Сквозной тест миграции: Cassandra -> ClickHouse")
     void testCassandraToClickHouseMigration() throws Exception {
-        Table sourceOutboxTable = new PseudoTable(sourceKeyspace, "source_outbox");
-        Table targetOutboxTable = new PseudoTable("default", "target_outbox");
+        Table sourceOutboxTable = new DummyTable.Builder(sourceKeyspace, "source_outbox")
+                .build();
+        Table targetOutboxTable = new DummyTable.Builder("default", "target_outbox")
+                .build();
 
-//        Storage sourceStorage = new CassandraStorage(sourceSession, batchSize, sourceOutboxTable);
-        Storage sourceStorage = new CassandraStorage.Builder()
-                .cqlSession(sourceSession)
+        Storage sourceStorage = new CassandraStorage.Builder(sourceSession, sourceKeyspace)
                 .batchSize(batchSize)
                 .outboxTable(sourceOutboxTable)
                 .build();
-        Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
+        Storage targetStorage = new ClickHouseStorage.Builder(clickhouseClient)
+                .outboxTable(targetOutboxTable)
+                .build();
 
         assertEquals(5, targetStorage.getThreadCount(),
                 "Количество потоков Бублика должно автоматически подстроиться под размер maxConnections нативного клиента ClickHouse");

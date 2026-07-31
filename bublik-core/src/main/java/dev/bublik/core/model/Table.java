@@ -3,6 +3,7 @@ package dev.bublik.core.model;
 import dev.bublik.core.service.NameSyntaxService;
 import dev.bublik.core.service.TableService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,8 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class Table implements TableService, NameSyntaxService, Comparable<Table> {
     private static final Set<String> tableExistsCache = ConcurrentHashMap.newKeySet();
     private Integer id;
-    private String schemaName;
-    private String tableName;
+    private final String schemaName;
+    private final String tableName;
     private List<Column> columns;
     private List<Column> pkColumns;
     private List<Index> indexes;
@@ -19,7 +20,7 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
     private List<TableOption> options;
     private List<UniqueConstraint> uniqueConstraints;
 
-    public Table() {}
+//    public Table() {}
 
     public Table(String schemaName, String tableName) {
         this.schemaName = schemaName;
@@ -123,6 +124,63 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
             return getTableName();
         } else {
             return getSchemaName() + "." + getTableName();
+        }
+    }
+
+    protected Table(Builder<?, ?> builder) {
+        this.id = builder.id;
+        this.schemaName = builder.schemaName;
+        this.tableName = builder.tableName;
+        this.columns = builder.columns;
+        this.pkColumns = builder.pkColumns;
+        this.indexes = builder.indexes;
+        this.foreignKeys = builder.foreignKeys;
+        this.options = builder.options;
+        this.uniqueConstraints = builder.uniqueConstraints;
+    }
+
+    protected static abstract class Builder<C extends Table, B extends Builder<C, B>> {
+        protected Integer id;
+        protected final String schemaName;
+        protected final String tableName;
+        protected List<Column> columns = new ArrayList<>();
+        protected List<Column> pkColumns = new ArrayList<>();
+        protected List<Index> indexes = new ArrayList<>();
+        protected List<ForeignKey> foreignKeys = new ArrayList<>();
+        protected List<TableOption> options = new ArrayList<>();
+        protected List<UniqueConstraint> uniqueConstraints = new ArrayList<>();
+
+        protected Builder(String schemaName, String tableName) {
+            if (schemaName == null || schemaName.isBlank()) {
+                throw new IllegalArgumentException("Schema name cannot be null or empty");
+            }
+            if (tableName == null || tableName.isBlank()) {
+                throw new IllegalArgumentException("Table name cannot be null or empty");
+            }
+            this.schemaName = schemaName;
+            this.tableName = tableName;
+        }
+
+        protected abstract B self();
+        public abstract C build();
+
+        public B id(Integer id) { this.id = id; return self(); }
+
+        public B columns(List<Column> columns) { this.columns = columns; return self(); }
+        public B pkColumns(List<Column> pkColumns) { this.pkColumns = pkColumns; return self(); }
+        public B indexes(List<Index> indexes) { this.indexes = indexes; return self(); }
+        public B foreignKeys(List<ForeignKey> foreignKeys) { this.foreignKeys = foreignKeys; return self(); }
+        public B options(List<TableOption> options) { this.options = options; return self(); }
+        public B uniqueConstraints(List<UniqueConstraint> uniqueConstraints) { this.uniqueConstraints = uniqueConstraints; return self(); }
+
+        public B addColumn(Column column) { this.columns.add(column); return self(); }
+        public B addPkColumn(Column column) { this.pkColumns.add(column); return self(); }
+        public B addIndex(Index index) { this.indexes.add(index); return self(); }
+        public B addForeignKey(ForeignKey fk) { this.foreignKeys.add(fk); return self(); }
+
+        protected void validate() {
+            if (schemaName == null || schemaName.isBlank()) throw new IllegalStateException("Schema name must not be empty");
+            if (tableName == null || tableName.isBlank()) throw new IllegalStateException("Table name must not be empty");
         }
     }
 }

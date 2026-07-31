@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 public class YDBTable extends Table {
-    public YDBTable(){}
     public YDBTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }

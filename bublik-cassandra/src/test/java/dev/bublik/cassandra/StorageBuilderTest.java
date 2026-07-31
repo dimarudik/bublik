@@ -9,7 +9,7 @@ import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.TokenMap;
 import dev.bublik.cassandra.storage.CassandraStorage;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.storage.Storage;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -29,10 +29,9 @@ public class StorageBuilderTest {
         Mockito.when(mockMetadata.getTokenMap()).thenReturn(Optional.of(mockTokenMap));
 
 
-        Storage storage = new CassandraStorage.Builder()
-                .cqlSession(mockCqlSession)
+        Storage storage = new CassandraStorage.Builder(mockCqlSession, "keyspace")
                 .batchSize(256)
-                .outboxTable(new PseudoTable("",""))
+                .outboxTable(new DummyTable("",""))
                 .build();
 
         assertEquals(0, storage.getThreadCount(),
@@ -50,11 +49,10 @@ public class StorageBuilderTest {
 
         int expectedThreadCount = 7;
 
-        Storage storage = new CassandraStorage.Builder()
-                .cqlSession(mockCqlSession)
+        Storage storage = new CassandraStorage.Builder(mockCqlSession, "space")
                 .batchSize(256)
                 .threadCount(expectedThreadCount)
-                .outboxTable(new PseudoTable("",""))
+                .outboxTable(new DummyTable("",""))
                 .build();
 
         assertEquals(expectedThreadCount, storage.getThreadCount(),
@@ -85,10 +83,9 @@ public class StorageBuilderTest {
         Mockito.when(mockProfile.getInt(DefaultDriverOption.CONNECTION_POOL_LOCAL_SIZE))
                 .thenReturn(expectedThreadCount);
 
-        Storage storage = new CassandraStorage.Builder()
-                .cqlSession(mockCqlSession)
+        Storage storage = new CassandraStorage.Builder(mockCqlSession, "default")
                 .batchSize(256)
-                .outboxTable(new PseudoTable("", ""))
+                .outboxTable(new DummyTable("", ""))
                 .build();
 
         assertEquals(expectedThreadCount, storage.getThreadCount(),

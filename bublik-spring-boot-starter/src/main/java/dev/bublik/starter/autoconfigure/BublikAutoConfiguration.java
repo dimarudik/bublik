@@ -1,7 +1,7 @@
 package dev.bublik.starter.autoconfigure;
 
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import dev.bublik.starter.properties.BublikProperties;
@@ -42,17 +42,12 @@ public class BublikAutoConfiguration {
                         .map(BublikProperties.TablePipelineConfig::toRecordConfig)
                         .collect(Collectors.toList());
 
-                Table chunkTable = new PseudoTable("public", "bublik_chunks");
-                Table outboxTable = new PseudoTable("public", "bublik_outbox");
-
                 long startTime = System.currentTimeMillis();
 
                 StorageService.init(
                         properties.toConnectionProperty(),
                         coreConfigs,
-                        10000,
-                        chunkTable,
-                        outboxTable
+                        10000
                 );
 
                 log.info("[Bublik Starter] Migration finished successfully in {} ms.", (System.currentTimeMillis() - startTime));

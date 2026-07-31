@@ -236,4 +236,37 @@ public class CSTable extends Table {
     }
 
     public record UDTColumn(Column column, UserDefinedType udt){}
+
+    private CSTable(Builder builder) {
+        super(builder);
+        this.partitionKey = builder.partitionKey;
+        this.clusteringKey = builder.clusteringKey;
+        this.udtColumns = builder.udtColumns;
+    }
+
+    public static class Builder extends Table.Builder<CSTable, Builder> {
+        protected List<Column> partitionKey = new ArrayList<>();
+        protected List<Column> clusteringKey = new ArrayList<>();
+        protected List<UDTColumn> udtColumns = new ArrayList<>();
+
+        protected Builder(String keySpace, String tableName) {
+            super(keySpace, tableName);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        public Builder partitionKey(List<Column> partitionKey) { this.partitionKey = partitionKey; return this; }
+        public Builder clusteringKey(List<Column> clusteringKey) { this.clusteringKey = clusteringKey; return this; }
+        public Builder udtColumns(List<UDTColumn> udtColumns) { this.udtColumns = udtColumns; return this; }
+
+        public Builder addPartitionKeyColumn(Column column) { this.partitionKey.add(column); return this; }
+        @Override
+        public CSTable build() {
+            validate();
+            return new CSTable(this);
+        }
+    }
 }

@@ -22,8 +22,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     private final StorageClass storageClass;
     protected int threadCount;
     private final ConnectionProperty connectionProperty;
-    private Table outboxTable;
+    protected Table outboxTable;
     private Map<Table, Table> tables;
+    protected boolean isManaged;
 
     public Storage(ConnectionProperty connectionProperty) {
         this(null, connectionProperty, null);
@@ -113,11 +114,12 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 targetStorage.createGlobalOutbox();
             }
         }
-        log.info("SOURCE version: {}", getStorageMajorVersion());
+        log.info("SOURCE version: {}", getStorageVersion());
         log.info("TARGET version: {}", targetStorage.getStorageVersion());
 
         int errorCounter = 0;
         log.info("THREADS: {}", threadCount);
+        log.info("FETCH_SIZE: {}", getFetchSize());
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
@@ -135,17 +137,21 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                             } catch (SQLException ex) {
                                 log.error("Error while saving info about error to database. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
                             }
-                            try {
-                                (chunk.getSourceSession()).close();
-                                log.warn("Source session has been closed due to error");
-                            } catch (SQLException ex) {
-                                log.error("Error while closing source session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            if (this instanceof JDBCStorage) {
+                                try {
+                                    (chunk.getSourceSession()).close();
+                                    log.warn("Source session has been closed due to error");
+                                } catch (SQLException ex) {
+                                    log.error("Error while closing source session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                                }
                             }
-                            try {
-                                (chunk.getTargetSession()).close();
-                                log.warn("Target session has been closed due to error");
-                            } catch (SQLException ex) {
-                                log.error("Error while closing target session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            if (targetStorage instanceof JDBCStorage) {
+                                try {
+                                    (chunk.getTargetSession()).close();
+                                    log.warn("Target session has been closed due to error");
+                                } catch (SQLException ex) {
+                                    log.error("Error while closing target session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                                }
                             }
                             throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
                         }
@@ -184,14 +190,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
             errorCounter = 0;
 
-/*
-            try {
-                Thread.sleep(2);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-*/
-
             if (chunks.isEmpty()) {
                 log.info("All chunks are processed");
                 break;
@@ -202,14 +200,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
         service.shutdown();
         service.close();
-
-/*
-        try {
-            Thread.sleep(500_000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-*/
 
         dropChunkTable(configs);
         if (targetStorage instanceof JDBCStorage) {

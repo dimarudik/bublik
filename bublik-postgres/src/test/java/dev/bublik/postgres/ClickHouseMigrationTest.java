@@ -5,13 +5,12 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.clickhouse.storage.ClickHouseStorage;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -86,14 +85,15 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testPostgresToClickHouseMigration() throws Exception {
-        Table sourceOutboxTable = new PseudoTable("public", "source_outbox");
-        Table targetOutboxTable = new PseudoTable("default", "target_outbox");
+        Table sourceOutboxTable = new DummyTable("public", "source_outbox");
+        Table targetOutboxTable = new DummyTable("default", "target_outbox");
 
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource)
                 .outboxTable(sourceOutboxTable)
                 .build();
-        Storage targetStorage = new ClickHouseStorage(clickhouseClient, targetOutboxTable);
+        Storage targetStorage = new ClickHouseStorage.Builder(clickhouseClient)
+                .outboxTable(targetOutboxTable)
+                .build();
 
         assertEquals(5, targetStorage.getThreadCount(),
                 "Количество потоков Бублика должно автоматически подстроиться под размер maxConnections нативного клиента ClickHouse");

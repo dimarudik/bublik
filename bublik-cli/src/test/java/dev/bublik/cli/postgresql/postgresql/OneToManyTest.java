@@ -1,15 +1,12 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
-import dev.bublik.core.model.PseudoTable;
-import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;

@@ -4,6 +4,8 @@ import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import com.datastax.oss.driver.api.core.context.DriverContext;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
 import org.slf4j.Logger;
@@ -82,6 +84,12 @@ public class CSPool {
 
     public int getMajorVersion() {
         return Objects.requireNonNull(cqlSession.getMetadata().getNodes().values().iterator().next().getCassandraVersion()).getMajor();
+    }
+
+    public String getVersion() {
+        ResultSet rs = cqlSession.execute("SELECT release_version FROM system.local");
+        Row row = rs.one();
+        return (row != null) ? row.getString("release_version") : "Unknown";
     }
 
     public int getSize() {

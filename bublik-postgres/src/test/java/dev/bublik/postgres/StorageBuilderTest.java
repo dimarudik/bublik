@@ -1,6 +1,6 @@
 package dev.bublik.postgres;
 
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
@@ -20,17 +20,16 @@ public class StorageBuilderTest {
         DataSource mockDataSource = Mockito.mock(DataSource.class);
         int expectedThreadCount = 7;
 
-        Storage storage = new PostgresStorage.Builder()
-                .dataSource(mockDataSource)
+        Storage storage = new PostgresStorage.Builder(mockDataSource)
                 .threadCount(expectedThreadCount)
-                .outboxTable(new PseudoTable("public", "bublik"))
+                .outboxTable(new DummyTable("public", "bublik"))
                 .build();
 
 
         assertEquals(expectedThreadCount, storage.getThreadCount(),
                 "Поле threadCount должно быть строго равно переданному значению");
 
-        Field isManagedPoolField = JDBCStorage.class.getDeclaredField("isManagedPool");
+        Field isManagedPoolField = Storage.class.getDeclaredField("isManaged");
         isManagedPoolField.setAccessible(true);
         boolean isManagedPool = (boolean) isManagedPoolField.get(storage);
 

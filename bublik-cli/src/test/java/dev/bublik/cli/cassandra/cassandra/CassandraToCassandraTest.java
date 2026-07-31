@@ -352,7 +352,7 @@ public class CassandraToCassandraTest {
         CSPool csPool = new CSPool(properties, 2);
         CqlSession cqlSession = csPool.getCqlSession();
         String q = query + tableName + ((where == null || where.isEmpty()) ? "" : " WHERE " + where);
-        System.out.println(q);
+//        System.out.println(q);
         ResultSet resultSet = cqlSession.execute(q);
         long rowCount = 0;
         for (Row row : resultSet) {

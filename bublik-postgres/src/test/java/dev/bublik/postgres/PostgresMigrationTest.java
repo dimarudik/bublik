@@ -5,10 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -73,11 +70,10 @@ public class PostgresMigrationTest {
 
     @Test
     void testOnlyTableNames() throws Exception {
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource)
+                .fetchSize(100)
                 .build();
-        Storage targetStorage = new PostgresStorage.Builder()
-                .dataSource(targetDataSource)
+        Storage targetStorage = new PostgresStorage.Builder(targetDataSource)
                 .build();
 
         List<Config> configs = new ArrayList<>();
@@ -107,11 +103,9 @@ public class PostgresMigrationTest {
 
     @Test
     void testColumnToColumn() throws Exception {
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource)
                 .build();
-        Storage targetStorage = new PostgresStorage.Builder()
-                .dataSource(targetDataSource)
+        Storage targetStorage = new PostgresStorage.Builder(targetDataSource)
                 .build();
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
@@ -146,11 +140,9 @@ public class PostgresMigrationTest {
 
     @Test
     void testExpressionToColumn() throws Exception {
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource)
                 .build();
-        Storage targetStorage = new PostgresStorage.Builder()
-                .dataSource(targetDataSource)
+        Storage targetStorage = new PostgresStorage.Builder(targetDataSource)
                 .build();
 
         Map<String, String> expressionToColumn = new LinkedHashMap<>();
@@ -186,11 +178,9 @@ public class PostgresMigrationTest {
 
     @Test
     void testColumnToColumnExpressionToColumn() throws Exception {
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource)
                 .build();
-        Storage targetStorage = new PostgresStorage.Builder()
-                .dataSource(targetDataSource)
+        Storage targetStorage = new PostgresStorage.Builder(targetDataSource)
                 .build();
 
         Map<String, String> columnToColumn = new LinkedHashMap<>();
@@ -222,6 +212,12 @@ public class PostgresMigrationTest {
             assertEquals(3, count, "Количество перенесенных строк должно быть равно 3");
             assertEquals("Alice", firstUser, "Данные внутри строк должны совпадать");
         }
+
+        assertFalse(sourceDataSource.isClosed());
+        assertFalse(targetDataSource.isClosed());
+
+        sourceStorage.closeStorage();
+        targetStorage.closeStorage();
 
         assertFalse(sourceDataSource.isClosed());
         assertFalse(targetDataSource.isClosed());

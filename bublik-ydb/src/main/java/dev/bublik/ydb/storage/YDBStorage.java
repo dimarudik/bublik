@@ -10,6 +10,7 @@ import dev.bublik.ydb.model.YDBTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.io.Serializable;
 import java.sql.*;
 import java.util.ArrayList;
@@ -27,6 +28,28 @@ public class YDBStorage extends JDBCStorage {
                       ConnectionProperty connectionProperty,
                       Table outboxTable) throws SQLException {
         super(storageClass, connectionProperty, outboxTable);
+    }
+
+    private YDBStorage(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends JDBCStorage.Builder<YDBStorage, Builder> {
+
+        public Builder(DataSource dataSource) {
+            super(dataSource);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public YDBStorage build() {
+            validate();
+            return new YDBStorage(this);
+        }
     }
 
     @Override

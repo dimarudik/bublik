@@ -42,9 +42,6 @@ public class CassandraStorage extends CSStorage {
                             ConnectionProperty connectionProperty,
                             Table outboxTable) {
         super(storageClass, connectionProperty, outboxTable);
-        this.batchSize = getBatchSize(connectionProperty);
-        this.threadCount = connectionProperty.getThreadCount();
-        this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
     }
 
     private CassandraStorage(Builder builder) {
@@ -52,6 +49,10 @@ public class CassandraStorage extends CSStorage {
     }
 
     public static class Builder extends CSStorage.Builder<CassandraStorage, Builder> {
+
+        public Builder(CqlSession cqlSession, String keySpace) {
+            super(cqlSession, keySpace);
+        }
 
         @Override protected Builder self() {
             return this;

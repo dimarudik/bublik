@@ -23,26 +23,13 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 public class MSSQLStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
 
-    public MSSQLStorage(DataSource dataSource) {
-        super(dataSource, null);
-    }
-
-    public MSSQLStorage(DataSource dataSource,
-                        Table outboxTable) {
-        super(dataSource, outboxTable);
-    }
-
-    public MSSQLStorage(DataSource dataSource,
-                        int threadCount,
-                        Table outboxTable) {
-        super(dataSource, threadCount, outboxTable);
-    }
-
+/*
     protected MSSQLStorage(DataSource dataSource,
                            ConnectionProperty connectionProperty,
                            Table outboxTable) {
         super(dataSource, connectionProperty, outboxTable);
     }
+*/
 
     public MSSQLStorage(StorageClass storageClass,
                         ConnectionProperty connectionProperty,
@@ -55,6 +42,10 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     public static class Builder extends JDBCStorage.Builder<MSSQLStorage, Builder> {
+
+        public Builder(DataSource dataSource) {
+            super(dataSource);
+        }
 
         @Override
         protected Builder self() {
@@ -239,7 +230,7 @@ public class MSSQLStorage extends JDBCStorage {
 
     @Override
     public void createChunkTable() throws SQLException {
-        if (getOutboxTable() == null) setOutboxTable(new PseudoTable("dbo", "_chunk"));
+        if (getOutboxTable() == null) setOutboxTable(new DummyTable("dbo", "_chunk"));
         Connection connection = this.getPoolConnection();
         createSequence(connection, false);
         Statement createTable = connection.createStatement();

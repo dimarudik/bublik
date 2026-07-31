@@ -182,4 +182,25 @@ public class OraTable extends Table {
     public String buildOrderBy(Config config) {
         return "";
     }
+
+    private OraTable(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends Table.Builder<OraTable, Builder> {
+        protected Builder(String schemaName, String tableName) {
+            super(schemaName, tableName);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public OraTable build() {
+            validate();
+            return new OraTable(this);
+        }
+    }
 }

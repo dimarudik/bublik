@@ -3,14 +3,12 @@ package dev.bublik.cli.postgresql.postgresql;
 import dev.bublik.cli.TestResult;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.postgresql.util.PSQLException;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -29,8 +27,8 @@ public class InfraTest {
             .withInitScript("postgresql/postgresql/sql/infraTarget.sql");
 
     private final ConnectionProperty connectionProperty = getConnectionProperty();
-    private final Table chunkTable = new PseudoTable("public", "chunk");
-    private final Table outboxTable = new PseudoTable("public", "outbox");
+    private final Table chunkTable = new DummyTable("public", "chunk");
+    private final Table outboxTable = new DummyTable("public", "outbox");
 
     List<Config> configs = new ArrayList<>(Collections.singleton(
             Config.builder()

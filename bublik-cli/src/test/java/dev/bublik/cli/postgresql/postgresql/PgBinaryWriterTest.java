@@ -1,7 +1,7 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -11,7 +11,6 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
-import java.io.IOException;
 import java.sql.*;
 import java.util.Properties;
 
@@ -183,8 +182,8 @@ public class PgBinaryWriterTest {
     @Test
     void pgBinaryWriter2() throws Exception {
         Properties targetProp = getJdbcProperties(target);
-        Table chunk = new PseudoTable(null, "_chunk");
-        Table outbox = new PseudoTable(null, "_outbox");
+        Table chunk = new DummyTable(null, "_chunk");
+        Table outbox = new DummyTable(null, "_outbox");
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/pgBinaryWriter2.json",

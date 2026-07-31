@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.bublik.core.constants.ENVProperties;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import org.apache.commons.cli.*;
@@ -146,8 +146,7 @@ public class App {
                                   List<Config> configs,
                                   int rowsParameter) {
         try {
-            Table table = new PseudoTable(null, "bublik");
-            StorageService.init(property, configs, rowsParameter, table);
+            StorageService.init(property, configs, rowsParameter);
         } catch (SQLException e) {
             log.error("{} {}", e.getSQLState(), getStackTrace(e));
         } catch (Exception r) {

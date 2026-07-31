@@ -18,7 +18,6 @@ import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
-import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 import org.slf4j.Logger;
@@ -30,8 +29,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static dev.bublik.cassandra.constants.SQLConstants.*;
 import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
@@ -39,34 +36,46 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 
 abstract class CSStorage extends Storage implements Source {
     private static final Logger log = LoggerFactory.getLogger(CSStorage.class);
-    protected CSPool csPool;
+    private CSPool csPool;
     protected int batchSize;
+    private final String keySpace;
 
     protected CSStorage(StorageClass storageClass,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) {
         super(storageClass, connectionProperty, outboxTable);
+        this.batchSize = getBatchSize(connectionProperty);
+        this.threadCount = connectionProperty.getThreadCount();
+        this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+        this.isManaged = true;
+        this.keySpace = getStorageClass().getProperties().getProperty("keyspace");
+        this.outboxTable = new DummyTable.Builder(keySpace, "bublik").build();
     }
 
     protected CSStorage(Builder<?, ?> builder) {
         super(builder);
         this.batchSize = builder.batchSize;
+        this.keySpace = builder.keySpace;
         if (builder.cqlSession != null) {
             this.csPool = new CSPool(builder.cqlSession);
             if (threadCount <= 0) {
                 this.threadCount = this.csPool.getSize();
             }
         }
+        if (outboxTable == null) {
+            this.outboxTable = new DummyTable.Builder(keySpace, "bublik").build();
+        }
     }
 
     static abstract class Builder<C extends CSStorage, B extends Storage.Builder<C, B>>
             extends Storage.Builder<C, B> {
         private int batchSize;
-        protected CqlSession cqlSession;
+        private final CqlSession cqlSession;
+        private final String keySpace;
 
-        public B cqlSession(CqlSession cqlSession) {
+        protected Builder(CqlSession cqlSession, String keySpace) {
             this.cqlSession = cqlSession;
-            return self();
+            this.keySpace = keySpace;
         }
 
         public B batchSize(int batchSize) {
@@ -76,8 +85,13 @@ abstract class CSStorage extends Storage implements Source {
     }
 
     @Override
+    public void validate(Storage targetStorage, List<Config> configs) throws SQLException {
+
+    }
+
+    @Override
     public String getStorageVersion() {
-        return "";
+        return csPool.getVersion();
     }
 
     @Override
@@ -106,12 +120,6 @@ abstract class CSStorage extends Storage implements Source {
 
 /*
     @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
-        start(targetStorage, configs, rows, false);
-    }
-*/
-
-    @Override
     public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (rows > 0) {
@@ -122,17 +130,16 @@ abstract class CSStorage extends Storage implements Source {
                 targetStorage.createGlobalOutbox();
             }
         }
-        log.info("SOURCE version: {}", getStorageMajorVersion());
+        log.info("SOURCE version: {}", getStorageVersion());
         log.info("TARGET version: {}", targetStorage.getStorageVersion());
 
         int errorCounter = 0;
         log.info("THREADS: {}", threadCount);
+        log.info("FETCH_SIZE: {}", getFetchSize());
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
             List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
-            String table = getConnectionProperty() == null ? oTable(null) :
-                    oTable(getConnectionProperty().getFromProperty());
 
             chunks.forEach(chunk -> futures.add(
                     service.submit(() -> {
@@ -141,7 +148,7 @@ abstract class CSStorage extends Storage implements Source {
                         } catch (Exception e) {
                             log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
                             log.warn("Saving info about error to database");
-                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), table);
+                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
                             if (targetStorage instanceof  JDBCStorage) {
                                 (chunk.getTargetSession()).close();
                             }
@@ -164,20 +171,15 @@ abstract class CSStorage extends Storage implements Source {
             }
 
             if (hasBatchErrors) {
-                if (errorCounter < (2 * threadCount)) {
-                    log.warn("Batch execution encountered errors. Cooling down for 3 seconds before retry (Current try: {})...", errorCounter);
-                    try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
+                if (errorCounter <= (threadCount * 2)) {
+                    log.warn("Try: {} Continue...", errorCounter);
                     continue;
                 } else {
                     log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
                     log.info("Finishing due to critical stress failure...");
                     service.shutdownNow();
                     try {
-                        service.awaitTermination(10, TimeUnit.SECONDS);
+                        service.awaitTermination(3, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -187,26 +189,23 @@ abstract class CSStorage extends Storage implements Source {
 
             errorCounter = 0;
 
-            try {
-                Thread.sleep(2);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-
             if (chunks.isEmpty()) {
                 log.info("All chunks are processed");
                 break;
             }
+
+//            printMemInfo();
         } while (true);
+
+        service.shutdown();
+        service.close();
 
         dropChunkTable(configs);
         if (targetStorage instanceof JDBCStorage) {
             targetStorage.dropOutboxTable(false);
         }
-
-        service.shutdown();
-        service.close();
     }
+*/
 
 
     @Override
@@ -222,13 +221,10 @@ abstract class CSStorage extends Storage implements Source {
         TokenRange ceil = factory.range(lastToken.getEnd(), defaultToken.getEnd());
         trs.add(floor);
         trs.add(ceil);
-//        log.info("floor: {} ceil: {}", floor, ceil);
         log.info("Token range size: {}", trs.size());
-//        trs.forEach(t -> log.info("{} {}", t.getStart(), t.getEnd()));
 
         for (Config c : configs) {
             CSTable sourceTable = new CSTable(c.fromSchemaName(), c.fromTableName(), null, null);
-//            Table<S> targetTable = new PseudoTable<>(c.toSchemaName(), c.toTableName());
             sourceTable.enrichTable(cqlSession);
             ExecutorService service = Executors.newFixedThreadPool(Math.min(threadCount, 4));
             trs
@@ -239,9 +235,11 @@ abstract class CSStorage extends Storage implements Source {
                         long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
                         long estimatedRowsInRange = getEstimatedRowsInRange(cqlSession, sourceTable, tr);
                         log.info("Token range: {} {} estimatedRowsInRange: {}", startValue, stopValue, estimatedRowsInRange);
+/*
                         String chunk = getConnectionProperty() == null ? oTable(null) :
                                 oTable(getConnectionProperty().getFromProperty());
-                        PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", chunk));
+*/
+                        PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
                         if (estimatedRowsInRange <= rows) {
                             log.info("(estimatedRowsInRange <= rows) start:{} stop:{} estimated:{}", startValue, stopValue, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, startValue, stopValue, sourceTable, c.fromTaskName(), estimatedRowsInRange);
@@ -319,30 +317,36 @@ abstract class CSStorage extends Storage implements Source {
     @Override
     public void dropChunkTable(List<Config> configs) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
+/*
         String table = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getFromProperty());
+*/
         try {
-            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", table));
+            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTable().tableToString()));
         } catch (Exception e) {
-            log.warn("Chunk table {} not found", table);
+            log.warn("Chunk table {} not found", getOutboxTable().tableToString());
         }
     }
 
     @Override
     public void createGlobalOutbox() throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
+/*
         String chunk = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getToProperty());
-        cqlSession.execute(DDL_CREATE_GLOBAL_OUTBOX_TABLE.replace("$tableName", chunk));
-        log.info("Outbox table {} created successfully", chunk);
+*/
+        cqlSession.execute(DDL_CREATE_GLOBAL_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString()));
+        log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
     }
 
     @Override
     public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) {
         CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
+/*
         String chunkTable = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getToProperty());
-        String selectCQL = DML_SELECT_OUTBOX_TABLE.replace("$tableName", chunkTable);
+*/
+        String selectCQL = DML_SELECT_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString());
         com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(selectCQL, chunk.getId());
         return rs.one() != null;
     }
@@ -350,9 +354,11 @@ abstract class CSStorage extends Storage implements Source {
     @Override
     public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk) {
         CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
+/*
         String chunkTable = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getToProperty());
-        String insertCQL = DML_INSERT_OUTBOX_TABLE.replace("$tableName", chunkTable);
+*/
+        String insertCQL = DML_INSERT_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString());
         PreparedStatement statement = cqlSession.prepare(insertCQL);
         BoundStatement boundStatement = statement.bind(chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied())
                 .setPageSize(1_000)
@@ -363,24 +369,25 @@ abstract class CSStorage extends Storage implements Source {
 
     @Override
     public void dropOutboxTable(boolean sync) throws SQLException {
+/*
         String chunk = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getToProperty());
+*/
         try {
             CqlSession cqlSession = csPool.getCqlSession();
-            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", chunk));
+            cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTable().tableToString()));
         } catch (Exception e) {
-            log.info("Outbox table {} not found, nothing to drop", chunk);
+            log.info("Outbox table {} not found, nothing to drop", getOutboxTable().tableToString());
         }
     }
 
     @Override
     public void createChunkTable() {
         CqlSession cqlSession = csPool.getCqlSession();
-        String table = getConnectionProperty() == null ? oTable(null) :
-                oTable(getConnectionProperty().getFromProperty());
-        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", table));
+        cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
     }
 
+/*
     private String oTable(Properties properties) {
         String outboxTable = "";
         if (getOutboxTable().getSchemaName() == null || properties != null) {
@@ -391,13 +398,16 @@ abstract class CSStorage extends Storage implements Source {
         }
         return outboxTable;
     }
+*/
 
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
+/*
         String chunk = getConnectionProperty() == null ? oTable(null) :
                 oTable(getConnectionProperty().getFromProperty());
+*/
         return "select chunk_id, start_page, end_page, task_name, schema_name, table_name, status from " +
-                chunk + " where " +
+                getOutboxTable().tableToString() + " where " +
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " and schema_name = ? and table_name = ? " +
                 " per partition limit 100 ";
@@ -552,8 +562,10 @@ abstract class CSStorage extends Storage implements Source {
 
     @Override
     public void closeStorage() {
-        csPool.closeCqlSession();
-        log.info("Cassandra target storage stopped");
+        if (isManaged) {
+            csPool.closeCqlSession();
+            log.info("Cassandra target storage stopped");
+        }
     }
 
     @Override

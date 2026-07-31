@@ -5,8 +5,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.clickhouse.storage.ClickHouseStorage;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
-import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.oracle.storage.OracleStorage;
 import org.junit.jupiter.api.AfterAll;
@@ -85,10 +83,10 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testOracleToClickHouseMigration() throws Exception {
-        Storage sourceStorage = new OracleStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new OracleStorage.Builder(sourceDataSource)
                 .build();
-        Storage targetStorage = new ClickHouseStorage(clickhouseClient);
+        Storage targetStorage = new ClickHouseStorage.Builder(clickhouseClient)
+                .build();
 
         assertEquals(5, targetStorage.getThreadCount(),
                 "Количество потоков Бублика должно автоматически подстроиться под размер maxConnections нативного клиента ClickHouse");

@@ -1,6 +1,6 @@
 package dev.bublik.cli;
 
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +24,11 @@ import static dev.bublik.cli.App.getConfigs;
 
 @Slf4j
 public class TestUtils {
-    static public Table chunkTable = new PseudoTable("public", "_chunk");
-    static public Table outboxTable = new PseudoTable("public", "_outbox");
+    static public Table chunkTable = new DummyTable("public", "_chunk");
+    static public Table outboxTable = new DummyTable("public", "_outbox");
 
-    static public Table chunkTable2 = new PseudoTable("public", "_chunk2");
-    static public Table outboxTable2 = new PseudoTable("public", "_outbox2");
+    static public Table chunkTable2 = new DummyTable("public", "_chunk2");
+    static public Table outboxTable2 = new DummyTable("public", "_outbox2");
 
     public static String getFilePath(String resourceFileName){
         java.net.URL cfg = TestUtils.class.getClassLoader().getResource(resourceFileName);

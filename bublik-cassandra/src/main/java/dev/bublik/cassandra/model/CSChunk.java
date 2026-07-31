@@ -166,6 +166,15 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
 
     @Override
     public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+        this
+                .firstStageAssignSourceSession(this)
+                .firstStageAssignTargetSession(this)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.tableToString())
+                .secondStageGetSourceResultSet()
+                .mainStageTransfer(tableName.tableToString())
+                .interStageSaveChunkRows(getCopied(), sync, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.tableToString());
+/*
         String chunkTable = getSourceStorage().getConnectionProperty() == null ? oTable(null) :
                 oTable(getSourceStorage().getConnectionProperty().getFromProperty());
         this
@@ -176,6 +185,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                 .mainStageTransfer(chunkTable)
                 .interStageSaveChunkRows(getCopied(), sync, chunkTable)
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTable);
+*/
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && ((Connection)getTargetSession()).isValid(0)) {
             ((Connection)getTargetSession()).close();

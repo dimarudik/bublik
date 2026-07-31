@@ -32,20 +32,6 @@ public class ClickHouseStorage extends ClickStorage {
     private ValueTransfer[] pushPlan;
     private long rowCount = 0;
 
-    public ClickHouseStorage(Client client) {
-        super(client, null);
-    }
-
-    public ClickHouseStorage(Client client, Table outboxTable) {
-        super(client, outboxTable);
-    }
-
-    public ClickHouseStorage(Client client,
-                             int threadCount,
-                             Table outboxTable) {
-        super(client, threadCount, outboxTable);
-    }
-
     public ClickHouseStorage(StorageClass storageClass,
                              ConnectionProperty connectionProperty,
                              Table outboxTable) {
@@ -57,6 +43,10 @@ public class ClickHouseStorage extends ClickStorage {
     }
 
     public static class Builder extends ClickStorage.Builder<ClickHouseStorage, Builder> {
+
+        public Builder(Client client) {
+            super(client);
+        }
 
         @Override
         protected Builder self() {

@@ -5,9 +5,10 @@ import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
+import dev.bublik.cassandra.model.CSTable;
 import dev.bublik.cassandra.storage.CassandraStorage;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import org.junit.jupiter.api.AfterAll;
@@ -19,12 +20,9 @@ import org.testcontainers.utility.DockerImageName;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CassandraMigrationTest {
     static final CassandraContainer cassandraContainer = new CassandraContainer(
@@ -89,15 +87,12 @@ public class CassandraMigrationTest {
 
     @Test
     void testOnlyTableNames() throws Exception {
-        Table sourceOutboxTable = new PseudoTable(sourceKeyspace, "bublik");
-        Table targetOutboxTable = new PseudoTable(targetKeyspace, "bublik");
-        Storage sourceStorage = new CassandraStorage.Builder()
-                .cqlSession(sourceSession)
-                .batchSize(batchSize)
-                .outboxTable(sourceOutboxTable)
+        Table targetOutboxTable = new DummyTable.Builder(targetKeyspace, "bublik_new")
                 .build();
-        Storage targetStorage = new CassandraStorage.Builder()
-                .cqlSession(targetSession)
+        Storage sourceStorage = new CassandraStorage.Builder(sourceSession, sourceKeyspace)
+                .batchSize(batchSize)
+                .build();
+        Storage targetStorage = new CassandraStorage.Builder(targetSession, targetKeyspace)
                 .batchSize(batchSize)
                 .outboxTable(targetOutboxTable)
                 .build();
@@ -122,7 +117,13 @@ public class CassandraMigrationTest {
         boolean hasCharlie = rows.stream().anyMatch(row -> "Charlie".equals(row.getString("user_name")));
         assertTrue(hasCharlie, "Данные внутри строк целевой Cassandra должны полностью совпадать с источником");
 
+        assertFalse(sourceSession.isClosed(), "CqlSession источника не должен быть закрыт");
+        assertFalse(targetSession.isClosed(), "CqlSession приемника не должен быть закрыт");
+
         sourceStorage.closeStorage();
         targetStorage.closeStorage();
+
+        assertFalse(sourceSession.isClosed(), "CqlSession источника не должен быть закрыт");
+        assertFalse(targetSession.isClosed(), "CqlSession приемника не должен быть закрыт");
     }
 }

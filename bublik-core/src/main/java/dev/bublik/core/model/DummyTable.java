@@ -7,9 +7,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-public class PseudoTable extends Table {
+public class DummyTable extends Table {
 
-    public PseudoTable(String schemaName, String tableName) {
+    public DummyTable(String schemaName, String tableName) {
         super(schemaName, tableName);
     }
 
@@ -106,5 +106,25 @@ public class PseudoTable extends Table {
     @Override
     public String buildOrderBy(Config config) {
         return "";
+    }
+
+    private DummyTable(Builder builder) {
+        super(builder);
+    }
+
+    public static class Builder extends Table.Builder<DummyTable, Builder> {
+        public Builder(String schemaName, String tableName) {
+            super(schemaName, tableName);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public DummyTable build() {
+            return new DummyTable(this);
+        }
     }
 }

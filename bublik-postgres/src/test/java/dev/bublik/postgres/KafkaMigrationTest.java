@@ -3,7 +3,7 @@ package dev.bublik.postgres;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.kafka.storage.KafkaStorage;
@@ -80,10 +80,9 @@ public class KafkaMigrationTest {
     @Test
     @DisplayName("Миграция из Postgres в Kafka через явный конструктор")
     void testPostgresToKafkaMigration() throws Exception {
-        Table sourceChunkTable = new PseudoTable("public", "bublik");
+        Table sourceChunkTable = new DummyTable("public", "bublik");
 
-        Storage sourceStorage = new PostgresStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource)
                 .outboxTable(sourceChunkTable)
                 .build();
 
@@ -96,9 +95,7 @@ public class KafkaMigrationTest {
         kafkaProps.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test\";");
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage.Builder()
-                .kafkaProducer(producer)
-                .topic(TOPIC_NAME)
+        Storage targetStorage = new KafkaStorage.Builder(producer, TOPIC_NAME)
                 .build();
 
 

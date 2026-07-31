@@ -5,7 +5,7 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import org.junit.jupiter.api.AfterAll;
@@ -71,7 +71,7 @@ public class InitCassandraMigrationTest {
                 .build();
         configs.add(config);
 
-        Table chunkTable = new PseudoTable("bublik_source", "bublik_chunks");
+        Table chunkTable = new DummyTable.Builder("bublik_source", "bublik_chunks").build();
 
         StorageService.init(connectionProperty, configs, 1000, chunkTable);
 

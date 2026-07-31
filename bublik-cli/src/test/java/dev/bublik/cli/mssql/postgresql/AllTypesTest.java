@@ -2,11 +2,10 @@ package dev.bublik.cli.mssql.postgresql;
 
 import dev.bublik.cli.TestResult;
 import dev.bublik.cli.TestUtils;
-import dev.bublik.core.model.PseudoTable;
+import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -14,7 +13,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.mssqlserver.MSSQLServerContainer;
 import org.testcontainers.utility.MountableFile;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Properties;
 
@@ -64,8 +62,8 @@ public class AllTypesTest {
 
     @Test
     void allTypes() throws Exception {
-        Table chunkTable = new PseudoTable("test", "chunk");
-        Table outboxTable = new PseudoTable("public", "outbox");
+        Table chunkTable = new DummyTable("test", "chunk");
+        Table outboxTable = new DummyTable("public", "outbox");
         TestResult result = TestUtils.getResultCount(
                 "./mssql/postgresql/yaml/mssql2pg.yaml",
                 "./mssql/postgresql/json/allTypes.json",

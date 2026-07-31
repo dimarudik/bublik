@@ -15,38 +15,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static dev.bublik.core.constants.Constants.FETCH_SIZE;
+import static dev.bublik.core.constants.Constants.POOL_SIZE;
 
 public abstract class JDBCStorage extends Storage implements JDBCStorageService {
     private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private final DataSource dataSource;
-    private final boolean isManagedPool;
     private final int fetchSize;
-
-    public JDBCStorage(DataSource dataSource, Table outboxTable) {
-        super(new ConnectionProperty(), outboxTable);
-        this.dataSource = dataSource;
-        this.threadCount = getMaxPoolSize(dataSource, 10);
-        this.isManagedPool = false;
-        this.fetchSize = FETCH_SIZE;
-    }
-
-    public JDBCStorage(DataSource dataSource, int threadCount, Table outboxTable) {
-        super(new ConnectionProperty(), outboxTable);
-        this.dataSource = dataSource;
-        this.threadCount = threadCount;
-        this.isManagedPool = false;
-        this.fetchSize = FETCH_SIZE;
-    }
-
-    protected JDBCStorage(DataSource dataSource,
-                          ConnectionProperty connectionProperty,
-                          Table outboxTable) {
-        super(connectionProperty, outboxTable);
-        this.dataSource = dataSource;
-        this.threadCount = connectionProperty.getThreadCount();
-        this.isManagedPool = false;
-        this.fetchSize = FETCH_SIZE;
-    }
 
     public JDBCStorage(StorageClass storageClass,
                        ConnectionProperty connectionProperty,
@@ -57,26 +31,25 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         this.threadCount = connectionProperty.getThreadCount();
         this.fetchSize = storageClass.getProperties().getProperty("fetchSize") == null ?
                 FETCH_SIZE : Integer.parseInt(storageClass.getProperties().getProperty("fetchSize"));
-        this.isManagedPool = true;
+        this.isManaged = true;
     }
 
     protected JDBCStorage(Builder<?, ?> builder) {
         super(builder);
         this.dataSource = builder.dataSource;
-        this.isManagedPool = false;
-        this.fetchSize = builder.fetchSize;
+        this.isManaged = false;
+        this.fetchSize = builder.fetchSize <= 0 ? FETCH_SIZE : builder.fetchSize;
         if (threadCount <= 0) {
-            this.threadCount = getMaxPoolSize(dataSource, 10);
+            this.threadCount = getMaxPoolSize(dataSource, POOL_SIZE);
         }
     }
 
     protected static abstract class Builder<C extends JDBCStorage, B extends Builder<C, B>> extends Storage.Builder<C, B> {
-        private DataSource dataSource;
+        private final DataSource dataSource;
         private int fetchSize;
 
-        public B dataSource(DataSource dataSource) {
+        public Builder(DataSource dataSource) {
             this.dataSource = dataSource;
-            return self();
         }
 
         public B fetchSize(int fetchSize) {
@@ -91,6 +64,11 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                 throw new IllegalStateException("DataSource must not be null for JDBC Storage");
             }
         }
+    }
+
+    @Override
+    public void validate(Storage targetStorage, List<Config> configs) throws SQLException {
+
     }
 
     private static int getMaxPoolSize(DataSource dataSource, int defaultValue) {
@@ -175,14 +153,14 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
     @Override
     public void closeStorage() {
-        if (dataSource instanceof HikariDataSource hikariDataSource && isManagedPool) {
+        if (dataSource instanceof HikariDataSource hikariDataSource && isManaged) {
             hikariDataSource.close();
             log.info("HikariDataSource closed successfully.");
         } else {
             log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
         }
 
-        if (isManagedPool && dataSource instanceof AutoCloseable) {
+        if (isManaged && dataSource instanceof AutoCloseable) {
             try {
                 ((AutoCloseable) dataSource).close();
                 log.info("Bublik-managed HikariDataSource successfully closed.");

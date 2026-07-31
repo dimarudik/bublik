@@ -16,19 +16,6 @@ import java.util.Map;
 abstract class ClickStorage extends Storage implements Source {
     protected ClickClient clickClient;
 
-    public ClickStorage(Client client, Table outboxTable) {
-        super(new ConnectionProperty(), outboxTable);
-        ClickClient clickClient = new ClickClient(client);
-        this.clickClient = clickClient;
-        this.threadCount = clickClient.getSize();
-    }
-
-    public ClickStorage(Client client, int threadCount, Table outboxTable) {
-        super(new ConnectionProperty(), outboxTable);
-        this.threadCount = threadCount;
-        this.clickClient = new ClickClient(client);
-    }
-
     public ClickStorage(StorageClass storageClass,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) {
@@ -39,17 +26,26 @@ abstract class ClickStorage extends Storage implements Source {
 
     protected ClickStorage(ClickStorage.Builder<?, ?> builder) {
         super(builder);
-        this.clickClient = builder.clickClient;
+        if (builder.client != null) {
+            this.clickClient = new ClickClient(builder.client);
+            if (threadCount <= 0) {
+                this.threadCount = clickClient.getSize();
+            }
+        }
     }
 
-    public static abstract class Builder<C extends ClickStorage, B extends Builder<C, B>>
+    static abstract class Builder<C extends ClickStorage, B extends Builder<C, B>>
             extends Storage.Builder<C, B> {
-        private ClickClient clickClient;
+        protected final Client client;
 
-        public B clickClient(ClickClient clickClient) {
-            this.clickClient = clickClient;
-            return self();
+        public Builder(Client client) {
+            this.client = client;
         }
+    }
+
+    @Override
+    public void validate(Storage targetStorage, List<Config> configs) throws SQLException {
+
     }
 
     @Override

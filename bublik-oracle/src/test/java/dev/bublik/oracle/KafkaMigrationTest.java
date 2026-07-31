@@ -3,8 +3,6 @@ package dev.bublik.oracle;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.Config;
-import dev.bublik.core.model.PseudoTable;
-import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.kafka.storage.KafkaStorage;
 import dev.bublik.oracle.storage.OracleStorage;
@@ -79,8 +77,7 @@ public class KafkaMigrationTest {
     @Test
     @DisplayName("Миграция из Oracle в Kafka через явный конструктор")
     void testOracleToKafkaMigration() throws Exception {
-        Storage sourceStorage = new OracleStorage.Builder()
-                .dataSource(sourceDataSource)
+        Storage sourceStorage = new OracleStorage.Builder(sourceDataSource)
                 .build();
 
         Properties kafkaProps = new Properties();
@@ -95,9 +92,7 @@ public class KafkaMigrationTest {
 
         KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
 
-        Storage targetStorage = new KafkaStorage.Builder()
-                .kafkaProducer(producer)
-                .topic(TOPIC_NAME)
+        Storage targetStorage = new KafkaStorage.Builder(producer, TOPIC_NAME)
                 .build();
 
         List<Config> configs = new ArrayList<>();

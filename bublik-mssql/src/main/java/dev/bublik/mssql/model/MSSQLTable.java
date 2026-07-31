@@ -11,7 +11,6 @@ import java.util.*;
 import static dev.bublik.mssql.constants.SQLConstants.SQL_CLUSTERING_KEY;
 
 public class MSSQLTable extends Table {
-    private static final Logger log = LoggerFactory.getLogger(MSSQLTable.class);
     private List<Column> clusteringKey;
 
     public MSSQLTable(String schemaName, String tableName, List<Column> clusteringKey) {
@@ -192,5 +191,32 @@ public class MSSQLTable extends Table {
     @Override
     public String buildOrderBy(Config config) {
         return "";
+    }
+
+    private MSSQLTable(Builder builder) {
+        super(builder);
+        this.clusteringKey = builder.clusteringKey;
+    }
+
+    public static class Builder extends Table.Builder<MSSQLTable, Builder> {
+        protected List<Column> clusteringKey = new ArrayList<>();
+
+        protected Builder(String schemaName, String tableName) {
+            super(schemaName, tableName);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        public Builder clusteringKey(List<Column> clusteringKey) { this.clusteringKey = clusteringKey; return this; }
+        public Builder addClusteringKeyColumn(Column column) { this.clusteringKey.add(column); return this; }
+
+        @Override
+        public MSSQLTable build() {
+            validate();
+            return new MSSQLTable(this);
+        }
     }
 }

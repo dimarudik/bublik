@@ -21,13 +21,12 @@ import java.util.Properties;
 import java.util.ServiceLoader;
 
 import static dev.bublik.core.constants.CLassConstants.*;
-import static dev.bublik.core.constants.Constants.FETCH_SIZE;
-import static dev.bublik.core.util.Utils.getStackTrace;
 
 public interface StorageService {
     Logger log = LoggerFactory.getLogger(StorageService.class);
 
     void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
+    void validate(Storage targetStorage, List<Config> configs) throws SQLException;
     void createGlobalOutbox() throws SQLException;
     <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException;
     <K, T, S extends AutoCloseable, R, W> W getWriter(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
@@ -120,9 +119,13 @@ public interface StorageService {
         throw new RuntimeException("Deprecated");
     }
 
+    static void init(ConnectionProperty property, List<Config> configs, int rows) throws SQLException, IOException {
+        init(property, configs, rows, null);
+    }
+
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable) throws SQLException, IOException {
-        Table outboxTable = new PseudoTable(chunkTable.getSchemaName(), chunkTable.getTableName() + "_outbox");
-        init(property, configs, rows, chunkTable, outboxTable);
+//        Table outboxTable = new DummyTable.Builder(chunkTable.getSchemaName(), chunkTable.getTableName() + "_outbox").build();
+        init(property, configs, rows, chunkTable, null);
     }
 
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
@@ -157,7 +160,6 @@ public interface StorageService {
         String sourceHosts = property.getFromProperty().getProperty("hosts");
         log.info("SOURCE: {}", sourceUrl == null ? sourceHosts : sourceUrl);
         log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
-        log.info("SOURCE FETCH_SIZE: {}", property.getFromProperty().getProperty("fetchSize") == null ? FETCH_SIZE : property.getFromProperty().getProperty("fetchSize"));
         String targetUrl = property.getToProperty().getProperty("url");
         String targetHosts = property.getToProperty().getProperty("hosts");
         log.info("TARGET: {}", targetUrl == null ? targetHosts : targetUrl);
@@ -191,6 +193,20 @@ public interface StorageService {
              Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property, outboxTable)) {
             assert sourceStorage != null;
             sourceStorage.start(targetStorage, configs, rows);
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static void validate(ConnectionProperty property, List<Config> configs) throws SQLException, IOException {
+        StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
+        StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
+        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property, null);
+             Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property, null)) {
+            assert sourceStorage != null;
+            sourceStorage.validate(targetStorage, configs);
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {
