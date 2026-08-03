@@ -7,10 +7,7 @@ import dev.bublik.core.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
@@ -119,11 +116,12 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.tableToString())
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();
-        if (getSourceSession().isValid(0)) {
-            getSourceSession().close();
-        }
-        if (getTargetStorage() instanceof JDBCStorage && getTargetSession().isValid(0)) {
-            getTargetSession().close();
+        if (getTargetStorage() instanceof JDBCStorage && getTargetSession() != null) {
+            try {
+                getTargetSession().close();
+            } catch (Exception e) {
+                log.debug("Target session was already closed or cannot be closed", e);
+            }
         }
         return this;
     }
@@ -138,11 +136,29 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
         try {
             LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
             this.setLogMessage(logMessage);
-            getResultSet().close();
             return this;
         } catch (SQLException | RuntimeException e) {
             this.setLogMessage(new LogMessage (0, 0, " UNREACHABLE TASK "));
             throw e;
+        } finally {
+            if (getResultSet() != null) {
+                ResultSet rs = getResultSet();
+
+                try {
+                    Statement stmt = rs.getStatement();
+                    if (stmt != null) {
+                        stmt.close();
+                    }
+                } catch (Exception e) {
+                    log.debug("Error while closing Statement for chunk {}", getId(), e);
+                }
+
+                try {
+                    rs.close();
+                } catch (Exception e) {
+                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
+                }
+            }
         }
     }
 }

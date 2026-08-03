@@ -369,10 +369,6 @@ abstract class CSStorage extends Storage implements Source {
 
     @Override
     public void dropOutboxTable(boolean sync) throws SQLException {
-/*
-        String chunk = getConnectionProperty() == null ? oTable(null) :
-                oTable(getConnectionProperty().getToProperty());
-*/
         try {
             CqlSession cqlSession = csPool.getCqlSession();
             cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTable().tableToString()));
@@ -387,37 +383,19 @@ abstract class CSStorage extends Storage implements Source {
         cqlSession.execute(DDL_CREATE_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
     }
 
-/*
-    private String oTable(Properties properties) {
-        String outboxTable = "";
-        if (getOutboxTable().getSchemaName() == null || properties != null) {
-            String keyspace = properties.getProperty("keyspace");
-            outboxTable = keyspace + "." + getOutboxTable().getTableName();
-        } else {
-            outboxTable = getOutboxTable().tableToString();
-        }
-        return outboxTable;
-    }
-*/
-
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
-/*
-        String chunk = getConnectionProperty() == null ? oTable(null) :
-                oTable(getConnectionProperty().getFromProperty());
-*/
         return "select chunk_id, start_page, end_page, task_name, schema_name, table_name, status from " +
                 getOutboxTable().tableToString() + " where " +
                 "status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " and schema_name = ? and table_name = ? " +
-                " per partition limit 100 ";
+                " per partition limit 200 ";
     }
 
     @Override
     public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         CqlSession sourceSession = getSession();
-//        log.info("Get chunk list from {}", chunkTableName);
         configs.forEach(config -> {
             Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());

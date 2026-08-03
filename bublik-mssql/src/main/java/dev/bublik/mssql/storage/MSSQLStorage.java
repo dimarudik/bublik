@@ -357,7 +357,7 @@ public class MSSQLStorage extends JDBCStorage {
 
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
-        return "select top(1000) c.chunk_id, c.uuid, c.start_page, c.end_page, c.task_name, c.status from " +
+        return "select top(200) c.chunk_id, c.uuid, c.start_page, c.end_page, c.task_name, c.status from " +
                 schemaName() + ".[" + getOutboxTable().getTableName() + "] c, " + schemaName() + ".[_ext_" + sourceTable.getTableName() +
                 "] e where c.chunk_id = e.chunk_id and " +
                 "c.schema_name = ? and c.table_name = ? and c.task_name = ? " +

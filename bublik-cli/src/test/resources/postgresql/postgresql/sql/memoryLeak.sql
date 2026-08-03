@@ -1,0 +1,104 @@
+create extension hstore;
+create schema if not exists test;
+create type mood AS ENUM ('sad', 'ok', 'happy');
+create type gender AS ENUM ('male', 'female', 'NA');
+
+create table public."Source" (
+    id int primary key generated always as identity,
+    uuid uuid,
+    "Primary" varchar(256),
+    boolean boolean,
+    int2 int2,
+    int4 int4,
+    int8 int8,
+    smallint smallint,
+    bigint bigint,
+    numeric numeric,
+    float8 float8,
+    date date,
+    timestamp timestamp,
+    timestamptz timestamptz,
+    description text,
+    image bytea,
+    current_mood mood,
+    time time,
+    j json,
+    ip inet,
+    h hstore,
+    ints _int8
+);
+create table public.target as
+select
+    id,
+    uuid,
+    "Primary",
+    boolean,
+    int2,
+    int4,
+    int8,
+    smallint,
+    bigint,
+    numeric num,
+    float8,
+    date,
+    timestamp,
+    timestamptz,
+    description as rem,
+    image,
+    current_mood,
+    time as time,
+    j,
+    ip,
+    h,
+    ints
+    from public."Source" where 0 = 1;
+alter table public.target add column gender gender;
+
+WITH file_data AS (
+    SELECT pg_read_binary_file('/var/lib/postgresql/bublik.png')::bytea as img_bytes
+)
+insert into public."Source" (uuid, "Primary", boolean,
+        int2, int4, int8, smallint, bigint, numeric, float8,
+        date, timestamp, timestamptz, description
+        , image, current_mood, time, j, ip, h, ints)
+select gen_random_uuid() as uuid,
+       substr(md5(random()::text), 1, 100) as "Primary",
+       case when mod(n, 2) = 0 then false else true end as boolean,
+       0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
+        current_date, current_timestamp, current_timestamp,
+        rpad('PostgreSQL', 1000, '*') as description
+        ,CASE
+            WHEN mod(n, 1000) = 0 THEN (SELECT img_bytes FROM file_data)
+            ELSE null
+END as image
+        ,case
+            when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
+            when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
+            when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
+            else null end as current_mood,
+        now() as time,
+        '{"key": "value"}' j,
+        case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
+        '"a"=>"1","b"=>"2"'::hstore h,
+        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints
+    from generate_series(1, 1000000) as n;
+insert into public."Source" (uuid, "Primary", boolean,
+                             int2, int4, int8, smallint, bigint, numeric, float8,
+                             date, timestamp, timestamptz, description, current_mood, time, j, ip, h, ints)
+select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
+       0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
+        current_date, current_timestamp, current_timestamp,
+        rpad('PostgreSQL', 100, '*') description,
+        case
+            when floor(random() * (3 + 1) + 0)::int = 1 then 'sad'::mood
+            when floor(random() * (3 + 1) + 0)::int = 2 then 'ok'::mood
+            when floor(random() * (3 + 1) + 0)::int = 2 then 'happy'::mood
+            else null end as current_mood,
+        now() time,
+        '{"key": "value"}' j,
+        case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
+        'c=>3,d=>3'::hstore h,
+        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints
+    from generate_series(1,9000000) as n;
+
+analyze public."Source" ;

@@ -277,7 +277,7 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void emptySourceTable() throws Exception {
+    void emptyChunks() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/emptySourceTable.json",

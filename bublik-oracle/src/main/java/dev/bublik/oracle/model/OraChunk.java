@@ -5,16 +5,17 @@ import dev.bublik.core.model.*;
 import dev.bublik.core.service.ChunkService;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 
 import static dev.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS;
 import static dev.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS;
 
 public abstract class OraChunk<K extends Integer, T, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> implements ChunkService {
+    private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
+
     public OraChunk(K id, T start, T end, Config config, Table2Table t2t,
                          ChunkStatus status, String fetchQuery, Storage sourceStorage,
                          Storage targetStorage, String orderByClause) {
@@ -43,13 +44,27 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
                 .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, null)
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();
+        if (getTargetStorage() instanceof JDBCStorage && getTargetSession() != null) {
+            try {
+                getTargetSession().close();
+            } catch (Exception e) {
+                log.debug("Target session was already closed or cannot be closed", e);
+            }
+        }
+/*
         if (getSourceSession().isValid(0)) {
             getSourceSession().close();
         }
         if (getTargetStorage() instanceof JDBCStorage && getTargetSession().isValid(0)) {
             getTargetSession().close();
         }
+*/
         return this;
+    }
+
+    @Override
+    public void lastStageCloseSourceSession(boolean sync) throws SQLException{
+        getSourceSession().close();
     }
 
     @Override
@@ -94,18 +109,31 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
     public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
         try {
             LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
-            setLogMessage(logMessage);
-            getResultSet().close();
+            this.setLogMessage(logMessage);
             return this;
         } catch (SQLException | RuntimeException e) {
-            setLogMessage(new LogMessage (0, 0, " UNREACHABLE TASK "));
+            this.setLogMessage(new LogMessage (0, 0, " UNREACHABLE TASK "));
             throw e;
-        }
-    }
+        } finally {
+            if (getResultSet() != null) {
+                ResultSet rs = getResultSet();
 
-    @Override
-    public void lastStageCloseSourceSession(boolean sync) throws SQLException{
-        getSourceSession().close();
+                try {
+                    Statement stmt = rs.getStatement();
+                    if (stmt != null) {
+                        stmt.close();
+                    }
+                } catch (Exception e) {
+                    log.debug("Error while closing Statement for chunk {}", getId(), e);
+                }
+
+                try {
+                    rs.close();
+                } catch (Exception e) {
+                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
+                }
+            }
+        }
     }
 
     @Override

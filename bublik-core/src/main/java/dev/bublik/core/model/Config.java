@@ -28,7 +28,8 @@ public record Config(
         Map<String, List<String>> asSet,
         Map<String, List<KV>> asMap,
         Map<String, List<String>> asUDT,
-        Map<String, Object> avroSchema
+        Map<String, Object> avroSchema,
+        Map<String, String> validationRules
 ) {
 
     public Config copy() {
@@ -55,7 +56,8 @@ public record Config(
                 this.asSet,
                 this.asMap,
                 this.asUDT,
-                this.avroSchema == null ? null : Map.copyOf(this.avroSchema)
+                this.avroSchema == null ? null : Map.copyOf(this.avroSchema),
+                this.validationRules == null ? null : Map.copyOf(this.validationRules)
         );
     }
 
@@ -85,6 +87,7 @@ public record Config(
         private Map<String, List<KV>> asMap = new HashMap<>();
         private Map<String, List<String>> asUDT = new HashMap<>();
         private Map<String, Object> avroSchema = new HashMap<>();
+        private Map<String, String> validationRules = new HashMap<>();
 
         public Builder from(String schema, String table) {
             this.fromSchemaName = schema;
@@ -116,6 +119,7 @@ public record Config(
         public Builder columnToColumn(Map<String, String> columnToColumn) { this.columnToColumn = columnToColumn; return this; }
         public Builder expressionToColumn(Map<String, String> expressionToColumn) { this.expressionToColumn = expressionToColumn; return this; }
         public Builder avroSchema(Map<String, Object> avroSchema) { this.avroSchema = avroSchema; return this; }
+        public Builder validationRules(Map<String, String> validationRules) { this.validationRules = validationRules; return this; }
 
         public Config build() {
             return new Config(
@@ -123,7 +127,7 @@ public record Config(
                     toSchemaName, toTableName, fetchHintClause, fetchWhereClause,
                     fromTaskName, fromTaskWhereClause, timestamp, withTTL,
                     tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany,
-                    asList, asSet, asMap, asUDT, avroSchema
+                    asList, asSet, asMap, asUDT, avroSchema, validationRules
             );
         }
     }

@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.32</version>
+        <version>26.3.33</version>
     </parent>
 
     <artifactId>bublik-spring-boot-starter</artifactId>

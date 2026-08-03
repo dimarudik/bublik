@@ -343,39 +343,23 @@ public class PostgresStorage extends JDBCStorage {
             throws SQLException, SourceSQLException, TargetSQLException {
         if (chunk.getSourceStorage() instanceof JDBCStorage) {
             ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
-            Connection connectionFrom = (Connection) chunk.getSourceSession();
-            if (fetchResultSet.next()) {
-                Connection connectionTo = (Connection) chunk.getTargetSession();
-                try {
-                    LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
-                    connectionTo.close();
-                    return logMessage;
-                } catch (SQLException e) {
-                    connectionTo.rollback();
-                    connectionTo.close();
-                    throw e;
-                } catch (SourceSQLException s) {
-                    connectionFrom.close();
-                    log.error("{}", getStackTrace(s));
-                    throw s;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    ;
-                }
-            } else {
+
+            if (fetchResultSet == null) {
                 return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "NO ROWS FETCH");
             }
+
+            Connection connectionTo = (Connection) chunk.getTargetSession();
+            try {
+                return fetchAndCopy(fetchResultSet, chunk);
+            } catch (SQLException e) {
+                connectionTo.rollback();
+                throw e;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
         } else {
             return chunk.getSourceStorage().transfer(chunk, tableName);
-        }
-    }
-
-    private boolean hasNext(ResultSet resultSet) {
-        try {
-            return resultSet.next();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -455,13 +439,21 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     private LogMessage fetchAndCopy(ResultSet fetchResultSet,
-                                    Chunk<?, ?, ?, ?> chunk,
-                                    String tableName) throws SQLException, SourceSQLException, IOException {
+                                    Chunk<?, ?, ?, ?> chunk) throws SQLException, SourceSQLException, IOException {
         int recordCount = 0;
         Connection connectionTo = (Connection) chunk.getTargetSession();
 
         if (!isChunkProcessed(chunk)) {
             List<Column2Column> columnToColumnList = chunk.getT2t().column2Columns();
+            int[] sourceColumnIndices = new int[columnToColumnList.size()];
+            int[] sourceColumnTypes = new int[columnToColumnList.size()];
+            ResultSetMetaData meta = fetchResultSet.getMetaData();
+            for (int i = 0; i < columnToColumnList.size(); i++) {
+                String sourceColumnName = columnToColumnList.get(i).sourceColumn().columnName().replace("\"", "");
+                int index = fetchResultSet.findColumn(sourceColumnName);
+                sourceColumnIndices[i] = index;
+                sourceColumnTypes[i] = meta.getColumnType(index);
+            }
             List<String> columnNames = columnToColumnList.stream().map(Column2Column::targetColumn).map(Column::columnName).toList();
 
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
@@ -471,13 +463,14 @@ public class PostgresStorage extends JDBCStorage {
             int pgStreamBufferSize = 1024 * 1024;
             int javaBufferSize = 64 * 1024;
             PGConnection pgConnection = connectionTo.unwrap(PGConnection.class);
+
             try (PGCopyOutputStream os = new PGCopyOutputStream(pgConnection, sqlCopy, pgStreamBufferSize);
                  PgBinaryWriter writer = new PgBinaryWriter(os, javaBufferSize)) {
-                do {
+                while (fetchResultSet.next()) {
                     writer.startRow((short) columnNames.size());
-                    writeValue(columnToColumnList, fetchResultSet, chunk, writer);
+                    writeValue(columnToColumnList, sourceColumnIndices, sourceColumnTypes, fetchResultSet, chunk, writer);
                     recordCount++;
-                } while (hasNext(fetchResultSet));
+                }
             }
 
             chunk.setCopied(recordCount);
@@ -491,15 +484,27 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     private void writeValue(List<Column2Column> columnToColumnList,
+                            int[] sourceColumnIndices,
+                            int[] sourceColumnTypes,
                             ResultSet rs,
                             Chunk<?, ?, ?, ?> chunk,
                             PgBinaryWriter writer) throws SQLException, IOException {
+        boolean isOracle = chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME);
+/*
         for (Column2Column entry : columnToColumnList) {
             String sourceColumn = entry.sourceColumn().columnName().replace("\"", "");
-//            String sourceType = entry.sourceColumn().columnType();
             String targetColumn = entry.targetColumn().columnName();
             String targetType = entry.targetColumn().columnType();
             int colIndex = rs.findColumn(sourceColumn);
+*/
+        for (int i = 0; i < columnToColumnList.size(); i++) {
+            Column2Column entry = columnToColumnList.get(i);
+            String sourceColumn = entry.sourceColumn().columnName().replace("\"", "");
+            String targetColumn = entry.targetColumn().columnName().replace("\"", "");
+            String targetType = entry.targetColumn().columnType();
+
+            int colIndex = sourceColumnIndices[i];
+            int sourceSqlType = sourceColumnTypes[i];
 
             Object value = rs.getObject(colIndex);
             if (value == null) {
@@ -558,8 +563,9 @@ public class PostgresStorage extends JDBCStorage {
 
                 case "text": {
                     String s;
-                    if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                        if (colIndex != 0 && rs.getMetaData().getColumnType(colIndex) == 2005) { // 2005 - Oracle CLOB
+                    if (isOracle) {
+//                        if (colIndex != 0 && rs.getMetaData().getColumnType(colIndex) == 2005) { // 2005 - Oracle CLOB
+                        if (sourceSqlType == 2005) {
                             s = convertClobToString(rs, sourceColumn);
                         } else {
                             s = value.toString();
@@ -573,10 +579,10 @@ public class PostgresStorage extends JDBCStorage {
 
                 case "jsonb": {
                     String s;
-                    if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                        int columnIndex = getColumnIndexByColumnName(rs, sourceColumn.toUpperCase());
-                        int columnType = rs.getMetaData().getColumnType(columnIndex);
-                        s = switch (columnType) {
+                    if (isOracle) {
+//                        int columnIndex = getColumnIndexByColumnName(rs, sourceColumn.toUpperCase());
+//                        int columnType = rs.getMetaData().getColumnType(columnIndex);
+                        s = switch (sourceSqlType) {
                             case 2005, 2011 -> convertClobToString(rs, sourceColumn).replace("\u0000", "");
                             default -> (value instanceof org.postgresql.util.PGobject pgo ?
                                     pgo.getValue() : value.toString()).replace("\u0000", "");
@@ -689,10 +695,8 @@ public class PostgresStorage extends JDBCStorage {
                 case "timestamp", "timestamp without time zone": {
                     LocalDateTime ldt = null;
                     try {
-                        // Современный стандартный способ, поддерживаемый ojdbc8+ и pgjdbc
                         ldt = rs.getObject(sourceColumn, LocalDateTime.class);
                     } catch (Exception ex) {
-                        // Резервный способ для старых версий драйверов
                         java.sql.Timestamp ts = rs.getTimestamp(sourceColumn);
                         if (ts != null) {
                             ldt = ts.toLocalDateTime();
@@ -738,11 +742,8 @@ public class PostgresStorage extends JDBCStorage {
                 case "bytea", "blob", "BINARY": {
                     byte[] bytes = null; // По умолчанию null
 
-                    if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                        int columnIndex = getColumnIndexByColumnName(rs, sourceColumn.toUpperCase());
-                        int columnType = rs.getMetaData().getColumnType(columnIndex);
-
-                        bytes = switch (columnType) {
+                    if (isOracle) {
+                        bytes = switch (sourceSqlType) {
                             // RAW (-3), LONG RAW (-4)
                             case -3, -4 -> rs.getBytes(sourceColumn);
                             // BLOB (2004)
@@ -873,9 +874,7 @@ public class PostgresStorage extends JDBCStorage {
                     int days = 0;
                     long micros = 0;
 
-                    if (chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME)) {
-                        int columnIndex = getColumnIndexByColumnName(rs, sourceColumn.toUpperCase());
-                        int columnType = rs.getMetaData().getColumnType(columnIndex);
+                    if (isOracle) {
                         JDBCStorage jdbcSourceStorage = chunk.getSourceStorage().unwrap(JDBCStorage.class);
 
                         byte[] oracleBytes = rs.getBytes(sourceColumn);
@@ -884,7 +883,7 @@ public class PostgresStorage extends JDBCStorage {
                             break;
                         }
 
-                        switch (columnType) {
+                        switch (sourceSqlType) {
                             // INTERVALYM
                             case -103: {
                                 byte[] convertedBytes = jdbcSourceStorage.intervalYM2Interval((java.io.Serializable) value);

@@ -11,10 +11,7 @@ import java.sql.Wrapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
 
@@ -120,6 +117,139 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         int errorCounter = 0;
         log.info("THREADS: {}", threadCount);
         log.info("FETCH_SIZE: {}", getFetchSize());
+
+        // Переменные для отслеживания критических ошибок
+        Throwable lastSubmittedException = null;
+
+        do {
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
+
+            // Если чанков больше нет — выходим
+            if (chunks.isEmpty()) {
+                log.info("All chunks are processed");
+                break;
+            }
+
+            // 1. СОЗДАЕМ ПУЛ ПОТОКОВ СТРОГО ВНУТРИ ЦИКЛА
+            ExecutorService batchService = Executors.newFixedThreadPool(threadCount);
+            List<Callable<Chunk<?, ?, ?, ?>>> tasks = new ArrayList<>();
+
+            // Наполняем список задач для текущих 200 чанков
+            for (Chunk<?, ?, ?, ?> chunk : chunks) {
+                tasks.add(() -> {
+                    try {
+                        return chunk.allStages(false, getOutboxTable());
+                    } catch (Exception e) {
+                        log.error("ChunkId = {} {}.{} failed", chunk.getId(),
+                                chunk.getT2t().sourceTable().getSchemaName(),
+                                chunk.getT2t().sourceTable().getTableName(), e);
+
+                        try {
+                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null,
+                                    getStackTrace(e), getOutboxTable().tableToString());
+                        } catch (SQLException ex) {
+                            log.error("Error while saving error info for chunk {}", chunk.getId(), ex);
+                        }
+                        if (this instanceof JDBCStorage) {
+                            try {
+                                (chunk.getSourceSession()).close();
+                                log.warn("Source session has been closed due to error");
+                            } catch (SQLException ex) {
+                                log.error("Error while closing source session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            }
+                        }
+                        if (targetStorage instanceof JDBCStorage) {
+                            try {
+                                (chunk.getTargetSession()).close();
+                                log.warn("Target session has been closed due to error");
+                            } catch (SQLException ex) {
+                                log.error("Error while closing target session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
+                            }
+                        }
+                        throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
+                    }
+                });
+            }
+
+            boolean hasBatchErrors = false;
+            try {
+                // 2. invokeAll САМ отправляет все задачи в пул и блокирует main поток,
+                // пока все 200 чанков полностью не завершатся (успешно или с ошибкой)
+                List<Future<Chunk<?, ?, ?, ?>>> futures = batchService.invokeAll(tasks);
+
+                // Проверяем результаты выполнения пачки
+                for (Future<?> future : futures) {
+                    try {
+                        future.get(); // Если внутри чанка была ошибка, get() выбросит ExecutionException
+                    } catch (Exception e) {
+                        hasBatchErrors = true;
+                        lastSubmittedException = (e.getCause() != null) ? e.getCause() : e;
+                        errorCounter++;
+                    }
+                }
+            } catch (InterruptedException e) {
+                log.error("Migration thread was interrupted", e);
+                batchService.shutdownNow();
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            } finally {
+                // 3. ЖЕСТКО УНИЧТОЖАЕМ ПУЛ ПОТОКОВ в конце каждой итерации
+                batchService.shutdown();
+                try {
+                    if (!batchService.awaitTermination(5, TimeUnit.MINUTES)) {
+                        batchService.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    batchService.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+            }
+
+            // Логика обработки лимита ошибок
+            if (hasBatchErrors) {
+                if (errorCounter <= (threadCount * 2)) {
+                    log.warn("Batch execution had errors. Error count: {}. Continue...", errorCounter);
+                    continue;
+                } else {
+                    log.error("Critical error threshold reached ({}/{}). Finishing pipeline...", errorCounter, threadCount * 2);
+                    throw new RuntimeException("Unrecoverable error in migration pipeline", lastSubmittedException);
+                }
+            }
+
+            // Если итерация прошла успешно — сбрасываем счетчик ошибок
+            errorCounter = 0;
+
+            // 4. ЯВНО ОЧИЩАЕМ ССЫЛКИ, освобождая память для Garbage Collector
+            tasks.clear();
+            chunks.clear();
+
+            printMemInfo();
+        } while (true);
+
+        dropChunkTable(configs);
+        if (targetStorage instanceof JDBCStorage) {
+            targetStorage.dropOutboxTable(false);
+        }
+    }
+
+/*
+    @Override
+    public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
+        List<Config> configs = copyConfigs(cfgs);
+        if (rows > 0) {
+            preChecks(configs);
+            createChunkTable();
+            fulfillChunks(configs, false, rows);
+            if (targetStorage instanceof JDBCStorage) {
+                targetStorage.createGlobalOutbox();
+            }
+        }
+        log.info("SOURCE version: {}", getStorageVersion());
+        log.info("TARGET version: {}", targetStorage.getStorageVersion());
+
+        int errorCounter = 0;
+        log.info("THREADS: {}", threadCount);
+        log.info("FETCH_SIZE: {}", getFetchSize());
         ExecutorService service = Executors.newFixedThreadPool(threadCount);
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
@@ -206,6 +336,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             targetStorage.dropOutboxTable(false);
         }
     }
+*/
 
     private void printMemInfo() {
         Runtime runtime = Runtime.getRuntime();
