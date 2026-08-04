@@ -23,14 +23,6 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 public class MSSQLStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
 
-/*
-    protected MSSQLStorage(DataSource dataSource,
-                           ConnectionProperty connectionProperty,
-                           Table outboxTable) {
-        super(dataSource, connectionProperty, outboxTable);
-    }
-*/
-
     public MSSQLStorage(StorageClass storageClass,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) throws SQLException {
@@ -281,53 +273,45 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
+                                                Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
-        for (Config config : configs) {
-            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
-            this.enrichTable(sourceTable);
-            targetStorage.enrichTable(sourceTable, targetTable);
-//            targetTable.getPkColumns().forEach(c -> log.info("PK: {} {} {}", targetTable.getTableName(), c.columnName(), c.columnPosition(), c.ascOrDesc()));
-            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-            String sql = buildStartEndOfChunk(config, sourceTable);
-            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
-            String fetchQuery = buildFetchStatement(config, t2t);
-            String alias = config.fromTableAlias();
-            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable)t2t.sourceTable()).getClusteringKey(), false, alias);
-            String orderByClause = targetTable.buildOrderBy(config);
-            log.info("Fetch query: {} {} {}", fetchQuery, addFetchQuery, orderByClause);
-            Connection sourceSession = this.getPoolConnection();
-            PreparedStatement preparedStatement = sourceSession.prepareStatement(sql);
-            preparedStatement.setString(1, config.fromSchemaName());
-            preparedStatement.setString(2, config.fromTableName());
-            preparedStatement.setString(3, config.fromTaskName());
-            ResultSet rs = preparedStatement.executeQuery();
-            while (rs.next()) {
-                String status = rs.getString("status");
-                Integer chunkId = rs.getInt("chunk_id");
-                Map.Entry<List<Object>, List<Object>> entry = getValues(sourceSession, t2t, chunkId);
-//                System.out.println(entry);
-                Chunk<?, ?, ?, ?> chunk = new MSSQLChunk<>(
-                        chunkId,
-                        entry.getKey(),
-                        entry.getValue(),
-                        config,
-                        t2t,
-                        ChunkStatus.valueOf(status),
-                        fetchQuery,
-                        this,
-                        targetStorage,
-                        orderByClause);
-                ((MSSQLChunk<?, ?, ?, ?>)chunk).setAddFetchPredicate(addFetchQuery);
-                chunks.add(chunk);
+        for (TableMigrationContext ctx : contexts) {
+            String alias = ctx.config().fromTableAlias();
+            String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable)ctx.t2t().sourceTable()).getClusteringKey(), false, alias);
+
+            log.info("Fetch query: {} {} {}", ctx.fetchQuery(), addFetchQuery, ctx.orderByClause());
+            try (Connection sourceSession = this.getPoolConnection();
+                 PreparedStatement preparedStatement = sourceSession.prepareStatement(ctx.chunkLookupSql())){
+                preparedStatement.setString(1, ctx.config().fromTaskName());
+                try (ResultSet rs = preparedStatement.executeQuery()){
+                    while (rs.next()) {
+                        String status = rs.getString("status");
+                        Integer chunkId = rs.getInt("chunk_id");
+                        Map.Entry<List<Object>, List<Object>> entry = getValues(sourceSession, ctx.t2t(), chunkId);
+                        Chunk<?, ?, ?, ?> chunk = new MSSQLChunk<>(
+                                chunkId,
+                                entry.getKey(),
+                                entry.getValue(),
+                                ctx.config(),
+                                ctx.t2t(),
+                                ChunkStatus.valueOf(status),
+                                ctx.fetchQuery(),
+                                this,
+                                targetStorage,
+                                ctx.orderByClause());
+                        ((MSSQLChunk<?, ?, ?, ?>)chunk).setAddFetchPredicate(addFetchQuery);
+                        chunks.add(chunk);
+                    }
+                }
             }
-            rs.close();
-            preparedStatement.close();
-            sourceSession.close();
         }
         return chunks;
+    }
+
+    @Override
+    public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
+        return null;
     }
 
     private Map.Entry<List<Object>, List<Object>> getValues(Connection connection, Table2Table t2t, Integer chunkId) throws SQLException {
@@ -360,7 +344,7 @@ public class MSSQLStorage extends JDBCStorage {
         return "select top(200) c.chunk_id, c.uuid, c.start_page, c.end_page, c.task_name, c.status from " +
                 schemaName() + ".[" + getOutboxTable().getTableName() + "] c, " + schemaName() + ".[_ext_" + sourceTable.getTableName() +
                 "] e where c.chunk_id = e.chunk_id and " +
-                "c.schema_name = ? and c.table_name = ? and c.task_name = ? " +
+                "c.task_name = ? " +
                 " and c.status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
                 + " order by c.chunk_id ";
     }
@@ -378,23 +362,11 @@ public class MSSQLStorage extends JDBCStorage {
                 .filter(c2c -> c2c.sourceColumn() != null)
                 .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
                 .toList());
-/*
-        List<String> asColumns = t2t.column2Columns()
-                .stream()
-                .filter(c2c -> c2c.sourceColumn() != null)
-                .map(c2c -> c2c.sourceExpression() == null ? c2c.sourceColumn().columnName() : c2c.sourceExpression())
-                .toList();
-*/
-//        Set<String> set = new HashSet<>();
-//        Set<String> set = new HashSet<>(asColumns);
-//        List<String> finalList = set.stream().toList();
         String columnToColumn = String.join(", ", asColumns);
-//        String alias = (config.fromTableAlias() == null ? "" : config.fromTableAlias());
         String alias = config.fromTableAlias();
         return PGKeywords.SELECT + " " +
                 columnToColumn + " " +
                 (t2t.ttlColumn() == null ? "" : ( ", " + t2t.ttlColumn().defaultValue() + " as " + t2t.ttlColumn().columnName() + " ")) +
-//                (t2t.timestampColumn() == null ? "" : ( ", " + t2t.timestampColumn().defaultValue() + " as " + t2t.timestampColumn().columnName() + " ")) +
                 PGKeywords.FROM + " " +
                 config.fromSchemaName() +
                 "." +
@@ -404,8 +376,6 @@ public class MSSQLStorage extends JDBCStorage {
                 PGKeywords.WHERE + " " +
                 (config.fetchWhereClause() == null ? "" : " ( " + config.fetchWhereClause() + " ) and ") + " " +
                 buildConditionBlock(((MSSQLTable)t2t.sourceTable()).getClusteringKey(), true, alias);
-//                getStringFromClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " >= ? and ", alias) + " >= ? ";
-//                getStringToClusteringKey((MSSQLTable<S>) t2t.sourceTable(), " < ? and ", alias) + " < ? ";
     }
 
     public String buildConditionBlock(List<Column> columns, boolean isStart, String alias) {

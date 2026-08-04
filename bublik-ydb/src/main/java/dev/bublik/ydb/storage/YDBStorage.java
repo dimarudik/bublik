@@ -111,8 +111,13 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts, Storage targetStorage) throws SQLException {
         return List.of();
+    }
+
+    @Override
+    public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
+        return null;
     }
 
     @Override

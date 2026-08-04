@@ -9,6 +9,7 @@ import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -104,8 +105,13 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts, Storage targetStorage) throws SQLException {
         return List.of();
+    }
+
+    @Override
+    public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
+        return null;
     }
 
     @Override

@@ -118,96 +118,6 @@ abstract class CSStorage extends Storage implements Source {
         return (S) csPool.getCqlSession();
     }
 
-/*
-    @Override
-    public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
-        List<Config> configs = copyConfigs(cfgs);
-        if (rows > 0) {
-            preChecks(configs);
-            createChunkTable();
-            fulfillChunks(configs, false, rows);
-            if (targetStorage instanceof JDBCStorage) {
-                targetStorage.createGlobalOutbox();
-            }
-        }
-        log.info("SOURCE version: {}", getStorageVersion());
-        log.info("TARGET version: {}", targetStorage.getStorageVersion());
-
-        int errorCounter = 0;
-        log.info("THREADS: {}", threadCount);
-        log.info("FETCH_SIZE: {}", getFetchSize());
-        ExecutorService service = Executors.newFixedThreadPool(threadCount);
-        do {
-            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
-            List<Future<Chunk<?, ?, ?, ?>>> futures = new ArrayList<>();
-
-            chunks.forEach(chunk -> futures.add(
-                    service.submit(() -> {
-                        try {
-                            return chunk.allStages(false, getOutboxTable());
-                        } catch (Exception e) {
-                            log.error("ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(e));
-                            log.warn("Saving info about error to database");
-                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null, getStackTrace(e), getOutboxTable().tableToString());
-                            if (targetStorage instanceof  JDBCStorage) {
-                                (chunk.getTargetSession()).close();
-                            }
-                            throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
-                        }
-                    }))
-            );
-
-            boolean hasBatchErrors = false;
-            Throwable lastSubmittedException = null;
-
-            for (Future<?> future : futures) {
-                try {
-                    future.get();
-                } catch (Exception e) {
-                    hasBatchErrors = true;
-                    lastSubmittedException = e;
-                    errorCounter++;
-                }
-            }
-
-            if (hasBatchErrors) {
-                if (errorCounter <= (threadCount * 2)) {
-                    log.warn("Try: {} Continue...", errorCounter);
-                    continue;
-                } else {
-                    log.error("Try: {} Unrecoverable error: {}", errorCounter, getStackTrace(lastSubmittedException));
-                    log.info("Finishing due to critical stress failure...");
-                    service.shutdownNow();
-                    try {
-                        service.awaitTermination(3, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                    throw new RuntimeException(lastSubmittedException);
-                }
-            }
-
-            errorCounter = 0;
-
-            if (chunks.isEmpty()) {
-                log.info("All chunks are processed");
-                break;
-            }
-
-//            printMemInfo();
-        } while (true);
-
-        service.shutdown();
-        service.close();
-
-        dropChunkTable(configs);
-        if (targetStorage instanceof JDBCStorage) {
-            targetStorage.dropOutboxTable(false);
-        }
-    }
-*/
-
-
     @Override
     public void fulfillChunks(List<Config> configs, boolean sync, int rows) throws SQLException {
         CqlSession cqlSession = csPool.getCqlSession();
@@ -342,10 +252,6 @@ abstract class CSStorage extends Storage implements Source {
     @Override
     public boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) {
         CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
-/*
-        String chunkTable = getConnectionProperty() == null ? oTable(null) :
-                oTable(getConnectionProperty().getToProperty());
-*/
         String selectCQL = DML_SELECT_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString());
         com.datastax.oss.driver.api.core.cql.ResultSet rs = cqlSession.execute(selectCQL, chunk.getId());
         return rs.one() != null;
@@ -354,10 +260,6 @@ abstract class CSStorage extends Storage implements Source {
     @Override
     public void insertProcessedChunkInfo(Chunk<?, ?, ?, ?> chunk) {
         CqlSession cqlSession = (CqlSession) chunk.getTargetSession();
-/*
-        String chunkTable = getConnectionProperty() == null ? oTable(null) :
-                oTable(getConnectionProperty().getToProperty());
-*/
         String insertCQL = DML_INSERT_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString());
         PreparedStatement statement = cqlSession.prepare(insertCQL);
         BoundStatement boundStatement = statement.bind(chunk.getId(), chunk.getConfig().fromTaskName(), chunk.getCopied())
@@ -393,25 +295,66 @@ abstract class CSStorage extends Storage implements Source {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
+                                                Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         CqlSession sourceSession = getSession();
-        configs.forEach(config -> {
+        for (TableMigrationContext ctx : contexts) {
+            log.info("Fetch query: {}", ctx.fetchQuery());
+            PreparedStatement ps = sourceSession.prepare(ctx.chunkLookupSql());
+            BoundStatement bs = ps.bind(ctx.t2t().sourceTable().getSchemaName(),
+                    ctx.t2t().sourceTable().getTableName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
+            ResultSet rs = sourceSession.execute(bs);
+            for (Row row : rs) {
+                String status = row.getString("status");
+                String taskName = row.getString("task_name");
+                assert taskName != null;
+                if (taskName.equals(ctx.config().fromTaskName())) {
+                    Chunk<?, ?, ?, ?> chunk =
+                            new CSChunk<>(
+                                    row.getUuid("chunk_id"),
+                                    row.getLong("start_page"),
+                                    row.getLong("end_page"),
+                                    ctx.config(),
+                                    ctx.t2t(),
+                                    ChunkStatus.valueOf(status),
+                                    ctx.fetchQuery(),
+                                    this,
+                                    targetStorage,
+                                    ctx.orderByClause());
+                    chunks.add(chunk);
+                }
+            }
+        }
+        return chunks;
+    }
+
+    @Override
+    public Chunk<?, ?, ?, ?> getChunk(java.sql.ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
+        return null;
+    }
+
+/*
+    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs,
+                                                Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
+        CqlSession sourceSession = getSession();
+        for (Config config : configs) {
             Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
-            try {
-                this.enrichTable(sourceTable);
-                targetStorage.enrichTable(sourceTable, targetTable);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-//            targetTable.getColumns().forEach(c -> System.out.println(c.columnName() + "." + c.columnType()));
-            String orderByClause = targetTable.buildOrderBy(config);
+
+            this.enrichTable(sourceTable);
+            targetStorage.enrichTable(sourceTable, targetTable);
+
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
+
             String sql = buildStartEndOfChunk(config, sourceTable);
             log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
             String fetchQuery = buildFetchStatement(config, t2t);
+            String orderByClause = targetTable.buildOrderBy(config);
+
             log.info("Fetch query: {}", fetchQuery);
             PreparedStatement ps = sourceSession.prepare(sql);
             BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
@@ -436,9 +379,10 @@ abstract class CSStorage extends Storage implements Source {
                     chunks.add(chunk);
                 }
             }
-        });
+        }
         return chunks;
     }
+*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,

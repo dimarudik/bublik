@@ -65,18 +65,6 @@ public class KafkaStorage extends Storage {
             this.topic = topic;
         }
 
-/*
-        public Builder kafkaProducer(KafkaProducer<String, byte[]> kafkaProducer) {
-            this.kafkaProducer = kafkaProducer;
-            return self();
-        }
-
-        public Builder topic(String topic) {
-            this.topic = topic;
-            return self();
-        }
-*/
-
         @Override
         protected Builder self() {
             return this;
@@ -201,6 +189,11 @@ public class KafkaStorage extends Storage {
         if (value != null && !value.trim().isEmpty()) {
             props.put(key, value);
         }
+    }
+
+    @Override
+    public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
+        return null;
     }
 
     @Override
@@ -414,7 +407,7 @@ public class KafkaStorage extends Storage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts, Storage targetStorage) throws SQLException {
         return List.of();
     }
 

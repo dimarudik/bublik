@@ -139,4 +139,146 @@ public record Column(Integer columnPosition,
     public String toName() {
         return TO + columnName();
     }
+
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private Integer columnPosition = 0;
+        private String columnName;
+        private String columnType;
+        private Integer dataType;
+        private Integer isNullable;
+        private String defaultValue;
+        private String isAutoIncrement;
+        private String isGenerated;
+        private int decimalDigits = 0;
+        private String columnComment;
+        private int charOctetLength = 0;
+        private String ascOrDesc = "0";
+        private boolean isStatic = false;
+        private boolean isPartitionKey = false;
+        private boolean isClusteringKey = false;
+        private UdtType udtType;
+        private boolean isFrozen = false;
+        private boolean isCollection = false;
+
+        public Builder columnPosition(Integer columnPosition) {
+            this.columnPosition = columnPosition;
+            return this;
+        }
+
+        public Builder columnName(String columnName) {
+            this.columnName = columnName;
+            return this;
+        }
+
+        public Builder columnType(String columnType) {
+            this.columnType = columnType;
+            return this;
+        }
+
+        public Builder dataType(Integer dataType) {
+            this.dataType = dataType;
+            return this;
+        }
+
+        public Builder isNullable(Integer isNullable) {
+            this.isNullable = isNullable;
+            return this;
+        }
+
+        public Builder defaultValue(String defaultValue) {
+            this.defaultValue = defaultValue;
+            return this;
+        }
+
+        public Builder isAutoIncrement(String isAutoIncrement) {
+            this.isAutoIncrement = isAutoIncrement;
+            return this;
+        }
+
+        public Builder isGenerated(String isGenerated) {
+            this.isGenerated = isGenerated;
+            return this;
+        }
+
+        public Builder decimalDigits(int decimalDigits) {
+            this.decimalDigits = decimalDigits;
+            return this;
+        }
+
+        public Builder columnComment(String columnComment) {
+            this.columnComment = columnComment;
+            return this;
+        }
+
+        public Builder charOctetLength(int charOctetLength) {
+            this.charOctetLength = charOctetLength;
+            return this;
+        }
+
+        public Builder ascOrDesc(String ascOrDesc) {
+            this.ascOrDesc = ascOrDesc;
+            return this;
+        }
+
+        public Builder isStatic(boolean isStatic) {
+            this.isStatic = isStatic;
+            return this;
+        }
+
+        public Builder isPartitionKey(boolean isPartitionKey) {
+            this.isPartitionKey = isPartitionKey;
+            return this;
+        }
+
+        public Builder isClusteringKey(boolean isClusteringKey) {
+            this.isClusteringKey = isClusteringKey;
+            return this;
+        }
+
+        public Builder udtType(UdtType udtType) {
+            this.udtType = udtType;
+            return this;
+        }
+
+        public Builder isFrozen(boolean isFrozen) {
+            this.isFrozen = isFrozen;
+            return this;
+        }
+
+        public Builder isCollection(boolean isCollection) {
+            this.isCollection = isCollection;
+            return this;
+        }
+
+        public Column build() {
+            if (columnName == null || columnName.isBlank()) {
+                throw new IllegalStateException("Missing required field: columnName must be set before calling build()");
+            }
+            return new Column(
+                    columnPosition,
+                    columnName,
+                    columnType,
+                    dataType,
+                    isNullable,
+                    defaultValue,
+                    isAutoIncrement,
+                    isGenerated,
+                    decimalDigits,
+                    columnComment,
+                    charOctetLength,
+                    ascOrDesc,
+                    isStatic,
+                    isPartitionKey,
+                    isClusteringKey,
+                    udtType,
+                    isFrozen,
+                    isCollection
+            );
+        }
+    }
 }

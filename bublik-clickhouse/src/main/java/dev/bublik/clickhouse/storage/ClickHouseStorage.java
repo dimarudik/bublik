@@ -727,6 +727,56 @@ public class ClickHouseStorage extends ClickStorage {
                 }
 
                 case "datetime64": {
+                    final int targetScale = scale;
+
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        java.sql.Timestamp ts = null;
+                        try {
+                            java.util.Calendar utcCal = java.util.Calendar.getInstance(
+                                    java.util.TimeZone.getTimeZone("UTC"));
+                            ts = r.getTimestamp(jdbcIdx, utcCal);
+                        } catch (Exception ex) {
+                            Object v = r.getObject(jdbcIdx);
+                            if (v instanceof java.sql.Timestamp timestamp) {
+                                ts = timestamp;
+                            } else if (v instanceof java.time.OffsetDateTime odt) {
+                                ts = java.sql.Timestamp.from(odt.toInstant());
+                            }
+                        }
+
+                        if (isNullable) {
+                            if (ts == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+
+                        if (ts == null) {
+                            out.writeLong(0L);
+                            return;
+                        }
+
+                        long seconds = ts.getTime() / 1000;
+                        int nanos = ts.getNanos();
+
+                        long totalUnits;
+                        if (targetScale == 0) {
+                            totalUnits = seconds; // ВОЗВРАЩАЕМ ЧИСТЫЕ СЕКУНДЫ! Даст 3000-01-01
+                        } else if (targetScale == 6) {
+                            totalUnits = (seconds * 1_000_000L) + (nanos / 1000);
+                        } else {
+                            totalUnits = (seconds * (long) Math.pow(10, targetScale))
+                                    + (nanos / (long) Math.pow(10, 9 - targetScale));
+                        }
+
+                        out.writeLong(totalUnits);
+                    };
+                    break;
+                }
+
+/*
+                case "datetime64": {
                     transfers[i] = (r, jdbcIdx, out) -> {
                         java.sql.Timestamp ts = null;
                         try {
@@ -765,6 +815,7 @@ public class ClickHouseStorage extends ClickStorage {
                     };
                     break;
                 }
+*/
 
                 case "date": {
                     transfers[i] = (r, jdbcIdx, out) -> {
@@ -815,6 +866,51 @@ public class ClickHouseStorage extends ClickStorage {
                     break;
                 }
 
+                case "date32": {
+                    transfers[i] = (r, jdbcIdx, out) -> {
+                        Object v = r.getObject(jdbcIdx);
+
+                        if (isNullable) {
+                            if (v == null) {
+                                out.writeByte(1);
+                                return;
+                            }
+                            out.writeByte(0);
+                        }
+
+                        if (v == null) {
+                            out.writeInt(0);
+                            return;
+                        }
+
+                        LocalDate localDate;
+                        try {
+                            if (v instanceof java.sql.Date sd) {
+                                localDate = sd.toLocalDate();
+                            } else if (v instanceof java.sql.Timestamp ts) {
+                                localDate = ts.toLocalDateTime().toLocalDate();
+                            } else if (v instanceof java.time.LocalDate ld) {
+                                localDate = ld;
+                            } else {
+                                String str = v.toString().trim();
+                                if (str.length() >= 10) {
+                                    localDate = java.time.LocalDate.parse(str.substring(0, 10));
+                                } else {
+                                    localDate = java.time.LocalDate.of(1970, 1, 1);
+                                }
+                            }
+                        } catch (Exception ex) {
+                            localDate = java.time.LocalDate.of(1970, 1, 1);
+                        }
+
+                        long daysLong = java.time.temporal.ChronoUnit.DAYS.between(
+                                java.time.LocalDate.of(1970, 1, 1), localDate);
+
+                        // УБРАЛИ СРЕЗЫ: Свободно пишем честные Int32 дни для 3000 года!
+                        out.writeInt((int) daysLong);
+                    };
+                    break;
+                }
 
                 default:
                     transfers[i] = (r, jdbcIdx, out) -> {};

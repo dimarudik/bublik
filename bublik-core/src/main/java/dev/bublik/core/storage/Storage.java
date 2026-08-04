@@ -118,23 +118,20 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         log.info("THREADS: {}", threadCount);
         log.info("FETCH_SIZE: {}", getFetchSize());
 
-        // Переменные для отслеживания критических ошибок
         Throwable lastSubmittedException = null;
+        List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
         do {
-            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(configs, targetStorage);
+            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(migrationContexts, targetStorage);
 
-            // Если чанков больше нет — выходим
             if (chunks.isEmpty()) {
                 log.info("All chunks are processed");
                 break;
             }
 
-            // 1. СОЗДАЕМ ПУЛ ПОТОКОВ СТРОГО ВНУТРИ ЦИКЛА
             ExecutorService batchService = Executors.newFixedThreadPool(threadCount);
             List<Callable<Chunk<?, ?, ?, ?>>> tasks = new ArrayList<>();
 
-            // Наполняем список задач для текущих 200 чанков
             for (Chunk<?, ?, ?, ?> chunk : chunks) {
                 tasks.add(() -> {
                     try {
@@ -173,14 +170,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
             boolean hasBatchErrors = false;
             try {
-                // 2. invokeAll САМ отправляет все задачи в пул и блокирует main поток,
-                // пока все 200 чанков полностью не завершатся (успешно или с ошибкой)
                 List<Future<Chunk<?, ?, ?, ?>>> futures = batchService.invokeAll(tasks);
 
-                // Проверяем результаты выполнения пачки
                 for (Future<?> future : futures) {
                     try {
-                        future.get(); // Если внутри чанка была ошибка, get() выбросит ExecutionException
+                        future.get();
                     } catch (Exception e) {
                         hasBatchErrors = true;
                         lastSubmittedException = (e.getCause() != null) ? e.getCause() : e;
@@ -193,7 +187,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             } finally {
-                // 3. ЖЕСТКО УНИЧТОЖАЕМ ПУЛ ПОТОКОВ в конце каждой итерации
                 batchService.shutdown();
                 try {
                     if (!batchService.awaitTermination(5, TimeUnit.MINUTES)) {
@@ -205,7 +198,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 }
             }
 
-            // Логика обработки лимита ошибок
             if (hasBatchErrors) {
                 if (errorCounter <= (threadCount * 2)) {
                     log.warn("Batch execution had errors. Error count: {}. Continue...", errorCounter);
@@ -216,10 +208,8 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 }
             }
 
-            // Если итерация прошла успешно — сбрасываем счетчик ошибок
             errorCounter = 0;
 
-            // 4. ЯВНО ОЧИЩАЕМ ССЫЛКИ, освобождая память для Garbage Collector
             tasks.clear();
             chunks.clear();
 
@@ -230,6 +220,28 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         if (targetStorage instanceof JDBCStorage) {
             targetStorage.dropOutboxTable(false);
         }
+    }
+
+    private List<TableMigrationContext> getTableMigrationContexts(List<Config> configs, Storage targetStorage) throws SQLException {
+        List<TableMigrationContext> migrationContexts = new ArrayList<>();
+        for (Config config : configs) {
+            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
+            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+
+            this.enrichTable(sourceTable);
+            targetStorage.enrichTable(sourceTable, targetTable);
+
+            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
+            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
+
+            String chunkLookupSql = buildStartEndOfChunk(config, sourceTable);
+            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), chunkLookupSql);
+            String fetchQuery = buildFetchStatement(config, t2t);
+            String orderByClause = targetTable.buildOrderBy(config);
+
+            migrationContexts.add(new TableMigrationContext(config, t2t, chunkLookupSql, fetchQuery, orderByClause));
+        }
+        return migrationContexts;
     }
 
 /*

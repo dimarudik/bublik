@@ -11,10 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetAddress;
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -36,7 +33,9 @@ public interface StorageService {
     boolean isChunkProcessed(Chunk<?, ?, ?, ?> chunk) throws SQLException;
     void dropOutboxTable(boolean sync) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
-    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException;
+    Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException;
+//    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException;
+    List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> migrationContexts, Storage targetStorage) throws SQLException;
     String buildStartEndOfChunk(Config config, Table sourceTable);
     <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
     void closeStorage();
@@ -61,7 +60,7 @@ public interface StorageService {
     static Storage getStorage(StorageClass storageClass,
                               Properties properties,
                               ConnectionProperty connectionProperty,
-                              Table outboxTable) throws SQLException {
+                              Table outboxTable) {
         if (storageClass instanceof AutoColseableStorageClass) {
             Properties props = storageClass.getProperties();
             String className = props.getProperty("class");
@@ -72,23 +71,27 @@ public interface StorageService {
             }
         }
         if (storageClass instanceof JDBCStorageClass) {
-            Driver driver = DriverManager.getDriver(properties.getProperty("url"));
-            return switch (driver.getClass().getName()) {
-                case "oracle.jdbc.OracleDriver" ->
-                    reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                case "org.postgresql.Driver", "sdk.humus.HumusDriver" ->
-                    reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                case "tech.ydb.jdbc.YdbDriver" ->
-                    reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                case "com.microsoft.sqlserver.jdbc.SQLServerDriver" ->
-                    reflectStorage(MSSQL_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                default -> throw new RuntimeException();
-            };
+            try {
+                Driver driver = DriverManager.getDriver(properties.getProperty("url"));
+                return switch (driver.getClass().getName()) {
+                    case "oracle.jdbc.OracleDriver" ->
+                            reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
+                    case "org.postgresql.Driver", "sdk.humus.HumusDriver" ->
+                            reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
+                    case "tech.ydb.jdbc.YdbDriver" ->
+                            reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
+                    case "com.microsoft.sqlserver.jdbc.SQLServerDriver" ->
+                            reflectStorage(MSSQL_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
+                    default -> throw new RuntimeException();
+                };
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
-        return null;
+        throw new RuntimeException("Unknown storage class");
     }
 
-    static StorageClass getStorageClass(Properties properties) throws SQLException {
+    static StorageClass getStorageClass(Properties properties) {
         String className = properties.getProperty("class");
         if (className != null) {
             return new AutoColseableStorageClass(AutoCloseable.class, properties);
@@ -200,18 +203,16 @@ public interface StorageService {
         }
     }
 
-    static void validate(ConnectionProperty property, List<Config> configs) throws SQLException, IOException {
-        StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
-        StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property, null);
-             Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property, null)) {
-            assert sourceStorage != null;
-            sourceStorage.validate(targetStorage, configs);
-        } catch (SQLException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    static Storage getSourceStorage(ConnectionProperty property, Table chunkTable) {
+        Properties properties = property.getFromProperty();
+        StorageClass sourceStorageClass = StorageService.getStorageClass(properties);
+        return getStorage(sourceStorageClass, properties, property, chunkTable);
+    }
+
+    static Storage getTargetStorage(ConnectionProperty property, Table outboxTable) {
+        Properties properties = property.getToProperty();
+        StorageClass targetStorageClass = StorageService.getStorageClass(properties);
+        return getStorage(targetStorageClass, properties, property, outboxTable);
     }
 
     static String getVersion() throws IOException {

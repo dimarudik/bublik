@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import javax.sql.DataSource;
 import java.io.Serializable;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -69,6 +71,25 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     @Override
     public void validate(Storage targetStorage, List<Config> configs) throws SQLException {
 
+    }
+
+    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
+                                                Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
+        for (TableMigrationContext ctx : contexts) {
+            log.info("Fetch query: {} {}", ctx.fetchQuery(), ctx.orderByClause());
+            try (Connection connection = this.getPoolConnection();
+                 PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())){
+                ps.setString(1, ctx.config().fromTaskName());
+                try (ResultSet rs = ps.executeQuery()){
+                    while (rs.next()) {
+                        chunks.add(getChunk(rs, ctx, targetStorage));
+                    }
+                }
+            }
+        }
+        return chunks;
     }
 
     private static int getMaxPoolSize(DataSource dataSource, int defaultValue) {

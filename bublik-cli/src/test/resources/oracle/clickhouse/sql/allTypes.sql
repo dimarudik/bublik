@@ -29,7 +29,10 @@ CREATE TABLE IF NOT EXISTS b (
     INT16_T Nullable(Int16),
     INT128_T Nullable(Int128),
     INT256_T Nullable(Int256),
-    BFLOAT16_T Nullable(BFloat16)
+    BFLOAT16_T Nullable(BFloat16),
+    DD Nullable(Date),
+    DY Nullable(DateTime64(0)),
+    DZ Nullable(Date32)
     ) ENGINE = MergeTree()
     ORDER BY ID;
 

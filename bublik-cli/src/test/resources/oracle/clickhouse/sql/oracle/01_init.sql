@@ -31,7 +31,10 @@ create table test.b (
     int16_t number(5),
     int128_t number,
     int256_t VARCHAR2(80),
-    bfloat16_t number
+    bfloat16_t number,
+    dd date,
+    dy date,
+    dz date
 );
 INSERT INTO test.b (
     id,
@@ -57,7 +60,10 @@ INSERT INTO test.b (
     int16_t,
     int128_t,
     int256_t,
-    bfloat16_t
+    bfloat16_t,
+    dd,
+    dy,
+    dz
 )
 SELECT
     1,
@@ -85,7 +91,10 @@ SELECT
     32767,
     170141183460469231731687303715884105727,
     '57896044618658097711785492504343953926634992332820282019728792003956564819967',
-    123.45
+    123.45,
+    TO_DATE('2026-06-18', 'YYYY-MM-DD'),
+    TO_DATE('3000-01-01', 'YYYY-MM-DD'),
+        TO_DATE('3000-01-01', 'YYYY-MM-DD')
 FROM dual;
 INSERT INTO test.b (id, exclude_me) VALUES (2, 900);
 INSERT INTO test.b (id) VALUES (3);

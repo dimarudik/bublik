@@ -157,6 +157,7 @@ public class TestUtils {
 //        properties.setProperty("database", db.getDatabaseName());
         properties.setProperty("user", db.getUsername());
         properties.setProperty("password", db.getPassword());
+        System.out.println(db.getJdbcUrl() + " " + db.getUsername() + " " + db.getPassword());
         return properties;
     }
 

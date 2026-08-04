@@ -53,8 +53,8 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
             BoundStatement bsDelete = psDelete.bind(
                             getId(),
                             getChunkStatus().toString(),
-                            getConfig().fromSchemaName(),
-                            getConfig().fromTableName())
+                            getT2t().sourceTable().getSchemaName(),
+                            getT2t().sourceTable().getTableName())
                     .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM);
             applied = cqlSession.execute(bsDelete).wasApplied();
         } catch (Exception e) {

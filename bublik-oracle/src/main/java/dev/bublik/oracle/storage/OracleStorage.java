@@ -24,20 +24,6 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 public class OracleStorage extends JDBCStorage {
     private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
 
-/*
-    public OracleStorage(DataSource dataSource,
-                         int threadCount) {
-        super(dataSource, threadCount, new PseudoTable("foo", "bar"));
-    }
-*/
-
-/*
-    protected OracleStorage(DataSource dataSource,
-                            ConnectionProperty connectionProperty) {
-        super(dataSource, connectionProperty, new PseudoTable("foo", "bar"));
-    }
-*/
-
     public OracleStorage(StorageClass storageClass,
                          ConnectionProperty connectionProperty,
                          Table outboxTable) throws SQLException {
@@ -174,24 +160,46 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException {
+    public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
+        String status = rs.getString("status");
+        return new OraChunkRowId<>(
+                rs.getInt("chunk_id"),
+                rs.getRowId("start_rowid"),
+                rs.getRowId("end_rowid"),
+                ctx.config(),
+                ctx.t2t(),
+                ChunkStatus.valueOf(status),
+                ctx.fetchQuery(),
+                this,
+                targetStorage,
+                ctx.orderByClause());
+    }
+
+/*
+    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs,
+                                                Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunkHashList = new ArrayList<>();
         for (Config config : configs) {
             Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
             Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
+
             this.enrichTable(sourceTable);
             targetStorage.enrichTable(sourceTable, targetTable);
+
             List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
             Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-            Connection sourceSession = this.getPoolConnection();
+
             String sql = buildStartEndOfChunk(config, sourceTable);
-            log.debug("SQL to fetch metadata of chunks: {}", sql);
+            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
+            String fetchQuery = buildFetchStatement(config, t2t);
+            String orderByClause = targetTable.buildOrderBy(config);
+
+            log.info("Fetch query: {} {}", fetchQuery, orderByClause);
+            Connection sourceSession = this.getPoolConnection();
             PreparedStatement ps = sourceSession.prepareStatement(sql);
             ps.setString(1, config.fromTaskName());
             ResultSet resultSet = ps.executeQuery();
-            String fetchQuery = buildFetchStatement(config, t2t);
-            String orderByClause = targetTable.buildOrderBy(config);
-            log.info("Fetch query: {} {}", fetchQuery, orderByClause);
             while (resultSet.next()) {
                 String status = resultSet.getString("status");
                 Chunk<?, ?, ?, ?> chunk = new OraChunkRowId<>(
@@ -213,6 +221,7 @@ public class OracleStorage extends JDBCStorage {
         }
         return chunkHashList;
     }
+*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,
