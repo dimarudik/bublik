@@ -222,7 +222,7 @@ public class MSSQLStorage extends JDBCStorage {
 
     @Override
     public void createChunkTable() throws SQLException {
-        if (getOutboxTable() == null) setOutboxTable(new DummyTable("dbo", "_chunk"));
+//        if (getOutboxTable() == null) setOutboxTable(new DummyTable("dbo", "_chunk"));
         Connection connection = this.getPoolConnection();
         createSequence(connection, false);
         Statement createTable = connection.createStatement();
@@ -547,5 +547,15 @@ public class MSSQLStorage extends JDBCStorage {
                     false);
         }
         return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
+    }
+
+    @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new MSSQLTable.Builder("dbo","bublik_chunk").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new MSSQLTable.Builder("dbo","bublik_outbox").build();
     }
 }

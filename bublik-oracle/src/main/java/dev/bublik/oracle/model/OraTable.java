@@ -188,7 +188,7 @@ public class OraTable extends Table {
     }
 
     public static class Builder extends Table.Builder<OraTable, Builder> {
-        protected Builder(String schemaName, String tableName) {
+        public Builder(String schemaName, String tableName) {
             super(schemaName, tableName);
         }
 

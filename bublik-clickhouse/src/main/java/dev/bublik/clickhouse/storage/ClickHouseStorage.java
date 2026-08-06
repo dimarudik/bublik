@@ -8,6 +8,7 @@ import com.clickhouse.client.api.metadata.TableSchema;
 import com.clickhouse.data.ClickHouseColumn;
 import com.clickhouse.data.ClickHouseFormat;
 import com.google.common.io.LittleEndianDataOutputStream;
+import dev.bublik.clickhouse.model.ClickTable;
 import dev.bublik.clickhouse.model.TransferPlan;
 import dev.bublik.clickhouse.service.ColumnTransfer;
 import dev.bublik.clickhouse.service.ValueTransfer;
@@ -73,6 +74,16 @@ public class ClickHouseStorage extends ClickStorage {
     @Override
     public int getFetchSize() {
         return 0;
+    }
+
+    @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new ClickTable("UNDEFINED", "bublik_chunk");
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new ClickTable("UNDEFINED", "bublik_outbox");
     }
 
     public LogMessage jdbcToClickHouse(Chunk<?, ?, ?, ?> chunk) {

@@ -87,7 +87,7 @@ create table public.parted2 (
 create table public.parted3 (
     id bigint,
     create_at timestamp(6) not null,
-    name varchar(1000));
+    name varchar(1000) not null);
 create table public.noc2c1 (
     id bigint primary key generated always as identity,
     name varchar);

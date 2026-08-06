@@ -126,7 +126,8 @@ The mapping file is a JSON file that contains the mapping between the source and
     "fromTableAdds" : "join users u on u.id = t.user_id", # source table adds (Optional - used in FROM clause to join additional tables) 
     "fetchHintClause" : "/*+ no_index(t) */", # fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method)
     "fetchWhereClause" : "t.id > 1000000000 and gender = 'F'" # fetch where clause (Optional - used in WHERE clause to filter data) 
-    "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", # for filtering source chunks, applicable only for Oracle (Optional) 
+    "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", # for filtering source chunks, applicable only for Oracle (Optional)
+    "fromTaskName" : "table_task" # name of the task to be created in chunk metadata table (Optional)
     
     "toSchemaName" : "schema",    # target schema or Cassandra keyspace name (Optional - if omitted, the source schema name will be used) 
     "toTableName" : "table",      # target table name (Optional - if omitted, the source table name will be used) 

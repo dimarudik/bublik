@@ -267,6 +267,16 @@ public class OracleStorage extends JDBCStorage {
         return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
+    @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new OraTable.Builder("UNDEFINED","UNDEFINED").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new OraTable.Builder("UNDEFINED","UNDEFINED").build();
+    }
+
 /*
     private void logColumn2Column(List<Column2Column> column2Column) {
         column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",

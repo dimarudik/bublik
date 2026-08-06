@@ -90,6 +90,16 @@ abstract class CSStorage extends Storage implements Source {
     }
 
     @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new CSTable.Builder(keySpace, "bublik_chunk").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new CSTable.Builder(keySpace, "bublik_outbox").build();
+    }
+
+    @Override
     public String getStorageVersion() {
         return csPool.getVersion();
     }

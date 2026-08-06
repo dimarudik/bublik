@@ -387,6 +387,16 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new DummyTable.Builder("UNDEFINED","UNDEFINED").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new DummyTable.Builder("UNDEFINED","UNDEFINED").build();
+    }
+
+    @Override
     public void createPrimaryKeys() {
     }
 

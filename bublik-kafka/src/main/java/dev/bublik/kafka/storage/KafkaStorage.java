@@ -502,6 +502,16 @@ public class KafkaStorage extends Storage {
     }
 
     @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new DummyTable.Builder("UNDEFINED","UNDEFINED").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new DummyTable.Builder("UNDEFINED","UNDEFINED").build();
+    }
+
+    @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
         return null;
     }

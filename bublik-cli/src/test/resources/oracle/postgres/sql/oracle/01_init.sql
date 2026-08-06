@@ -145,6 +145,7 @@ insert into test.parted
         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2024)), 'DD/MM/YYYY') as update_at,
         rpad('*', round(dbms_random.value(0,1000)),'*') as name
     from dual connect by level < 500000);
+-- update test.parted set name = null where id in (25000,130020, 480022);
 commit;
 
 create table test.intervals (

@@ -62,7 +62,7 @@ public class ManyToOneTest {
         long targetCount = 0;
         long sourceCount = 0;
 
-        futures.add(service.submit(() -> getResultCount(
+        futures.add(service.submit(() -> getResult(
                 "postgresql/postgresql/yaml/manyToOneSource1.yaml",
                 "postgresql/postgresql/json/manyToOneSource1.json",
                 rows,
@@ -73,7 +73,7 @@ public class ManyToOneTest {
                 outboxTable)
         ));
 
-        futures.add(service.submit(() -> getResultCount(
+        futures.add(service.submit(() -> getResult(
                 "postgresql/postgresql/yaml/manyToOneSource2.yaml",
                 "postgresql/postgresql/json/manyToOneSource2.json",
                 rows,

@@ -56,6 +56,8 @@ public interface StorageService {
     Table2Table getTable2Table(Table sourceTable, Table targetTable, List<Column2Column> c2c, Config config);
     Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position);
     int getFetchSize();
+    Table getDefaultSourceOutboxTable();
+    Table getDefaultTargetOutboxTable();
 
     static Storage getStorage(StorageClass storageClass,
                               Properties properties,
@@ -133,6 +135,7 @@ public interface StorageService {
 
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
         log.info("Bublik starting...");
+        if (rows > 0) log.info("Expected chunk size: {}", rows);
         log.info("VERSION : {}", getVersion());
         try {
             log.info("WORKSTATION: {}", InetAddress.getLocalHost().getHostName());

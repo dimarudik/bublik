@@ -24,11 +24,11 @@ import static dev.bublik.cli.App.getConfigs;
 
 @Slf4j
 public class TestUtils {
-    static public Table chunkTable = new DummyTable("public", "_chunk");
-    static public Table outboxTable = new DummyTable("public", "_outbox");
+    static public Table chunkTable = new DummyTable("public", "bublik_chunk");
+    static public Table outboxTable = new DummyTable("public", "bublik_outbox");
 
-    static public Table chunkTable2 = new DummyTable("public", "_chunk2");
-    static public Table outboxTable2 = new DummyTable("public", "_outbox2");
+    static public Table chunkTable2 = new DummyTable("public", "bublik_c2");
+    static public Table outboxTable2 = new DummyTable("public", "bublik_o2");
 
     public static String getFilePath(String resourceFileName){
         java.net.URL cfg = TestUtils.class.getClassLoader().getResource(resourceFileName);
@@ -58,7 +58,40 @@ public class TestUtils {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-//        App.runProcess(cp, configs, rows);
+        if (chunkTable != null && outboxTable != null) {
+            App.runProcess(cp, configs, rows);
+        } else {
+            StorageService.init(cp, configs, rows, chunkTable, outboxTable);
+        }
+
+        long sourceCount = 0;
+        long targetCount = 0;
+        for (Config config : configs) {
+            String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
+                    config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
+            String toQuery = getQuery(
+                    (config.toSchemaName() == null ? config.fromSchemaName() + "." : config.toSchemaName() + ".")
+                            + (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
+                    " 1 = 1 ");
+            System.out.println(fromQuery);
+            sourceCount += TestUtils.countRows(sourceProperties, fromQuery);
+            System.out.println(toQuery);
+            targetCount += TestUtils.countRows(targetProperties, toQuery);
+        }
+        return new TestResult(sourceCount, targetCount);
+    }
+
+    public static TestResult getResult(String connectionPropertyFile,
+                                       String mappingFile,
+                                       int rows,
+                                       boolean sync,
+                                       Properties sourceProperties,
+                                       Properties targetProperties,
+                                       Table chunkTable,
+                                       Table outboxTable) throws IOException, SQLException {
+        ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
+        List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
+
         StorageService.init(cp, configs, rows, chunkTable, outboxTable);
 
         long sourceCount = 0;
@@ -77,6 +110,7 @@ public class TestUtils {
         }
         return new TestResult(sourceCount, targetCount);
     }
+
 
     private long getColumnChecksum(Connection conn, String tableName, String columnName) throws SQLException {
         String sql = String.format(

@@ -183,13 +183,15 @@ public class PostgresToPostgresTest {
         }
 
         SQLException ex = assertThrows(SQLException.class, () ->
-                getResultCount(
+                getResult(
                         "./postgresql/postgresql/yaml/pg2pg.yaml",
                         "./postgresql/postgresql/json/columnOrder.json",
                         rows,
                         sync,
                         sourceProperties,
-                        getJdbcProperties(target)));
+                        getJdbcProperties(target),
+                        chunkTable,
+                        outboxTable));
         assertTrue(ex.getMessage().contains("relation \"" + chunkTable.getTableName() + "\" already exists"));
 
         try (Connection connection = DriverManager.getConnection(sourceProperties.getProperty("url"), sourceProperties);
@@ -241,7 +243,6 @@ public class PostgresToPostgresTest {
 //            System.out.println("Ошибка: " + getStackTrace(e));
             assertTrue(getStackTrace(e).contains("violates not-null constraint"));
         }
-
         String jdbcUrl = source.getJdbcUrl();
         String username = source.getUsername();
         String password = source.getPassword();

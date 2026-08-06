@@ -103,6 +103,14 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     @Override
     public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
+        if (getOutboxTable() == null || getOutboxTable().getTableName() == null) {
+            setOutboxTable(getDefaultSourceOutboxTable());
+            log.info("Chunk table is not set. Using default name: {}", getOutboxTable().tableToString());
+        }
+        if (targetStorage.getOutboxTable() == null || targetStorage.getOutboxTable().getTableName() == null) {
+            targetStorage.setOutboxTable(targetStorage.getDefaultTargetOutboxTable());
+            log.info("Outbox table is not set. Using default name: {}", targetStorage.getOutboxTable().tableToString());
+        }
         if (rows > 0) {
             preChecks(configs);
             createChunkTable();

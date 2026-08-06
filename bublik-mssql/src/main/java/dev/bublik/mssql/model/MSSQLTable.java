@@ -201,7 +201,7 @@ public class MSSQLTable extends Table {
     public static class Builder extends Table.Builder<MSSQLTable, Builder> {
         protected List<Column> clusteringKey = new ArrayList<>();
 
-        protected Builder(String schemaName, String tableName) {
+        public Builder(String schemaName, String tableName) {
             super(schemaName, tableName);
         }
 

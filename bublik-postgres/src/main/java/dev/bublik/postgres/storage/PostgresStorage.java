@@ -40,6 +40,7 @@ public class PostgresStorage extends JDBCStorage {
                            ConnectionProperty connectionProperty,
                            Table outboxTable) throws SQLException {
         super(storageClass, connectionProperty, outboxTable);
+//        if (outboxTable == null) setOutboxTable(new DummyTable("public", "bublik_outbox"));
     }
 
     private PostgresStorage(Builder builder) {
@@ -62,6 +63,16 @@ public class PostgresStorage extends JDBCStorage {
             validate();
             return new PostgresStorage(this);
         }
+    }
+
+    @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new PGTable.Builder("public", "bublik_chunk").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new PGTable.Builder("public", "bublik_outbox").build();
     }
 
     @Override
@@ -1110,7 +1121,7 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void createGlobalOutbox() throws SQLException {
-        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_outbox"));
+//        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_outbox"));
         try (Connection connection = getPoolConnection();
              Statement createTable = connection.createStatement()) {
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName",
@@ -1119,12 +1130,13 @@ public class PostgresStorage extends JDBCStorage {
             log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
             log.warn("Outbox table {} already exists", getOutboxTable().tableToString());
+            throw new SQLException(e);
         }
     }
 
     @Override
     public void createChunkTable() throws SQLException {
-        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_chunk"));
+//        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_chunk"));
         try (Connection connection = this.getPoolConnection();
              Statement createTable = connection.createStatement()) {
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
@@ -1133,7 +1145,7 @@ public class PostgresStorage extends JDBCStorage {
             log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
             log.error("Chunk table {} already exists", getOutboxTable().tableToString());
-            throw e;
+            throw new SQLException(e);
         }
     }
 

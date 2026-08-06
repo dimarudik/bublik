@@ -618,7 +618,7 @@ public class PGTable extends Table {
     }
 
     public static class Builder extends Table.Builder<PGTable, Builder> {
-        protected Builder(String schemaName, String tableName) {
+        public Builder(String schemaName, String tableName) {
             super(schemaName, tableName);
         }
 

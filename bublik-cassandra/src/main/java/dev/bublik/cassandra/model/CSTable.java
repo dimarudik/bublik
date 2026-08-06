@@ -249,7 +249,7 @@ public class CSTable extends Table {
         protected List<Column> clusteringKey = new ArrayList<>();
         protected List<UDTColumn> udtColumns = new ArrayList<>();
 
-        protected Builder(String keySpace, String tableName) {
+        public Builder(String keySpace, String tableName) {
             super(keySpace, tableName);
         }
 

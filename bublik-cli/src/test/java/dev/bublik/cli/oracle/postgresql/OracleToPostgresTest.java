@@ -16,6 +16,7 @@ import java.util.Properties;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
+import static dev.bublik.core.util.Utils.getStackTrace;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OracleToPostgresTest {
@@ -158,10 +159,31 @@ public class OracleToPostgresTest {
 
     @Test
     void parted() throws Exception {
+//        Thread.sleep(300_000);
+        try {
+            TestResult result = TestUtils.getResultCount(
+                    "./oracle/postgres/yaml/ora2pg.yaml",
+                    "./oracle/postgres/json/parted.json",
+                    rows,
+                    sync,
+                    getJdbcProperties(source),
+                    getJdbcProperties(target));
+        } catch (Exception e) {
+            assertTrue(getStackTrace(e).contains("violates not-null constraint"));
+        }
+        String jdbcUrl = source.getJdbcUrl();
+        String username = source.getUsername();
+        String password = source.getPassword();
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
+            PreparedStatement ps = connection.prepareStatement("update test.parted set name = 'name' where name is null");
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         TestResult result = TestUtils.getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
                 "./oracle/postgres/json/parted.json",
-                rows,
+                0,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
