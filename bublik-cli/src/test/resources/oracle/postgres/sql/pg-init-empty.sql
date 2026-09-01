@@ -37,7 +37,7 @@ create table test.table1 (
     update_at timestamp(6) with time zone,
     gender boolean,
     byteablob bytea,
-    textclob text,
+    "%_textclob" text,
     "CaseSensitive" varchar(20),
     country_name varchar(256),
     rawbytea bytea,

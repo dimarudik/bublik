@@ -12,7 +12,7 @@
       "update_at"         : "update_at",
       "gender"            : "gender",
       "byteablob"         : "byteablob",
-      "textclob"          : "textclob",
+      "\"%_TEXTCLOB\""    : "\"%_textclob\"",
       "\"CaseSensitive\"" : "\"CaseSensitive\"",
       "rawbytea"          : "rawbytea",
       "doc"               : "doc",

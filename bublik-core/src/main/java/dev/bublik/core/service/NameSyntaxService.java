@@ -14,14 +14,21 @@ public interface NameSyntaxService {
 
         boolean bP = word.length() >= 2 && word.startsWith("\"") && word.endsWith("\"");
         boolean startsWithDigit = Character.isDigit(word.charAt(0));
+        boolean startsWithLetter = Character.isAlphabetic(word.charAt(0));
         boolean hasUpperCase = !word.toLowerCase().equals(word);
 
-        return bP || startsWithDigit || hasUpperCase;
+        return bP || startsWithDigit || hasUpperCase || !startsWithLetter;
     }
 
     default boolean isOracleCaseSensitiveWord(String word) {
-        boolean bU = word.toUpperCase().equals(word);
-        return !bU;
+        if (word == null || word.isEmpty()) {
+            return false;
+        }
+
+        boolean hasLowerCase = !word.toUpperCase().equals(word);
+        boolean startsWithLetter = Character.isAlphabetic(word.charAt(0));
+
+        return hasLowerCase || !startsWithLetter;
     }
 
     default String getWordWithoutQuotes(String word) {

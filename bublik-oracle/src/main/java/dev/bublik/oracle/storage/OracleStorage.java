@@ -277,14 +277,12 @@ public class OracleStorage extends JDBCStorage {
         return new OraTable.Builder("UNDEFINED","UNDEFINED").build();
     }
 
-/*
     private void logColumn2Column(List<Column2Column> column2Column) {
         column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
                 c2c.sourceExpression(),
                 c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
                 c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
     }
-*/
 
     @Override
     public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {

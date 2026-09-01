@@ -1,0 +1,9 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "manual_chunks",
+    "toSchemaName": "default",
+    "toTableName": "MANUAL_CHUNKS",
+    "fromTaskName": "MANUAL_CHUNKS_TASK"
+  }
+]

@@ -73,7 +73,9 @@ public class OraTable extends Table {
             int decimalDigits = rs.getInt("DECIMAL_DIGITS");
             String remark = rs.getString("REMARKS");
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
-            String colName = isOracleCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName;
+            String colName = isOracleCaseSensitiveWord(columnName) || isReservedWord(columnName)
+                    //|| isCaseSensitiveWord(columnName)
+                    ? "\"" + columnName + "\"" : columnName;
             columns.add(new Column(
                     ordinalPosition,
                     colName,
@@ -175,7 +177,7 @@ public class OraTable extends Table {
             setPkColumns(getPrimaryKeyColumns(connection));
             return true;
         }
-        return false;
+        throw new SQLException("Table " + getSchemaName() + "." + getTableName() + " not exists");
     }
 
     @Override

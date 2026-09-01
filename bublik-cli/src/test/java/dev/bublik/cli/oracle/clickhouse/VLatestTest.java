@@ -119,7 +119,7 @@ public class VLatestTest {
             assertEquals(expectedInt256, rs1.getObject("INT256_T").toString().trim());
 
             assertEquals(123.0f, rs1.getFloat("bfloat16_check"), 0.001f);
-            assertEquals( LocalDate.of(2026, 6, 18), rs1.getObject("DD", LocalDate.class));
+            assertEquals(LocalDate.of(2026, 6, 18), rs1.getObject("DD", LocalDate.class));
 
             java.sql.Timestamp tsDY = rs1.getTimestamp("DY");
             assertNotNull(tsDY, "Поле DY не должно быть null");
@@ -146,28 +146,50 @@ public class VLatestTest {
             assertEquals(900, rs2.getInt("EXCLUDE_ME"));
             assertFalse(rs2.wasNull());
 
-            rs2.getBigDecimal("A"); assertTrue(rs2.wasNull());
-            rs2.getLong("B");       assertTrue(rs2.wasNull());
-            rs2.getString("C");     assertTrue(rs2.wasNull());
-            rs2.getString("D");     assertTrue(rs2.wasNull());
-            rs2.getString("ALL");   assertTrue(rs2.wasNull());
-            rs2.getString("LEVEL"); assertTrue(rs2.wasNull());
-            rs2.getFloat("E");      assertTrue(rs2.wasNull());
-            rs2.getTimestamp("T");  assertTrue(rs2.wasNull());
-            rs2.getTimestamp("CREATE_AT"); assertTrue(rs2.wasNull());
-            rs2.getInt("GENDER");   assertTrue(rs2.wasNull());
-            rs2.getString("BYTEABLOB");    assertTrue(rs2.wasNull());
-            rs2.getString("TEXTCLOB");     assertTrue(rs2.wasNull());
-            rs2.getString("CaseSensitive"); assertTrue(rs2.wasNull());
-            rs2.getInt("COUNTRY_ID");      assertTrue(rs2.wasNull());
-            rs2.getString("RAWBYTEA");     assertTrue(rs2.wasNull());
-            rs2.getString("JSON_LIKE");    assertTrue(rs2.wasNull());
-            rs2.getString("DOC");          assertTrue(rs2.wasNull());
-            rs2.getString("UUID");         assertTrue(rs2.wasNull());
-            rs2.getObject("INT16_T");  assertTrue(rs2.wasNull());
-            rs2.getObject("INT128_T"); assertTrue(rs2.wasNull());
-            rs2.getObject("INT256_T"); assertTrue(rs2.wasNull());
-            rs2.getFloat("bfloat16_check"); assertTrue(rs2.wasNull());
+            rs2.getBigDecimal("A");
+            assertTrue(rs2.wasNull());
+            rs2.getLong("B");
+            assertTrue(rs2.wasNull());
+            rs2.getString("C");
+            assertTrue(rs2.wasNull());
+            rs2.getString("D");
+            assertTrue(rs2.wasNull());
+            rs2.getString("ALL");
+            assertTrue(rs2.wasNull());
+            rs2.getString("LEVEL");
+            assertTrue(rs2.wasNull());
+            rs2.getFloat("E");
+            assertTrue(rs2.wasNull());
+            rs2.getTimestamp("T");
+            assertTrue(rs2.wasNull());
+            rs2.getTimestamp("CREATE_AT");
+            assertTrue(rs2.wasNull());
+            rs2.getInt("GENDER");
+            assertTrue(rs2.wasNull());
+            rs2.getString("BYTEABLOB");
+            assertTrue(rs2.wasNull());
+            rs2.getString("TEXTCLOB");
+            assertTrue(rs2.wasNull());
+            rs2.getString("CaseSensitive");
+            assertTrue(rs2.wasNull());
+            rs2.getInt("COUNTRY_ID");
+            assertTrue(rs2.wasNull());
+            rs2.getString("RAWBYTEA");
+            assertTrue(rs2.wasNull());
+            rs2.getString("JSON_LIKE");
+            assertTrue(rs2.wasNull());
+            rs2.getString("DOC");
+            assertTrue(rs2.wasNull());
+            rs2.getString("UUID");
+            assertTrue(rs2.wasNull());
+            rs2.getObject("INT16_T");
+            assertTrue(rs2.wasNull());
+            rs2.getObject("INT128_T");
+            assertTrue(rs2.wasNull());
+            rs2.getObject("INT256_T");
+            assertTrue(rs2.wasNull());
+            rs2.getFloat("bfloat16_check");
+            assertTrue(rs2.wasNull());
 
             rs2.close();
             statement2.close();
@@ -213,25 +235,44 @@ public class VLatestTest {
 
             assertEquals(2, rs2.getLong("ID"));
 
-            rs2.getInt("EXCLUDE_ME"); assertTrue(rs2.wasNull());
-            rs2.getBigDecimal("A"); assertTrue(rs2.wasNull());
-            rs2.getLong("B");       assertTrue(rs2.wasNull());
-            rs2.getString("C");     assertTrue(rs2.wasNull());
-            rs2.getString("D");     assertTrue(rs2.wasNull());
-            rs2.getString("ALL");   assertTrue(rs2.wasNull());
-            rs2.getString("LEVEL"); assertTrue(rs2.wasNull());
-            rs2.getFloat("E");      assertTrue(rs2.wasNull());
-            rs2.getTimestamp("T");  assertTrue(rs2.wasNull());
-            rs2.getTimestamp("CREATE_AT"); assertTrue(rs2.wasNull());
-            rs2.getInt("GENDER");   assertTrue(rs2.wasNull());
-            rs2.getString("BYTEABLOB");    assertTrue(rs2.wasNull());
-            rs2.getString("TEXTCLOB");     assertTrue(rs2.wasNull());
-            rs2.getString("CaseSensitive"); assertTrue(rs2.wasNull());
-            rs2.getInt("COUNTRY_ID");      assertTrue(rs2.wasNull());
-            rs2.getString("RAWBYTEA");     assertTrue(rs2.wasNull());
-            rs2.getString("JSON_LIKE");    assertTrue(rs2.wasNull());
-            rs2.getString("DOC");          assertTrue(rs2.wasNull());
-            rs2.getString("UUID");         assertTrue(rs2.wasNull());
+            rs2.getInt("EXCLUDE_ME");
+            assertTrue(rs2.wasNull());
+            rs2.getBigDecimal("A");
+            assertTrue(rs2.wasNull());
+            rs2.getLong("B");
+            assertTrue(rs2.wasNull());
+            rs2.getString("C");
+            assertTrue(rs2.wasNull());
+            rs2.getString("D");
+            assertTrue(rs2.wasNull());
+            rs2.getString("ALL");
+            assertTrue(rs2.wasNull());
+            rs2.getString("LEVEL");
+            assertTrue(rs2.wasNull());
+            rs2.getFloat("E");
+            assertTrue(rs2.wasNull());
+            rs2.getTimestamp("T");
+            assertTrue(rs2.wasNull());
+            rs2.getTimestamp("CREATE_AT");
+            assertTrue(rs2.wasNull());
+            rs2.getInt("GENDER");
+            assertTrue(rs2.wasNull());
+            rs2.getString("BYTEABLOB");
+            assertTrue(rs2.wasNull());
+            rs2.getString("TEXTCLOB");
+            assertTrue(rs2.wasNull());
+            rs2.getString("CaseSensitive");
+            assertTrue(rs2.wasNull());
+            rs2.getInt("COUNTRY_ID");
+            assertTrue(rs2.wasNull());
+            rs2.getString("RAWBYTEA");
+            assertTrue(rs2.wasNull());
+            rs2.getString("JSON_LIKE");
+            assertTrue(rs2.wasNull());
+            rs2.getString("DOC");
+            assertTrue(rs2.wasNull());
+            rs2.getString("UUID");
+            assertTrue(rs2.wasNull());
 
             rs2.close();
             statement2.close();
@@ -277,5 +318,18 @@ public class VLatestTest {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Test
+    void manualChunks() throws Exception {
+        Properties targetProps = getJdbcProperties(target);
+        TestResult result = getResultCount(
+                "./oracle/clickhouse/yaml/ora2click.yaml",
+                "./oracle/clickhouse/json/manualChunks.json",
+                0,
+                sync,
+                getJdbcProperties(source),
+                targetProps);
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 }

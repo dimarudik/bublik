@@ -89,3 +89,9 @@ CREATE TABLE IF NOT EXISTS d (
     INT256_T Nullable(Int256)
     ) ENGINE = ReplacingMergeTree(T)
     ORDER BY ID;
+
+CREATE TABLE IF NOT EXISTS MANUAL_CHUNKS (
+    ID UInt32,
+    NAME Nullable(String)
+) ENGINE = MergeTree()
+ORDER BY ID;

@@ -64,7 +64,7 @@ create table test.table1 (
     update_at timestamp(6) with time zone,
     gender number(1,0) check (gender in (0,1)),
     byteablob blob,
-    textclob clob,
+    "%_TEXTCLOB" clob,
     exclude_me int,
     "CaseSensitive" varchar2(20),
     country_id int,
@@ -108,7 +108,7 @@ insert into test.table1
         systimestamp as update_at,
         mod(rownum, 2) as gender,
         utl_raw.cast_to_raw('Hi, I''m using CLOB to bytea') as byteablob,
-        to_clob('Hi, I''m using CLOB to text') as textclob,
+        to_clob('Hi, I''m using CLOB to text') as "%_TEXTCLOB",
         null as exclude_me,
         'Foo' as "CaseSensitive",
         decode(round(dbms_random.value(0,9)),0,null,round(dbms_random.value(1,9))) as country_id,
@@ -122,7 +122,7 @@ insert into test.table1
     from dual connect by level < 500000);
 commit;
 create table test."Table2" as
-select id, "LEVEL", create_at, update_at, gender, byteablob, textclob, exclude_me, "CaseSensitive", country_id
+select id, "LEVEL", create_at, update_at, gender, byteablob, "%_TEXTCLOB" as textclob, exclude_me, "CaseSensitive", country_id
 from test.table1;
 create table test.parted (
     id number(19,0) primary key,

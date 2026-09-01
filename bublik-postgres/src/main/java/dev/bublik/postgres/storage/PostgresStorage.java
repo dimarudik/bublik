@@ -134,14 +134,12 @@ public class PostgresStorage extends JDBCStorage {
         return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
 
-/*
     private void logColumn2Column(List<Column2Column> column2Column) {
         column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
                 c2c.sourceExpression(),
                 c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
                 c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
     }
-*/
 
     @Override
     public List<Column2Column> getColumn2Column(Table sourceTable, Table targetTable, Config config) {
@@ -434,6 +432,7 @@ public class PostgresStorage extends JDBCStorage {
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                     chunk.getT2t().targetTable().getFinalTableName(true);
             String sqlCopy = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
+//            log.info("sqlCopy: {}", sqlCopy);
 
             int pgStreamBufferSize = 1024 * 1024;
             int javaBufferSize = 64 * 1024;
