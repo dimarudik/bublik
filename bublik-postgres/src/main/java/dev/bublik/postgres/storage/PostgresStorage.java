@@ -576,7 +576,7 @@ public class PostgresStorage extends JDBCStorage {
                     break;
                 }
 
-                case "int", "serial", "int4": {
+                case "int", "serial", "int4", "oid": {
                     if (value instanceof Number number) {
                         writer.writeInt(number.intValue());
                     } else {
@@ -894,7 +894,8 @@ public class PostgresStorage extends JDBCStorage {
                             writer.writeString(s != null ? s.replace("\u0000", "") : "");
                             break;
                         } else {
-                            log.error("There is no handler for type: {}  for column: {}", targetType, targetColumn);
+//                            log.error("There is no handler for type: {}  for column: {}", targetType, targetColumn);
+                            throw new RuntimeException("There is no handler for type: " + targetType + "  for column: " + targetColumn);
                         }
                     } else {
                         log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",

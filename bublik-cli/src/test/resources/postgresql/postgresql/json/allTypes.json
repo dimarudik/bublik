@@ -27,7 +27,8 @@
       "time"          : "time",
       "ip"            : "ip",
       "h"             : "h",
-      "ints"          : "ints"
+      "ints"          : "ints",
+      "oid"           : "oid"
     },
     "expressionToColumn" : {
       "(select 'male') as gender" : "gender"

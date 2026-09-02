@@ -87,7 +87,8 @@ create table public."Source" (
     j json,
     ip inet,
     h hstore,
-    ints _int8
+    ints _int8,
+    oid oid
 );
 create table public.token (
     id int,
@@ -118,7 +119,8 @@ select
     j,
     ip,
     h,
-    ints
+    ints,
+    oid
  from public."Source" where 0 = 1;
 create table public.target2 as
 select
@@ -158,7 +160,7 @@ WITH file_data AS (
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
         date, timestamp, timestamptz, description
-        , image, current_mood, time, j, ip, h, ints)
+        , image, current_mood, time, j, ip, h, ints, oid)
     select gen_random_uuid() as uuid,
            substr(md5(random()::text), 1, 100) as "Primary",
         case when mod(n, 2) = 0 then false else true end as boolean,
@@ -178,11 +180,12 @@ insert into public."Source" (uuid, "Primary", boolean,
         '{"key": "value"}' j,
         case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
         '"a"=>"1","b"=>"2"'::hstore h,
-        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints
+        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints,
+        n as oid
     from generate_series(1, 10000) as n;
 insert into public."Source" (uuid, "Primary", boolean,
         int2, int4, int8, smallint, bigint, numeric, float8,
-        date, timestamp, timestamptz, description, current_mood, time, j, ip, h, ints)
+        date, timestamp, timestamptz, description, current_mood, time, j, ip, h, ints, oid)
     select gen_random_uuid() uuid, 'PostgreSQL ' || n name, case when mod(n, 2) = 0 then false else true end boolean,
         0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as numeric, n / pi() as float8,
         current_date, current_timestamp, current_timestamp,
@@ -196,7 +199,8 @@ insert into public."Source" (uuid, "Primary", boolean,
         '{"key": "value"}' j,
         case when mod(n, 2) = 0 then '192.168.2.1'::inet else '2001:0db8:85a3:0000:0000:8a2e:0370:7334'::inet end as ip,
         'c=>3,d=>3'::hstore h,
-        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints
+        case when mod(n, 5) <> 0 then '{ 14, 2, 3, 100, 10963 }'::_int8 else null end as ints,
+        n as oid
     from generate_series(1,300000) as n;
 
 analyze public."Source" ;
