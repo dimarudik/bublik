@@ -1,0 +1,19 @@
+#FROM postgres:12-bullseye
+#FROM postgres:12.18-buster
+FROM centos/postgresql-12-centos7
+
+# Инициализируем кластер в дефолтной, 100% рабочей американской UTF-8 локали
+ENV POSTGRESQL_RECOVERY_LOCALE=en_US.UTF-8
+ENV POSTGRESQL_DEFAULTS_LOCALE=en_US.UTF-8
+
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+# Настройки параметров репликации для скриптов CentOS
+ENV POSTGRESQL_MAX_WAL_SENDERS=10
+ENV POSTGRESQL_MAX_REPLICATION_SLOTS=10
+
+USER 26
+
+# docker build -t local-pg12-master-bullseye -f Dockerfile.master .
+# docker run -it --name pg-master-debug local-pg12-master-bullseye /bin/bash

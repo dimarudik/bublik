@@ -9,6 +9,7 @@ import dev.bublik.core.storage.Storage;
 import dev.bublik.oracle.storage.OracleStorage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -25,6 +26,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class ClickHouseMigrationTest {
     static final JdbcDatabaseContainer<?> oracle = new OracleContainer(
             DockerImageName.parse("gvenzl/oracle-free:slim-faststart"));

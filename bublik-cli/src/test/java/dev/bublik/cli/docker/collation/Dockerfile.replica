@@ -1,0 +1,39 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 1. Устанавливаем базовые пакеты, локали и утилиту curl (она нужна скрипту автоматизации)
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    lsb-release \
+    locales \
+    language-pack-ru \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN locale-gen ru_RU.UTF-8 && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
+
+# 3. Устанавливаем postgresql-common и запускаем официальный скрипт настройки репозитория
+RUN apt-get update && apt-get install -y postgresql-common && \
+    yes | /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+
+# 4. Устанавливаем PostgreSQL 12 и расширения
+RUN apt-get update && apt-get install -y \
+    postgresql-12 \
+    postgresql-contrib-12 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 5. Очищаем дефолтную базу для pg_basebackup
+RUN rm -rf /var/lib/postgresql/12/main/*
+
+# 6. Включаем hot_standby
+RUN echo "hot_standby = on" >> /etc/postgresql/12/main/postgresql.conf
+
+EXPOSE 5432
+CMD ["/bin/bash"]
+
+# docker build -t local-pg12-replica-ubuntu22 -f Dockerfile.replica .
+# docker run -it --name pg-replica-debug local-pg14-replica-ubuntu22 /bin/bash
