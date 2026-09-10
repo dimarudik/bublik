@@ -10,28 +10,28 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
 import java.sql.*;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Properties;
 
+import static dev.bublik.cli.ContainerImageVersions.CLICKHOUSE;
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VLatestTest {
+public class V2605Test {
     private static int rows = 20000;
     private static boolean sync = false;
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
             .withInitScript("./oracle/clickhouse/sql/oracle/01_init.sql");
 
-    private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
-            .parse("clickhouse")
+    private static final DockerImageName CLICKHOUSE_STABLE = DockerImageName
+            .parse(CLICKHOUSE)
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
 
-    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
+    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_STABLE)
             .withInitScript("./oracle/clickhouse/sql/allTypes.sql");
 
     @BeforeAll

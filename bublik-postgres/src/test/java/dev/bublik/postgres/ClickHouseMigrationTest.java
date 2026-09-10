@@ -11,7 +11,6 @@ import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -25,6 +24,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
+import static dev.bublik.postgres.ContainerImageVersions.CLICKHOUSE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,10 +32,11 @@ public class ClickHouseMigrationTest {
     static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres"));
 
-    private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
-            .parse("clickhouse")
+    private static final DockerImageName CLICKHOUSE_STABLE = DockerImageName
+            .parse(CLICKHOUSE)
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
-    static final ClickHouseContainer clickhouse = new ClickHouseContainer(CLICKHOUSE_LATEST);
+
+    static final ClickHouseContainer clickhouse = new ClickHouseContainer(CLICKHOUSE_STABLE);
 
     static HikariDataSource sourceDataSource;
     static Client clickhouseClient;

@@ -1,37 +1,41 @@
-package dev.bublik.cli.mssql.clickhouse;
+package dev.bublik.cli.postgresql.clickhouse;
 
 import dev.bublik.cli.TestResult;
-import dev.bublik.core.model.DummyTable;
-import dev.bublik.core.model.Table;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.mssqlserver.MSSQLServerContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.sql.*;
 import java.util.Properties;
 
-import static dev.bublik.cli.TestUtils.getJdbcProperties;
+import static dev.bublik.cli.ContainerImageVersions.CLICKHOUSE;
 import static dev.bublik.cli.TestUtils.getResultCount;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class VLatestTest {
+public class V2605Test {
     private static int rows = 20000;
-    private static JdbcDatabaseContainer<?> source = new MSSQLServerContainer("mcr.microsoft.com/mssql/server")
-            .acceptLicense()
-            .withInitScript("./mssql/clickhouse/sql/mssql.sql");
 
-    private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
-            .parse("clickhouse")
+    private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
+            .withDatabaseName("test")
+            .withUsername("test")
+            .withPassword("test")
+            .withInitScript("./postgresql/clickhouse/sql/alltypes.sql");
+
+    private static final DockerImageName CLICKHOUSE_STABLE = DockerImageName
+            .parse(CLICKHOUSE)
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
 
-    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_LATEST)
-            .withInitScript("./mssql/clickhouse/sql/click.sql");
+    private static ClickHouseContainer target = new ClickHouseContainer(CLICKHOUSE_STABLE)
+            .withInitScript("./postgresql/clickhouse/sql/click.sql");
 
     @BeforeAll
-    static void setUp() {
-        source.setPortBindings(java.util.Collections.singletonList("1433:1433"));
+    static void setUp() throws SQLException {
+        source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
         source.start();
 
         target.setPortBindings(java.util.List.of("8123:8123", "9000:9000"));
@@ -45,23 +49,18 @@ public class VLatestTest {
     }
 
     @Test
-    @DisplayName("Тест миграции всех типов: MS SQL Server -> ClickHouse")
-    void mssqlAllTypes() throws Exception {
+    @DisplayName("Тест миграции всех типов: PostgreSQL -> ClickHouse")
+    void postgresAllTypes() throws Exception {
         Properties targetProps = getJdbcProperties(target);
 
-        Table chunkTable = new DummyTable("test", "chunk");
-        Table outboxTable = new DummyTable("test", "outbox");
         TestResult result = getResultCount(
-                "./mssql/clickhouse/yaml/mssql2click.yaml",
-                "./mssql/clickhouse/json/mssql2click.json",
+                "./postgresql/clickhouse/yaml/pg2click.yaml",
+                "./postgresql/clickhouse/json/pg2click.json",
                 rows,
                 false,
-                getMSSQLJdbcProperties(source),
-                targetProps,
-                chunkTable,
-                outboxTable);
+                getJdbcProperties(source),
+                targetProps);
 
-//        Thread.sleep(400_000);
         assertEquals(result.sourceCount(), result.targetCount());
 
         Properties cleanProps = new Properties();
@@ -76,9 +75,9 @@ public class VLatestTest {
                     "select ID,A,B,C,D,ALL,LEVEL,E,T,CREATE_AT,GENDER,BYTEABLOB,TEXTCLOB,EXCLUDE_ME," +
                             "CaseSensitive,COUNTRY_ID,RAWBYTEA,JSON_LIKE,DOC,UUID,INT16_T,INT128_T,INT256_T, " +
                             "toFloat32(BFLOAT16_T) AS bfloat16_check from b where ID = 1");
+//            Thread.sleep(200_000);
             assertTrue(rs1.next());
 
-            // Ассерты для Строки №1 (Заполненная)
             assertEquals(1, rs1.getLong("ID"));
             assertEquals(123456.78, rs1.getDouble("A"), 0.001);
             assertEquals(987654321L, rs1.getLong("B"));
@@ -90,7 +89,7 @@ public class VLatestTest {
             assertEquals("Y", rs1.getString("C"));
             assertEquals("NCHAR_VAL", rs1.getString("D").trim());
             assertEquals("Тестовая строка NVARCHAR2", rs1.getString("ALL"));
-            assertEquals("Text VARCHAR2", rs1.getString("LEVEL"));
+            assertEquals("Уровень доступа VARCHAR2", rs1.getString("LEVEL"));
             assertEquals("РеГиСтР_СиМвОлОв", rs1.getString("CaseSensitive"));
 
             assertEquals("DEADBEEF01020304", rs1.getString("BYTEABLOB"));
@@ -100,6 +99,7 @@ public class VLatestTest {
             assertEquals("{\"key\": \"just_string\"}", rs1.getString("JSON_LIKE"));
             assertEquals("{\"user\": \"Dmitrii\", \"role\": \"admin\"}", rs1.getString("DOC"));
 
+            // Проверка UUID (Из Postgres вычитается абсолютно идентично)
             assertEquals("3e2e125a-b6c9-4f9b-9682-d21ec40564bc", rs1.getString("UUID"));
 
             java.sql.Timestamp tsT = rs1.getTimestamp("T");
@@ -164,14 +164,11 @@ public class VLatestTest {
         }
     }
 
-    public static Properties getMSSQLJdbcProperties(JdbcDatabaseContainer<?> db) {
-        Properties properties = new Properties();
-        properties.setProperty("url", db.getJdbcUrl());
-        properties.setProperty("databaseName", "test");
-        properties.setProperty("user", db.getUsername());
-        properties.setProperty("password", db.getPassword());
-        properties.setProperty("encrypt", "true");
-        properties.setProperty("trustServerCertificate", "true");
-        return properties;
+    private static Properties getJdbcProperties(JdbcDatabaseContainer<?> container) {
+        Properties props = new Properties();
+        props.setProperty("url", container.getJdbcUrl());
+        props.setProperty("user", container.getUsername());
+        props.setProperty("password", container.getPassword());
+        return props;
     }
 }

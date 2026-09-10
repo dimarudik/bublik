@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import static dev.bublik.cassandra.ContainerImageVersions.CLICKHOUSE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,10 +33,11 @@ public class ClickHouseMigrationTest {
     static final CassandraContainer cassandraContainer = new CassandraContainer(
             DockerImageName.parse("cassandra"));
 
-    private static final DockerImageName CLICKHOUSE_LATEST = DockerImageName
-            .parse("clickhouse")
+    private static final DockerImageName CLICKHOUSE_STABLE = DockerImageName
+            .parse(CLICKHOUSE)
             .asCompatibleSubstituteFor("clickhouse/clickhouse-server");
-    static final ClickHouseContainer clickhouse = new ClickHouseContainer(CLICKHOUSE_LATEST);
+
+    static final ClickHouseContainer clickhouse = new ClickHouseContainer(CLICKHOUSE_STABLE);
 
     static CqlSession sourceSession;
     int batchSize = 256;
