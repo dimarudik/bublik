@@ -218,7 +218,7 @@ public class PostgresCollationMigrationTest {
             while (rs.next()) {
                 icuResults.add(rs.getString("name"));
             }
-            System.out.println(">>> Данные с Реплики через ICU-индекс (glibc 2.35): " + icuResults);
+            System.out.println(">>> Данные с нового мастера через ICU-индекс (glibc 2.35): " + icuResults);
 
             assertEquals(masterResults, icuResults,
                     "ICU индекс защитил данные от разницы glibc!");

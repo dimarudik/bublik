@@ -26,7 +26,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled
 public class ClickHouseMigrationTest {
     static final JdbcDatabaseContainer<?> oracle = new OracleContainer(
             DockerImageName.parse("gvenzl/oracle-free:slim-faststart"));
