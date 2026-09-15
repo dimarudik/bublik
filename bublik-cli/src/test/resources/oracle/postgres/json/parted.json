@@ -40,5 +40,13 @@
       "create_at" : "create_at",
       "name"      : "name"
     }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "parted",
+    "fromPartitionName" : "PARTED_P3",
+    "toSchemaName" : "public",
+    "toTableName" : "parted4",
+    "fetchHintClause" : "/*+ no_index(PARTED) */"
   }
 ]

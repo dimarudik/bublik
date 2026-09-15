@@ -10,8 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 
-import static dev.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS;
-import static dev.bublik.oracle.constants.SQLConstants.PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS;
+import static dev.bublik.oracle.constants.SQLConstants.*;
 
 public abstract class OraChunk<K extends Integer, T, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> implements ChunkService {
     private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
@@ -37,11 +36,11 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, null)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.getTableName())
                 .secondStageGetSourceResultSet()
                 .mainStageTransfer(null)
-                .interStageSaveChunkRows(getCopied(), sync, null)
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, null)
+                .interStageSaveChunkRows(getCopied(), sync, tableName.getTableName())
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.getTableName())
                 .lastStageCloseSourceSession(sync);
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && getTargetSession() != null) {
@@ -69,29 +68,66 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
 
     @Override
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
-        try {
-            Connection connection = getSourceSession();
-            if (errMsg == null) {
-                CallableStatement callableStatement =
-                        connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
-                callableStatement.setString(1, this.getConfig().fromTaskName());
-                callableStatement.setInt(2, this.getId());
-                callableStatement.setInt(3, newStatus.ordinal());
-                callableStatement.execute();
-                callableStatement.close();
-            } else {
-                CallableStatement callableStatement =
-                        connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
-                callableStatement.setString(1, this.getConfig().fromTaskName());
-                callableStatement.setInt(2, this.getId());
-                callableStatement.setInt(3, newStatus.ordinal());
-                callableStatement.setString(4, errMsg.substring(0,
-                        errMsg.length() > 2245 ? 2244 : errMsg.length()));
-                callableStatement.execute();
-                callableStatement.close();
+        if (getConfig().fromPartitionName() == null && getConfig().fromSubpartitionName() == null) {
+            try {
+                Connection connection = getSourceSession();
+                if (errMsg == null) {
+                    CallableStatement callableStatement =
+                            connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
+                    callableStatement.setString(1, this.getConfig().fromTaskName());
+                    callableStatement.setInt(2, this.getId());
+                    callableStatement.setInt(3, newStatus.ordinal());
+                    callableStatement.execute();
+                    callableStatement.close();
+                } else {
+                    CallableStatement callableStatement =
+                            connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
+                    callableStatement.setString(1, this.getConfig().fromTaskName());
+                    callableStatement.setInt(2, this.getId());
+                    callableStatement.setInt(3, newStatus.ordinal());
+                    callableStatement.setString(4, errMsg.substring(0,
+                            errMsg.length() > 2245 ? 2244 : errMsg.length()));
+                    callableStatement.execute();
+                    callableStatement.close();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
-        } catch (SQLException e) {
-            throw  new RuntimeException(e);
+        } else {
+            try {
+                Connection connection = getSourceSession();
+                PreparedStatement updateStatus;
+                if (errMsg == null) {
+                    switch (newStatus) {
+                        case ASSIGNED:
+                            updateStatus = connection.prepareStatement(
+                                    DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED.replace("$tableName", chunkTableName));
+                            updateStatus.setString(1, newStatus.toString());
+                            updateStatus.setLong(2, this.getId());
+                            break;
+                        case PROCESSED:
+                            updateStatus = connection.prepareStatement(
+                                    DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED.replace("$tableName", chunkTableName));
+                            updateStatus.setString(1, newStatus.toString());
+                            updateStatus.setLong(2, this.getId());
+                            break;
+                        default:
+                            throw new IllegalArgumentException("Unknown status: " + newStatus);
+                    }
+                } else {
+                    updateStatus = connection.prepareStatement(
+                            DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS.replace("$tableName", chunkTableName));
+                    updateStatus.setString(1, newStatus.toString());
+                    updateStatus.setString(2, errMsg.substring(0,
+                            errMsg.length() > 2048 ? 2047 : errMsg.length()));
+                    updateStatus.setLong(3, this.getId());
+                }
+                int rows = updateStatus.executeUpdate();
+                updateStatus.close();
+                connection.commit();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
         }
         return this;
     }

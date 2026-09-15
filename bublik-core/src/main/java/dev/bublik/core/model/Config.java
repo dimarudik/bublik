@@ -10,6 +10,8 @@ import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
 public record Config(
         String fromSchemaName,
         String fromTableName,
+        String fromPartitionName,
+        String fromSubpartitionName,
         String fromTableAlias,
         String fromTableAdds,
         String toSchemaName,
@@ -36,6 +38,8 @@ public record Config(
         return new Config(
                 this.fromSchemaName,
                 this.fromTableName,
+                this.fromPartitionName,
+                this.fromSubpartitionName,
                 this.fromTableAlias,
                 this.fromTableAdds,
                 this.toSchemaName == null ? this.fromSchemaName : this.toSchemaName,
@@ -68,6 +72,8 @@ public record Config(
     public static class Builder {
         private String fromSchemaName;
         private String fromTableName;
+        private String fromPartitionName;
+        private String fromSubpartitionName;
         private String fromTableAlias;
         private String fromTableAdds;
         private String toSchemaName;
@@ -106,6 +112,8 @@ public record Config(
             return this;
         }
 
+        public Builder fromPartition(String partition) { this.fromPartitionName = partition; return this; }
+        public Builder fromSubpartition(String subpartition) { this.fromSubpartitionName = subpartition; return this; }
         public Builder fromTableAlias(String fromTableAlias) { this.fromTableAlias = fromTableAlias; return this; }
         public Builder fromTableAdds(String fromTableAdds) { this.fromTableAdds = fromTableAdds; return this; }
         public Builder fetchHintClause(String fetchHintClause) { this.fetchHintClause = fetchHintClause; return this; }
@@ -123,7 +131,9 @@ public record Config(
 
         public Config build() {
             return new Config(
-                    fromSchemaName, fromTableName, fromTableAlias, fromTableAdds,
+                    fromSchemaName, fromTableName,
+                    fromPartitionName, fromSubpartitionName,
+                    fromTableAlias, fromTableAdds,
                     toSchemaName, toTableName, fetchHintClause, fetchWhereClause,
                     fromTaskName, fromTaskWhereClause, timestamp, withTTL,
                     tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany,

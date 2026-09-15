@@ -67,7 +67,11 @@ public class TestUtils {
         long sourceCount = 0;
         long targetCount = 0;
         for (Config config : configs) {
-            String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
+            String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName() +
+                            (config.fromSubpartitionName() != null ?
+                                    " SUBPARTITION(" + config.fromSubpartitionName() + ") " :
+                                    (config.fromPartitionName() != null ? " PARTITION(" + config.fromPartitionName() + ") " : " ")
+                            ),
                     config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
             String toQuery = getQuery(
                     (config.toSchemaName() == null ? config.fromSchemaName() + "." : config.toSchemaName() + ".")
@@ -97,7 +101,11 @@ public class TestUtils {
         long sourceCount = 0;
         long targetCount = 0;
         for (Config config : configs) {
-            String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName(),
+            String fromQuery = getQuery(config.fromSchemaName() + "." + config.fromTableName() +
+                            (config.fromSubpartitionName() != null ?
+                                    " SUBPARTITION(" + config.fromSubpartitionName() + ") " :
+                                    (config.fromPartitionName() != null ? " PARTITION(" + config.fromPartitionName() + ") " : " ")
+                            ),
                     config.fetchWhereClause() == null ? " 1 = 1 " : config.fetchWhereClause());
             String toQuery = getQuery(
                     (config.toSchemaName() == null ? config.fromSchemaName() + "." : config.toSchemaName() + ".")

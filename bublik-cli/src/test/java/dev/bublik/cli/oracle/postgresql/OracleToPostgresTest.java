@@ -159,7 +159,6 @@ public class OracleToPostgresTest {
 
     @Test
     void parted() throws Exception {
-//        Thread.sleep(300_000);
         try {
             TestResult result = TestUtils.getResultCount(
                     "./oracle/postgres/yaml/ora2pg.yaml",
@@ -189,7 +188,21 @@ public class OracleToPostgresTest {
                 getJdbcProperties(target));
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
+//        Thread.sleep(900_000);
         assertEquals(result.targetCount(), result.sourceCount());
+    }
+
+    @Test
+    void subParted() throws Exception {
+        TestResult result = getResultCount(
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/subParted.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount() + " target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
     }
 
     @Test

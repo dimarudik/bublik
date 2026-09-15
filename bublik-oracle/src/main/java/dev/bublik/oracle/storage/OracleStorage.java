@@ -86,34 +86,79 @@ public class OracleStorage extends JDBCStorage {
             }
         }
         for (Config config : configs) {
-            try {
-                CallableStatement createTask = connection.prepareCall(PLSQL_CREATE_TASK);
-                createTask.setString(1, config.fromTaskName());
-                createTask.execute();
-                createTask.close();
-            } catch (SQLException e) {
-                log.error("{}", getStackTrace(e));
-                throw e;
+            if (config.fromPartitionName() == null && config.fromSubpartitionName() == null) {
+                try {
+                    CallableStatement createTask = connection.prepareCall(PLSQL_CREATE_TASK);
+                    createTask.setString(1, config.fromTaskName());
+                    createTask.execute();
+                    createTask.close();
+                } catch (SQLException e) {
+                    log.error("{}", getStackTrace(e));
+                    throw e;
+                }
             }
         }
 
         for (Config config : configs) {
-            try {
-                Table table = configToTable(config.fromSchemaName(), config.fromTableName());
-                CallableStatement createChunk = connection.prepareCall(PLSQL_CREATE_CHUNK);
-                createChunk.setString(1, config.fromTaskName());
-                createChunk.setString(2, table.getSchemaName().toUpperCase());
-                createChunk.setString(3, table.getFinalTableName(false));
-                createChunk.setInt(4, rows);
-                createChunk.execute();
-                createChunk.close();
-                log.info("Created chunks for task {}", config.fromTaskName());
-            } catch (SQLException e) {
-                log.error("{}", getStackTrace(e));
-                throw e;
+            if (config.fromPartitionName() == null && config.fromSubpartitionName() == null) {
+                try {
+                    Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+                    CallableStatement createChunk = connection.prepareCall(PLSQL_CREATE_CHUNK);
+                    createChunk.setString(1, config.fromTaskName());
+                    createChunk.setString(2, table.getSchemaName().toUpperCase());
+                    createChunk.setString(3, table.getFinalTableName(false));
+                    createChunk.setInt(4, rows);
+                    createChunk.execute();
+                    createChunk.close();
+                    log.info("Created chunks for task {}", config.fromTaskName());
+                } catch (SQLException e) {
+                    log.error("{}", getStackTrace(e));
+                    throw e;
+                }
+            } else {
+                if (config.fromPartitionName() != null && config.fromSubpartitionName() == null) {
+                    try {
+                        Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+                        CallableStatement createChunk = connection.prepareCall(
+                                PLSQL_FULFILL_PART_CHUNKS.replace("$tableName",
+                                        getOutboxTable().getTableName()));
+                        createChunk.setInt(1, rows);
+                        createChunk.setString(2, table.getSchemaName().toUpperCase());
+                        createChunk.setString(3, table.getFinalTableName(false));
+                        createChunk.setString(4, config.fromPartitionName());
+                        createChunk.setString(5, config.fromTaskName());
+                        createChunk.setString(6, "PARTITION");
+                        createChunk.execute();
+                        createChunk.close();
+                        log.info("Created chunks for task {}", config.fromTaskName());
+                    } catch (SQLException e) {
+                        log.error("{}", getStackTrace(e));
+                        throw e;
+                    }
+                }
+                if (config.fromSubpartitionName() != null) {
+                    try {
+                        Table table = configToTable(config.fromSchemaName(), config.fromTableName());
+                        CallableStatement createChunk =
+                                connection.prepareCall(PLSQL_FULFILL_PART_CHUNKS.replace("$tableName",
+                                        getOutboxTable().getTableName()));
+                        createChunk.setInt(1, rows);
+                        createChunk.setString(2, table.getSchemaName().toUpperCase());
+                        createChunk.setString(3, table.getFinalTableName(false));
+                        createChunk.setString(4, config.fromSubpartitionName());
+                        createChunk.setString(5, config.fromTaskName());
+                        createChunk.setString(6, "SUBPARTITION");
+                        createChunk.execute();
+                        createChunk.close();
+                        log.info("Created chunks for task {}", config.fromTaskName());
+                    } catch (SQLException e) {
+                        log.error("{}", getStackTrace(e));
+                        throw e;
+                    }
+                }
             }
         }
-        log.info("ROWID chunks created successfully");
+//        log.info("ROWID chunks created successfully");
         connection.close();
     }
 
@@ -124,7 +169,16 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public void createChunkTable() throws SQLException {
-
+        try (Connection connection = this.getPoolConnection();
+             Statement createTable = connection.createStatement()) {
+            createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
+                    getOutboxTable().getTableName()));
+            connection.commit();
+            log.info("Chunk table {} created successfully", getOutboxTable().getTableName());
+        } catch (SQLException e) {
+            log.error("Chunk table {} already exists", getOutboxTable().getTableName());
+            throw new SQLException(e);
+        }
     }
 
     @Override
@@ -136,10 +190,19 @@ public class OracleStorage extends JDBCStorage {
                 dropTask.setString(1, config.fromTaskName());
                 dropTask.execute();
                 dropTask.close();
-                log.info("Dropped task {}", config.fromTaskName());
+                log.info("Dropping task {}", config.fromTaskName());
             } catch (SQLException e) {
                 log.warn("Task {} does not exist", config.fromTaskName());
             }
+        }
+        try {
+            Statement dropTable = connection.createStatement();
+            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName",
+                    getOutboxTable().getTableName()));
+            dropTable.close();
+            log.info("Dropping chunk table {}", getOutboxTable().getTableName());
+        } catch (SQLException e) {
+            log.warn("Chunk table {} does not exist", getOutboxTable().getTableName());
         }
         connection.close();
     }
@@ -269,12 +332,12 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public Table getDefaultSourceOutboxTable() {
-        return new OraTable.Builder("UNDEFINED","UNDEFINED").build();
+        return new OraTable.Builder("UNDEFINED","BUBLIK").build();
     }
 
     @Override
     public Table getDefaultTargetOutboxTable() {
-        return new OraTable.Builder("UNDEFINED","UNDEFINED").build();
+        return new OraTable.Builder("UNDEFINED","BUBLIK_OUTBOX").build();
     }
 
     private void logColumn2Column(List<Column2Column> column2Column) {
@@ -442,10 +505,17 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
-        return  "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
-                "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
-                (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
-                + " and rownum <= 200 ";
+        if (config.fromPartitionName() == null && config.fromSubpartitionName() == null) {
+            return "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
+                    "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
+                    (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
+                    + " and rownum <= 200 ";
+        } else {
+            return "select chunk_id, uuid, start_rowid, end_rowid, task_name, status " +
+                    "from bublik where status <> 'PROCESSED' and task_name = ? " +
+                    (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
+                    + " and rownum <= 200 ";
+        }
     }
 
     @Override

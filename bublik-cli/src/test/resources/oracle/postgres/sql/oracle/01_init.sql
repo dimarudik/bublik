@@ -166,3 +166,71 @@ insert into test.intervals
 commit;
 
 
+create table test.subparted (
+     id number(19,0),
+     create_at timestamp(6) not null,
+     name varchar2(11)
+    )
+    partition by hash (id)
+    subpartition by range (create_at)
+    subpartition template
+(
+  subpartition subparted_p0 values less than (to_date('01/01/2019', 'DD/MM/YYYY')),
+  subpartition subparted_p1 values less than (to_date('01/01/2020', 'DD/MM/YYYY')),
+  subpartition subparted_p2 values less than (to_date('01/01/2021', 'DD/MM/YYYY'))
+)
+(
+    partition parted_p0,
+    partition parted_p1
+);
+create sequence test.subparted_seq;
+-- 1
+insert into test.subparted
+    (select
+         test.subparted_seq.nextval as id,
+         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2020)), 'DD/MM/YYYY') as update_at,
+         rpad('*', round(dbms_random.value(0,4)),'*') as name
+     from dual connect by level < 200000);
+commit;
+
+/*-- 2
+insert into test.parted3
+    (select
+         test.parted3_seq.nextval as id,
+         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2019)), 'DD/MM/YYYY') as update_at,
+         rpad('*', round(dbms_random.value(0,4)),'*') as name
+     from dual connect by level < 2000000);
+commit;
+-- 3
+insert into test.parted3
+    (select
+         test.parted3_seq.nextval as id,
+         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2019)), 'DD/MM/YYYY') as update_at,
+         rpad('*', round(dbms_random.value(0,4)),'*') as name
+     from dual connect by level < 2000000);
+commit;
+-- 4
+insert into test.parted3
+    (select
+         test.parted3_seq.nextval as id,
+         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2019)), 'DD/MM/YYYY') as update_at,
+         rpad('*', round(dbms_random.value(0,4)),'*') as name
+     from dual connect by level < 2000000);
+commit;
+-- 5
+insert into test.parted3
+    (select
+         test.parted3_seq.nextval as id,
+         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2019)), 'DD/MM/YYYY') as update_at,
+         rpad('*', round(dbms_random.value(0,4)),'*') as name
+     from dual connect by level < 2000000);
+commit;
+-- 6
+insert into test.parted3
+    (select
+         test.parted3_seq.nextval as id,
+         to_date('01/'||round(dbms_random.value(1,12))||'/'||round(dbms_random.value(2019,2019)), 'DD/MM/YYYY') as update_at,
+         rpad('*', round(dbms_random.value(0,4)),'*') as name
+     from dual connect by level < 2000000);
+commit;
+*/

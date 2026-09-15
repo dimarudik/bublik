@@ -1,0 +1,9 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "subparted",
+    "fromSubpartitionName" : "PARTED_P0_SUBPARTED_P1",
+    "toSchemaName": "public",
+    "toTableName": "subparted"
+  }
+]

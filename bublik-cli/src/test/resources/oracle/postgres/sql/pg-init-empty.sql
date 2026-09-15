@@ -88,6 +88,10 @@ create table public.parted3 (
     id bigint,
     create_at timestamp(6) not null,
     name varchar(1000) not null);
+create table public.parted4 (
+    id bigint,
+    create_at timestamp(6) not null,
+    name varchar(1000) not null);
 create table public.noc2c1 (
     id bigint primary key generated always as identity,
     name varchar);
@@ -100,5 +104,10 @@ create table public.intervals (
   time_period_2  INTERVAL,
   time_period_3  INTERVAL,
   time_period_4  INTERVAL DAY TO SECOND(6)
+);
+create table public.subparted (
+    id bigint,
+    create_at timestamp(6) not null,
+    name varchar(11)
 );
 

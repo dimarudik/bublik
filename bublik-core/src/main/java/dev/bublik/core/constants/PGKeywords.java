@@ -94,6 +94,7 @@ public enum PGKeywords {
     CYCLE,
     DATA,
     DATABASE,
+    DATE,
     DAY,
     DEALLOCATE,
     DEC,

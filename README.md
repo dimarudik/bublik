@@ -122,6 +122,8 @@ The mapping file is a JSON file that contains the mapping between the source and
   {
     "fromSchemaName" : "schema",  # source schema or Cassandra keyspace name (Required)
     "fromTableName" : "table",    # source table name (Required)
+    "fromPartitionName" : "partition",    # source partition name, applicable for Oracle (Optional)
+    "fromSubpartitionName" : "subpartition",    # source subpartition name, applicable for Oracle (Optional)
     "fromTableAlias" : "t",       # source table alias (Optional - used in FROM clause) 
     "fromTableAdds" : "join users u on u.id = t.user_id", # source table adds (Optional - used in FROM clause to join additional tables) 
     "fetchHintClause" : "/*+ no_index(t) */", # fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method)
@@ -1514,6 +1516,14 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
       "create_at" : "create_at",
       "name"      : "name"
     }
+  },
+  {
+    "fromSchemaName" : "test",
+    "fromTableName" : "parted",
+    "fromPartitionName" : "PARTED_P3",
+    "toSchemaName" : "public",
+    "toTableName" : "parted4",
+    "fetchHintClause" : "/*+ no_index(PARTED) */"
   }
 ]
 ```
@@ -1547,6 +1557,9 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/oracle/
  >   on t.currency_id = c.id WHERE 1 = 1 and t.rowid between ? and ?
  > ```
 
+> [!NOTE]
+> You can narrow down the data to be retrieved by using **fromPartitionName** or **fromSubpartitionName** definition <br>
+> It allows to exclude excessive workload
 
 > [!NOTE]
 > To speed up the chunk processing of partitioned table you can apply **fromTaskWhereClause** clause as it used above.
