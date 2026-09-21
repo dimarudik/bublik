@@ -6,7 +6,7 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>26.3.41</version>
+    <version>26.3.42</version>
     <packaging>pom</packaging>
 
     <developers>

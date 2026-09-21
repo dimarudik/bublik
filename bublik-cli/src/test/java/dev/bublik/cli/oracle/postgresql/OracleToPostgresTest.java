@@ -202,6 +202,7 @@ public class OracleToPostgresTest {
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         System.out.println("source count: " + result.sourceCount() + " target count: " + result.targetCount());
+//        Thread.sleep(900_000);
         assertEquals(result.sourceCount(), result.targetCount());
     }
 

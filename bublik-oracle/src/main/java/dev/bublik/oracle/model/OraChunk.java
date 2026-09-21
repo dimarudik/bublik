@@ -50,14 +50,6 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
                 log.debug("Target session was already closed or cannot be closed", e);
             }
         }
-/*
-        if (getSourceSession().isValid(0)) {
-            getSourceSession().close();
-        }
-        if (getTargetStorage() instanceof JDBCStorage && getTargetSession().isValid(0)) {
-            getTargetSession().close();
-        }
-*/
         return this;
     }
 
@@ -68,32 +60,31 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
 
     @Override
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
-        if (getConfig().fromPartitionName() == null && getConfig().fromSubpartitionName() == null) {
-            try {
-                Connection connection = getSourceSession();
-                if (errMsg == null) {
-                    CallableStatement callableStatement =
-                            connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
-                    callableStatement.setString(1, this.getConfig().fromTaskName());
-                    callableStatement.setInt(2, this.getId());
-                    callableStatement.setInt(3, newStatus.ordinal());
-                    callableStatement.execute();
-                    callableStatement.close();
-                } else {
-                    CallableStatement callableStatement =
-                            connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
-                    callableStatement.setString(1, this.getConfig().fromTaskName());
-                    callableStatement.setInt(2, this.getId());
-                    callableStatement.setInt(3, newStatus.ordinal());
-                    callableStatement.setString(4, errMsg.substring(0,
-                            errMsg.length() > 2245 ? 2244 : errMsg.length()));
-                    callableStatement.execute();
-                    callableStatement.close();
-                }
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+        try {
+            Connection connection = getSourceSession();
+            if (errMsg == null) {
+                CallableStatement callableStatement =
+                        connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
+                callableStatement.setString(1, this.getConfig().fromTaskName());
+                callableStatement.setInt(2, this.getId());
+                callableStatement.setInt(3, newStatus.ordinal());
+                callableStatement.execute();
+                callableStatement.close();
+            } else {
+                CallableStatement callableStatement =
+                        connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
+                callableStatement.setString(1, this.getConfig().fromTaskName());
+                callableStatement.setInt(2, this.getId());
+                callableStatement.setInt(3, newStatus.ordinal());
+                callableStatement.setString(4, errMsg.substring(0,
+                        errMsg.length() > 2245 ? 2244 : errMsg.length()));
+                callableStatement.execute();
+                callableStatement.close();
             }
-        } else {
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+         /*else {
             try {
                 Connection connection = getSourceSession();
                 PreparedStatement updateStatus;
@@ -128,7 +119,7 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        }
+        }*/
         return this;
     }
 

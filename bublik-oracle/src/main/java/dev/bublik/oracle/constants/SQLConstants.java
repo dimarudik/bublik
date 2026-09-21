@@ -41,8 +41,12 @@ public abstract class SQLConstants {
           l_task_name  VARCHAR2(128) := :5;
           l_segment_type  VARCHAR2(128) := :6;
         
-          c_source     SYS_REFCURSOR;
-          l_sql        CLOB;
+          c_source       SYS_REFCURSOR;
+          l_sql          CLOB;
+          l_create       CLOB;
+          l_chunks_sql   CLOB;
+          l_drop         CLOB;
+          l_insert       CLOB;
         
           TYPE t_rowids IS TABLE OF ROWID INDEX BY PLS_INTEGER;
           l_rowids t_rowids;
@@ -50,10 +54,13 @@ public abstract class SQLConstants {
           l_start_id ROWID;
           l_end_id   ROWID;
         BEGIN
---          l_sql := 'SELECT /*+ FIRST_ROWS('|| l_batch_size ||') INDEX_FFS(p) */ rowid FROM '
---                   || l_schema || '.' || l_table || ' ' || l_segment_type || ' (' || l_partition || ') p order by p.rowid';
           l_sql := 'SELECT rowid FROM '
                    || l_schema || '.' || l_table || ' ' || l_segment_type || ' (' || l_partition || ') p order by p.rowid';
+        
+          l_create := 'create global temporary table temp_' || l_task_name || ' (start_id rowid, end_id rowid) on commit preserve rows';
+          execute immediate l_create;
+        
+          l_insert := 'INSERT INTO temp_' || l_task_name || ' (start_id, end_id) VALUES (:1, :2)';
         
           OPEN c_source FOR l_sql;
         
@@ -64,21 +71,30 @@ public abstract class SQLConstants {
             l_start_id := l_rowids(1);
             l_end_id   := l_rowids(l_rowids.COUNT);
         
-            INSERT INTO $tableName (
-                start_rowid, end_rowid, schema_name, table_name, task_name, status
-            ) VALUES (
-                ROWIDTOCHAR(l_start_id),
-                ROWIDTOCHAR(l_end_id),
-                l_schema,
-                l_table,
-                l_task_name,
-                'UNASSIGNED'
-            );
+            execute immediate l_insert USING l_start_id, l_end_id;
+        
+          l_chunks_sql := l_chunks_sql
+                    || 'SELECT CHARTOROWID(''' || ROWIDTOCHAR(l_start_id) || ''') start_id, '
+                    || 'CHARTOROWID(''' || ROWIDTOCHAR(l_end_id) || ''') end_id FROM dual';
         
           END LOOP;
           CLOSE c_source;
+  
+          commit;
         
-          COMMIT;
+          l_chunks_sql := 'SELECT start_id, end_id FROM temp_' || l_task_name;
+        
+          DBMS_PARALLEL_EXECUTE.CREATE_CHUNKS_BY_SQL(
+            l_task_name,
+            l_chunks_sql,
+            TRUE
+          );
+          
+          execute immediate 'truncate table temp_' || l_task_name;
+        
+          l_drop := 'drop table temp_' || l_task_name;
+          execute immediate l_drop;
+        
         END;
         """;
 }

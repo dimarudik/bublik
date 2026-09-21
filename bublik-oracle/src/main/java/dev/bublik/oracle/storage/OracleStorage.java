@@ -86,16 +86,14 @@ public class OracleStorage extends JDBCStorage {
             }
         }
         for (Config config : configs) {
-            if (config.fromPartitionName() == null && config.fromSubpartitionName() == null) {
-                try {
-                    CallableStatement createTask = connection.prepareCall(PLSQL_CREATE_TASK);
-                    createTask.setString(1, config.fromTaskName());
-                    createTask.execute();
-                    createTask.close();
-                } catch (SQLException e) {
-                    log.error("{}", getStackTrace(e));
-                    throw e;
-                }
+            try {
+                CallableStatement createTask = connection.prepareCall(PLSQL_CREATE_TASK);
+                createTask.setString(1, config.fromTaskName());
+                createTask.execute();
+                createTask.close();
+            } catch (SQLException e) {
+                log.error("{}", getStackTrace(e));
+                throw e;
             }
         }
 
@@ -119,9 +117,7 @@ public class OracleStorage extends JDBCStorage {
                 if (config.fromPartitionName() != null && config.fromSubpartitionName() == null) {
                     try {
                         Table table = configToTable(config.fromSchemaName(), config.fromTableName());
-                        CallableStatement createChunk = connection.prepareCall(
-                                PLSQL_FULFILL_PART_CHUNKS.replace("$tableName",
-                                        getOutboxTable().getTableName()));
+                        CallableStatement createChunk = connection.prepareCall(PLSQL_FULFILL_PART_CHUNKS);
                         createChunk.setInt(1, rows);
                         createChunk.setString(2, table.getSchemaName().toUpperCase());
                         createChunk.setString(3, table.getFinalTableName(false));
@@ -139,9 +135,7 @@ public class OracleStorage extends JDBCStorage {
                 if (config.fromSubpartitionName() != null) {
                     try {
                         Table table = configToTable(config.fromSchemaName(), config.fromTableName());
-                        CallableStatement createChunk =
-                                connection.prepareCall(PLSQL_FULFILL_PART_CHUNKS.replace("$tableName",
-                                        getOutboxTable().getTableName()));
+                        CallableStatement createChunk = connection.prepareCall(PLSQL_FULFILL_PART_CHUNKS);
                         createChunk.setInt(1, rows);
                         createChunk.setString(2, table.getSchemaName().toUpperCase());
                         createChunk.setString(3, table.getFinalTableName(false));
@@ -169,6 +163,7 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public void createChunkTable() throws SQLException {
+/*
         try (Connection connection = this.getPoolConnection();
              Statement createTable = connection.createStatement()) {
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
@@ -179,6 +174,7 @@ public class OracleStorage extends JDBCStorage {
             log.error("Chunk table {} already exists", getOutboxTable().getTableName());
             throw new SQLException(e);
         }
+*/
     }
 
     @Override
@@ -194,15 +190,6 @@ public class OracleStorage extends JDBCStorage {
             } catch (SQLException e) {
                 log.warn("Task {} does not exist", config.fromTaskName());
             }
-        }
-        try {
-            Statement dropTable = connection.createStatement();
-            dropTable.executeUpdate(DDL_DROP_CHUNK_TABLE.replace("$tableName",
-                    getOutboxTable().getTableName()));
-            dropTable.close();
-            log.info("Dropping chunk table {}", getOutboxTable().getTableName());
-        } catch (SQLException e) {
-            log.warn("Chunk table {} does not exist", getOutboxTable().getTableName());
         }
         connection.close();
     }
@@ -505,6 +492,11 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
+        return "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
+                "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
+                (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
+                + " and rownum <= 200 ";
+/*
         if (config.fromPartitionName() == null && config.fromSubpartitionName() == null) {
             return "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
                     "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
@@ -516,6 +508,7 @@ public class OracleStorage extends JDBCStorage {
                     (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
                     + " and rownum <= 200 ";
         }
+*/
     }
 
     @Override
