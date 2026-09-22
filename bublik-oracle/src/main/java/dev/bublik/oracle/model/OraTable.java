@@ -14,7 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 public class OraTable extends Table {
-    private static final Logger log = LoggerFactory.getLogger(OraTable.class);
+//    private static final Logger log = LoggerFactory.getLogger(OraTable.class);
+    private static final System.Logger log = System.getLogger(OraTable.class.getName());
 
     public OraTable(String schemaName, String tableName) {
         super(schemaName, tableName);
@@ -166,7 +167,10 @@ public class OraTable extends Table {
 
     @Override
     public void create(Connection connection) throws SQLException {
-        log.info("Table {}.{} not exists in target database. Please create it manually.", getFinalSchemaName(), getFinalTableName(false));
+        log.log(System.Logger.Level.INFO,
+                "Table {0}.{1} not exists in target database. Please create it manually.",
+                getFinalSchemaName(), getFinalTableName(false));
+//        log.info("Table {}.{} not exists in target database. Please create it manually.", getFinalSchemaName(), getFinalTableName(false));
     }
 
     @Override

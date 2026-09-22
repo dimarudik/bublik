@@ -4,8 +4,6 @@ import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.Storage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -16,7 +14,6 @@ import java.util.Map;
 import static dev.bublik.clickhouse.constants.SQLConstants.SQL_ALL_COLUMNS;
 
 public class ClickTable extends Table {
-    private static final Logger log = LoggerFactory.getLogger(ClickTable.class);
 
     public ClickTable(String schemaName, String tableName) {
         super(schemaName, tableName);

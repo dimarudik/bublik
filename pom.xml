@@ -6,7 +6,7 @@
 
     <groupId>dev.bublik</groupId>
     <artifactId>bublik</artifactId>
-    <version>26.3.42</version>
+    <version>26.3.43</version>
     <packaging>pom</packaging>
 
     <developers>
@@ -49,6 +49,7 @@
         <clickhouse.version>0.9.8</clickhouse.version>
     </properties>
 
+<!--
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -64,6 +65,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+-->
     <modules>
         <module>bublik-cassandra</module>
         <module>bublik-cli</module>

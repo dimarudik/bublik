@@ -12,7 +12,8 @@ import java.sql.*;
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
 public class PGChunk<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
+//    private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
+    private static final System.Logger log = System.getLogger(PGChunk.class.getName());
 
     @Override
     public boolean isValidSourceSession() throws SQLException {
@@ -120,7 +121,8 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
             try {
                 getTargetSession().close();
             } catch (Exception e) {
-                log.debug("Target session was already closed or cannot be closed", e);
+                log.log(System.Logger.Level.ERROR, "Target session was already closed or cannot be closed", e);
+//                log.debug("Target session was already closed or cannot be closed", e);
             }
         }
         return this;
@@ -150,13 +152,15 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
                         stmt.close();
                     }
                 } catch (Exception e) {
-                    log.debug("Error while closing Statement for chunk {}", getId(), e);
+                    log.log(System.Logger.Level.ERROR, "Error while closing Statement for chunk {0}", getId(), e);
+//                    log.debug("Error while closing Statement for chunk {}", getId(), e);
                 }
 
                 try {
                     rs.close();
                 } catch (Exception e) {
-                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
+                    log.log(System.Logger.Level.ERROR, "Error while closing source ResultSet for chunk {0}", getId(), e);
+//                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
                 }
             }
         }

@@ -13,7 +13,8 @@ import java.util.List;
 import static dev.bublik.mssql.constants.SQLConstants.*;
 
 public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(MSSQLChunk.class);
+    private static final System.Logger log = System.getLogger(MSSQLChunk.class.getName());
+
     private String addFetchPredicate;
 
     public MSSQLChunk(K id, T start, T end, Config config, Table2Table t2t,
@@ -83,7 +84,7 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
             try {
                 getTargetSession().close();
             } catch (Exception e) {
-                log.debug("Target session was already closed or cannot be closed", e);
+                log.log(System.Logger.Level.ERROR, "Target session was already closed or cannot be closed", e);
             }
         }
 /*
@@ -159,13 +160,13 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
                         stmt.close();
                     }
                 } catch (Exception e) {
-                    log.debug("Error while closing Statement for chunk {}", getId(), e);
+                    log.log(System.Logger.Level.ERROR, "Error while closing Statement for chunk {0}", getId(), e);
                 }
 
                 try {
                     rs.close();
                 } catch (Exception e) {
-                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
+                    log.log(System.Logger.Level.ERROR, "Error while closing source ResultSet for chunk {0}", getId(), e);
                 }
             }
         }

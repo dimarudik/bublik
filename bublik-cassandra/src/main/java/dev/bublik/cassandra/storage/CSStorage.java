@@ -35,7 +35,8 @@ import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 abstract class CSStorage extends Storage implements Source {
-    private static final Logger log = LoggerFactory.getLogger(CSStorage.class);
+//    private static final Logger log = LoggerFactory.getLogger(CSStorage.class);
+    private static final System.Logger log = System.getLogger(CSStorage.class.getName());
     private CSPool csPool;
     protected int batchSize;
     private final String keySpace;
@@ -141,7 +142,7 @@ abstract class CSStorage extends Storage implements Source {
         TokenRange ceil = factory.range(lastToken.getEnd(), defaultToken.getEnd());
         trs.add(floor);
         trs.add(ceil);
-        log.info("Token range size: {}", trs.size());
+        log.log(System.Logger.Level.INFO, "Token range size: {0}", trs.size());
 
         for (Config c : configs) {
             CSTable sourceTable = new CSTable(c.fromSchemaName(), c.fromTableName(), null, null);
@@ -154,14 +155,18 @@ abstract class CSStorage extends Storage implements Source {
                         long startValue = ((Murmur3Token) tr.getStart()).getValue();
                         long stopValue = ((Murmur3Token) tr.getEnd()).getValue();
                         long estimatedRowsInRange = getEstimatedRowsInRange(cqlSession, sourceTable, tr);
-                        log.info("Token range: {} {} estimatedRowsInRange: {}", startValue, stopValue, estimatedRowsInRange);
+                        log.log(System.Logger.Level.INFO,
+                                "Token range: {0} {1} estimatedRowsInRange: {2}",
+                                startValue, stopValue, estimatedRowsInRange);
 /*
                         String chunk = getConnectionProperty() == null ? oTable(null) :
                                 oTable(getConnectionProperty().getFromProperty());
 */
                         PreparedStatement ps = cqlSession.prepare(DML_INSERT_CHUNK_TABLE.replace("$tableName", getOutboxTable().tableToString()));
                         if (estimatedRowsInRange <= rows) {
-                            log.info("(estimatedRowsInRange <= rows) start:{} stop:{} estimated:{}", startValue, stopValue, estimatedRowsInRange);
+                            log.log(System.Logger.Level.INFO,
+                                    "(estimatedRowsInRange <= rows) start:{0} stop:{1} estimated:{2}",
+                                    startValue, stopValue, estimatedRowsInRange);
                             insertChunk(cqlSession, ps, startValue, stopValue, sourceTable, c.fromTaskName(), estimatedRowsInRange);
                             return;
                         }
@@ -185,7 +190,7 @@ abstract class CSStorage extends Storage implements Source {
             service.shutdown();
             service.close();
         }
-        log.info("Chunk table fulfilled successfully");
+        log.log(System.Logger.Level.INFO, "Chunk table fulfilled successfully");
     }
 
     private long getEstimatedRowsInRange(CqlSession cqlSession, CSTable sourceTable, TokenRange tr) {
@@ -229,7 +234,7 @@ abstract class CSStorage extends Storage implements Source {
                     .build();
             cqlSession.execute(bsInsert);
         } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }
@@ -244,7 +249,7 @@ abstract class CSStorage extends Storage implements Source {
         try {
             cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTable().tableToString()));
         } catch (Exception e) {
-            log.warn("Chunk table {} not found", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.WARNING, "Chunk table {0} not found", getOutboxTable().tableToString());
         }
     }
 
@@ -256,7 +261,7 @@ abstract class CSStorage extends Storage implements Source {
                 oTable(getConnectionProperty().getToProperty());
 */
         cqlSession.execute(DDL_CREATE_GLOBAL_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString()));
-        log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
+        log.log(System.Logger.Level.INFO, "Outbox table {0} created successfully", getOutboxTable().tableToString());
     }
 
     @Override
@@ -285,7 +290,8 @@ abstract class CSStorage extends Storage implements Source {
             CqlSession cqlSession = csPool.getCqlSession();
             cqlSession.execute(DDL_DROP_TABLE.replace("$tableName", getOutboxTable().tableToString()));
         } catch (Exception e) {
-            log.info("Outbox table {} not found, nothing to drop", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.WARNING,
+                    "Outbox table {0} not found, nothing to drop", getOutboxTable().tableToString());
         }
     }
 
@@ -310,7 +316,7 @@ abstract class CSStorage extends Storage implements Source {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         CqlSession sourceSession = getSession();
         for (TableMigrationContext ctx : contexts) {
-            log.info("Fetch query: {}", ctx.fetchQuery());
+            log.log(System.Logger.Level.INFO, "Fetch query: {0}", ctx.fetchQuery());
             PreparedStatement ps = sourceSession.prepare(ctx.chunkLookupSql());
             BoundStatement bs = ps.bind(ctx.t2t().sourceTable().getSchemaName(),
                     ctx.t2t().sourceTable().getTableName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
@@ -343,56 +349,6 @@ abstract class CSStorage extends Storage implements Source {
     public Chunk<?, ?, ?, ?> getChunk(java.sql.ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
         return null;
     }
-
-/*
-    @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs,
-                                                Storage targetStorage) throws SQLException {
-        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
-        CqlSession sourceSession = getSession();
-        for (Config config : configs) {
-            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
-
-            this.enrichTable(sourceTable);
-            targetStorage.enrichTable(sourceTable, targetTable);
-
-            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-
-            String sql = buildStartEndOfChunk(config, sourceTable);
-            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
-            String fetchQuery = buildFetchStatement(config, t2t);
-            String orderByClause = targetTable.buildOrderBy(config);
-
-            log.info("Fetch query: {}", fetchQuery);
-            PreparedStatement ps = sourceSession.prepare(sql);
-            BoundStatement bs = ps.bind(sourceTable.getSchemaName(), sourceTable.getTableName()).setConsistencyLevel(ConsistencyLevel.QUORUM);
-            ResultSet rs = sourceSession.execute(bs);
-            for (Row row : rs) {
-                String status = row.getString("status");
-                String taskName = row.getString("task_name");
-                assert taskName != null;
-                if (taskName.equals(config.fromTaskName())) {
-                    Chunk<?, ?, ?, ?> chunk =
-                            new CSChunk<>(
-                                    row.getUuid("chunk_id"),
-                                    row.getLong("start_page"),
-                                    row.getLong("end_page"),
-                                    config,
-                                    t2t,
-                                    ChunkStatus.valueOf(status),
-                                    fetchQuery,
-                                    this,
-                                    targetStorage,
-                                    orderByClause);
-                    chunks.add(chunk);
-                }
-            }
-        }
-        return chunks;
-    }
-*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,
@@ -483,20 +439,11 @@ abstract class CSStorage extends Storage implements Source {
         return column2Column;
     }
 
-/*
-    private void logColumn2Column(List<Column2Column> column2Column) {
-        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
-                c2c.sourceExpression(),
-                c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
-                c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
-    }
-*/
-
     @Override
     public void closeStorage() {
         if (isManaged) {
             csPool.closeCqlSession();
-            log.info("Cassandra target storage stopped");
+            log.log(System.Logger.Level.INFO, "Cassandra target storage stopped");
         }
     }
 
@@ -541,7 +488,7 @@ abstract class CSStorage extends Storage implements Source {
 
     @Override
     public void close() throws Exception {
-        log.info("Closing Cassandra storage");
+        log.log(System.Logger.Level.INFO, "Closing Cassandra storage");
         csPool.closeCqlSession();
     }
 

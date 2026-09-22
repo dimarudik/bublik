@@ -12,7 +12,8 @@ import java.util.stream.Collectors;
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
 public class PGTable extends Table {
-    private static final Logger log = LoggerFactory.getLogger(PGTable.class);
+//    private static final Logger log = LoggerFactory.getLogger(PGTable.class);
+    private static final System.Logger log = System.getLogger(PGTable.class.getName());
 
     public PGTable(String schemaName, String tableName) {
         super(schemaName, tableName);
@@ -164,20 +165,11 @@ public class PGTable extends Table {
                     foreignKeys.put(fkName, foreignKey);
                 }
             }
-/*
-            log.info("Foreign Key of {}: PK Table: {}.{}, PK Column: {}, Ordinal Position: {}, " +
-                            "FK Table: {}.{}, FK Column: {}, FK Name: {}, PK Name: {}, " +
-                            "Update Rule: {}, Delete Rule: {}, Deferrability: {}",
-                    getFinalTableName(false), pkSchemaName, pkTableName, pkColumnName, ordinalPosition,
-                    fkSchemaName, fkTableName, fkColumnName, fkName, pkName,
-                    updateRule, deleteRule, deferrability);
-*/
         }
-        foreignKeys.values().forEach(fk -> log.info("{}.{} : {}.{} {}.{}",
+        foreignKeys.values().forEach(fk -> log.log(System.Logger.Level.INFO, "{0}.{1} : {2}.{3} {4}.{5}",
                 getSchemaName(), getTableName(),
                 fk.getPkTable().getSchemaName(), fk.getPkTable().getTableName(),
                 fk.getFkTable().getSchemaName(), fk.getFkTable().getTableName()));
-
         return new ArrayList<>(foreignKeys.values());
     }
 
@@ -466,12 +458,16 @@ public class PGTable extends Table {
             }
         }
         pkQuery.append(");");
-        log.info("Creating primary key for table {}.{}: {}", getSchemaName(), getTableName(), pkQuery);
+//        log.info("Creating primary key for table {}.{}: {}", getSchemaName(), getTableName(), pkQuery);
+        log.log(System.Logger.Level.INFO, "Creating primary key for table {0}.{1}: {2}", getSchemaName(), getTableName(), pkQuery);
         try {
             connection.createStatement().execute(pkQuery.toString());
             connection.commit();
         } catch (SQLException e) {
-            log.error("Failed to create primary key for table {}.{}: {}", getSchemaName(), getTableName(), e.getMessage());
+            log.log(System.Logger.Level.ERROR,
+                    "Failed to create primary key for table {0}.{1}: {2}",
+                    getSchemaName(), getTableName(), e.getMessage());
+//            log.error("Failed to create primary key for table {}.{}: {}", getSchemaName(), getTableName(), e.getMessage());
         }
     }
 
@@ -512,7 +508,8 @@ public class PGTable extends Table {
     @Override
     public void create(Connection connection) throws SQLException {
         if (!exists(connection)) {
-            log.info("Creating table {}.{}", getSchemaName(), getTableName());
+            log.log(System.Logger.Level.INFO, "Creating table {0}.{1}", getSchemaName(), getTableName());
+//            log.info("Creating table {}.{}", getSchemaName(), getTableName());
             String columnDefinition = getColumnDefinition();
             String query = DDL_CREATE_TABLE
                     .replace("$schemaName", getFinalSchemaName(true))
@@ -522,7 +519,8 @@ public class PGTable extends Table {
                 query += " WITH (" + getOptionDefinition() + ")";
             }
             query = query.replace("\"\"","\"");
-            log.info("{}", query);
+            log.log(System.Logger.Level.INFO, "{0}", query);
+//            log.info("{}", query);
             Statement statement = connection.createStatement();
             statement.execute(query);
             connection.commit();

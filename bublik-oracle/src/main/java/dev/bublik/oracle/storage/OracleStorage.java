@@ -1,28 +1,30 @@
 package dev.bublik.oracle.storage;
 
-import dev.bublik.core.model.*;
-import dev.bublik.oracle.model.OraChunkRowId;
-import oracle.sql.INTERVALDS;
-import oracle.sql.INTERVALYM;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
+import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
+import dev.bublik.oracle.model.OraChunkRowId;
 import dev.bublik.oracle.model.OraTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import oracle.sql.INTERVALDS;
+import oracle.sql.INTERVALYM;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
-import java.sql.*;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
 public class OracleStorage extends JDBCStorage {
-    private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
+//    private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
+    private static final System.Logger log = System.getLogger(OracleStorage.class.getName());
 
     public OracleStorage(StorageClass storageClass,
                          ConnectionProperty connectionProperty,
@@ -80,9 +82,9 @@ public class OracleStorage extends JDBCStorage {
                 dropTask.setString(1, config.fromTaskName());
                 dropTask.execute();
                 dropTask.close();
-                log.info("Dropped task {}", config.fromTaskName());
+                log.log(System.Logger.Level.INFO, "Dropped task {0}", config.fromTaskName());
             } catch (SQLException e) {
-                log.warn("Task {} does not exist", config.fromTaskName());
+                log.log(System.Logger.Level.WARNING, "Task {0} does not exist", config.fromTaskName());
             }
         }
         for (Config config : configs) {
@@ -92,7 +94,7 @@ public class OracleStorage extends JDBCStorage {
                 createTask.execute();
                 createTask.close();
             } catch (SQLException e) {
-                log.error("{}", getStackTrace(e));
+                log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
                 throw e;
             }
         }
@@ -108,9 +110,9 @@ public class OracleStorage extends JDBCStorage {
                     createChunk.setInt(4, rows);
                     createChunk.execute();
                     createChunk.close();
-                    log.info("Created chunks for task {}", config.fromTaskName());
+                    log.log(System.Logger.Level.INFO, "Created chunks for task {0}", config.fromTaskName());
                 } catch (SQLException e) {
-                    log.error("{}", getStackTrace(e));
+                    log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
                     throw e;
                 }
             } else {
@@ -126,9 +128,9 @@ public class OracleStorage extends JDBCStorage {
                         createChunk.setString(6, "PARTITION");
                         createChunk.execute();
                         createChunk.close();
-                        log.info("Created chunks for task {}", config.fromTaskName());
+                        log.log(System.Logger.Level.INFO, "Created chunks for task {0}", config.fromTaskName());
                     } catch (SQLException e) {
-                        log.error("{}", getStackTrace(e));
+                        log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
                         throw e;
                     }
                 }
@@ -144,9 +146,9 @@ public class OracleStorage extends JDBCStorage {
                         createChunk.setString(6, "SUBPARTITION");
                         createChunk.execute();
                         createChunk.close();
-                        log.info("Created chunks for task {}", config.fromTaskName());
+                        log.log(System.Logger.Level.INFO, "Created chunks for task {0}", config.fromTaskName());
                     } catch (SQLException e) {
-                        log.error("{}", getStackTrace(e));
+                        log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
                         throw e;
                     }
                 }
@@ -162,20 +164,7 @@ public class OracleStorage extends JDBCStorage {
     }
 
     @Override
-    public void createChunkTable() throws SQLException {
-/*
-        try (Connection connection = this.getPoolConnection();
-             Statement createTable = connection.createStatement()) {
-            createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
-                    getOutboxTable().getTableName()));
-            connection.commit();
-            log.info("Chunk table {} created successfully", getOutboxTable().getTableName());
-        } catch (SQLException e) {
-            log.error("Chunk table {} already exists", getOutboxTable().getTableName());
-            throw new SQLException(e);
-        }
-*/
-    }
+    public void createChunkTable() throws SQLException {}
 
     @Override
     public void dropChunkTable(List<Config> configs) throws SQLException {
@@ -186,9 +175,9 @@ public class OracleStorage extends JDBCStorage {
                 dropTask.setString(1, config.fromTaskName());
                 dropTask.execute();
                 dropTask.close();
-                log.info("Dropping task {}", config.fromTaskName());
+                log.log(System.Logger.Level.INFO, "Dropping task {0}", config.fromTaskName());
             } catch (SQLException e) {
-                log.warn("Task {} does not exist", config.fromTaskName());
+                log.log(System.Logger.Level.WARNING, "Task {0} does not exist", config.fromTaskName());
             }
         }
         connection.close();
@@ -224,54 +213,6 @@ public class OracleStorage extends JDBCStorage {
                 targetStorage,
                 ctx.orderByClause());
     }
-
-/*
-    @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs,
-                                                Storage targetStorage) throws SQLException {
-        List<Chunk<?, ?, ?, ?>> chunkHashList = new ArrayList<>();
-        for (Config config : configs) {
-            Table sourceTable = this.configToTable(config.fromSchemaName(), config.fromTableName());
-            Table targetTable = targetStorage.configToTable(config.toSchemaName(), config.toTableName());
-
-            this.enrichTable(sourceTable);
-            targetStorage.enrichTable(sourceTable, targetTable);
-
-            List<Column2Column> c2c = getColumn2Column(sourceTable, targetTable, config);
-            Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
-
-            String sql = buildStartEndOfChunk(config, sourceTable);
-            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), sql);
-            String fetchQuery = buildFetchStatement(config, t2t);
-            String orderByClause = targetTable.buildOrderBy(config);
-
-            log.info("Fetch query: {} {}", fetchQuery, orderByClause);
-            Connection sourceSession = this.getPoolConnection();
-            PreparedStatement ps = sourceSession.prepareStatement(sql);
-            ps.setString(1, config.fromTaskName());
-            ResultSet resultSet = ps.executeQuery();
-            while (resultSet.next()) {
-                String status = resultSet.getString("status");
-                Chunk<?, ?, ?, ?> chunk = new OraChunkRowId<>(
-                        resultSet.getInt("chunk_id"),
-                        resultSet.getRowId("start_rowid"),
-                        resultSet.getRowId("end_rowid"),
-                        config,
-                        t2t,
-                        ChunkStatus.valueOf(status),
-                        fetchQuery,
-                        this,
-                        targetStorage,
-                        orderByClause);
-                chunkHashList.add(chunk);
-            }
-            resultSet.close();
-            ps.close();
-            sourceSession.close();
-        }
-        return chunkHashList;
-    }
-*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,
@@ -328,7 +269,8 @@ public class OracleStorage extends JDBCStorage {
     }
 
     private void logColumn2Column(List<Column2Column> column2Column) {
-        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
+        column2Column.forEach(c2c -> log.log(System.Logger.Level.INFO,
+                "Column2Column: {0} {1} {2} -> {3} {4}",
                 c2c.sourceExpression(),
                 c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
                 c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));

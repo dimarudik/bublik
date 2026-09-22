@@ -15,7 +15,6 @@ import java.util.List;
 import static dev.bublik.cassandra.constants.SQLConstants.SQL_KEY_BY_TYPE;
 
 public interface CSTableService {
-    Logger log = LoggerFactory.getLogger(CSTableService.class);
 
     @Deprecated
     static List<Column> getKey(CqlSession cqlSession, Table table, String keyType) {

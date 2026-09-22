@@ -8,7 +8,8 @@ import java.sql.Connection;
 import java.util.Map;
 
 public class Index implements DDLService {
-    private static final Logger log = LoggerFactory.getLogger(Index.class);
+//    private static final Logger log = LoggerFactory.getLogger(Index.class);
+    private static final System.Logger log = System.getLogger(Index.class.getName());
 
     private final Integer id;
     private final String indexName;
@@ -77,7 +78,10 @@ public class Index implements DDLService {
             connection.createStatement().execute(sql);
             connection.commit();
         } catch (Exception e) {
-            log.error("Failed to create index {} on table {}.{}: {}", indexName, table.getSchemaName(), table.getTableName(), e.getMessage());
+            log.log(System.Logger.Level.ERROR,
+                    "Failed to create index {0} on table {1}.{2}: {3}",
+                    indexName, table.getSchemaName(), table.getTableName(), e.getMessage());
+//            log.error("Failed to create index {} on table {}.{}: {}", indexName, table.getSchemaName(), table.getTableName(), e.getMessage());
             throw new RuntimeException("Error creating index: " + e.getMessage(), e);
         }
     }

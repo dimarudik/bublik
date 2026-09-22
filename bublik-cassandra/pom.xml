@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.3.42</version>
+        <version>26.3.43</version>
     </parent>
 
     <artifactId>bublik-cassandra</artifactId>
@@ -58,10 +58,6 @@
             <artifactId>java-driver-core</artifactId>
             <version>4.19.3</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-        </dependency>
 
         <!--Test-->
         <dependency>
@@ -76,6 +72,13 @@
             <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+
 
         <!--Bublik Test-->
         <dependency>

@@ -34,7 +34,8 @@ import static dev.bublik.postgres.constants.SQLConstants.*;
 import static dev.bublik.postgres.util.ColumnUtil.*;
 
 public class PostgresStorage extends JDBCStorage {
-    private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
+//    private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
+    private static final System.Logger log = System.getLogger(PostgresStorage.class.getName());
 
     public PostgresStorage(StorageClass storageClass,
                            ConnectionProperty connectionProperty,
@@ -135,7 +136,7 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     private void logColumn2Column(List<Column2Column> column2Column) {
-        column2Column.forEach(c2c -> log.info("Column2Column: {} {} {} -> {} {}",
+        column2Column.forEach(c2c -> log.log(System.Logger.Level.INFO,"Column2Column: {0} {1} {2} -> {3} {4}",
                 c2c.sourceExpression(),
                 c2c.sourceColumn().columnName(), c2c.sourceColumn().columnType(),
                 c2c.targetColumn().columnName(), c2c.targetColumn().columnType()));
@@ -345,13 +346,15 @@ public class PostgresStorage extends JDBCStorage {
                     null,
                     chunk.getT2t().targetTable().getSchemaName().toLowerCase(),
                     chunk.getT2t().targetTable().getTableNameWithoutQuotes(),
-//                    chunk.getT2t().targetTable().getFinalTableName(false),
                     null);
             Map<String, String> columnToColumnMap = chunk.getConfig().columnToColumn();
             Map<String, String> expressionToColumnMap = chunk.getConfig().expressionToColumn();
             Map<String, List<String>> columnFromManyMap = chunk.getConfig().columnFromMany();
 
-            log.info("Target table: {}.{}", chunk.getT2t().targetTable().getSchemaName().toLowerCase(), chunk.getT2t().targetTable().getTableNameWithoutQuotes());
+            log.log(System.Logger.Level.INFO,
+                    "Target table: {0}.{1}",
+                    chunk.getT2t().targetTable().getSchemaName().toLowerCase(),
+                    chunk.getT2t().targetTable().getTableNameWithoutQuotes());
 
             while (resultSet.next()) {
                 String columnName = resultSet.getString(4);
@@ -359,7 +362,7 @@ public class PostgresStorage extends JDBCStorage {
                 String columnType = resultSet.getString(6);
                 Integer columnPosition = resultSet.getInt(17);
 
-                log.info("columnName: {}, dataType: {}, columnType: {}, columnPosition: {}",
+                log.log(System.Logger.Level.INFO, "columnName: {0}, dataType: {1}, columnType: {2}, columnPosition: {3}",
                        columnName, dataType, columnType, columnPosition);
 
                 if (columnToColumnMap != null) {
@@ -406,7 +409,8 @@ public class PostgresStorage extends JDBCStorage {
             }
             resultSet.close();
         } catch (SQLException e) {
-            log.error("{}", e.getMessage());
+            log.log(System.Logger.Level.ERROR, "", e);
+//            log.error("{}", e.getMessage());
         }
         return columnMap;
     }
@@ -640,8 +644,12 @@ public class PostgresStorage extends JDBCStorage {
                         try {
                             uuid = UUID.fromString((String) value);
                         } catch (Exception e1) {
-                            log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
-                                    chunk.getT2t().targetTable().getTableName(), targetColumn, value, getStackTrace(e1));
+                            log.log(System.Logger.Level.ERROR, "{0}.{1} : {2} {3} {4}",
+                                    chunk.getT2t().targetTable().getSchemaName(),
+                                    chunk.getT2t().targetTable().getTableName(),
+                                    targetColumn, value, getStackTrace(e1));
+//                            log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
+//                                    chunk.getT2t().targetTable().getTableName(), targetColumn, value, getStackTrace(e1));
                         }
                     }
                     writer.writeUuid(uuid);
@@ -898,10 +906,14 @@ public class PostgresStorage extends JDBCStorage {
                             throw new RuntimeException("There is no handler for type: " + targetType + "  for column: " + targetColumn);
                         }
                     } else {
-                        log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+                        log.log(System.Logger.Level.ERROR, "tryCharIfAny is NULL for Table: {0}.{1} Column: {2} Type: {3}",
                                 chunk.getT2t().targetTable().getSchemaName(),
                                 chunk.getT2t().targetTable().getTableName(),
                                 targetType, targetColumn);
+//                        log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+//                                chunk.getT2t().targetTable().getSchemaName(),
+//                                chunk.getT2t().targetTable().getTableName(),
+//                                targetType, targetColumn);
                         throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumn);
                     }
             }
@@ -979,7 +991,8 @@ public class PostgresStorage extends JDBCStorage {
                 targetTable.createPrimaryKey(targetConnection);
             }
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
+//            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -992,7 +1005,8 @@ public class PostgresStorage extends JDBCStorage {
                 taregtTable.createIndexes(targetConnection);
             }
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
+//            log.error("{}", getStackTrace(e));
         }
     }
 
@@ -1005,7 +1019,7 @@ public class PostgresStorage extends JDBCStorage {
                 taregtTable.createForeignKeys(targetConnection);
             }
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
         }
     }
 
@@ -1018,7 +1032,7 @@ public class PostgresStorage extends JDBCStorage {
                 taregtTable.createUniqueConstraints(targetConnection);
             }
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
         }
     }
 
@@ -1076,7 +1090,8 @@ public class PostgresStorage extends JDBCStorage {
                 long v = reltuples <= 0 && relpages <= 1 ? relpages + 1 :
                         (int) Math.round(relpages / (reltuples / (double) required));
                 long pagesInChunk = Math.min(v, relpages + 1);
-                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+                log.log(System.Logger.Level.DEBUG,
+                        "{0}.{1} \t\t\t relpages : {2}\t heap_blks_total : {3}\t reltuples : {4}\t rowsInChunk : {5}\t pagesInChunk : {6} ",
                         config.fromSchemaName(),
                         config.fromTableName(),
                         relpages,
@@ -1084,6 +1099,14 @@ public class PostgresStorage extends JDBCStorage {
                         reltuples,
                         (double) required,
                         pagesInChunk);
+//                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
+//                        config.fromSchemaName(),
+//                        config.fromTableName(),
+//                        relpages,
+//                        heap_blks_total,
+//                        reltuples,
+//                        (double) required,
+//                        pagesInChunk);
                 insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk,
                         ChunkStatus.UNASSIGNED, required, getOutboxTable().tableToString());
 
@@ -1096,7 +1119,8 @@ public class PostgresStorage extends JDBCStorage {
                 }
             }
             connection.commit();
-            log.info("Chunk table {} fulfilled successfully", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.INFO, "Chunk table {0} fulfilled successfully", getOutboxTable().tableToString());
+//            log.info("Chunk table {} fulfilled successfully", getOutboxTable().tableToString());
         }
     }
 
@@ -1127,9 +1151,11 @@ public class PostgresStorage extends JDBCStorage {
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName",
                     getOutboxTable().tableToString()));
             connection.commit();
-            log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.INFO, "Outbox table {0} created successfully", getOutboxTable().tableToString());
+//            log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
-            log.warn("Outbox table {} already exists", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.WARNING, "Outbox table {0} already exists", getOutboxTable().tableToString());
+//            log.warn("Outbox table {} already exists", getOutboxTable().tableToString());
             throw new SQLException(e);
         }
     }
@@ -1142,9 +1168,11 @@ public class PostgresStorage extends JDBCStorage {
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
                     getOutboxTable().tableToString()));
             connection.commit();
-            log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.INFO, "Chunk table {0} created successfully", getOutboxTable().tableToString());
+//            log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
-            log.error("Chunk table {} already exists", getOutboxTable().tableToString());
+            log.log(System.Logger.Level.ERROR, "Chunk table {0} already exists", getOutboxTable().tableToString());
+//            log.error("Chunk table {} already exists", getOutboxTable().tableToString());
             throw new SQLException(e);
         }
     }
@@ -1447,8 +1475,11 @@ public class PostgresStorage extends JDBCStorage {
                         try {
                             uuid = UUID.fromString((String) value);
                         } catch (Exception e1) {
-                            log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
+                            log.log(System.Logger.Level.ERROR, "{0}.{1} : {2} {3} {4}",
+                                    chunk.getT2t().targetTable().getSchemaName(),
                                     chunk.getT2t().targetTable().getTableName(), targetColumnName, value, getStackTrace(e1));
+//                            log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
+//                                    chunk.getT2t().targetTable().getTableName(), targetColumnName, value, getStackTrace(e1));
                         }
                     }
                     writer.writeUuid(uuid);
@@ -1465,13 +1496,20 @@ public class PostgresStorage extends JDBCStorage {
                             writer.writeString(s != null ? s.replace("\u0000", "") : "");
                             break;
                         } else {
-                            log.error("There is no handler for type: {}  for column: {}", targetType, targetColumnName);
+                            log.log(System.Logger.Level.ERROR,
+                                    "There is no handler for type: {0}  for column: {1}", targetType, targetColumnName);
+//                            log.error("There is no handler for type: {}  for column: {}", targetType, targetColumnName);
                         }
                     } else {
-                        log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+                        log.log(System.Logger.Level.ERROR,
+                                "tryCharIfAny is NULL for Table: {0}.{1} Column: {2} Type: {3}",
                                 chunk.getT2t().targetTable().getSchemaName(),
                                 chunk.getT2t().targetTable().getTableName(),
                                 targetType, targetColumnName);
+//                        log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
+//                                chunk.getT2t().targetTable().getSchemaName(),
+//                                chunk.getT2t().targetTable().getTableName(),
+//                                targetType, targetColumnName);
                         throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumnName);
                     }
             }

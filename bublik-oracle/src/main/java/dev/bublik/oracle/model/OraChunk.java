@@ -13,7 +13,9 @@ import java.sql.*;
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
 public abstract class OraChunk<K extends Integer, T, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> implements ChunkService {
-    private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
+//    private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
+    private static final System.Logger log = System.getLogger(OraChunk.class.getName());
+
 
     public OraChunk(K id, T start, T end, Config config, Table2Table t2t,
                          ChunkStatus status, String fetchQuery, Storage sourceStorage,
@@ -47,7 +49,8 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
             try {
                 getTargetSession().close();
             } catch (Exception e) {
-                log.debug("Target session was already closed or cannot be closed", e);
+                log.log(System.Logger.Level.ERROR, "Target session was already closed or cannot be closed", e);
+//                log.debug("Target session was already closed or cannot be closed", e);
             }
         }
         return this;
@@ -151,13 +154,15 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
                         stmt.close();
                     }
                 } catch (Exception e) {
-                    log.debug("Error while closing Statement for chunk {}", getId(), e);
+                    log.log(System.Logger.Level.ERROR, "Error while closing Statement for chunk {0}", getId(), e);
+//                    log.debug("Error while closing Statement for chunk {}", getId(), e);
                 }
 
                 try {
                     rs.close();
                 } catch (Exception e) {
-                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
+                    log.log(System.Logger.Level.ERROR, "Error while closing source ResultSet for chunk {0}", getId(), e);
+//                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
                 }
             }
         }

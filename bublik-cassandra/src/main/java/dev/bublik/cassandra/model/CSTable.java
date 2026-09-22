@@ -23,7 +23,9 @@ import static dev.bublik.cassandra.constants.SQLConstants.SQL_ALL_COLUMNS;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class CSTable extends Table {
-    private static final Logger log = LoggerFactory.getLogger(CSTable.class);
+//    private static final Logger log = LoggerFactory.getLogger(CSTable.class);
+    private static final System.Logger log = System.getLogger(CSTable.class.getName());
+
     private List<Column> partitionKey;
     private List<Column> clusteringKey;
     private List<UDTColumn> udtColumns;
@@ -116,7 +118,9 @@ public class CSTable extends Table {
                 }
             }
         } catch (Exception e) {
-            log.error("Error while getting all columns for table {}: {}", getTableName(), getStackTrace(e));
+            log.log(System.Logger.Level.ERROR,
+                    "Error while getting all columns for table {0}: {1}",
+                    getTableName(), getStackTrace(e));
         }
         setUdtColumns(udtColumns);
         return columns;

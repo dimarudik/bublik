@@ -24,7 +24,8 @@ import static dev.bublik.cassandra.constants.SQLConstants.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Chunk<K, T, S, R> {
-    private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
+//    private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
+    private static final System.Logger log = System.getLogger(CSChunk.class.getName());
 
     public CSChunk(K id, T start, T end, Config config, Table2Table t2t,
                    ChunkStatus status, String fetchQuery, Storage sourceStorage,
@@ -106,7 +107,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
                     .build();
             cqlSession.execute(bsUpdate);
         } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
             throw new RuntimeException(e);
         }
 //        log.info("Chunk with id: {} and status: {} updated with rows: {}", getId(), getChunkStatus(), rows);

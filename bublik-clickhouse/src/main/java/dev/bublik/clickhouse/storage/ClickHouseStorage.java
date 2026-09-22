@@ -13,10 +13,13 @@ import dev.bublik.clickhouse.model.TransferPlan;
 import dev.bublik.clickhouse.service.ColumnTransfer;
 import dev.bublik.clickhouse.service.ValueTransfer;
 import dev.bublik.core.model.*;
+import dev.bublik.core.service.StorageService;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
 import dev.bublik.core.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,6 +31,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class ClickHouseStorage extends ClickStorage {
+//    private static final Logger log = LoggerFactory.getLogger(ClickHouseStorage.class);
+    private static final System.Logger log = System.getLogger(ClickHouseStorage.class.getName());
+
     private ByteArrayOutputStream bufferStream;
     private LittleEndianDataOutputStream leOut;
     private ValueTransfer[] pushPlan;
@@ -147,7 +153,7 @@ public class ClickHouseStorage extends ClickStorage {
                     }
                     leOut.flush();
                 } catch (Exception e) {
-                    log.error("Error during binary streaming: {}", Utils.getStackTrace(e));
+                    log.log(System.Logger.Level.ERROR, "Error during binary streaming: {0}", Utils.getStackTrace(e));
                     throw new IOException("Error processing RowBinary transfer", e);
                 }
             }
@@ -1005,7 +1011,8 @@ public class ClickHouseStorage extends ClickStorage {
             ).join()) {
 
                 long stop = System.currentTimeMillis();
-                log.info("Push CDC -> ClickHouse success. Rows: {}, Size: {} bytes, Time: {} ms",
+                log.log(System.Logger.Level.INFO,
+                        "Push CDC -> ClickHouse success. Rows: {0}, Size: {1} bytes, Time: {2} ms",
                         rowCount, binaryData.length, (stop - start));
             }
 

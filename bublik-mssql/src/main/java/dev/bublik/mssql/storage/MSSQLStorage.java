@@ -21,7 +21,7 @@ import static dev.bublik.core.constants.Constants.TO;
 import static dev.bublik.mssql.constants.SQLConstants.*;
 
 public class MSSQLStorage extends JDBCStorage {
-    private static final Logger log = LoggerFactory.getLogger(MSSQLStorage.class);
+    private static final System.Logger log = System.getLogger(MSSQLStorage.class.getName());
 
     public MSSQLStorage(StorageClass storageClass,
                         ConnectionProperty connectionProperty,
@@ -86,7 +86,7 @@ public class MSSQLStorage extends JDBCStorage {
         }
         dropSequence(connection, sync);
         connection.close();
-        log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
+        log.log(System.Logger.Level.INFO, "Chunk table {0} created successfully", getOutboxTable().tableToString());
     }
 
     @Override
@@ -111,7 +111,7 @@ public class MSSQLStorage extends JDBCStorage {
                         .replace("$leadColumns", leadColumns)
                         .replace("$extTableName", sourceTable.getTableName())
                         .replace("$fromToColumns", fromToColumnsByComma);
-        log.info("\n{}", insertChunkExtSql);
+        log.log(System.Logger.Level.INFO, "\n{0}", insertChunkExtSql);
         PreparedStatement insertExtTable = connection.prepareStatement(insertChunkExtSql);
         insertExtTable.setInt(1, rows);
         insertExtTable.executeUpdate();
@@ -186,7 +186,7 @@ public class MSSQLStorage extends JDBCStorage {
                 .replace("$schemaName", schemaName())
                 .replace("$extTableName", table.getTableName())
                 .replace("$columns", columnList);
-        log.info("Creating chunk ext table: {}", sql);
+        log.log(System.Logger.Level.INFO, "Creating chunk ext table: {0}", sql);
         createTable.executeUpdate(sql);
         createTable.close();
         connection.commit();
@@ -280,7 +280,8 @@ public class MSSQLStorage extends JDBCStorage {
             String alias = ctx.config().fromTableAlias();
             String addFetchQuery = " AND " + buildConditionBlock(((MSSQLTable)ctx.t2t().sourceTable()).getClusteringKey(), false, alias);
 
-            log.info("Fetch query: {} {} {}", ctx.fetchQuery(), addFetchQuery, ctx.orderByClause());
+            log.log(System.Logger.Level.INFO, "Fetch query: {0} {1} {2}",
+                    ctx.fetchQuery(), addFetchQuery, ctx.orderByClause());
             try (Connection sourceSession = this.getPoolConnection();
                  PreparedStatement preparedStatement = sourceSession.prepareStatement(ctx.chunkLookupSql())){
                 preparedStatement.setString(1, ctx.config().fromTaskName());

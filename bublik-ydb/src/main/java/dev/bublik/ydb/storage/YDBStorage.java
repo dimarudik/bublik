@@ -22,7 +22,8 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.ydb.constants.SQLConstants.*;
 
 public class YDBStorage extends JDBCStorage {
-    private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
+//    private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
+    private static final System.Logger log = System.getLogger(YDBStorage.class.getName());
 
     public YDBStorage(StorageClass storageClass,
                       ConnectionProperty connectionProperty,
@@ -103,9 +104,9 @@ public class YDBStorage extends JDBCStorage {
             Statement createTable = connection.createStatement();
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName", getOutboxTable().tableToString()));
             createTable.close();
-            log.info("Outbox table created successfully");
+            log.log(System.Logger.Level.INFO, "Outbox table created successfully");
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
         }
         connection.close();
     }
@@ -126,34 +127,22 @@ public class YDBStorage extends JDBCStorage {
         Connection connectionFrom = (Connection) chunk.getSourceSession();
         if (fetchResultSet.next()) {
             Connection connectionTo = (Connection) chunk.getTargetSession();
-//            Table table = configToTable(chunk.getConfig().toSchemaName(), chunk.getConfig().toTableName());
-//            if (table.exists(connectionTo)) {
-//                chunk.setTargetTable(table);
                 try {
                     LogMessage logMessage = fetchAndCopy(fetchResultSet, chunk, tableName);
                     connectionTo.close();
                     return logMessage;
                 } catch (SQLException e) {
-                    log.error("ChunkId: {} {}", chunk.getId(), getStackTrace(e));
+                    log.log(System.Logger.Level.ERROR, "ChunkId: {0} {1}", chunk.getId(), getStackTrace(e));
                     connectionTo.rollback();
                     connectionTo.close();
                     throw e;
                 } catch (SourceSQLException s) {
                     connectionFrom.close();
-                    log.error("{}", getStackTrace(s));
+                    log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(s));
                     throw s;
                 } finally {
                     ;
                 }
-/*
-            } else {
-                log.error("The Target Table: {}.{} does not exist.", chunk.getConfig().toSchemaName(),
-                        chunk.getConfig().toTableName());
-                throw new TableNotExistsException("The Target Table "
-                        + chunk.getConfig().toSchemaName() + "/"
-                        + chunk.getConfig().toTableName() + " does not exist.");
-            }
-*/
         } else {
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "NO ROWS FETCH");
         }
@@ -193,7 +182,7 @@ public class YDBStorage extends JDBCStorage {
             ps.executeBatch();
             ps.close();
         } catch (SQLException e) {
-            log.error("ON BATCH EXECUTE chunkId = {} {}", chunk.getId(), getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "ON BATCH EXECUTE chunkId = {0} {1}", chunk.getId(), getStackTrace(e));
             throw e;
         }
 
@@ -202,7 +191,7 @@ public class YDBStorage extends JDBCStorage {
             insertProcessedChunkInfo(chunk);
             connectionTo.commit();
         } catch (SQLException e) {
-            log.error("ON COMMIT chunkId = {} {}", chunk.getId(), getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "ON COMMIT chunkId = {0} {1}", chunk.getId(), getStackTrace(e));
             throw e;
         }
 
@@ -295,7 +284,7 @@ public class YDBStorage extends JDBCStorage {
         try {
             return resultSet.next();
         } catch (SQLException e) {
-            log.info("ChunkId: {} {}", chunk.getId(), getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "ChunkId: {0} {1}", chunk.getId(), getStackTrace(e));
             throw e;
         }
     }
@@ -359,7 +348,7 @@ public class YDBStorage extends JDBCStorage {
             }
             resultSet.close();
         } catch (SQLException e) {
-            log.error("{}", e.getMessage());
+            log.log(System.Logger.Level.ERROR, "{0}", e.getMessage());
         }
         return columnMap;
     }
@@ -478,7 +467,7 @@ public class YDBStorage extends JDBCStorage {
             connection.commit();
             connection.close();
         } catch (SQLException e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
         }
     }
 

@@ -4,8 +4,6 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.JDBCStorageService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
@@ -20,7 +18,8 @@ import static dev.bublik.core.constants.Constants.FETCH_SIZE;
 import static dev.bublik.core.constants.Constants.POOL_SIZE;
 
 public abstract class JDBCStorage extends Storage implements JDBCStorageService {
-    private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
+//    private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
+    private static final System.Logger log = System.getLogger(JDBCStorage.class.getName());
     private final DataSource dataSource;
     private final int fetchSize;
 
@@ -78,7 +77,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                                                 Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         for (TableMigrationContext ctx : contexts) {
-            log.info("Fetch query: {} {}", ctx.fetchQuery(), ctx.orderByClause());
+//            log.info("Fetch query: {} {}", ctx.fetchQuery(), ctx.orderByClause());
+            log.log(System.Logger.Level.INFO, "Fetch query: {0} {1}", ctx.fetchQuery(), ctx.orderByClause());
             try (Connection connection = this.getPoolConnection();
                  PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())){
                 ps.setString(1, ctx.config().fromTaskName());
@@ -141,7 +141,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
         if (conn.getAutoCommit()) {
             conn.setAutoCommit(false);
-            log.debug("Auto-commit was ENABLED on external DataSource. Forcefully disabled for batch processing.");
+            log.log(System.Logger.Level.DEBUG, "Auto-commit was ENABLED on external DataSource. Forcefully disabled for batch processing.");
+//            log.debug("Auto-commit was ENABLED on external DataSource. Forcefully disabled for batch processing.");
         }
 
         return (S) conn;
@@ -176,20 +177,25 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     public void closeStorage() {
         if (dataSource instanceof HikariDataSource hikariDataSource && isManaged) {
             hikariDataSource.close();
-            log.info("HikariDataSource closed successfully.");
+            log.log(System.Logger.Level.INFO, "HikariDataSource closed successfully.");
+//            log.info("HikariDataSource closed successfully.");
         } else {
-            log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
+            log.log(System.Logger.Level.WARNING, "DataSource is not an instance of HikariDataSource, cannot close.");
+//            log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
         }
 
         if (isManaged && dataSource instanceof AutoCloseable) {
             try {
                 ((AutoCloseable) dataSource).close();
-                log.info("Bublik-managed HikariDataSource successfully closed.");
+                log.log(System.Logger.Level.INFO, "Bublik-managed HikariDataSource successfully closed.");
+//                log.info("Bublik-managed HikariDataSource successfully closed.");
             } catch (Exception e) {
-                log.error("Error closing managed HikariDataSource: {}", e.getMessage());
+                log.log(System.Logger.Level.ERROR, "Error closing managed HikariDataSource: {0}", e.getMessage());
+//                log.error("Error closing managed HikariDataSource: {}", e.getMessage());
             }
         } else {
-            log.debug("DataSource is managed by external system (e.g. Spring). Skipping closure.");
+            log.log(System.Logger.Level.DEBUG, "DataSource is managed by external system (e.g. Spring). Skipping closure.");
+//            log.debug("DataSource is managed by external system (e.g. Spring). Skipping closure.");
         }
     }
 

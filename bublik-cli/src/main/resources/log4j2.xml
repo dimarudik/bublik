@@ -34,6 +34,8 @@
         <Logger name="org.apache.hc" level="error"/>
         <Logger name="org.apache.kafka" level="error"/>
         <Logger name="com.github.dockerjava" level="error"/>
+        <Logger name="javax.management" level="error"/>
+        <Logger name="jdk.event" level="error"/>
         <Logger name="org.bublik" level="all"/>
         <Logger name="org.postgresql" level="all"/>
     </Loggers>

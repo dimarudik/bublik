@@ -8,7 +8,8 @@ import java.sql.Connection;
 import java.util.List;
 
 public class ForeignKey implements DDLService {
-    private static final Logger log = LoggerFactory.getLogger(ForeignKey.class);
+//    private static final Logger log = LoggerFactory.getLogger(ForeignKey.class);
+    private static final System.Logger log = System.getLogger(ForeignKey.class.getName());
 
     private final Table fkTable;
     private final List<Column> fkColumns;
@@ -81,12 +82,16 @@ public class ForeignKey implements DDLService {
             pkTable.getTableName(),
             String.join(", ", pkColumns.stream().map(Column::columnName).toList())
         );
-        log.info("{}", sql);
+        log.log(System.Logger.Level.INFO, "{0}", sql);
+//        log.info("{}", sql);
         try {
             connection.createStatement().execute(sql);
             connection.commit();
         } catch (Exception e) {
-            log.error("Failed to create foreign key {} on table {}.{}: {}", fkName, fkTable.getSchemaName(), fkTable.getTableName(), e.getMessage());
+            log.log(System.Logger.Level.ERROR,
+                    "Failed to create foreign key {0} on table {1}.{2}: {3}",
+                    fkName, fkTable.getSchemaName(), fkTable.getTableName(), e.getMessage());
+//            log.error("Failed to create foreign key {} on table {}.{}: {}", fkName, fkTable.getSchemaName(), fkTable.getTableName(), e.getMessage());
             throw new RuntimeException("Error creating foreign key: " + e.getMessage(), e);
         }
     }

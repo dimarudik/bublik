@@ -10,6 +10,7 @@ import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.bublik.cassandra.model.CSChunk;
 import dev.bublik.cassandra.storage.cassandraaddons.*;
 import dev.bublik.core.model.*;
 import dev.bublik.cassandra.model.CSComplexType;
@@ -36,7 +37,8 @@ import java.util.stream.Collectors;
 import static dev.bublik.cassandra.storage.cassandraaddons.MM3.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 public class CassandraStorage extends CSStorage {
-    private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
+//    private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
+    private static final System.Logger log = System.getLogger(CassandraStorage.class.getName());
 
     public CassandraStorage(StorageClass storageClass,
                             ConnectionProperty connectionProperty,
@@ -347,7 +349,7 @@ public class CassandraStorage extends CSStorage {
             batchStatementBuilder.clearStatements();
             batchStatement.clear();
         } catch (Exception e) {
-            log.error("{}", getStackTrace(e));
+            log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }

@@ -8,15 +8,12 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.metadata.Metadata;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.*;
 
 public class CSPool {
-    private static final Logger log = LoggerFactory.getLogger(CSPool.class);
     private final CqlSession cqlSession;
     private final Set<TokenRange> tokenRanges;
     private final Metadata metadata;

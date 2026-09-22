@@ -1,21 +1,12 @@
 package dev.bublik.core.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class ColumnUtil {
-    private static final Logger log = LoggerFactory.getLogger(ColumnUtil.class);
-
-
     public static byte[] convertBlobToBytes(ResultSet resultSet, int i) throws SQLException {
         Blob blob = resultSet.getBlob(i);
         return getBlobBytes(blob);
