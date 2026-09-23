@@ -10,4 +10,6 @@ public interface Source {
     void preChecks(List<Config> configs) throws SQLException;
     void createChunkTable() throws SQLException;
     void dropChunkTable(List<Config> configs) throws SQLException;
+    boolean isMigrationFullyFinished();
+
 }

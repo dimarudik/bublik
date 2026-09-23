@@ -198,7 +198,7 @@ public class OneToManyTest {
         service2.shutdown();
         service2.close();
         System.out.println("sourceCount = " + sourceCount + "\ntargetCount = " + targetCount);
-//        Thread.sleep(60_000);
+//        Thread.sleep(600_000);
         assertEquals(sourceCount, targetCount);
     }
 }

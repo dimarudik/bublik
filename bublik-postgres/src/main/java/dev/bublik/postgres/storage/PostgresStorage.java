@@ -14,8 +14,6 @@ import dev.bublik.postgres.model.PgIntervalComponents;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.PGCopyOutputStream;
 import org.postgresql.replication.LogSequenceNumber;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.io.DataOutputStream;
@@ -34,7 +32,6 @@ import static dev.bublik.postgres.constants.SQLConstants.*;
 import static dev.bublik.postgres.util.ColumnUtil.*;
 
 public class PostgresStorage extends JDBCStorage {
-//    private static final Logger log = LoggerFactory.getLogger(PostgresStorage.class);
     private static final System.Logger log = System.getLogger(PostgresStorage.class.getName());
 
     public PostgresStorage(StorageClass storageClass,
@@ -63,6 +60,31 @@ public class PostgresStorage extends JDBCStorage {
         public PostgresStorage build() {
             validate();
             return new PostgresStorage(this);
+        }
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        String sql = "SELECT pg_try_advisory_lock(?)";
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, lockId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBoolean(1);
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+        String sql = "SELECT pg_advisory_unlock(?)";
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, lockId);
+            ps.execute();
         }
     }
 
@@ -114,23 +136,6 @@ public class PostgresStorage extends JDBCStorage {
                     .columnType("int")
                     .defaultValue(config.timestamp())
                     .build();
-/*
-            timestampColumn = new Column(-1,
-                    "_timestamp",
-                    "int",
-                    null,
-                    null,
-                    config.timestamp(),
-                    null,
-                    null,
-                    0,
-                    null,
-                    0,
-                    null,
-                    false,
-                    false,
-                    false);
-*/
         }
         return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
@@ -1145,34 +1150,45 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void createGlobalOutbox() throws SQLException {
-//        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_outbox"));
         try (Connection connection = getPoolConnection();
              Statement createTable = connection.createStatement()) {
             createTable.executeUpdate(DDL_CREATE_OUTBOX_TABLE.replace("$tableName",
                     getOutboxTable().tableToString()));
             connection.commit();
             log.log(System.Logger.Level.INFO, "Outbox table {0} created successfully", getOutboxTable().tableToString());
-//            log.info("Outbox table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
             log.log(System.Logger.Level.WARNING, "Outbox table {0} already exists", getOutboxTable().tableToString());
-//            log.warn("Outbox table {} already exists", getOutboxTable().tableToString());
             throw new SQLException(e);
         }
     }
 
     @Override
+    public boolean isMigrationFullyFinished() {
+        String sql = "SELECT COUNT(*) FROM " + getOutboxTable().tableToString() +
+                " WHERE status IN ('UNASSIGNED', 'ASSIGNED')";
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) == 0;
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while checking migration status", e);
+        }
+        return false;
+    }
+
+
+    @Override
     public void createChunkTable() throws SQLException {
-//        if (getOutboxTable() == null) setOutboxTable(new DummyTable("public", "_chunk"));
         try (Connection connection = this.getPoolConnection();
              Statement createTable = connection.createStatement()) {
             createTable.executeUpdate(DDL_CREATE_CHUNK_TABLE.replace("$tableName",
                     getOutboxTable().tableToString()));
             connection.commit();
             log.log(System.Logger.Level.INFO, "Chunk table {0} created successfully", getOutboxTable().tableToString());
-//            log.info("Chunk table {} created successfully", getOutboxTable().tableToString());
         } catch (SQLException e) {
             log.log(System.Logger.Level.ERROR, "Chunk table {0} already exists", getOutboxTable().tableToString());
-//            log.error("Chunk table {} already exists", getOutboxTable().tableToString());
             throw new SQLException(e);
         }
     }

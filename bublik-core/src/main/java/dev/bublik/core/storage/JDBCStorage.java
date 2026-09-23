@@ -77,7 +77,6 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
                                                 Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
         for (TableMigrationContext ctx : contexts) {
-//            log.info("Fetch query: {} {}", ctx.fetchQuery(), ctx.orderByClause());
             log.log(System.Logger.Level.INFO, "Fetch query: {0} {1}", ctx.fetchQuery(), ctx.orderByClause());
             try (Connection connection = this.getPoolConnection();
                  PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())){
@@ -142,7 +141,6 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         if (conn.getAutoCommit()) {
             conn.setAutoCommit(false);
             log.log(System.Logger.Level.DEBUG, "Auto-commit was ENABLED on external DataSource. Forcefully disabled for batch processing.");
-//            log.debug("Auto-commit was ENABLED on external DataSource. Forcefully disabled for batch processing.");
         }
 
         return (S) conn;

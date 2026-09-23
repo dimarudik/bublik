@@ -559,4 +559,19 @@ public class MSSQLStorage extends JDBCStorage {
     public Table getDefaultTargetOutboxTable() {
         return new MSSQLTable.Builder("dbo","bublik_outbox").build();
     }
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        return true;
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        return true;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+
+    }
 }

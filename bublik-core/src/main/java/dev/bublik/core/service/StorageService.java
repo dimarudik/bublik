@@ -20,7 +20,6 @@ import java.util.ServiceLoader;
 import static dev.bublik.core.constants.CLassConstants.*;
 
 public interface StorageService {
-//    Logger log = LoggerFactory.getLogger(StorageService.class);
     System.Logger log = System.getLogger(StorageService.class.getName());
 
     void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
@@ -35,7 +34,6 @@ public interface StorageService {
     void dropOutboxTable(boolean sync) throws SQLException;
     List<Config> copyConfigs(List<Config> cfgs);
     Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException;
-//    List<Chunk<?, ?, ?, ?>> getChunkList(List<Config> configs, Storage targetStorage) throws SQLException;
     List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> migrationContexts, Storage targetStorage) throws SQLException;
     String buildStartEndOfChunk(Config config, Table sourceTable);
     <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
@@ -59,6 +57,8 @@ public interface StorageService {
     int getFetchSize();
     Table getDefaultSourceOutboxTable();
     Table getDefaultTargetOutboxTable();
+    boolean tryDistributedLock(long lockId) throws SQLException;
+    void releaseDistributedLock(long lockId) throws SQLException;
 
     static Storage getStorage(StorageClass storageClass,
                               Properties properties,

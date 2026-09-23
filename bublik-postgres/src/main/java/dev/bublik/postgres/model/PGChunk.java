@@ -4,15 +4,12 @@ import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
 public class PGChunk<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
-//    private static final Logger log = LoggerFactory.getLogger(PGChunk.class);
     private static final System.Logger log = System.getLogger(PGChunk.class.getName());
 
     @Override

@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
 public class PGTable extends Table {
-//    private static final Logger log = LoggerFactory.getLogger(PGTable.class);
     private static final System.Logger log = System.getLogger(PGTable.class.getName());
 
     public PGTable(String schemaName, String tableName) {

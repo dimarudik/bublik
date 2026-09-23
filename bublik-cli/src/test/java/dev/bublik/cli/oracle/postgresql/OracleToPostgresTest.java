@@ -54,6 +54,7 @@ public class OracleToPostgresTest {
 
     @Test
     void pgBinaryWriter() throws Exception {
+//        Thread.sleep(600_000);
         Properties targetProp = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",

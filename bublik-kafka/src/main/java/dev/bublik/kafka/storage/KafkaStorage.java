@@ -525,4 +525,19 @@ public class KafkaStorage extends Storage {
     public <K, T, S extends AutoCloseable, R> void flushBuffer(Chunk<K, T, S, R> chunk) {
 
     }
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        return true;
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        return true;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+
+    }
 }

@@ -13,17 +13,13 @@ import oracle.sql.INTERVALYM;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
 public class OracleStorage extends JDBCStorage {
-//    private static final Logger log = LoggerFactory.getLogger(OracleStorage.class);
     private static final System.Logger log = System.getLogger(OracleStorage.class.getName());
 
     public OracleStorage(StorageClass storageClass,
@@ -52,6 +48,21 @@ public class OracleStorage extends JDBCStorage {
             validate();
             return new OracleStorage(this);
         }
+    }
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        return true;
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        return true;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+
     }
 
     @Override
@@ -182,6 +193,27 @@ public class OracleStorage extends JDBCStorage {
         }
         connection.close();
     }
+
+/*
+    @Override
+    public boolean isMigrationFullyFinished() {
+        String sql = "SELECT COUNT(*) FROM user_parallel_execute_chunks " +
+                "WHERE status IN ('UNASSIGNED', 'ASSIGNED')";
+
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) == 0;
+                }
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while checking migration status", e);
+        }
+        return false;
+    }
+*/
 
     @Override
     public void createGlobalOutbox() throws SQLException {
@@ -438,19 +470,6 @@ public class OracleStorage extends JDBCStorage {
                 "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
                 (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
                 + " and rownum <= 200 ";
-/*
-        if (config.fromPartitionName() == null && config.fromSubpartitionName() == null) {
-            return "select chunk_id, start_rowid, end_rowid, start_id, end_id, task_name, status " +
-                    "from user_parallel_execute_chunks where status <> 'PROCESSED' and task_name = ? " +
-                    (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
-                    + " and rownum <= 200 ";
-        } else {
-            return "select chunk_id, uuid, start_rowid, end_rowid, task_name, status " +
-                    "from bublik where status <> 'PROCESSED' and task_name = ? " +
-                    (config.fromTaskWhereClause() == null ? " " : " and " + config.fromTaskWhereClause())
-                    + " and rownum <= 200 ";
-        }
-*/
     }
 
     @Override

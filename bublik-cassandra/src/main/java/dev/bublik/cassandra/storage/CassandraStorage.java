@@ -10,16 +10,13 @@ import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.bublik.cassandra.model.CSChunk;
-import dev.bublik.cassandra.storage.cassandraaddons.*;
-import dev.bublik.core.model.*;
 import dev.bublik.cassandra.model.CSComplexType;
 import dev.bublik.cassandra.model.CSTable;
+import dev.bublik.cassandra.storage.cassandraaddons.*;
+import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.core.storage.StorageClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -36,8 +33,8 @@ import java.util.stream.Collectors;
 
 import static dev.bublik.cassandra.storage.cassandraaddons.MM3.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
+
 public class CassandraStorage extends CSStorage {
-//    private static final Logger log = LoggerFactory.getLogger(CassandraStorage.class);
     private static final System.Logger log = System.getLogger(CassandraStorage.class.getName());
 
     public CassandraStorage(StorageClass storageClass,
@@ -85,7 +82,7 @@ public class CassandraStorage extends CSStorage {
     public int getFetchSize() {
         return 0;
     }
-    
+
     public <K, T, S extends AutoCloseable, R, V> LogMessage unRanged(Chunk<K, T, S, R> chunk,
                                                                      String tableName) throws SQLException {
         long start = System.currentTimeMillis();

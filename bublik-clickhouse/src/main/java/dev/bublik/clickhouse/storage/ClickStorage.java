@@ -220,4 +220,19 @@ abstract class ClickStorage extends Storage implements Source {
     public void preChecks(List<Config> configs) throws SQLException {
 
     }
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        return true;
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        return true;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+
+    }
 }

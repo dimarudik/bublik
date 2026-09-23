@@ -6,6 +6,7 @@ import dev.bublik.core.service.Source;
 import dev.bublik.core.service.StorageService;
 import dev.bublik.core.service.Target;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Wrapper;
 import java.util.ArrayList;
@@ -108,44 +109,45 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         if (getOutboxTable() == null || getOutboxTable().getTableName() == null) {
             setOutboxTable(getDefaultSourceOutboxTable());
             log.log(System.Logger.Level.INFO, "Chunk table is not set. Using default name: {0}", getOutboxTable().tableToString());
-//            log.info("Chunk table is not set. Using default name: {}", getOutboxTable().tableToString());
         }
         if (targetStorage.getOutboxTable() == null || targetStorage.getOutboxTable().getTableName() == null) {
             targetStorage.setOutboxTable(targetStorage.getDefaultTargetOutboxTable());
             log.log(System.Logger.Level.INFO, "Outbox table is not set. Using default name: {0}", targetStorage.getOutboxTable().tableToString());
-//            log.info("Outbox table is not set. Using default name: {}", targetStorage.getOutboxTable().tableToString());
         }
         if (rows > 0) {
-            preChecks(configs);
-            createChunkTable();
-            fulfillChunks(configs, false, rows);
-            if (targetStorage instanceof JDBCStorage) {
-                targetStorage.createGlobalOutbox();
+            long lockId = Math.abs((long) (configs.getFirst().fromTaskName() + getOutboxTable().getTableName()).hashCode());
+            if (tryDistributedLock(lockId)) {
+                try {
+                    log.log(System.Logger.Level.INFO,
+                            "Winner is {0}. Starting initialization...", getPodName());
+                    preChecks(configs);
+                    createChunkTable();
+                    fulfillChunks(configs, false, rows);
+                    if (targetStorage instanceof JDBCStorage) {
+                        targetStorage.createGlobalOutbox();
+                    }
+                } finally {
+                    releaseDistributedLock(lockId);
+                }
+            } else {
+                waitForTablesToExist(targetStorage);
             }
         }
         log.log(System.Logger.Level.INFO, "SOURCE version: {0}", getStorageVersion());
         log.log(System.Logger.Level.INFO, "TARGET version: {0}", targetStorage.getStorageVersion());
-//        log.info("SOURCE version: {}", getStorageVersion());
-//        log.info("TARGET version: {}", targetStorage.getStorageVersion());
-
         int errorCounter = 0;
         log.log(System.Logger.Level.INFO, "THREADS: {0}", threadCount);
         log.log(System.Logger.Level.INFO, "FETCH_SIZE: {0}", getFetchSize());
-//        log.info("THREADS: {}", threadCount);
-//        log.info("FETCH_SIZE: {}", getFetchSize());
 
         Throwable lastSubmittedException = null;
         List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
         do {
             List<Chunk<?, ?, ?, ?>> chunks = getChunkList(migrationContexts, targetStorage);
-
             if (chunks.isEmpty()) {
                 log.log(System.Logger.Level.INFO, "All chunks are processed");
-//                log.info("All chunks are processed");
                 break;
             }
-
             ExecutorService batchService = Executors.newFixedThreadPool(threadCount);
             List<Callable<Chunk<?, ?, ?, ?>>> tasks = new ArrayList<>();
 
@@ -157,42 +159,33 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                         log.log(System.Logger.Level.ERROR, "ChunkId = {0} {1}.{2} failed", chunk.getId(),
                                 chunk.getT2t().sourceTable().getSchemaName(),
                                 chunk.getT2t().sourceTable().getTableName(), e);
-//                        log.error("ChunkId = {} {}.{} failed", chunk.getId(),
-//                                chunk.getT2t().sourceTable().getSchemaName(),
-//                                chunk.getT2t().sourceTable().getTableName(), e);
-
                         try {
                             chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null,
                                     getStackTrace(e), getOutboxTable().tableToString());
                         } catch (SQLException ex) {
                             log.log(System.Logger.Level.ERROR,
                                     "Error while saving error info for chunk {0}", chunk.getId(), ex);
-//                            log.error("Error while saving error info for chunk {}", chunk.getId(), ex);
                         }
                         if (this instanceof JDBCStorage) {
                             try {
                                 (chunk.getSourceSession()).close();
                                 log.log(System.Logger.Level.WARNING, "Source session has been closed due to error");
-//                                log.warn("Source session has been closed due to error");
                             } catch (SQLException ex) {
                                 log.log(System.Logger.Level.ERROR,
                                         "Error while closing source session. ChunkId = {0} {1}.{2} {3}",
                                         chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(),
                                         chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
-//                                log.error("Error while closing source session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
                             }
                         }
                         if (targetStorage instanceof JDBCStorage) {
                             try {
                                 (chunk.getTargetSession()).close();
                                 log.log(System.Logger.Level.WARNING, "Target session has been closed due to error");
-//                                log.warn("Target session has been closed due to error");
                             } catch (SQLException ex) {
                                 log.log(System.Logger.Level.ERROR,
                                         "Error while closing target session. ChunkId = {0} {1}.{2} {3}",
                                         chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(),
                                         chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
-//                                log.error("Error while closing target session. ChunkId = {} {}.{} {}", chunk.getId(), chunk.getT2t().sourceTable().getSchemaName(), chunk.getT2t().sourceTable().getTableName(), getStackTrace(ex));
                             }
                         }
                         throw new RuntimeException("ChunkId = " + chunk.getId() + " " + e.getMessage(), e);
@@ -215,7 +208,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 }
             } catch (InterruptedException e) {
                 log.log(System.Logger.Level.ERROR, "Migration thread was interrupted", e);
-//                log.error("Migration thread was interrupted", e);
                 batchService.shutdownNow();
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
@@ -232,32 +224,74 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             }
 
             if (hasBatchErrors) {
-                if (errorCounter <= (threadCount * 2)) {
-                    log.log(System.Logger.Level.WARNING, "Batch execution had errors. Error count: {0}. Continue...", errorCounter);
-//                    log.warn("Batch execution had errors. Error count: {}. Continue...", errorCounter);
-                    continue;
-                } else {
+                if (errorCounter > (threadCount * 2)) {
                     log.log(System.Logger.Level.ERROR,
                             "Critical error threshold reached ({0}/{1}). Finishing pipeline...",
                             errorCounter, threadCount * 2);
-//                    log.error("Critical error threshold reached ({}/{}). Finishing pipeline...", errorCounter, threadCount * 2);
                     throw new RuntimeException("Unrecoverable error in migration pipeline", lastSubmittedException);
+                } else {
+                    log.log(System.Logger.Level.WARNING,
+                            "Batch execution had errors. Total accumulated errors: {0}. Proceeding to next batch...", errorCounter);
                 }
+            } else {
+                errorCounter = 0;
             }
-
-            errorCounter = 0;
-
             tasks.clear();
             chunks.clear();
-
             printMemInfo();
         } while (true);
 
-        dropChunkTable(configs);
-        if (targetStorage instanceof JDBCStorage) {
-            targetStorage.dropOutboxTable(false);
+        long cleanupLockId = Math.abs((long) (configs.getFirst().fromTaskName() + getOutboxTable().getTableName()).hashCode() + 999);
+        if (tryDistributedLock(cleanupLockId)) {
+            try {
+                if (isMigrationFullyFinished()) {
+                    log.log(System.Logger.Level.INFO,
+                            "Pod {0} confirmed cluster completion. Dropping metadata tables...", getPodName());
+                    dropChunkTable(configs);
+                    if (targetStorage instanceof JDBCStorage) {
+                        targetStorage.dropOutboxTable(false);
+                    }
+                    log.log(System.Logger.Level.INFO, "Infrastructure cleanup finished successfully.");
+                } else {
+                    log.log(System.Logger.Level.WARNING,
+                            "Other pods are still processing chunks. Pod %s skips table deletion.", getPodName());
+                }
+            } finally {
+                releaseDistributedLock(cleanupLockId);
+            }
         }
     }
+
+    private String getPodName() {
+        String podName = System.getenv("HOSTNAME");
+        return podName != null ? podName : "standalone-pod";
+    }
+
+    private void waitForTablesToExist(Storage targetStorage) throws SQLException {
+        int attempts = 0;
+        while (attempts < 300) {
+            try {
+                try (Connection sourceConnection = getPoolConnection();
+                     Connection targetConnection = targetStorage.getPoolConnection()) {
+
+                    if (getOutboxTable().exists(sourceConnection) && targetStorage.getOutboxTable().exists(targetConnection)) {
+                        log.log(System.Logger.Level.INFO, "Infrastructure is verified and ready. Proceeding to migration.");
+                        return;
+                    }
+                }
+            } catch (Exception e) {}
+
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Infrastructure readiness polling interrupted", e);
+            }
+            attempts++;
+        }
+        throw new RuntimeException("Timeout exceeded for table creation by the Cluster Leader (10 min)!");
+    }
+
 
     private List<TableMigrationContext> getTableMigrationContexts(List<Config> configs, Storage targetStorage) throws SQLException {
         List<TableMigrationContext> migrationContexts = new ArrayList<>();

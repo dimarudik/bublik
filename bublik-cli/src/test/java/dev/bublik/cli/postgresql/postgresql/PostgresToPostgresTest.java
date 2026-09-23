@@ -65,6 +65,8 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
 
@@ -85,6 +87,8 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result2.sourceCount());
+        System.out.println("target count: " + (result2.targetCount() - result.targetCount()));
         assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
     }
 
@@ -97,6 +101,8 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
 
         long sCnt, sId, sInt2, sInt4, sInt8, sSmallint, sBigint;
@@ -168,6 +174,8 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
 
@@ -193,11 +201,13 @@ public class PostgresToPostgresTest {
                         chunkTable,
                         outboxTable));
         assertTrue(ex.getMessage().contains("relation \"" + chunkTable.getTableName() + "\" already exists"));
+        System.out.println(ex.getMessage());
 
         try (Connection connection = DriverManager.getConnection(sourceProperties.getProperty("url"), sourceProperties);
              Statement statement = connection.createStatement()) {
             statement.executeUpdate(
                     "drop table " + chunkTable.getSchemaName() + "." + chunkTable.getTableName());
+            System.out.println("Table " + chunkTable.getTableName() + " dropped");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -213,6 +223,7 @@ public class PostgresToPostgresTest {
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
                         StorageService.init(property, configs, rows, chunkTable, outboxTable));
         assertTrue(ex.getMessage().contains("Partitioned tables are not supported"));
+        System.out.println(ex.getMessage());
     }
 
     @Test
@@ -240,8 +251,8 @@ public class PostgresToPostgresTest {
                     getJdbcProperties(source),
                     getJdbcProperties(target));
         } catch (Exception e) {
-//            System.out.println("Ошибка: " + getStackTrace(e));
             assertTrue(getStackTrace(e).contains("violates not-null constraint"));
+            System.out.println(e.getMessage());
         }
         String jdbcUrl = source.getJdbcUrl();
         String username = source.getUsername();
@@ -260,6 +271,8 @@ public class PostgresToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+        System.out.println("source count: " + result2.sourceCount());
+        System.out.println("target count: " + result2.targetCount());
         assertEquals(result2.sourceCount(), result2.targetCount());
     }
 

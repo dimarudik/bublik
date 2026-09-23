@@ -519,4 +519,19 @@ public class YDBStorage extends JDBCStorage {
     public void enrichTable(Table targetTable) throws SQLException {
         targetTable.enrichTable(getSession());
     }
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        return true;
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        return true;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+
+    }
 }

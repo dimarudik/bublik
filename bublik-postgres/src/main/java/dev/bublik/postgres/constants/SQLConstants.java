@@ -55,13 +55,6 @@ public abstract class SQLConstants {
                     "values (?, ?, ?)";
     public static final String DML_SELECT_OUTBOX_TABLE =
             "select chunk_id, task_name, copied from $tableName where chunk_id = ?";
-
-/*
-    public static final String DML_INSERT_OUTBOX_TABLE =
-            "insert into bublik_outbox (chunk_id, start_page, end_page, rows, task_name, schema_name, table_name, uuid) " +
-                    "values (?, ?, ?, ?, ?, ?, ?, ?)";
-*/
-
     public static final String SQL_PG_INDEX_BASIC_COLUMNS =
             "select ix.indexrelid as id, i.relname, ix.indisunique as uniq, ix.indisprimary as pri, " +
                     "case ix.indoption[array_position(ix.indkey, a.attnum)] " +

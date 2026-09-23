@@ -1,4 +1,5 @@
-alter session set container = freepdb1;
-create user test identified by test;
-alter user test quota unlimited on users;
-grant connect, resource to test;
+-- alter session set container = freepdb1;
+-- create user test identified by test;
+-- alter user test quota unlimited on users;
+-- grant connect, resource to test;
+-- GRANT EXECUTE ON SYS.DBMS_LOCK TO test;
