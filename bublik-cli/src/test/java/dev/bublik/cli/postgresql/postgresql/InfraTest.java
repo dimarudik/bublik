@@ -6,8 +6,10 @@ import dev.bublik.core.model.ConnectionProperty;
 import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
+import dev.bublik.postgres.model.PGTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -15,7 +17,17 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
+import static dev.bublik.cli.TestUtils.*;
+import static dev.bublik.cli.TestUtils.chunkTable2;
+import static dev.bublik.cli.TestUtils.getJdbcProperties;
+import static dev.bublik.cli.TestUtils.getResult;
+import static dev.bublik.cli.TestUtils.outboxTable;
+import static dev.bublik.cli.TestUtils.outboxTable2;
+import static dev.bublik.core.util.Utils.getStackTrace;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class InfraTest {
@@ -25,17 +37,6 @@ public class InfraTest {
     private static final JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("postgresql/postgresql/sql/infraTarget.sql");
-
-    private final ConnectionProperty connectionProperty = getConnectionProperty();
-    private final Table chunkTable = new DummyTable("public", "chunk");
-    private final Table outboxTable = new DummyTable("public", "outbox");
-
-    List<Config> configs = new ArrayList<>(Collections.singleton(
-            Config.builder()
-                    .from("public", "s")
-                    .to("public", "t")
-                    .build()
-    ));
 
     @BeforeAll
     static void setUp() throws SQLException {
@@ -67,12 +68,96 @@ public class InfraTest {
     }
 */
 
+    @Disabled
+    @Test
+    void k8s() throws Exception {
+        ConnectionProperty connectionProperty = getConnectionProperty(2);
+        Table chkTable = new PGTable.Builder("public", "chunk_k8s").build();
+        Table outxTable = new PGTable.Builder("public", "outbox_k8s").build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(
+                Config.builder()
+                        .from("public", "s")
+                        .to("public", "k8s")
+                        .build()
+        ));
+        ExecutorService service = Executors.newFixedThreadPool(4);
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (int i = 0; i < 4; i++) {
+            futures.add(service.submit(() -> {
+                try {
+                    StorageService.init(connectionProperty, configs, 20_000, chkTable, outxTable);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                return true;
+            }));
+        }
+        for (Future<Boolean> future : futures) {
+            try {
+                boolean b = future.get();
+                System.out.println("[TEST] Bublik finished its execution cycle.");
+            } catch (Exception e) {
+                assertTrue(getStackTrace(e).contains("violates not-null constraint"));
+            }
+        }
+
+        int sourceCount = countRows(source, "select count(*) from public.s");
+        int targetCount = countRows(target, "select count(*) from public.k8s");
+        TestResult result = new TestResult(sourceCount, targetCount);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+
+        amendNotNull(source, "update public.s set name = 'name' where id1 = 100000 and id2 = -100000");
+        amendNotNull(source, "update public.s set name = 'name' where id1 = 200000 and id2 = -200000");
+        amendNotNull(source, "update public.s set name = 'name' where id1 = 300000 and id2 = -300000");
+        amendNotNull(source, "update public.s set name = 'name' where id1 = 400000 and id2 = -400000");
+
+        for (int i = 0; i < 2; i++) {
+            futures.add(service.submit(() -> {
+                try {
+                    StorageService.init(connectionProperty, configs, 0, chkTable, outxTable);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                return true;
+            }));
+        }
+        for (Future<Boolean> future : futures) {
+            try {
+                boolean b = future.get();
+                System.out.println("[TEST] Bublik finished its execution cycle.");
+            } catch (Exception e) {
+                assertTrue(getStackTrace(e).contains("violates not-null constraint"));
+            }
+        }
+
+        service.shutdown();
+        service.close();
+
+        sourceCount = countRows(source, "select count(*) from public.s");
+        targetCount = countRows(target, "select count(*) from public.k8s");
+        result = new TestResult(sourceCount, targetCount);
+        System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
+//        Thread.sleep(900_000);
+        assertEquals(result.sourceCount(), result.targetCount(),
+                "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
+    }
+
     @Test
     void infraFailure() throws Exception {
+        Table chkTable = new PGTable.Builder("public", "chunk").build();
+        Table outxTable = new PGTable.Builder("public", "outbox").build();
+        ConnectionProperty connectionProperty = getConnectionProperty(3);
+        List<Config> configs = new ArrayList<>(Collections.singleton(
+                Config.builder()
+                        .from("public", "s")
+                        .to("public", "t")
+                        .build()
+        ));
 
         CompletableFuture<Boolean> migrationTask = CompletableFuture.supplyAsync(() -> {
             try {
-                StorageService.init(connectionProperty, configs, 30_000, chunkTable, outboxTable);
+                StorageService.init(connectionProperty, configs, 30_000, chkTable, outxTable);
             } catch (Exception e) {
                 throw new RuntimeException("Bublik migration thread failed unexpectedly", e);
             }
@@ -94,7 +179,7 @@ public class InfraTest {
             int targetCount = countRows(target, "select count(*) from public.t");
             TestResult result = new TestResult(sourceCount, targetCount);
             System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-
+//            Thread.sleep(900_000);
             assertEquals(result.sourceCount(), result.targetCount(),
                     "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
         } catch (java.util.concurrent.TimeoutException e) {
@@ -104,7 +189,7 @@ public class InfraTest {
 
     }
 
-    private ConnectionProperty getConnectionProperty() {
+    private ConnectionProperty getConnectionProperty(int threads) {
         Map<String, String> fromProps = new HashMap<>();
         fromProps.put("url", source.getJdbcUrl());
         fromProps.put("user", source.getUsername());
@@ -117,7 +202,7 @@ public class InfraTest {
         toProps.put("password", target.getPassword());
 
         return new ConnectionProperty(
-                3,
+                threads,
                 fromProps,
                 toProps,
                 new HashMap<>(),
@@ -156,6 +241,19 @@ public class InfraTest {
              ResultSet rs = st.executeQuery(sql)) {
             rs.next();
             return rs.getInt(1);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void amendNotNull(JdbcDatabaseContainer<?> container, String sql) {
+        String jdbcUrl = container.getJdbcUrl();
+        String username = container.getUsername();
+        String password = container.getPassword();
+
+        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
+             Statement st = connection.createStatement()) {
+            st.execute(sql);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

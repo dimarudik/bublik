@@ -12,16 +12,6 @@ import static dev.bublik.postgres.constants.SQLConstants.*;
 public class PGChunk<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final System.Logger log = System.getLogger(PGChunk.class.getName());
 
-    @Override
-    public boolean isValidSourceSession() throws SQLException {
-        return getSourceSession() != null && getSourceSession().isValid(1);
-    }
-
-    @Override
-    public boolean isValidTargetSession() throws SQLException {
-        return getTargetSession() != null && getTargetSession().isValid(1);
-    }
-
     public PGChunk(K id, T start, T end, Config config, Table2Table t2t,
                    ChunkStatus status, String fetchQuery, Storage sourceStorage,
                    Storage targetStorage, String orderByClause) {
@@ -32,7 +22,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
     public PGChunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                          String errMsg, String chunkTableName) throws SQLException {
         Connection connection = getSourceSession();
-        if (newStatus != null && connection.isValid(1)) {
+        if (newStatus != null) {
             PreparedStatement updateStatus;
             if (errMsg == null) {
                 switch (newStatus) {
@@ -119,7 +109,6 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
                 getTargetSession().close();
             } catch (Exception e) {
                 log.log(System.Logger.Level.ERROR, "Target session was already closed or cannot be closed", e);
-//                log.debug("Target session was already closed or cannot be closed", e);
             }
         }
         return this;

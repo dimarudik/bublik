@@ -11,9 +11,11 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -41,6 +43,8 @@ public class ClickHouseMigrationTest {
 
     @BeforeAll
     static void beforeAll() throws Exception {
+        MountableFile mf1 = MountableFile.forClasspathResource("./00.sql");
+        oracle.addFileSystemBind(mf1.getResolvedPath(), "/container-entrypoint-initdb.d/00.sql", BindMode.READ_ONLY);
         oracle.start();
         clickhouse.start();
 

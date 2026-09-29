@@ -10,7 +10,6 @@ import java.time.Instant;
 
 
 public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkService {
-//    private static final Logger log = LoggerFactory.getLogger(Chunk.class);
     private static final System.Logger log = System.getLogger(Chunk.class.getName());
 
     private final K id;
@@ -186,10 +185,6 @@ public abstract class Chunk<K, T, S extends AutoCloseable, R> implements ChunkSe
                 getLogMessage().operation(),
                 this,
                 Math.round((float) (getLogMessage().stop() - getLogMessage().start()) / 10) / 100.0);
-//        log.info("{} {}\t {} sec",
-//                getLogMessage().operation(),
-//                this,
-//                Math.round((float) (getLogMessage().stop() - getLogMessage().start()) / 10) / 100.0);
     }
 
     @Override

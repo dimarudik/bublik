@@ -254,7 +254,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     log.log(System.Logger.Level.INFO, "Infrastructure cleanup finished successfully.");
                 } else {
                     log.log(System.Logger.Level.WARNING,
-                            "Other pods are still processing chunks. Pod %s skips table deletion.", getPodName());
+                            "Other pods are still processing chunks. Pod {0} skips table deletion.", getPodName());
+//                    log.log(System.Logger.Level.WARNING,
+//                            "If you want to force cleanup, please set to NULL the column start_ts by {0}", )
                 }
             } finally {
                 releaseDistributedLock(cleanupLockId);
@@ -269,12 +271,14 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
     private void waitForTablesToExist(Storage targetStorage) throws SQLException {
         int attempts = 0;
-        while (attempts < 300) {
+        while (attempts < 120) {
             try {
                 try (Connection sourceConnection = getPoolConnection();
                      Connection targetConnection = targetStorage.getPoolConnection()) {
 
-                    if (getOutboxTable().exists(sourceConnection) && targetStorage.getOutboxTable().exists(targetConnection)) {
+                    boolean chunkTableExists = getOutboxTable().exists(sourceConnection);
+                    boolean outboxTableExists = targetStorage.getOutboxTable().exists(targetConnection);
+                    if (outboxTableExists && chunkTableExists) {
                         log.log(System.Logger.Level.INFO, "Infrastructure is verified and ready. Proceeding to migration.");
                         return;
                     }
@@ -282,14 +286,14 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             } catch (Exception e) {}
 
             try {
-                Thread.sleep(2000);
+                Thread.sleep(500);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Infrastructure readiness polling interrupted", e);
             }
             attempts++;
         }
-        throw new RuntimeException("Timeout exceeded for table creation by the Cluster Leader (10 min)!");
+        throw new RuntimeException("Timeout exceeded for table creation by the Cluster Leader (1 min)!");
     }
 
 
@@ -309,7 +313,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             log.log(System.Logger.Level.DEBUG,
                     "Query of chunks for table {0}.{1}: {2}",
                     t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), chunkLookupSql);
-//            log.debug("Query of chunks for table {}.{}: {}", t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), chunkLookupSql);
             String fetchQuery = buildFetchStatement(config, t2t);
             String orderByClause = targetTable.buildOrderBy(config);
 
@@ -331,12 +334,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         log.log(System.Logger.Level.INFO, "Used Heap Memory:       {0} MB", usedMemory / byteToMb);
         log.log(System.Logger.Level.INFO, "Free Heap Memory:       {0} MB", (maxMemory - usedMemory) / byteToMb);
         log.log(System.Logger.Level.INFO, "==========================================================");
-//        log.info("=================== MEMORY INFO =========================");
-//        log.info("Max Heap Size (-Xmx):   {} MB", maxMemory == Long.MAX_VALUE ? "Unlimited" : maxMemory / byteToMb);
-//        log.info("Allocated Heap Size:    {} MB", totalMemory / byteToMb);
-//        log.info("Used Heap Memory:       {} MB", usedMemory / byteToMb);
-//        log.info("Free Heap Memory:       {} MB", (maxMemory - usedMemory) / byteToMb);
-//        log.info("==========================================================");
     }
 
     public Column columnFromAvro(Map<String, Object> avroSchema, String avroFieldName, int position) {

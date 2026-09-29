@@ -6,6 +6,8 @@ import dev.bublik.core.model.Table;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.postgresql.PGConnection;
+import org.postgresql.largeobject.LargeObjectManager;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -63,10 +65,11 @@ public class PgBinaryWriterTest {
                 sync,
                 getJdbcProperties(source),
                 targetProp);
-//        Thread.sleep(90_000);
+//        Thread.sleep(900_000);
         assertEquals(result.sourceCount(), result.targetCount());
 
         try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
+            connection.setAutoCommit(false);
             Statement statement = connection.createStatement();
             ResultSet rs = statement.executeQuery("select * from test.b where id = 1");
             assertTrue(rs.next());
@@ -148,6 +151,18 @@ public class PgBinaryWriterTest {
             assertNotNull(xmlDocStr);
             assertEquals("<root><element id=\"1\">Текст внутри XML</element></root>", xmlDocStr.trim());
             assertEquals(0.001, rs.getDouble("nn"));
+
+            long loid = rs.getLong("lo_data");
+            assertTrue(loid > 0, "Идентификатор Large Object (OID) должен быть больше 0");
+            PGConnection pgConn = connection.unwrap(org.postgresql.PGConnection.class);
+            LargeObjectManager lobjManager = pgConn.getLargeObjectAPI();
+            try (org.postgresql.largeobject.LargeObject lobj = lobjManager.open(loid, org.postgresql.largeobject.LargeObjectManager.READ)) {
+                byte[] loBytes = new byte[lobj.size()];
+                lobj.read(loBytes, 0, loBytes.length);
+                String actualLoText = new String(loBytes, java.nio.charset.StandardCharsets.UTF_8);
+                assertEquals("LargeObjectTest", actualLoText, "Содержимое Large Object не совпадает с ожидаемым!");
+            }
+
             rs.close();
 
             ResultSet rsNull = statement.executeQuery("select * from test.b where id = 2");

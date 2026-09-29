@@ -13,11 +13,14 @@ import dev.bublik.postgres.model.PGTable;
 import dev.bublik.postgres.model.PgIntervalComponents;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.PGCopyOutputStream;
+import org.postgresql.largeobject.LargeObject;
+import org.postgresql.largeobject.LargeObjectManager;
 import org.postgresql.replication.LogSequenceNumber;
 
 import javax.sql.DataSource;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.*;
@@ -38,7 +41,6 @@ public class PostgresStorage extends JDBCStorage {
                            ConnectionProperty connectionProperty,
                            Table outboxTable) throws SQLException {
         super(storageClass, connectionProperty, outboxTable);
-//        if (outboxTable == null) setOutboxTable(new DummyTable("public", "bublik_outbox"));
     }
 
     private PostgresStorage(Builder builder) {
@@ -63,6 +65,17 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
+    @Override
+    public Table getDefaultSourceOutboxTable() {
+        return new PGTable.Builder("public", "bublik_chunk").build();
+    }
+
+    @Override
+    public Table getDefaultTargetOutboxTable() {
+        return new PGTable.Builder("public", "bublik_outbox").build();
+    }
+
+/*
     @Override
     public boolean tryDistributedLock(long lockId) throws SQLException {
         String sql = "SELECT pg_try_advisory_lock(?)";
@@ -89,13 +102,101 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
-    public Table getDefaultSourceOutboxTable() {
-        return new PGTable.Builder("public", "bublik_chunk").build();
+    public boolean isMigrationFullyFinished() {
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(SQL_IS_MIGRATION_FULLY_FINISHED
+                     .replace("$tableName", getOutboxTable().tableToString()));
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) == 0;
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while checking migration status", e);
+        }
+        return false;
     }
 
     @Override
-    public Table getDefaultTargetOutboxTable() {
-        return new PGTable.Builder("public", "bublik_outbox").build();
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
+                                                Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
+
+        try (Connection connection = this.getPoolConnection()) {
+
+            for (TableMigrationContext ctx : contexts) {
+                log.log(System.Logger.Level.INFO, "Fetch query (Postgres Queue): {0} {1}", ctx.fetchQuery(), ctx.orderByClause());
+
+                List<Integer> capturedIds = new ArrayList<>();
+
+                try (PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())) {
+                    ps.setString(1, ctx.config().fromTaskName());
+
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Chunk<?, ?, ?, ?> chunk = getChunk(rs, ctx, targetStorage);
+                            chunks.add(chunk);
+                            capturedIds.add((Integer) chunk.getId());
+                        }
+                    }
+                }
+
+                if (!capturedIds.isEmpty()) {
+                    String updateSql = "UPDATE " + getOutboxTable().tableToString() +
+                            " SET status = 'ASSIGNED', err_msg = NULL " +
+                            " WHERE chunk_id = ?";
+
+                    try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
+                        for (Integer id : capturedIds) {
+                            psUpdate.setInt(1, id);
+                            psUpdate.addBatch();
+                        }
+                        psUpdate.executeBatch();
+                    }
+                }
+            }
+
+            connection.commit();
+
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error during distributed Postgres chunk capturing", e);
+            throw e;
+        }
+
+        return chunks;
+    }
+
+    @Override
+    public String buildStartEndOfChunk(Config config, Table sourceTable) {
+        return "SELECT chunk_id, uuid, start_page, end_page, task_name, status FROM " +
+                getOutboxTable().tableToString() + " WHERE " +
+                "task_name = ? " +
+                " AND status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
+                " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
+    }
+*/
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        return true;
+    }
+
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        return true;
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+
+    }
+
+    @Override
+    public String buildStartEndOfChunk(Config config, Table sourceTable) {
+        return "select chunk_id, uuid, start_page, end_page, task_name, status from " +
+                getOutboxTable().tableToString() + " where " +
+                "task_name = ? " +
+                " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
+                + " limit 200 ";
     }
 
     @Override
@@ -307,15 +408,6 @@ public class PostgresStorage extends JDBCStorage {
         return column2Column;
     }
 
-    @Override
-    public String buildStartEndOfChunk(Config config, Table sourceTable) {
-        return "select chunk_id, uuid, start_page, end_page, task_name, status from " +
-                getOutboxTable().tableToString() + " where " +
-                "task_name = ? " +
-//                "schema_name = ? and table_name = ? and task_name = ? " +
-                " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
-                + " limit 200 ";
-    }
 
     @Override
     public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName)
@@ -585,7 +677,7 @@ public class PostgresStorage extends JDBCStorage {
                     break;
                 }
 
-                case "int", "serial", "int4", "oid": {
+                case "int", "serial", "int4": {
                     if (value instanceof Number number) {
                         writer.writeInt(number.intValue());
                     } else {
@@ -593,6 +685,24 @@ public class PostgresStorage extends JDBCStorage {
                     }
                     break;
                 }
+
+                case "oid": {
+                    int loid;
+
+                    if (value instanceof java.sql.Blob blob) {
+                        try (InputStream is = blob.getBinaryStream()) {
+                            loid = createPostgresLargeObject((Connection) chunk.getTargetSession(), is); // Метод, который мы обсудили ранее
+                        }
+                    } else if (value instanceof Number number) {
+                        loid = number.intValue();
+                    } else {
+                        throw new SQLException("Cannot convert " + value.getClass().getName() + " to OID");
+                    }
+
+                    writer.writeInt(loid);
+                    break;
+                }
+
 
                 case "smallserial", "int2": {
                     if (value instanceof Number number) {
@@ -925,6 +1035,24 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
+    private int createPostgresLargeObject(Connection pgConnection, InputStream sourceStream) throws SQLException, IOException {
+        org.postgresql.PGConnection pgConn = pgConnection.unwrap(org.postgresql.PGConnection.class);
+        LargeObjectManager lobjManager = pgConn.getLargeObjectAPI();
+
+        long loidLong = lobjManager.createLO(LargeObjectManager.WRITE);
+        int loid = (int) loidLong;
+
+        try (LargeObject lobj = lobjManager.open(loidLong, LargeObjectManager.WRITE)) {
+            byte[] buffer = new byte[64 * 1024];
+            int bytesRead;
+            while ((bytesRead = sourceStream.read(buffer)) != -1) {
+                lobj.write(buffer, 0, bytesRead);
+            }
+        }
+
+        return loid;
+    }
+
     @Override
     public String buildFetchStatement(Config config, Table2Table t2t) {
         List<Column2Column> sortedColumn2Columns = t2t.getSortedColumn2ColumnByTargetColumnPosition();
@@ -1161,23 +1289,6 @@ public class PostgresStorage extends JDBCStorage {
             throw new SQLException(e);
         }
     }
-
-    @Override
-    public boolean isMigrationFullyFinished() {
-        String sql = "SELECT COUNT(*) FROM " + getOutboxTable().tableToString() +
-                " WHERE status IN ('UNASSIGNED', 'ASSIGNED')";
-        try (Connection conn = this.getPoolConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1) == 0;
-            }
-        } catch (SQLException e) {
-            log.log(System.Logger.Level.ERROR, "Error while checking migration status", e);
-        }
-        return false;
-    }
-
 
     @Override
     public void createChunkTable() throws SQLException {

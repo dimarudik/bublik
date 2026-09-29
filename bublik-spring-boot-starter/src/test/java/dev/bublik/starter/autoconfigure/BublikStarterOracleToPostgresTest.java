@@ -7,10 +7,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -30,6 +32,8 @@ public class BublikStarterOracleToPostgresTest {
 
     @BeforeAll
     static void beforeAll() throws Exception {
+        MountableFile mf1 = MountableFile.forClasspathResource("./00.sql");
+        oracle.addFileSystemBind(mf1.getResolvedPath(), "/container-entrypoint-initdb.d/00.sql", BindMode.READ_ONLY);
         oracle.start();
         postgres.start();
 

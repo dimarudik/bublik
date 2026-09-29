@@ -9,8 +9,6 @@ import java.sql.SQLException;
 import java.time.Instant;
 
 public interface ChunkService {
-    boolean isValidSourceSession() throws SQLException;
-    boolean isValidTargetSession() throws SQLException;
     <R> R getData(String query) throws SQLException;
     Chunk<?, ?, ?, ?> allStages(boolean sync, Table outboxTable) throws SQLException;
     Chunk<?, ?, ?, ?> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String outboxTable) throws SQLException;

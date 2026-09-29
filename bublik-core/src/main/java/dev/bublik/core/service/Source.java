@@ -11,5 +11,4 @@ public interface Source {
     void createChunkTable() throws SQLException;
     void dropChunkTable(List<Config> configs) throws SQLException;
     boolean isMigrationFullyFinished();
-
 }

@@ -109,14 +109,6 @@ public class Utils {
 */
     }
 
-/*
-    public static ConnectionProperty connectionProperty(String configFileName) throws IOException {
-        ObjectMapper mapperYAML = new ObjectMapper(new YAMLFactory());
-        mapperYAML.findAndRegisterModules();
-        return mapperYAML.readValue(Paths.get(configFileName).toFile(), ConnectionProperty.class);
-    }
-*/
-
     public static ConnectionProperty connectionProperty(String configFileName) throws IOException {
         Yaml yaml = new Yaml();
         try (InputStream in = new FileInputStream(configFileName)) {

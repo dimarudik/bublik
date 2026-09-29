@@ -65,6 +65,59 @@ public class OracleStorage extends JDBCStorage {
 
     }
 
+/*
+    @Override
+    public boolean tryDistributedLock(long lockId) throws SQLException {
+        int oracleLockId = Math.abs((int) (lockId % 1073741823));
+
+        String plsql = "BEGIN :1 := DBMS_LOCK.REQUEST(id => :2, lockmode => 6, timeout => 0, release_on_commit => FALSE); END;";
+
+        try (Connection conn = this.getPoolConnection();
+             CallableStatement cs = conn.prepareCall(plsql)) {
+
+            cs.registerOutParameter(1, java.sql.Types.INTEGER);
+            cs.setInt(2, oracleLockId);
+            cs.execute();
+
+            int result = cs.getInt(1);
+            return result == 0;
+        }
+    }
+
+    @Override
+    public void releaseDistributedLock(long lockId) throws SQLException {
+        int oracleLockId = Math.abs((int) (lockId % 1073741823));
+        String plsql = "BEGIN :1 := DBMS_LOCK.RELEASE(id => :2); END;";
+
+        try (Connection conn = this.getPoolConnection();
+             CallableStatement cs = conn.prepareCall(plsql)) {
+
+            cs.registerOutParameter(1, java.sql.Types.INTEGER);
+            cs.setInt(2, oracleLockId);
+            cs.execute();
+        }
+    }
+
+    @Override
+    public boolean isMigrationFullyFinished() {
+        String sql = "SELECT COUNT(*) FROM user_parallel_execute_chunks " +
+                "WHERE status in ('ASSIGNED','PROCESSED_WITH_ERROR')";
+
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) == 0;
+                }
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while checking Oracle migration status", e);
+        }
+        return false;
+    }
+*/
+
     @Override
     public <W extends Serializable> byte[] intervalYM2Interval(W intervalym) {
         byte[] bytes;

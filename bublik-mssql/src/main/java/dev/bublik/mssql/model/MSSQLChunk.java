@@ -23,6 +23,7 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
+/*
     @Override
     public boolean isValidSourceSession() throws SQLException {
         return getSourceSession() != null && getSourceSession().isValid(1);
@@ -32,6 +33,7 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
     public boolean isValidTargetSession() throws SQLException {
         return getTargetSession() != null && getTargetSession().isValid(1);
     }
+*/
 
     @Override
     public R getData(String query) throws SQLException {

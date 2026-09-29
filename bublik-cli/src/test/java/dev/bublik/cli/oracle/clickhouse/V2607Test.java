@@ -6,9 +6,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.clickhouse.ClickHouseContainer;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import java.sql.*;
 import java.time.Duration;
@@ -36,6 +38,8 @@ public class V2607Test {
 
     @BeforeAll
     static void setUp() throws SQLException {
+        MountableFile mf1 = MountableFile.forClasspathResource("./oracle/postgres/sql/oracle/00.sql");
+        source.addFileSystemBind(mf1.getResolvedPath(), "/container-entrypoint-initdb.d/00.sql", BindMode.READ_ONLY);
         source.setPortBindings(java.util.Collections.singletonList("1521:1521"));
         source.start();
         target.setPortBindings(java.util.List.of("8123:8123", "9000:9000"));

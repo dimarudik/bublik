@@ -31,10 +31,12 @@ public class OracleToPostgresTest {
 
     @BeforeAll
     static void setUp() throws SQLException {
+        MountableFile mf1 = MountableFile.forClasspathResource("./oracle/postgres/sql/oracle/00.sql");
+        source.addFileSystemBind(mf1.getResolvedPath(), "/container-entrypoint-initdb.d/00.sql", BindMode.READ_ONLY);
         source.setPortBindings(java.util.Collections.singletonList("1521:1521"));
         source.start();
-        MountableFile mf = MountableFile.forClasspathResource("./images/bublik.png");
-        target.addFileSystemBind(mf.getResolvedPath(), "/var/lib/postgresql/bublik.png", BindMode.READ_ONLY);
+        MountableFile mf2 = MountableFile.forClasspathResource("./images/bublik.png");
+        target.addFileSystemBind(mf2.getResolvedPath(), "/var/lib/postgresql/bublik.png", BindMode.READ_ONLY);
         target.setPortBindings(java.util.Collections.singletonList("5432:5432"));
         target.start();
     }
@@ -63,7 +65,6 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
-//        Thread.sleep(200_000);
         assertEquals(result.sourceCount(), result.targetCount());
 
         try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {

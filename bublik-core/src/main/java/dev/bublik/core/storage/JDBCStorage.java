@@ -18,7 +18,6 @@ import static dev.bublik.core.constants.Constants.FETCH_SIZE;
 import static dev.bublik.core.constants.Constants.POOL_SIZE;
 
 public abstract class JDBCStorage extends Storage implements JDBCStorageService {
-//    private static final Logger log = LoggerFactory.getLogger(JDBCStorage.class);
     private static final System.Logger log = System.getLogger(JDBCStorage.class.getName());
     private final DataSource dataSource;
     private final int fetchSize;

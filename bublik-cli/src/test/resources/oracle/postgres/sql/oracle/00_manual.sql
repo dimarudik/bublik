@@ -6,3 +6,4 @@ grant create table to bublik;
 grant select any table to bublik;
 grant analyze any to bublik;
 grant execute on SYS.DBMS_LOCK TO bublik;
+grant execute on SYS.DBMS_LOCK TO test;

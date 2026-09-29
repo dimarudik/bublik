@@ -17,6 +17,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.*;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.oracle.OracleContainer;
@@ -54,6 +55,8 @@ public class ToKafkaTest {
 
     @BeforeAll
     static void setUp() throws Exception {
+        MountableFile mf1 = MountableFile.forClasspathResource("./oracle/postgres/sql/oracle/00.sql");
+        source.addFileSystemBind(mf1.getResolvedPath(), "/container-entrypoint-initdb.d/00.sql", BindMode.READ_ONLY);
         source.setPortBindings(Collections.singletonList("1521:1521"));
         source.start();
         target.start();
@@ -168,9 +171,9 @@ public class ToKafkaTest {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        cp.getFromProperties().put("url", sourceProperties.getProperty("url"));
-        cp.getFromProperties().put("user", sourceProperties.getProperty("user"));
-        cp.getFromProperties().put("password", sourceProperties.getProperty("password"));
+//        cp.getFromProperties().put("url", sourceProperties.getProperty("url"));
+//        cp.getFromProperties().put("user", sourceProperties.getProperty("user"));
+//        cp.getFromProperties().put("password", sourceProperties.getProperty("password"));
         cp.getToProperties().put("servers", kafkaContainer.getBootstrapServers());
 
         StorageService.init(cp, configs, rows, chunkTable, outboxTable);

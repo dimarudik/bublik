@@ -112,6 +112,6 @@ insert into test.manual_chunks
          rpad('*', round(dbms_random.value(0,255)),'*') as name
      from dual connect by level < 500000);
 commit;
-alter session set current_schema = test;
+alter session set current_schema = bublik;
 CALL DBMS_PARALLEL_EXECUTE.CREATE_TASK(task_name => 'MANUAL_CHUNKS_TASK');
 CALL dbms_parallel_execute.create_chunks_by_rowid (task_name => 'MANUAL_CHUNKS_TASK', table_owner => 'TEST', table_name => 'MANUAL_CHUNKS', by_row => TRUE, chunk_size => 10000);

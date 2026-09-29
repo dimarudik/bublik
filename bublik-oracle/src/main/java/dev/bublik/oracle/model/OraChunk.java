@@ -13,7 +13,6 @@ import java.sql.*;
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
 public abstract class OraChunk<K extends Integer, T, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> implements ChunkService {
-//    private static final Logger log = LoggerFactory.getLogger(OraChunk.class);
     private static final System.Logger log = System.getLogger(OraChunk.class.getName());
 
 
@@ -23,6 +22,7 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
+/*
     @Override
     public boolean isValidSourceSession() throws SQLException {
         return getSourceSession() != null && getSourceSession().isValid(1);
@@ -32,6 +32,7 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
     public boolean isValidTargetSession() throws SQLException {
         return getTargetSession() != null && getTargetSession().isValid(1);
     }
+*/
 
     @Override
     public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
@@ -87,42 +88,6 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-         /*else {
-            try {
-                Connection connection = getSourceSession();
-                PreparedStatement updateStatus;
-                if (errMsg == null) {
-                    switch (newStatus) {
-                        case ASSIGNED:
-                            updateStatus = connection.prepareStatement(
-                                    DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED.replace("$tableName", chunkTableName));
-                            updateStatus.setString(1, newStatus.toString());
-                            updateStatus.setLong(2, this.getId());
-                            break;
-                        case PROCESSED:
-                            updateStatus = connection.prepareStatement(
-                                    DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED.replace("$tableName", chunkTableName));
-                            updateStatus.setString(1, newStatus.toString());
-                            updateStatus.setLong(2, this.getId());
-                            break;
-                        default:
-                            throw new IllegalArgumentException("Unknown status: " + newStatus);
-                    }
-                } else {
-                    updateStatus = connection.prepareStatement(
-                            DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS.replace("$tableName", chunkTableName));
-                    updateStatus.setString(1, newStatus.toString());
-                    updateStatus.setString(2, errMsg.substring(0,
-                            errMsg.length() > 2048 ? 2047 : errMsg.length()));
-                    updateStatus.setLong(3, this.getId());
-                }
-                int rows = updateStatus.executeUpdate();
-                updateStatus.close();
-                connection.commit();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }*/
         return this;
     }
 

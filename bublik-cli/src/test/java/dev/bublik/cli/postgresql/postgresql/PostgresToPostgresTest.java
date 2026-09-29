@@ -264,6 +264,7 @@ public class PostgresToPostgresTest {
             throw new RuntimeException(e);
         }
 
+//        Thread.sleep(900_000);
         TestResult result2 = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/notNullFailure.json",

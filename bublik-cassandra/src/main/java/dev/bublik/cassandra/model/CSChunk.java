@@ -24,7 +24,6 @@ import static dev.bublik.cassandra.constants.SQLConstants.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R extends ResultSet> extends Chunk<K, T, S, R> {
-//    private static final Logger log = LoggerFactory.getLogger(CSChunk.class);
     private static final System.Logger log = System.getLogger(CSChunk.class.getName());
 
     public CSChunk(K id, T start, T end, Config config, Table2Table t2t,
@@ -33,6 +32,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
+/*
     @Override
     public boolean isValidSourceSession() throws SQLException {
         return true;
@@ -42,6 +42,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     public boolean isValidTargetSession() throws SQLException {
         return true;
     }
+*/
 
     @Override
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,

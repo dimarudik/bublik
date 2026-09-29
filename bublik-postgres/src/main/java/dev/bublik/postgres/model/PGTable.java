@@ -20,17 +20,15 @@ public class PGTable extends Table {
 
     @Override
     public boolean exists(Connection connection) throws SQLException {
-        ResultSet tablesLowCase = connection.getMetaData().getTables(
+        try (ResultSet tablesLowCase = connection.getMetaData().getTables(
                 null,
                 getFinalSchemaName(false),
                 getFinalTableName(false),
-                null);
-        if (!tablesLowCase.next()) {
-            tablesLowCase.close();
-            return false;
+                null)) {
+            if (!tablesLowCase.next()) {
+                return false;
+            }
         }
-        tablesLowCase.close();
-        tableExistsCache().add(getFinalTableName(false));
         return true;
     }
 

@@ -1066,6 +1066,18 @@ How to connect to Oracle by [Instant Client](https://www.oracle.com/database/tec
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
 ```
 
+You should grant next permissions to the Oracle user that will be used for migration:
+```sql
+alter session set container = freepdb1;     -- if you use Pluggable Database
+create user bublik identified by bublik;    -- migration user
+grant create session to bublik;
+grant create table to bublik;               -- needed to create global temporary table
+grant select any table to bublik;           -- if the user is not an owner of the table
+grant analyze any to bublik;                -- if the user is not an owner of the table
+grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
+```
+
+
 #### Prepare Cassandra environment
 
 ```shell
@@ -1214,6 +1226,17 @@ How to connect to Oracle by [Instant Client](https://www.oracle.com/database/tec
 
 ```shell
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
+```
+
+You should grant next permissions to the Oracle user that will be used for migration:
+```sql
+alter session set container = freepdb1;     -- if you use Pluggable Database
+create user bublik identified by bublik;    -- migration user
+grant create session to bublik;
+grant create table to bublik;               -- needed to create global temporary table
+grant select any table to bublik;           -- if the user is not an owner of the table
+grant analyze any to bublik;                -- if the user is not an owner of the table
+grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
 ```
 
 #### Prepare Kafka Target environment
@@ -1384,6 +1407,17 @@ How to connect to Oracle by [Instant Client](https://www.oracle.com/database/tec
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
+```
+
+You should grant next permissions to the Oracle user that will be used for migration:
+```sql
+alter session set container = freepdb1;     -- if you use Pluggable Database
+create user bublik identified by bublik;    -- migration user
+grant create session to bublik;
+grant create table to bublik;               -- needed to create global temporary table
+grant select any table to bublik;           -- if the user is not an owner of the table
+grant analyze any to bublik;                -- if the user is not an owner of the table
+grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
 ```
 
 #### Prepare PostgreSQL environment
@@ -1617,6 +1651,17 @@ How to connect to Oracle by [Instant Client](https://www.oracle.com/database/tec
 
 ```
 sqlplus 'test/test@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))'
+```
+
+You should grant next permissions to the Oracle user that will be used for migration:
+```sql
+alter session set container = freepdb1;     -- if you use Pluggable Database
+create user bublik identified by bublik;    -- migration user
+grant create session to bublik;
+grant create table to bublik;               -- needed to create global temporary table
+grant select any table to bublik;           -- if the user is not an owner of the table
+grant analyze any to bublik;                -- if the user is not an owner of the table
+grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
 ```
 
 #### Prepare YDB environment
