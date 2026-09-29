@@ -12,7 +12,7 @@ import java.sql.*;
 
 import static dev.bublik.oracle.constants.SQLConstants.*;
 
-public abstract class OraChunk<K extends Integer, T, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> implements ChunkService {
+public abstract class OraChunk<K extends Long, T, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> implements ChunkService {
     private static final System.Logger log = System.getLogger(OraChunk.class.getName());
 
 
@@ -70,7 +70,7 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
                 CallableStatement callableStatement =
                         connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
                 callableStatement.setString(1, this.getConfig().fromTaskName());
-                callableStatement.setInt(2, this.getId());
+                callableStatement.setLong(2, this.getId());
                 callableStatement.setInt(3, newStatus.ordinal());
                 callableStatement.execute();
                 callableStatement.close();
@@ -78,7 +78,7 @@ public abstract class OraChunk<K extends Integer, T, S extends Connection, R ext
                 CallableStatement callableStatement =
                         connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
                 callableStatement.setString(1, this.getConfig().fromTaskName());
-                callableStatement.setInt(2, this.getId());
+                callableStatement.setLong(2, this.getId());
                 callableStatement.setInt(3, newStatus.ordinal());
                 callableStatement.setString(4, errMsg.substring(0,
                         errMsg.length() > 2245 ? 2244 : errMsg.length()));

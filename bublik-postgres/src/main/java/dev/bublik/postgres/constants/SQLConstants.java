@@ -3,7 +3,7 @@ package dev.bublik.postgres.constants;
 public abstract class SQLConstants {
     public static final String DDL_CREATE_CHUNK_TABLE =
             "create table $tableName (" +
-                    "chunk_id int generated always as identity primary key, " +
+                    "chunk_id bigint generated always as identity primary key, " +
                     "uuid varchar(36), " +
                     "start_page bigint, " +
                     "end_page bigint, " +
@@ -47,7 +47,7 @@ public abstract class SQLConstants {
 
     public static final String DDL_CREATE_OUTBOX_TABLE =
             "create table $tableName (" +
-                    "chunk_id int primary key, " +
+                    "chunk_id bigint primary key, " +
                     "task_name varchar(128), " +
                     "copied bigint)";
     public static final String DDL_DROP_OUTBOX_TABLE =

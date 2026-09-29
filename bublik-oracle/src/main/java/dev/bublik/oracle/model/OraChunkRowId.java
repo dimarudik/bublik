@@ -7,7 +7,7 @@ import dev.bublik.core.storage.Storage;
 
 import java.sql.*;
 
-public class OraChunkRowId<K extends Integer, T extends RowId, S extends Connection, R extends ResultSet>
+public class OraChunkRowId<K extends Long, T extends RowId, S extends Connection, R extends ResultSet>
         extends OraChunk<K, T, S, R> {
 
     public OraChunkRowId(K id, T start, T end, Config config, Table2Table t2t,

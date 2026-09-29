@@ -287,7 +287,7 @@ public class OracleStorage extends JDBCStorage {
     public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
         String status = rs.getString("status");
         return new OraChunkRowId<>(
-                rs.getInt("chunk_id"),
+                rs.getLong("chunk_id"),
                 rs.getRowId("start_rowid"),
                 rs.getRowId("end_rowid"),
                 ctx.config(),

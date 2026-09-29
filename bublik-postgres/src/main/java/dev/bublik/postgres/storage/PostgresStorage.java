@@ -203,7 +203,7 @@ public class PostgresStorage extends JDBCStorage {
     public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
         String status = rs.getString("status");
         return new PGChunk<>(
-                rs.getInt("chunk_id"),
+                rs.getLong("chunk_id"),
                 rs.getLong("start_page"),
                 rs.getLong("end_page"),
                 ctx.config(),
@@ -1327,7 +1327,7 @@ public class PostgresStorage extends JDBCStorage {
         Connection connectionTo = (Connection) chunk.getTargetSession();
         try (PreparedStatement ps = connectionTo.prepareStatement(DML_SELECT_OUTBOX_TABLE.replace(
                      "$tableName", getOutboxTable().tableToString()))) {
-            ps.setInt(1, (int) chunk.getId());
+            ps.setLong(1, (Long) chunk.getId());
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
@@ -1342,7 +1342,7 @@ public class PostgresStorage extends JDBCStorage {
             Connection connection = (Connection) chunk.getTargetSession();
             PreparedStatement ps = connection.prepareStatement(DML_INSERT_OUTBOX_TABLE.replace(
                     "$tableName", getOutboxTable().tableToString()));
-            ps.setInt(1, (int) chunk.getId());
+            ps.setLong(1, (Long) chunk.getId());
             ps.setString(2, chunk.getConfig().fromTaskName());
             ps.setLong(3, chunk.getCopied());
             long r = ps.executeUpdate();

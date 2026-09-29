@@ -288,7 +288,7 @@ public class MSSQLStorage extends JDBCStorage {
                 try (ResultSet rs = preparedStatement.executeQuery()){
                     while (rs.next()) {
                         String status = rs.getString("status");
-                        Integer chunkId = rs.getInt("chunk_id");
+                        Long chunkId = rs.getLong("chunk_id");
                         Map.Entry<List<Object>, List<Object>> entry = getValues(sourceSession, ctx.t2t(), chunkId);
                         Chunk<?, ?, ?, ?> chunk = new MSSQLChunk<>(
                                 chunkId,
@@ -315,7 +315,7 @@ public class MSSQLStorage extends JDBCStorage {
         return null;
     }
 
-    private Map.Entry<List<Object>, List<Object>> getValues(Connection connection, Table2Table t2t, Integer chunkId) throws SQLException {
+    private Map.Entry<List<Object>, List<Object>> getValues(Connection connection, Table2Table t2t, Long chunkId) throws SQLException {
         MSSQLTable sourceTable = (MSSQLTable) t2t.sourceTable();
         String columnList = getStringFromToClusteringKey(sourceTable, ", ", "");
         String sql = SQL_VALUES_FROM_EXT_TABLE
@@ -323,7 +323,7 @@ public class MSSQLStorage extends JDBCStorage {
                 .replace("$extTableName", sourceTable.getTableName())
                 .replace("$columns", columnList);
         PreparedStatement ps = connection.prepareStatement(sql);
-        ps.setInt(1, chunkId);
+        ps.setLong(1, chunkId);
         ResultSet rs = ps.executeQuery();
         List<Object> fromValues = new ArrayList<>();
         List<Object> toValues = new ArrayList<>();

@@ -12,7 +12,7 @@ import java.util.List;
 
 import static dev.bublik.mssql.constants.SQLConstants.*;
 
-public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
+public class MSSQLChunk<K extends Long, T extends List<Object>, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final System.Logger log = System.getLogger(MSSQLChunk.class.getName());
 
     private String addFetchPredicate;
@@ -180,7 +180,7 @@ public class MSSQLChunk<K extends Integer, T extends List<Object>, S extends Con
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE.replace("$tableName", chunkTableName));
         updateStatus.setInt(1, copied);
-        updateStatus.setInt(2, this.getId());
+        updateStatus.setLong(2, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
         if (!sync)

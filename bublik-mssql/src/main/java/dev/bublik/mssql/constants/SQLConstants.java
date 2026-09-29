@@ -11,7 +11,7 @@ public abstract class SQLConstants {
             "drop sequence $schemaName.chunk_seq";
     public static final String DDL_CREATE_CHUNK_TABLE = """
             create table $schemaName.[$tableName] (
-                chunk_id int primary key,
+                chunk_id bigint primary key,
                 uuid varchar(36),
                 start_page bigint,
                 end_page bigint,
@@ -29,7 +29,7 @@ public abstract class SQLConstants {
             """;
     public static final String DDL_CREATE_CHUNK_EXT_TABLE = """
         \n create table $schemaName.[_ext_$extTableName] (
-            chunk_id int,
+            chunk_id bigint,
             page int,
             $columns
             )""";

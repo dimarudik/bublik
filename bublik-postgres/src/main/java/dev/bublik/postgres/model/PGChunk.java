@@ -9,7 +9,7 @@ import java.sql.*;
 
 import static dev.bublik.postgres.constants.SQLConstants.*;
 
-public class PGChunk<K extends Integer, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
+public class PGChunk<K extends Long, T extends Long, S extends Connection, R extends ResultSet> extends Chunk<K, T, S, R> {
     private static final System.Logger log = System.getLogger(PGChunk.class.getName());
 
     public PGChunk(K id, T start, T end, Config config, Table2Table t2t,
@@ -65,7 +65,7 @@ public class PGChunk<K extends Integer, T extends Long, S extends Connection, R 
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE.replace("$tableName", chunkTableName));
         updateStatus.setInt(1, copied);
-        updateStatus.setInt(2, this.getId());
+        updateStatus.setLong(2, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
         if (!sync)
