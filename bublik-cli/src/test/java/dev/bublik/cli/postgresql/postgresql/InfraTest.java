@@ -3,9 +3,7 @@ package dev.bublik.cli.postgresql.postgresql;
 import dev.bublik.cli.TestResult;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
-import dev.bublik.postgres.model.PGTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -30,12 +28,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class InfraTest {
     private static final Network network = Network.newNetwork();
 
-    private static final JdbcDatabaseContainer<?> master = new PostgreSQLContainer<>("postgres:17")
+    private static final JdbcDatabaseContainer<?> srcMaster = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("postgres")
             .withUsername("test")
             .withPassword("test")
             .withNetwork(network)
-            .withNetworkAliases("master")
+            .withNetworkAliases("src-master")
             .withCommand("postgres",
                     "-c", "wal_level=replica",
                     "-c", "max_wal_senders=10",
@@ -50,35 +48,66 @@ public class InfraTest {
                     ),
                     "/docker-entrypoint-initdb.d/00_configure_replication.sh" // 👈 Кладем в папку хуков образа
             );
-    private static final PostgreSQLContainer<?> replica = new PostgreSQLContainer<>("postgres:17")
+    private static final PostgreSQLContainer<?> srcReplica = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("postgres")
             .withUsername("test")
             .withPassword("test")
             .withNetwork(network)
-            .withNetworkAliases("replica")
+            .withNetworkAliases("src-replica")
             .withCommand("bash", "-c",
                     "rm -rf /var/lib/postgresql/data/*; " +
-                            "until pg_basebackup -h master -D /var/lib/postgresql/data -U test -vP -Fp -Xs -R; do echo 'Waiting for master...'; sleep 1; done; " +
+                            "until pg_basebackup -h src-master -D /var/lib/postgresql/data -U test -vP -Fp -Xs -R; do echo 'Waiting for master...'; sleep 1; done; " +
                             "exec docker-entrypoint.sh postgres")
             .waitingFor(Wait.forLogMessage(".*database system is ready to accept read-only connections.*\\s", 1))
-            .dependsOn(master);
-    private static final JdbcDatabaseContainer<?> target = new PostgreSQLContainer<>("postgres")
+            .dependsOn(srcMaster);
+    private static final JdbcDatabaseContainer<?> trgMaster = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("postgres")
-            .withInitScript("postgresql/postgresql/sql/infraTarget.sql");
+            .withUsername("test")
+            .withPassword("test")
+            .withNetwork(network)
+            .withNetworkAliases("trg-master")
+            .withCommand("postgres",
+                    "-c", "wal_level=replica",
+                    "-c", "max_wal_senders=10",
+                    "-c", "max_replication_slots=10",
+                    "-c", "ssl=off")
+            .withInitScript("postgresql/postgresql/sql/infraTarget.sql")
+            .withCopyToContainer(
+                    Transferable.of(
+                            "#!/bin/bash\n" +
+                                    "echo 'host replication test all trust' >> \"$PGDATA/pg_hba.conf\"\n" +
+                                    "echo 'host all all all trust' >> \"$PGDATA/pg_hba.conf\"\n"
+                    ),
+                    "/docker-entrypoint-initdb.d/00_configure_replication.sh" // 👈 Кладем в папку хуков образа
+            );
+    private static final PostgreSQLContainer<?> trgReplica = new PostgreSQLContainer<>("postgres:17")
+            .withDatabaseName("postgres")
+            .withUsername("test")
+            .withPassword("test")
+            .withNetwork(network)
+            .withNetworkAliases("trg-replica")
+            .withCommand("bash", "-c",
+                    "rm -rf /var/lib/postgresql/data/*; " +
+                            "until pg_basebackup -h trg-master -D /var/lib/postgresql/data -U test -vP -Fp -Xs -R; do echo 'Waiting for master...'; sleep 1; done; " +
+                            "exec docker-entrypoint.sh postgres")
+            .waitingFor(Wait.forLogMessage(".*database system is ready to accept read-only connections.*\\s", 1))
+            .dependsOn(trgMaster);
+
 
     @BeforeAll
     static void setUp() throws Exception {
-        master.start();
-//        Thread.sleep(900_000);
-        replica.start();
-        target.start();
+        srcMaster.start();
+        srcReplica.start();
+        trgMaster.start();
+        trgReplica.start();
     }
 
     @AfterAll
     static void clear() {
-        master.stop();
-        replica.stop();
-        target.stop();
+        srcMaster.stop();
+        srcReplica.stop();
+        trgMaster.stop();
+        trgReplica.stop();
         network.close();
     }
 
@@ -105,16 +134,23 @@ public class InfraTest {
 
         Thread.sleep(400);
 
-        System.out.println("[💥 DB CRASH] Stopping PostgreSQL Master Node immediately...");
-        master.stop();
-
-        System.out.println("[🚀 PROMOTE] Promoting Replica container to become the new READ-WRITE Master...");
-
-        Container.ExecResult execResult = replica.execInContainer(
+        System.out.println("[💥 DB CRASH] Stopping PostgreSQL Source Master Node immediately...");
+        srcMaster.stop();
+        System.out.println("[🚀 PROMOTE] Promoting Source Replica container to become the new READ-WRITE Master...");
+        Container.ExecResult srcExecResult = srcReplica.execInContainer(
                 "su", "-", "postgres", "-c", "/usr/lib/postgresql/17/bin/pg_ctl promote -D /var/lib/postgresql/data"
         );
+        System.out.println("[🚀 PROMOTE] pg_ctl output: " + srcExecResult.getStdout().trim());
 
-        System.out.println("[🚀 PROMOTE] pg_ctl output: " + execResult.getStdout().trim());
+        Thread.sleep(800);
+
+        System.out.println("[💥 DB CRASH] Stopping PostgreSQL Target Master Node immediately...");
+        trgMaster.stop();
+        System.out.println("[🚀 PROMOTE] Promoting Target Replica container to become the new READ-WRITE Master...");
+        Container.ExecResult trgExecResult = trgReplica.execInContainer(
+                "su", "-", "postgres", "-c", "/usr/lib/postgresql/17/bin/pg_ctl promote -D /var/lib/postgresql/data"
+        );
+        System.out.println("[🚀 PROMOTE] pg_ctl output: " + trgExecResult.getStdout().trim());
 
         for (Future<Boolean> future : futures) {
             try {
@@ -141,10 +177,6 @@ public class InfraTest {
     @Test
     void k8s() throws Exception {
         ConnectionProperty connectionProperty = getConnectionProperty(2);
-        System.out.println("SOURCE Connection property: " + connectionProperty.getFromProperties().get("url") + " " +
-                connectionProperty.getFromProperties().get("user") + " " + connectionProperty.getFromProperties().get("password"));
-        System.out.println("TARGET Connection property: " + connectionProperty.getToProperties().get("url") + " " +
-                connectionProperty.getToProperties().get("user") + " " + connectionProperty.getToProperties().get("password"));
         List<Config> configs = new ArrayList<>(Collections.singleton(
                 Config.builder()
                         .from("public", "s")
@@ -216,8 +248,6 @@ public class InfraTest {
 
     @Test
     void killProcess() throws Exception {
-        Table chkTable = new PGTable.Builder("public", "chunk").build();
-        Table outxTable = new PGTable.Builder("public", "outbox").build();
         ConnectionProperty connectionProperty = getConnectionProperty(3);
         List<Config> configs = new ArrayList<>(Collections.singleton(
                 Config.builder()
@@ -228,7 +258,7 @@ public class InfraTest {
 
         CompletableFuture<Boolean> migrationTask = CompletableFuture.supplyAsync(() -> {
             try {
-                StorageService.init(connectionProperty, configs, 30_000, chkTable, outxTable);
+                StorageService.init(connectionProperty, configs, 30_000);
             } catch (Exception e) {
                 throw new RuntimeException("Bublik migration thread failed unexpectedly", e);
             }
@@ -236,17 +266,22 @@ public class InfraTest {
         });
 
         Thread.sleep(500);
-        if (master.isRunning()) {
-            master.execInContainer("psql", "-U", master.getUsername(), "-d", master.getDatabaseName(),
-                    "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + master.getUsername() + "' AND pid <> pg_backend_pid();");
-        } else if (replica.isRunning()) {
-            replica.execInContainer("psql", "-U", replica.getUsername(), "-d", replica.getDatabaseName(),
-                    "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + replica.getUsername() + "' AND pid <> pg_backend_pid();");
+        if (srcMaster.isRunning()) {
+            srcMaster.execInContainer("psql", "-U", srcMaster.getUsername(), "-d", srcMaster.getDatabaseName(),
+                    "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + srcMaster.getUsername() + "' AND pid <> pg_backend_pid();");
+        } else if (srcReplica.isRunning()) {
+            srcReplica.execInContainer("psql", "-U", srcReplica.getUsername(), "-d", srcReplica.getDatabaseName(),
+                    "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + srcReplica.getUsername() + "' AND pid <> pg_backend_pid();");
         }
 
         Thread.sleep(1_000);
-        target.execInContainer("psql", "-U", target.getUsername(), "-d", target.getDatabaseName(),
-                "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + target.getUsername() + "' AND pid <> pg_backend_pid();");
+        if (trgMaster.isRunning()) {
+            trgMaster.execInContainer("psql", "-U", trgMaster.getUsername(), "-d", trgMaster.getDatabaseName(),
+                    "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + trgMaster.getUsername() + "' AND pid <> pg_backend_pid();");
+        } else if (trgReplica.isRunning()) {
+            trgReplica.execInContainer("psql", "-U", trgReplica.getUsername(), "-d", trgReplica.getDatabaseName(),
+                    "-c", "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = '" + trgReplica.getUsername() + "' AND pid <> pg_backend_pid();");
+        }
 
         try {
             boolean r = migrationTask.get(60, java.util.concurrent.TimeUnit.SECONDS);
@@ -266,48 +301,35 @@ public class InfraTest {
     }
 
     private ConnectionProperty getConnectionProperty(int threads) {
-        String masterHostPort = "";
-        if (master.isRunning()) {
-            masterHostPort = master.getHost() + ":" + master.getMappedPort(5432) + ",";
+        String fromHostPort = "";
+        if (srcMaster.isRunning()) {
+            fromHostPort = srcMaster.getHost() + ":" + srcMaster.getMappedPort(5432) + ",";
         }
-        String replicaHostPort = replica.getHost() + ":" + replica.getMappedPort(5432);
-        String failoverUrl = "jdbc:postgresql://" + masterHostPort + replicaHostPort +
+        String fromReplica = srcReplica.getHost() + ":" + srcReplica.getMappedPort(5432);
+        String fromUrl = "jdbc:postgresql://" + fromHostPort + fromReplica +
                 "/postgres?targetServerType=primary";
 
         Map<String, String> fromProps = new HashMap<>();
-        fromProps.put("url", failoverUrl);
-        fromProps.put("user", master.getUsername());
-        fromProps.put("password", master.getPassword());
+        fromProps.put("url", fromUrl);
+        fromProps.put("user", srcMaster.getUsername());
+        fromProps.put("password", srcMaster.getPassword());
         fromProps.put("fetchSize", "1000");
 
+        String toHostPort = "";
+        if (trgMaster.isRunning()) {
+            toHostPort = trgMaster.getHost() + ":" + trgMaster.getMappedPort(5432) + ",";
+        }
+        String toReplica = trgReplica.getHost() + ":" + trgReplica.getMappedPort(5432);
+        String toUrl = "jdbc:postgresql://" + toHostPort + toReplica +
+                "/postgres?targetServerType=primary";
+
         Map<String, String> toProps = new HashMap<>();
-        toProps.put("url", target.getJdbcUrl());
-        toProps.put("user", target.getUsername());
-        toProps.put("password", target.getPassword());
+        toProps.put("url", toUrl);
+        toProps.put("user", trgMaster.getUsername());
+        toProps.put("password", trgMaster.getPassword());
 
         return new ConnectionProperty(
                 threads,
-                fromProps,
-                toProps,
-                new HashMap<>(),
-                new HashMap<>()
-        );
-    }
-
-    private ConnectionProperty getConnectionPropertyBigData() {
-        Map<String, String> fromProps = new HashMap<>();
-        fromProps.put("url", master.getJdbcUrl());
-        fromProps.put("user", master.getUsername());
-        fromProps.put("password", master.getPassword());
-        fromProps.put("fetchSize", "10");
-
-        Map<String, String> toProps = new HashMap<>();
-        toProps.put("url", target.getJdbcUrl());
-        toProps.put("user", target.getUsername());
-        toProps.put("password", target.getPassword());
-
-        return new ConnectionProperty(
-                2,
                 fromProps,
                 toProps,
                 new HashMap<>(),
@@ -319,21 +341,6 @@ public class InfraTest {
         String jdbcUrl = properties.getProperty("url");
         String username = properties.getProperty("user");
         String password = properties.getProperty("password");
-
-        try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
-             Statement st = connection.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-            rs.next();
-            return rs.getInt(1);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private int countRows(JdbcDatabaseContainer<?> container, String sql) {
-        String jdbcUrl = container.getJdbcUrl();
-        String username = container.getUsername();
-        String password = container.getPassword();
 
         try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password);
              Statement st = connection.createStatement();
