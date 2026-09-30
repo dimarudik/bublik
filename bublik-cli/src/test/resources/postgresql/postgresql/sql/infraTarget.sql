@@ -9,4 +9,9 @@ create table public.k8s (
     id2 int,
     name varchar(256) not null
 );
+create table public.k8s_failover (
+    id1 int,
+    id2 int,
+    name varchar(256)
+);
 -- create table public.big (image bytea);

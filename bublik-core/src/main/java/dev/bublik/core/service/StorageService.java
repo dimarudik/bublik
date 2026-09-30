@@ -113,10 +113,8 @@ public interface StorageService {
                     ConnectionProperty.class, Table.class);
             StorageClass storageClass = getStorageClass(properties);
             log.log(System.Logger.Level.INFO, "Storage class: {0} ", className);
-//            log.info("Storage class: {} ", className);
             return (Storage) constructor.newInstance(storageClass, connectionProperty, outboxTable);
         } catch (Exception e) {
-//            log.error("{}", getStackTrace(e));
             throw new RuntimeException(e);
         }
     }
@@ -131,32 +129,25 @@ public interface StorageService {
     }
 
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable) throws SQLException, IOException {
-//        Table outboxTable = new DummyTable.Builder(chunkTable.getSchemaName(), chunkTable.getTableName() + "_outbox").build();
         init(property, configs, rows, chunkTable, null);
     }
 
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
-//        log.info("Bublik starting...");
         log.log(System.Logger.Level.INFO, "Bublik starting...");
         if (rows > 0) log.log(System.Logger.Level.INFO, "Expected chunk size: {0}", rows);
         log.log(System.Logger.Level.INFO, "VERSION : {0}", getVersion());
         try {
             log.log(System.Logger.Level.INFO, "WORKSTATION: {0}", InetAddress.getLocalHost().getHostName());
-//            log.info("WORKSTATION: {}", InetAddress.getLocalHost().getHostName());
         } catch (Exception e) {
             log.log(System.Logger.Level.WARNING, "Unknown workstation");
-//            log.info("Unknown workstation");
         }
         Runtime runtime = Runtime.getRuntime();
         int vCPU = runtime.availableProcessors();
         log.log(System.Logger.Level.INFO, "===================== CPU INFO ============================");
         log.log(System.Logger.Level.INFO, "CPU onboard: {0}", vCPU);
-//        log.info("===================== CPU INFO ============================");
-//        log.info("CPU onboard: {}", vCPU);
         if (vCPU <= 4 && vCPU < property.getThreadCount()) {
             property.setThreadCount(vCPU);
             log.log(System.Logger.Level.INFO, "Thread count throttled to {0}", property.getThreadCount());
-//            log.info("Thread count throttled to {}", property.getThreadCount());
         }
         long byteToMb = 1024L * 1024L;
         long maxMemory = runtime.maxMemory();
@@ -169,27 +160,16 @@ public interface StorageService {
         log.log(System.Logger.Level.INFO, "Used Heap Memory:       {0} MB", usedMemory / byteToMb);
         log.log(System.Logger.Level.INFO, "Free Heap Memory:       {0} MB", (maxMemory - usedMemory) / byteToMb);
         log.log(System.Logger.Level.INFO, "==========================================================");
-//        log.info("==================== MEMORY INFO =========================");
-//        log.info("Max Heap Size (-Xmx):   {} MB", maxMemory == Long.MAX_VALUE ? "Unlimited" : maxMemory / byteToMb);
-//        log.info("Allocated Heap Size:    {} MB", totalMemory / byteToMb);
-//        log.info("Used Heap Memory:       {} MB", usedMemory / byteToMb);
-//        log.info("Free Heap Memory:       {} MB", (maxMemory - usedMemory) / byteToMb);
-//        log.info("==========================================================");
 
         String sourceUrl = property.getFromProperty().getProperty("url");
         String sourceHosts = property.getFromProperty().getProperty("hosts");
         log.log(System.Logger.Level.INFO, "SOURCE: {0}", sourceUrl == null ? sourceHosts : sourceUrl);
         log.log(System.Logger.Level.INFO, "SOURCE USERNAME: {0}", property.getFromProperty().getProperty("user"));
-//        log.info("SOURCE: {}", sourceUrl == null ? sourceHosts : sourceUrl);
-//        log.info("SOURCE USERNAME: {}", property.getFromProperty().getProperty("user"));
         String targetUrl = property.getToProperty().getProperty("url");
         String targetHosts = property.getToProperty().getProperty("hosts");
         log.log(System.Logger.Level.INFO, "TARGET: {0}", targetUrl == null ? targetHosts : targetUrl);
         log.log(System.Logger.Level.INFO, "TARGET USERNAME: {0}", property.getToProperty().getProperty("user"));
-//        log.info("TARGET: {}", targetUrl == null ? targetHosts : targetUrl);
-//        log.info("TARGET USERNAME: {}", property.getToProperty().getProperty("user"));
 
-//        List<Storage<?,?,?,?>> storages = new ArrayList<>();
         ServiceLoader<StorageFactory> loader = ServiceLoader.load(StorageFactory.class);
         for (StorageFactory factory : loader) {
             log.log(System.Logger.Level.INFO, "Storage factory: {0}", factory.getClass().getName());

@@ -18,6 +18,7 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 
 public abstract class Storage implements StorageService, Wrapper, AutoCloseable, Source, Target {
     private static final System.Logger log = System.getLogger(Storage.class.getName());
+    private final String instanceUuid = java.util.UUID.randomUUID().toString();
 
     private final StorageClass storageClass;
     protected int threadCount;
@@ -143,7 +144,18 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
         do {
-            List<Chunk<?, ?, ?, ?>> chunks = getChunkList(migrationContexts, targetStorage);
+            List<Chunk<?, ?, ?, ?>> chunks;
+            try {
+                chunks = getChunkList(migrationContexts, targetStorage);
+            } catch (SQLException e) {
+                try {
+                    Thread.sleep(1_000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(ie);
+                }
+                continue;
+            }
             if (chunks.isEmpty()) {
                 log.log(System.Logger.Level.INFO, "All chunks are processed");
                 break;
@@ -255,8 +267,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 } else {
                     log.log(System.Logger.Level.WARNING,
                             "Other pods are still processing chunks. Pod {0} skips table deletion.", getPodName());
-//                    log.log(System.Logger.Level.WARNING,
-//                            "If you want to force cleanup, please set to NULL the column start_ts by {0}", )
                 }
             } finally {
                 releaseDistributedLock(cleanupLockId);
@@ -388,5 +398,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 isNullable,
                 defaultValue
         );
+    }
+
+    public String getInstanceUuid() {
+        return this.instanceUuid;
     }
 }
