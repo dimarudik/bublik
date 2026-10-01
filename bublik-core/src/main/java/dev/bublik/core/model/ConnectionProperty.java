@@ -7,20 +7,14 @@ public class ConnectionProperty {
     private int threadCount;
     private Map<String, String> fromProperties;
     private Map<String, String> toProperties;
-    private Map<String, String> crypto;
-    private Map<String, Map<String, String>> toAdds;
 
     public ConnectionProperty(){}
     public ConnectionProperty(int threadCount,
                               Map<String, String> fromProperties,
-                              Map<String, String> toProperties,
-                              Map<String, String> crypto,
-                              Map<String, Map<String, String>> toAdds) {
+                              Map<String, String> toProperties) {
         this.threadCount = threadCount;
         this.fromProperties = fromProperties;
         this.toProperties = toProperties;
-        this.crypto = crypto;
-        this.toAdds = toAdds;
     }
 
     public int getThreadCount() {
@@ -54,26 +48,6 @@ public class ConnectionProperty {
 
     public Properties getToProperty() {
         return getProperties(toProperties);
-    }
-
-    public Properties getCryptoProperties() {
-        return getProperties(crypto);
-    }
-
-    public Map<String, Map<String, String>> getToAdds() {
-        return toAdds;
-    }
-
-    public void setToAdds(Map<String, Map<String, String>> toAdds) {
-        this.toAdds = toAdds;
-    }
-
-    public Map<String, String> getCrypto() {
-        return crypto;
-    }
-
-    public void setCrypto(Map<String, String> crypto) {
-        this.crypto = crypto;
     }
 
     private Properties getProperties(Map<String, String> map) {

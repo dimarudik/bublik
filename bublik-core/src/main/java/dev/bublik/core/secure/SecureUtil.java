@@ -9,6 +9,7 @@ public class SecureUtil {
     public static EncryptedEntity getEncryptedEntity(ConnectionProperty property, String data, String aad) throws ClassNotFoundException, NoSuchMethodException,
             InvocationTargetException, InstantiationException, IllegalAccessException {
 
+/*
         Properties properties = property.getCryptoProperties();
 
         SecureHandler secureHandler = getHandler(properties);
@@ -16,6 +17,8 @@ public class SecureUtil {
         SecureData secureData = secureHandler.getSecureData(properties.getProperty(SecuritySettings.keyEncryptionKey.name()), data, aad);
 
         return secureHandler.getEncryptedEntity(secureConfig, secureData);
+*/
+        return null;
     }
 
     private static SecureHandler getHandler(Properties properties) throws ClassNotFoundException, NoSuchMethodException,

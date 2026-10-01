@@ -19,8 +19,6 @@ public class BublikProperties {
     private Boolean rowsStat = false;
     private Map<String, String> from = new HashMap<>();
     private Map<String, String> to = new HashMap<>();
-    private Map<String, String> crypto = new HashMap<>();
-    private Map<String, Map<String, String>> toAdds = new HashMap<>();
     private List<TablePipelineConfig> pipelines;
 
     public enum TriggerMode {
@@ -32,9 +30,7 @@ public class BublikProperties {
         return new ConnectionProperty(
                 this.threadCount,
                 this.from,
-                this.to,
-                this.crypto,
-                this.toAdds
+                this.to
         );
     }
 

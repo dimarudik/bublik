@@ -2284,27 +2284,19 @@ For example, if you want to migrate data from PostgreSQL to Cassandra you need t
 
 The easiest way to start migration is to use init method.
 
-Create ConnectionProperty (example from TestContainers):
+Create ConnectionProperty:
 ```java
-ConnectionProperty getConnectionProperty() {
-    Map<String, String> fromProps = new HashMap<>();
-    fromProps.put("url", postgres.getJdbcUrl());
-    fromProps.put("user", postgres.getUsername());
-    fromProps.put("password", postgres.getPassword());
+Map<String, String> fromProps = new HashMap<>();
+fromProps.put("url", "jdbc:postgresql://host1:5432,host2:5432/postgres?targetServerType=primary");
+fromProps.put("user", "test");
+fromProps.put("password", "test");
 
-    Map<String, String> toProps = new HashMap<>();
-    toProps.put("url", postgres.getJdbcUrl());
-    toProps.put("user", postgres.getUsername());
-    toProps.put("password", postgres.getPassword());
+Map<String, String> toProps = new HashMap<>();
+toProps.put("url", "jdbc:postgresql://host3:5432,host4:5432/postgres?targetServerType=primary");
+toProps.put("user", "test");
+toProps.put("password", "test");
 
-    return new ConnectionProperty(
-            4, // number of threads
-            fromProps,
-            toProps,
-            new HashMap<>(),
-            new HashMap<>()
-    );
-}
+ConnectionProperty connectionProperty = new ConnectionProperty(4, fromProps, toProps);
 ```
 
 Create Config:

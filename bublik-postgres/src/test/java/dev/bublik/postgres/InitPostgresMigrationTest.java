@@ -88,9 +88,7 @@ public class InitPostgresMigrationTest {
         return new ConnectionProperty(
                 4,
                 fromProps,
-                toProps,
-                new HashMap<>(),
-                new HashMap<>()
+                toProps
         );
     }
 }

@@ -175,7 +175,7 @@ public class InfraTest {
     }
 
     @Test
-    void k8s() throws Exception {
+    void k8sNotNullFailure() throws Exception {
         ConnectionProperty connectionProperty = getConnectionProperty(2);
         List<Config> configs = new ArrayList<>(Collections.singleton(
                 Config.builder()
@@ -245,6 +245,67 @@ public class InfraTest {
         assertEquals(result.sourceCount(), result.targetCount(),
                 "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
     }
+
+    @Test
+    void k8sKillPod() throws Exception {
+        ConnectionProperty connectionProperty = getConnectionProperty(2);
+        List<Config> configs = Collections.singletonList(
+                Config.builder().from("public", "s").to("public", "k8s_killpod").build()
+        );
+
+        ExecutorService k8sCluster = Executors.newFixedThreadPool(4);
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (int i = 0; i < 2; i++) {
+            final int podId = i + 1;
+            futures.add(k8sCluster.submit(() -> {
+                try {
+                    StorageService.init(connectionProperty, configs, 5_000);
+                } catch (Exception e) {
+                    throw new RuntimeException("Healthy Pod-" + podId + " failed", e);
+                }
+                return true;
+            }));
+        }
+
+        Future<Boolean> crashedPodFuture = k8sCluster.submit(() -> {
+            try {
+                StorageService.init(connectionProperty, configs, 5_000);
+            } catch (Exception e) {
+                throw new RuntimeException("Crashed Pod-4 thread execution interrupted", e);
+            }
+            return true;
+        });
+        futures.add(crashedPodFuture);
+
+        Thread.sleep(100);
+
+        crashedPodFuture.cancel(true);
+
+        int survivedPodsFinished = 0;
+        for (Future<Boolean> future : futures) {
+            try {
+                future.get();
+                survivedPodsFinished++;
+            } catch (Exception e) {
+                System.out.println("[K8S] Intercepted expected terminal state of hard-killed Pod-4.");
+            }
+        }
+
+        k8sCluster.shutdown();
+        k8sCluster.close();
+
+        int sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
+        int targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.k8s_killpod");
+
+        System.out.println(">>> POD CRASH FAILOVER REPORT <<<");
+        System.out.println("Surviving pods that completed successfully: " + survivedPodsFinished + "/3");
+        System.out.println("Source count (Master): " + sourceCount + " | Target count (Target): " + targetCount);
+
+        assertEquals(sourceCount, targetCount,
+                "Фейловер пода провалился! Данные упавшего контейнера были безвозвратно потеряны.");
+    }
+
 
     @Test
     void killProcess() throws Exception {
@@ -331,9 +392,7 @@ public class InfraTest {
         return new ConnectionProperty(
                 threads,
                 fromProps,
-                toProps,
-                new HashMap<>(),
-                new HashMap<>()
+                toProps
         );
     }
 

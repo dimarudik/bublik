@@ -59,6 +59,7 @@ public interface StorageService {
     Table getDefaultTargetOutboxTable();
     boolean tryDistributedLock(long lockId) throws SQLException;
     void releaseDistributedLock(long lockId) throws SQLException;
+    void holdInstanceSignalLock() throws SQLException;
 
     static Storage getStorage(StorageClass storageClass,
                               Properties properties,

@@ -1,5 +1,6 @@
 package dev.bublik.postgres.storage;
 
+import com.zaxxer.hikari.HikariConfig;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.exception.SourceSQLException;
@@ -125,6 +126,97 @@ public class PostgresStorage extends JDBCStorage {
         while (connection == null) {
             try {
                 connection = this.getPoolConnection();
+                if (!connection.isValid(2)) throw new SQLException("Connection is not valid");
+            } catch (SQLException e) {
+                attempts++;
+                if (attempts >= 5) throw e;
+                log.log(System.Logger.Level.WARNING, "Trying to reconnect. Try: {0}/5", attempts);
+                try { Thread.sleep(1000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw new RuntimeException(ie); }
+            }
+        }
+
+        try {
+            String chunkTableName = getOutboxTable().tableToString();
+
+            String findForeignPodsSql = "SELECT DISTINCT uuid FROM " + chunkTableName +
+                    " WHERE status = 'ASSIGNED' AND uuid <> ? ";
+
+            try (PreparedStatement psFind = connection.prepareStatement(findForeignPodsSql)) {
+                psFind.setString(1, this.getInstanceUuid());
+
+                try (ResultSet rsFind = psFind.executeQuery()) {
+                    while (rsFind.next()) {
+                        String foreignUuid = rsFind.getString("uuid");
+
+                        String checkLockSql = "SELECT pg_try_advisory_xact_lock(hashtext(?))";
+                        try (PreparedStatement psCheck = connection.prepareStatement(checkLockSql)) {
+                            psCheck.setString(1, foreignUuid);
+                            try (ResultSet rsLock = psCheck.executeQuery()) {
+                                if (rsLock.next() && rsLock.getBoolean(1)) {
+                                    String stealSql = "UPDATE " + chunkTableName +
+                                            " SET uuid = ?, start_ts = now() " +
+                                            " WHERE status = 'ASSIGNED' AND uuid = ? ";
+                                    try (PreparedStatement psSteal = connection.prepareStatement(stealSql)) {
+                                        psSteal.setString(1, this.getInstanceUuid());
+                                        psSteal.setString(2, foreignUuid);
+                                        int stolenCount = psSteal.executeUpdate();
+                                        log.log(System.Logger.Level.WARNING, "Failover: Успешно угнано {0} чанков у погибшего пода {1}", stolenCount, foreignUuid);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (TableMigrationContext ctx : contexts) {
+                List<Long> capturedIds = new ArrayList<>();
+                try (PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())) {
+                    ps.setString(1, ctx.config().fromTaskName());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            Chunk<?, ?, ?, ?> chunk = getChunk(rs, ctx, targetStorage);
+                            chunks.add(chunk);
+                            capturedIds.add((Long) chunk.getId());
+                        }
+                    }
+                }
+
+                if (!capturedIds.isEmpty()) {
+                    String updateSql = "UPDATE " + chunkTableName +
+                            " SET status = 'ASSIGNED', start_ts = now(), uuid = ?, err_msg = NULL " +
+                            " WHERE chunk_id = ?";
+                    try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
+                        for (Long id : capturedIds) {
+                            psUpdate.setString(1, this.getInstanceUuid());
+                            psUpdate.setLong(2, id);
+                            psUpdate.addBatch();
+                        }
+                        psUpdate.executeBatch();
+                    }
+                }
+            }
+            connection.commit(); // 👈 Здесь зафиксируется и бронь, и отпустятся проверочные xact-локи! [1.1, 1.4]
+        } catch (SQLException e) {
+            try { connection.rollback(); } catch (Exception ex) {}
+            throw e;
+        } finally {
+            try { connection.close(); } catch (Exception e) {}
+        }
+        return chunks;
+    }
+
+/*
+    @Override
+    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
+                                                Storage targetStorage) throws SQLException {
+        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
+        Connection connection = null;
+        int attempts = 0;
+
+        while (connection == null) {
+            try {
+                connection = this.getPoolConnection();
                 if (!connection.isValid(2)) {
                     throw new SQLException("Connection is not valid");
                 }
@@ -144,17 +236,6 @@ public class PostgresStorage extends JDBCStorage {
         }
 
         try {
-
-/*
-            String resetOurChunksSql = "UPDATE " + getOutboxTable().tableToString() +
-                    " SET start_ts = NULL " +
-                    " WHERE status = 'ASSIGNED' AND uuid = ? AND task_name = ?";
-            try (PreparedStatement psReset = connection.prepareStatement(resetOurChunksSql)) {
-                psReset.setString(1, this.getInstanceUuid());
-                psReset.setString(2, contexts.get(0).config().fromTaskName());
-                psReset.executeUpdate();
-            }
-*/
 
             for (TableMigrationContext ctx : contexts) {
                 List<Long> capturedIds = new ArrayList<>();
@@ -192,78 +273,19 @@ public class PostgresStorage extends JDBCStorage {
         }
         return chunks;
     }
-
-/*
-    @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
-                                                Storage targetStorage) throws SQLException {
-        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
-        Connection connection = null;
-
-        int connectionAttempts = 0;
-        while (connection == null) {
-            try {
-                connection = this.getPoolConnection();
-            } catch (SQLException e) {
-                connectionAttempts++;
-                if (connectionAttempts >= 5) {
-                    throw e;
-                }
-                log.log(System.Logger.Level.WARNING, "Trying to obtain list of chunks... (Try {0}/5)", connectionAttempts);
-                try {
-                    Thread.sleep(2_000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(ie);
-                }
-            }
-        }
-
-        try {
-
-            for (TableMigrationContext ctx : contexts) {
-                log.log(System.Logger.Level.INFO, "Fetch query (Postgres Queue): {0} {1}", ctx.fetchQuery(), ctx.orderByClause());
-                List<Long> capturedIds = new ArrayList<>();
-                try (PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())) {
-                    ps.setString(1, ctx.config().fromTaskName());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            Chunk<?, ?, ?, ?> chunk = getChunk(rs, ctx, targetStorage);
-                            chunks.add(chunk);
-                            capturedIds.add((Long) chunk.getId());
-                        }
-                    }
-                }
-
-                if (!capturedIds.isEmpty()) {
-                    String updateSql = "UPDATE " + getOutboxTable().tableToString() +
-                            " SET status = 'ASSIGNED', uuid = ?, start_ts = now(), err_msg = NULL " +
-                            " WHERE chunk_id = ?";
-
-                    try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
-                        for (Long id : capturedIds) {
-                            psUpdate.setString(1, getInstanceUuid());
-                            psUpdate.setLong(2, id);
-                            psUpdate.addBatch();
-                        }
-                        psUpdate.executeBatch();
-                    }
-                }
-            }
-
-            connection.commit();
-
-        } catch (SQLException e) {
-            connection.rollback();
-            log.log(System.Logger.Level.ERROR, "Error during distributed Postgres chunk capturing", e);
-            throw e;
-        } finally {
-            connection.close();
-        }
-
-        return chunks;
-    }
 */
+
+    @Override
+    public void holdInstanceSignalLock() throws SQLException {
+        dynamicHeartbeatConnection = this.getPoolConnection();
+        dynamicHeartbeatConnection.setAutoCommit(false);
+
+        String sql = "SELECT pg_advisory_lock(hashtext(?))";
+        try (PreparedStatement ps = this.dynamicHeartbeatConnection.prepareStatement(sql)) {
+            ps.setString(1, this.getInstanceUuid());
+            ps.executeQuery();
+        }
+    }
 
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
@@ -275,6 +297,14 @@ public class PostgresStorage extends JDBCStorage {
                 "    OR (status = 'ASSIGNED' AND uuid = '" + this.getInstanceUuid() + "') " +
                 " ) " +
                 " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
+    }
+
+    @Override
+    public void configureDataSourceProperties(HikariConfig config) {
+        String initSql = "SET tcp_keepalives_idle = 2; " +
+                "SET tcp_keepalives_interval = 1; " +
+                "SET tcp_keepalives_count = 3;";
+        config.setConnectionInitSql(initSql);
     }
 
 /*
@@ -669,7 +699,8 @@ public class PostgresStorage extends JDBCStorage {
 
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL COPY");
         } else {
-            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
+//            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
+            throw new SQLException("Chunk has already been copied (Duplicate detected during failover promote lag)", "23505");
         }
     }
 

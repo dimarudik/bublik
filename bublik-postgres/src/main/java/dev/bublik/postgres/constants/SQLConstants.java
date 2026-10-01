@@ -34,9 +34,6 @@ public abstract class SQLConstants {
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
     public static final String SQL_IS_MIGRATION_FULLY_FINISHED =
             "SELECT COUNT(1) FROM $tableName WHERE status IN ('UNASSIGNED', 'ASSIGNED', 'PROCESSED_WITH_ERROR') ";
-//    public static final String SQL_IS_MIGRATION_FULLY_FINISHED =
-//            "SELECT COUNT(1) FROM $tableName WHERE status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
-//                    " OR (status = 'ASSIGNED' AND start_ts >= now() - INTERVAL '1 minute') ";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED =
             "update $tableName set status = ?, err_msg = null, start_ts = now() where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED =

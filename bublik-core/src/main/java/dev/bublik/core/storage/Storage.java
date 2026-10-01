@@ -105,6 +105,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     }
 
     @Override
+    public void holdInstanceSignalLock() throws SQLException {}
+
+    @Override
     public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (getOutboxTable() == null || getOutboxTable().getTableName() == null) {
@@ -143,11 +146,15 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         Throwable lastSubmittedException = null;
         List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
+        holdInstanceSignalLock();
         do {
             List<Chunk<?, ?, ?, ?>> chunks;
             try {
                 chunks = getChunkList(migrationContexts, targetStorage);
             } catch (SQLException e) {
+                if ("42P01".equals(e.getSQLState()) || e.getErrorCode() == 942) {
+                    break;
+                }
                 try {
                     Thread.sleep(1_000);
                 } catch (InterruptedException ie) {
@@ -157,6 +164,16 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 continue;
             }
             if (chunks.isEmpty()) {
+                if (!isMigrationFullyFinished()) {
+                    log.log(System.Logger.Level.INFO, "No unassigned chunks, but cluster is still running. Waiting for ghost tasks...");
+                    try {
+                        Thread.sleep(1200);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(ie);
+                    }
+                    continue;
+                }
                 log.log(System.Logger.Level.INFO, "All chunks are processed");
                 break;
             }
@@ -168,6 +185,31 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     try {
                         return chunk.allStages(false, getOutboxTable());
                     } catch (Exception e) {
+                        Throwable rootCause = e;
+                        while (rootCause.getCause() != null && !(rootCause instanceof SQLException)) {
+                            rootCause = rootCause.getCause();
+                        }
+
+                        if (rootCause instanceof SQLException sqlEx && "23505".equals(sqlEx.getSQLState())) {
+                            log.log(System.Logger.Level.INFO,
+                                    "The chunk has already been copied. Chunk ID: {0}", chunk.getId());
+
+                            try {
+                                chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED, false, null, null, getOutboxTable().tableToString());
+                            } catch (SQLException ex) {
+                                //
+                            }
+
+                            if (this instanceof JDBCStorage) {
+                                try { chunk.getSourceSession().close(); } catch (SQLException ignored) {}
+                            }
+                            if (targetStorage instanceof JDBCStorage) {
+                                try { chunk.getTargetSession().close(); } catch (SQLException ignored) {}
+                            }
+
+                            return chunk;
+                        }
+
                         log.log(System.Logger.Level.ERROR, "ChunkId = {0} {1}.{2} failed", chunk.getId(),
                                 chunk.getT2t().sourceTable().getSchemaName(),
                                 chunk.getT2t().sourceTable().getTableName(), e);

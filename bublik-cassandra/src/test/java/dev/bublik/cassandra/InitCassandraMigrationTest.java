@@ -108,9 +108,7 @@ public class InitCassandraMigrationTest {
         return new ConnectionProperty(
                 3,
                 fromProps,
-                toProps,
-                new HashMap<>(),
-                new HashMap<>()
+                toProps
         );
     }
 }

@@ -21,6 +21,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     private static final System.Logger log = System.getLogger(JDBCStorage.class.getName());
     private final DataSource dataSource;
     private final int fetchSize;
+    protected Connection dynamicHeartbeatConnection = null;
 
     public JDBCStorage(StorageClass storageClass,
                        ConnectionProperty connectionProperty,
@@ -67,9 +68,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     }
 
     @Override
-    public void validate(Storage targetStorage, List<Config> configs) throws SQLException {
-
-    }
+    public void validate(Storage targetStorage, List<Config> configs) throws SQLException {}
 
     @Override
     public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
@@ -150,10 +149,16 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         hikariConfig.setJdbcUrl(property.getProperty("url"));
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
-        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount());
+        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
         hikariConfig.setConnectionTimeout(3_000);
         hikariConfig.setAutoCommit(false);
+        configureDataSourceProperties(hikariConfig);
         return hikariConfig;
+    }
+
+    @Override
+    public void configureDataSourceProperties(HikariConfig config) {
+
     }
 
     @Override
@@ -172,27 +177,34 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
     @Override
     public void closeStorage() {
+        if (this.dynamicHeartbeatConnection != null) {
+            try {
+                if (!this.dynamicHeartbeatConnection.isClosed()) {
+                    this.dynamicHeartbeatConnection.close();
+                }
+            } catch (Exception e) {
+                log.log(System.Logger.Level.ERROR, "Error of closing dynamic heartbeat connection: {0}", e.getMessage());
+            } finally {
+                this.dynamicHeartbeatConnection = null;
+            }
+        }
+
         if (dataSource instanceof HikariDataSource hikariDataSource && isManaged) {
             hikariDataSource.close();
             log.log(System.Logger.Level.INFO, "HikariDataSource closed successfully.");
-//            log.info("HikariDataSource closed successfully.");
         } else {
             log.log(System.Logger.Level.WARNING, "DataSource is not an instance of HikariDataSource, cannot close.");
-//            log.warn("DataSource is not an instance of HikariDataSource, cannot close.");
         }
 
         if (isManaged && dataSource instanceof AutoCloseable) {
             try {
                 ((AutoCloseable) dataSource).close();
                 log.log(System.Logger.Level.INFO, "Bublik-managed HikariDataSource successfully closed.");
-//                log.info("Bublik-managed HikariDataSource successfully closed.");
             } catch (Exception e) {
                 log.log(System.Logger.Level.ERROR, "Error closing managed HikariDataSource: {0}", e.getMessage());
-//                log.error("Error closing managed HikariDataSource: {}", e.getMessage());
             }
         } else {
             log.log(System.Logger.Level.DEBUG, "DataSource is managed by external system (e.g. Spring). Skipping closure.");
-//            log.debug("DataSource is managed by external system (e.g. Spring). Skipping closure.");
         }
     }
 

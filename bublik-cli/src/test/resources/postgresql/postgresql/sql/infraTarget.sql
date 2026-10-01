@@ -14,4 +14,9 @@ create table public.k8s_failover (
     id2 int,
     name varchar(256)
 );
+create table public.k8s_killpod (
+    id1 int,
+    id2 int,
+    name varchar(256)
+);
 -- create table public.big (image bytea);
