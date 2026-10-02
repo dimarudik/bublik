@@ -833,22 +833,35 @@ public class PostgresStorage extends JDBCStorage {
                 }
 
                 case "oid": {
-                    int loid;
+                    int targetLoid;
 
-                    if (value instanceof java.sql.Blob blob) {
-                        try (InputStream is = blob.getBinaryStream()) {
-                            loid = createPostgresLargeObject((Connection) chunk.getTargetSession(), is); // Метод, который мы обсудили ранее
+                    if (value instanceof Number number) {
+                        long sourceLoid = number.longValue();
+                        if (sourceLoid == 0) {
+                            writer.writeNull();
+                            break;
                         }
-                    } else if (value instanceof Number number) {
-                        loid = number.intValue();
+
+                        Connection connectionFrom = rs.getStatement().getConnection();
+                        PGConnection pgConnFrom = connectionFrom.unwrap(PGConnection.class);
+                        LargeObjectManager lobjManagerFrom = pgConnFrom.getLargeObjectAPI();
+
+                        try (Connection loWriteConnection = chunk.getTargetStorage().getPoolConnection()) {
+                            loWriteConnection.setAutoCommit(false);
+                            try (LargeObject lobjFrom = lobjManagerFrom.open(sourceLoid, LargeObjectManager.READ);
+                                 InputStream is = lobjFrom.getInputStream()) {
+                                targetLoid = createPostgresLargeObject(loWriteConnection, is);
+                            }
+                            loWriteConnection.commit();
+                        }
+
                     } else {
                         throw new SQLException("Cannot convert " + value.getClass().getName() + " to OID");
                     }
 
-                    writer.writeInt(loid);
+                    writer.writeInt(targetLoid);
                     break;
                 }
-
 
                 case "smallserial", "int2": {
                     if (value instanceof Number number) {
