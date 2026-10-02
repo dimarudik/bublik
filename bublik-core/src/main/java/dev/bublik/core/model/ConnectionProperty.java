@@ -1,5 +1,6 @@
 package dev.bublik.core.model;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -54,5 +55,48 @@ public class ConnectionProperty {
         Properties properties = new Properties();
         properties.putAll(map);
         return properties;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private int threadCount;
+        private Map<String, String> fromProperties = new HashMap<>();
+        private Map<String, String> toProperties = new HashMap<>();
+
+        public Builder threadCount(int threadCount) {
+            this.threadCount = threadCount;
+            return this;
+        }
+
+        public Builder fromProperties(Map<String, String> fromProperties) {
+            if (fromProperties != null) {
+                this.fromProperties = new HashMap<>(fromProperties);
+            }
+            return this;
+        }
+
+        public Builder toProperties(Map<String, String> toProperties) {
+            if (toProperties != null) {
+                this.toProperties = new HashMap<>(toProperties);
+            }
+            return this;
+        }
+
+        public Builder addFromProperty(String key, String value) {
+            this.fromProperties.put(key, value);
+            return this;
+        }
+
+        public Builder addToProperty(String key, String value) {
+            this.toProperties.put(key, value);
+            return this;
+        }
+
+        public ConnectionProperty build() {
+            return new ConnectionProperty(threadCount, fromProperties, toProperties);
+        }
     }
 }

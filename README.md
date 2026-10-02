@@ -2286,20 +2286,18 @@ The easiest way to start migration is to use init method.
 
 Create ConnectionProperty:
 ```java
-Map<String, String> fromProps = new HashMap<>();
-fromProps.put("url", "jdbc:postgresql://host1:5432,host2:5432/postgres?targetServerType=primary");
-fromProps.put("user", "test");
-fromProps.put("password", "test");
-
-Map<String, String> toProps = new HashMap<>();
-toProps.put("url", "jdbc:postgresql://host3:5432,host4:5432/postgres?targetServerType=primary");
-toProps.put("user", "test");
-toProps.put("password", "test");
-
-ConnectionProperty connectionProperty = new ConnectionProperty(4, fromProps, toProps);
+ConnectionProperty connectionProperty = ConnectionProperty.builder()
+        .threadCount(2)
+        .addFromProperty("url", "jdbc:postgresql://host1:5432,host2:5432/postgres?targetServerType=primary")
+        .addFromProperty("user", "test")
+        .addFromProperty("password", "test")
+        .addToProperty("url", "jdbc:postgresql://host3:5432,host4:5432/postgres?targetServerType=primary")
+        .addToProperty("user", "test")
+        .addToProperty("password", "test")
+        .build();
 ```
 
-Create Config:
+Create Config and Mapping of tables:
 ```java
 List<Config> configs = new ArrayList<>();
 Config config = Config.builder()
@@ -2352,7 +2350,7 @@ Storage targetStorage = new PostgresStorage.Builder(targetDataSource)
         .build();
 ```
 
-Create Config:
+Create Config and Mapping of tables:
 ```java
 List<Config> configs = new ArrayList<>();
 Config config = Config.builder()
@@ -2409,7 +2407,7 @@ Storage targetStorage = new CassandraStorage.Builder(targetSession, targetKeyspa
         .build();
 ```
 
-Create Config:
+Create Config and Mapping of tables:
 ```java
 List<Config> configs = new ArrayList<>();
 Config config = Config.builder()
@@ -2458,7 +2456,7 @@ Storage targetStorage = new ClickHouseStorage.Builder(clickhouseClient)
         .build();
 ```
 
-Create Config:
+Create Config and Mapping of tables:
 ```java
 List<Config> configs = new ArrayList<>();
 Config config = Config.builder()

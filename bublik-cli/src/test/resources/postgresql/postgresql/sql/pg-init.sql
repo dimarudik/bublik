@@ -222,12 +222,22 @@ insert into public.not_null_failure (id, name, "table", "Table", "c")
 update public.not_null_failure set name = null where id = 1000;
 analyze public.not_null_failure;
 
+create table public.pk_failure (
+    id int primary key ,
+    name varchar(256));
+insert into public.pk_failure (id, name) values (1, 'Item 1');
+
 create table test.not_null_failure (
     id int,
     name varchar(256) not null,
     "table" bigint,
     "Table" bigint,
     "c" int);
+
+create table test.pk_failure (
+    id int primary key ,
+    name varchar(256));
+insert into test.pk_failure (id, name) values (1, 'Item 1');
 
 create table public.users (
     id int,

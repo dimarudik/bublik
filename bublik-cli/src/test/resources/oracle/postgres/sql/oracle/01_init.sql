@@ -193,6 +193,17 @@ insert into test.subparted
      from dual connect by level < 200000);
 commit;
 
+CREATE TABLE test.employees_iot (
+   employee_id NUMBER,
+   first_name  VARCHAR2(50),
+   last_name   VARCHAR2(50),
+   email       VARCHAR2(100),
+   CONSTRAINT pk_emp_iot PRIMARY KEY (employee_id)
+) ORGANIZATION INDEX;
+insert into test.employees_iot (employee_id, first_name, last_name, email)
+    values (1, 'John', 'Doe', 'john.doe@example.com');
+commit;
+
 /*-- 2
 insert into test.parted3
     (select

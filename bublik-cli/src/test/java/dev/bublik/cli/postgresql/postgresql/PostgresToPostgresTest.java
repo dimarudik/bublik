@@ -3,7 +3,9 @@ package dev.bublik.cli.postgresql.postgresql;
 import dev.bublik.cli.TestResult;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
+import dev.bublik.postgres.model.PGTable;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -12,6 +14,8 @@ import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -220,7 +224,7 @@ public class PostgresToPostgresTest {
         List<Config> configs = getConfigs(
                 PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/isNotPartitioned.json"));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+        SQLException ex = assertThrows(SQLException.class, () ->
                         StorageService.init(property, configs, rows, chunkTable, outboxTable));
         assertTrue(ex.getMessage().contains("Partitioned tables are not supported"));
         System.out.println(ex.getMessage());
@@ -238,6 +242,48 @@ public class PostgresToPostgresTest {
         System.out.println("source count: " + result.sourceCount());
         System.out.println("target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
+    void pkFailure() throws Exception {
+        Table tChunk = new PGTable.Builder("public", "t_chunk").build();
+        Table tOutbox = new PGTable.Builder("public", "t_outbox").build();
+        ConnectionProperty connectionProperty = ConnectionProperty.builder()
+                .threadCount(2)
+                .addFromProperty("url", "jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off")
+                .addFromProperty("user", "test")
+                .addFromProperty("password", "test")
+                .addToProperty("url", "jdbc:postgresql://localhost:5432/postgres")
+                .addToProperty("user", "test")
+                .addToProperty("password", "test")
+                .build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(
+                Config.builder()
+                        .from("public", "pk_failure")
+                        .to("test", "pk_failure")
+                        .build()
+        ));
+
+        try {
+            StorageService.init(connectionProperty, configs, 1_000, tChunk, tOutbox);
+        } catch (Exception e) {
+            assertTrue(getStackTrace(e).contains("duplicate key value violates unique constraint"));
+        }
+
+        Properties sourceProperties = new Properties(connectionProperty.getToProperty());
+        try (Connection connection = DriverManager.getConnection(sourceProperties.getProperty("url"), sourceProperties);
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "delete from test.pk_failure where id = 1");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            StorageService.init(connectionProperty, configs, 0, tChunk, tOutbox);
+        } catch (Exception e) {
+            assertFalse(getStackTrace(e).contains("duplicate key value violates unique constraint"));
+        }
     }
 
     @Test

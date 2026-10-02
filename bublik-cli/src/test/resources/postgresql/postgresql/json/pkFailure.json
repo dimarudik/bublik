@@ -1,0 +1,8 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "pk_failure",
+    "toSchemaName": "test",
+    "toTableName": "pk_failure"
+  }
+]

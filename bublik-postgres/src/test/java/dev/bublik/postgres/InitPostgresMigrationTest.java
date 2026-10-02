@@ -75,20 +75,15 @@ public class InitPostgresMigrationTest {
     }
 
     private static @NonNull ConnectionProperty getConnectionProperty() {
-        Map<String, String> fromProps = new HashMap<>();
-        fromProps.put("url", postgres.getJdbcUrl());
-        fromProps.put("user", postgres.getUsername());
-        fromProps.put("password", postgres.getPassword());
+        return ConnectionProperty.builder()
+                .threadCount(2)
+                .addFromProperty("url", postgres.getJdbcUrl())
+                .addFromProperty("user", postgres.getUsername())
+                .addFromProperty("password", postgres.getPassword())
+                .addToProperty("url", postgres.getJdbcUrl())
+                .addToProperty("user", postgres.getUsername())
+                .addToProperty("password", postgres.getPassword())
+                .build();
 
-        Map<String, String> toProps = new HashMap<>();
-        toProps.put("url", postgres.getJdbcUrl());
-        toProps.put("user", postgres.getUsername());
-        toProps.put("password", postgres.getPassword());
-
-        return new ConnectionProperty(
-                4,
-                fromProps,
-                toProps
-        );
     }
 }

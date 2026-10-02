@@ -224,7 +224,31 @@ public class OracleStorage extends JDBCStorage {
 
     @Override
     public void preChecks(List<Config> configs) throws SQLException {
+        try (Connection connection = getPoolConnection()) {
+            String sql = "SELECT iot_type FROM all_tables WHERE owner = ? AND table_name = ?";
 
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                for (Config config : configs) {
+                    ps.setString(1, config.fromSchemaName().toUpperCase());
+                    ps.setString(2, config.fromTableName().toUpperCase());
+
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            String iotType = rs.getString("iot_type");
+
+                            if (iotType != null && !iotType.trim().isEmpty()) {
+                                throw new RuntimeException("Index-Organized Tables (IOT) are not supported: "
+                                        + config.fromSchemaName() + '.' + config.fromTableName()
+                                        + " (IOT Type: " + iotType + ")");
+                            }
+                        }/* else {
+                            throw new SQLException("Table not found in Oracle catalog: "
+                                    + config.fromSchemaName() + '.' + config.fromTableName());
+                        }*/
+                    }
+                }
+            }
+        }
     }
 
     @Override

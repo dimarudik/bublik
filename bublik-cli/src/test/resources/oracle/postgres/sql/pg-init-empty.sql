@@ -111,3 +111,10 @@ create table public.subparted (
     name varchar(11)
 );
 
+CREATE TABLE test.employees_iot (
+    employee_id bigint,
+    first_name  VARCHAR(50),
+    last_name   VARCHAR(50),
+    email       VARCHAR(100),
+    CONSTRAINT pk_emp_iot PRIMARY KEY (employee_id)
+);

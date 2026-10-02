@@ -1336,7 +1336,7 @@ public class PostgresStorage extends JDBCStorage {
                 Table table = configToTable(config.fromSchemaName(), config.fromTableName());
                 TableAttrs tableAttrs = getTableAttrs(connection, table);
                 if (tableAttrs.relkind() == 'p') {
-                    throw new RuntimeException("Partitioned tables are not supported: "
+                    throw new SQLException("Partitioned tables are not supported: "
                             + table.getSchemaName() + '.' + table.getTableName());
                 }
             }

@@ -148,6 +148,21 @@ public class OracleToPostgresTest {
     }
 
     @Test
+    void iot() throws Exception {
+        try {
+            TestResult result = getResultCount(
+                    "./oracle/postgres/yaml/ora2pg.yaml",
+                    "./oracle/postgres/json/iot.json",
+                    rows,
+                    sync,
+                    getJdbcProperties(source),
+                    getJdbcProperties(target));
+        } catch (SQLException e) {
+            assertTrue(getStackTrace(e).contains("Index-Organized Tables (IOT) are not supported"));
+        }
+    }
+
+    @Test
     void columnOrder() throws Exception {
         TestResult result = getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",

@@ -190,8 +190,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                             rootCause = rootCause.getCause();
                         }
 
-                        if (rootCause instanceof SQLException sqlEx && "23505".equals(sqlEx.getSQLState())) {
-                            log.log(System.Logger.Level.INFO,
+                        if (rootCause instanceof SQLException sqlEx
+                                && "23505".equals(sqlEx.getSQLState())
+                                && sqlEx.getMessage() != null
+                                && sqlEx.getMessage().contains("Chunk has already been copied")) {
+                            log.log(System.Logger.Level.WARNING,
                                     "The chunk has already been copied. Chunk ID: {0}", chunk.getId());
 
                             try {

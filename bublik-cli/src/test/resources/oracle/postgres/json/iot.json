@@ -1,0 +1,8 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "employees_iot",
+    "toSchemaName": "test",
+    "toTableName": "employees_iot"
+  }
+]
