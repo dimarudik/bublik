@@ -1,23 +1,17 @@
 package dev.bublik.core.service;
 
 import dev.bublik.core.model.*;
-import dev.bublik.core.storage.AutoColseableStorageClass;
-import dev.bublik.core.storage.JDBCStorageClass;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.net.InetAddress;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ServiceLoader;
-
-import static dev.bublik.core.constants.CLassConstants.*;
 
 public interface StorageService {
     System.Logger log = System.getLogger(StorageService.class.getName());
@@ -40,7 +34,6 @@ public interface StorageService {
     void closeStorage();
     String buildFetchStatement(Config config, Table2Table t2t);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
-    Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage);
     Table configToTable(String schemaName, String tableName);
     Table getTargetTableBySourceTable(Table table);
     Table getSourceTableByTargetTable(Table table);
@@ -61,64 +54,34 @@ public interface StorageService {
     void releaseDistributedLock(long lockId) throws SQLException;
     void holdInstanceSignalLock() throws SQLException;
 
-    static Storage getStorage(StorageClass storageClass,
-                              Properties properties,
+    static Storage getStorage(Properties properties,
                               ConnectionProperty connectionProperty,
                               Table outboxTable) {
-        if (storageClass instanceof AutoColseableStorageClass) {
-            Properties props = storageClass.getProperties();
-            String className = props.getProperty("class");
-            if (className == null || className.isEmpty()) {
-                throw new NullPointerException();
-            } else {
-                return reflectStorage(className, properties, connectionProperty, outboxTable);
+
+        ServiceLoader<StorageFactory> loader = ServiceLoader.load(StorageFactory.class);
+        int pluginCount = 0;
+        for (StorageFactory factory : loader) {
+            if (factory.supports(properties)) {
+                pluginCount++;
+                try {
+//                    log.log(System.Logger.Level.INFO, "Storage factory matched: {0}", factory.getClass().getName());
+                    log.log(System.Logger.Level.INFO, "Detected Plugin: {0} | Version: {1}",
+                            factory.getClass().getSimpleName().replace("StorageFactory", ""),
+                            factory.getVersion());
+                    return factory.create(properties, connectionProperty, outboxTable);
+                } catch (SQLException e) {
+                    throw new RuntimeException("Error while creating storage via factory: " + factory.getClass().getName(), e);
+                }
             }
         }
-        if (storageClass instanceof JDBCStorageClass) {
-            try {
-                Driver driver = DriverManager.getDriver(properties.getProperty("url"));
-                return switch (driver.getClass().getName()) {
-                    case "oracle.jdbc.OracleDriver" ->
-                            reflectStorage(ORACLE_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                    case "org.postgresql.Driver", "sdk.humus.HumusDriver" ->
-                            reflectStorage(POSTGRES_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                    case "tech.ydb.jdbc.YdbDriver" ->
-                            reflectStorage(YDB_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                    case "com.microsoft.sqlserver.jdbc.SQLServerDriver" ->
-                            reflectStorage(MSSQL_STORAGE_CLASS_NAME, properties, connectionProperty, outboxTable);
-                    default -> throw new RuntimeException();
-                };
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
+        if (pluginCount == 0) {
+            log.log(System.Logger.Level.WARNING, "No database plugin libraries found on the classpath!");
         }
-        throw new RuntimeException("Unknown storage class");
+
+        String identifier = properties.getProperty("url") != null ? properties.getProperty("url") : properties.getProperty("class");
+        throw new RuntimeException("StorageFactory not found for identifier: " + identifier);
     }
 
-    static StorageClass getStorageClass(Properties properties) {
-        String className = properties.getProperty("class");
-        if (className != null) {
-            return new AutoColseableStorageClass(AutoCloseable.class, properties);
-        } else {
-            return new JDBCStorageClass(Connection.class, properties);
-        }
-    }
-
-    static Storage reflectStorage(String className,
-                                  Properties properties,
-                                  ConnectionProperty connectionProperty,
-                                  Table outboxTable) {
-        try {
-            Class<?> clazz = Class.forName(className);
-            Constructor<?> constructor = clazz.getConstructor(StorageClass.class,
-                    ConnectionProperty.class, Table.class);
-            StorageClass storageClass = getStorageClass(properties);
-            log.log(System.Logger.Level.INFO, "Storage class: {0} ", className);
-            return (Storage) constructor.newInstance(storageClass, connectionProperty, outboxTable);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Deprecated
     static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String table) throws SQLException, IOException {
@@ -171,32 +134,8 @@ public interface StorageService {
         log.log(System.Logger.Level.INFO, "TARGET: {0}", targetUrl == null ? targetHosts : targetUrl);
         log.log(System.Logger.Level.INFO, "TARGET USERNAME: {0}", property.getToProperty().getProperty("user"));
 
-        ServiceLoader<StorageFactory> loader = ServiceLoader.load(StorageFactory.class);
-        for (StorageFactory factory : loader) {
-            log.log(System.Logger.Level.INFO, "Storage factory: {0}", factory.getClass().getName());
-//            log.info("Storage factory: {}", factory.getClass().getName());
-//            Storage<?, ?, ?, ?> storage = factory.create(property);
-//            log.info("Storage: {}", storage.getClass().getName());
-        }
-/*
-        for (Storage<?,?,?,?> storage : loader) {
-            storages.add(storage);
-        }
-        storages.forEach(s -> log.info("Storage: {}", s.getClass().getName()));
-*/
-
-/*
-        for (ProxyPluginFactory factory : loader) {
-            ProxyPlugin plugin = factory.create(url, info);
-            if (plugin != null) {
-                plugins.add(plugin);
-            }
-        }
-*/
-        StorageClass sourceStorageClass = StorageService.getStorageClass(property.getFromProperty());
-        StorageClass targetStorageClass = StorageService.getStorageClass(property.getToProperty());
-        try (Storage sourceStorage = getStorage(sourceStorageClass, property.getFromProperty(), property, chunkTable);
-             Storage targetStorage = getStorage(targetStorageClass, property.getToProperty(), property, outboxTable)) {
+        try (Storage sourceStorage = getStorage(property.getFromProperty(), property, chunkTable);
+             Storage targetStorage = getStorage(property.getToProperty(), property, outboxTable)) {
             assert sourceStorage != null;
             sourceStorage.start(targetStorage, configs, rows);
         } catch (SQLException e) {
@@ -204,18 +143,6 @@ public interface StorageService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    static Storage getSourceStorage(ConnectionProperty property, Table chunkTable) {
-        Properties properties = property.getFromProperty();
-        StorageClass sourceStorageClass = StorageService.getStorageClass(properties);
-        return getStorage(sourceStorageClass, properties, property, chunkTable);
-    }
-
-    static Storage getTargetStorage(ConnectionProperty property, Table outboxTable) {
-        Properties properties = property.getToProperty();
-        StorageClass targetStorageClass = StorageService.getStorageClass(properties);
-        return getStorage(targetStorageClass, properties, property, outboxTable);
     }
 
     static String getVersion() throws IOException {

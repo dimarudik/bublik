@@ -4,25 +4,25 @@ import com.clickhouse.client.api.Client;
 import dev.bublik.clickhouse.model.ClickTable;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
-import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 abstract class ClickStorage extends Storage implements Source {
     protected ClickClient clickClient;
 
-    public ClickStorage(StorageClass storageClass,
+    public ClickStorage(Properties properties,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
         this.threadCount = connectionProperty.getThreadCount();
-        this.clickClient = new ClickClient(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+//        this.clickClient = new ClickClient(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+        this.clickClient = new ClickClient(properties, connectionProperty.getThreadCount());
     }
 
     protected ClickStorage(ClickStorage.Builder<?, ?> builder) {
@@ -131,11 +131,6 @@ abstract class ClickStorage extends Storage implements Source {
 
     @Override
     public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
-        return Map.of();
-    }
-
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
         return Map.of();
     }
 

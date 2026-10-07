@@ -23,15 +23,15 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     private final int fetchSize;
     protected Connection dynamicHeartbeatConnection = null;
 
-    public JDBCStorage(StorageClass storageClass,
+    public JDBCStorage(Properties properties,
                        ConnectionProperty connectionProperty,
                        Table outboxTable) throws SQLException {
-        super(storageClass, connectionProperty, outboxTable);
-        HikariConfig hikariConfig = buildConfiguration(storageClass.getProperties(), connectionProperty);
+        super(properties, connectionProperty, outboxTable);
+        HikariConfig hikariConfig = buildConfiguration(properties, connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
-        this.fetchSize = storageClass.getProperties().getProperty("fetchSize") == null ?
-                FETCH_SIZE : Integer.parseInt(storageClass.getProperties().getProperty("fetchSize"));
+        this.fetchSize = properties.getProperty("fetchSize") == null ?
+                FETCH_SIZE : Integer.parseInt(properties.getProperty("fetchSize"));
         this.isManaged = true;
     }
 
@@ -226,15 +226,6 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             }
         }
         return null;
-    }
-
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
-        Map<Table, Table> tables = new HashMap<>();
-        for (Config c : configs) {
-            tables.put(configToTable(c.fromSchemaName(), c.fromTableName()), targetStorage.configToTable(c.toSchemaName(), c.toTableName()));
-        }
-        return tables;
     }
 
     @Override

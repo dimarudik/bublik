@@ -5,11 +5,8 @@ import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 import dev.bublik.mssql.model.MSSQLChunk;
 import dev.bublik.mssql.model.MSSQLTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -23,10 +20,10 @@ import static dev.bublik.mssql.constants.SQLConstants.*;
 public class MSSQLStorage extends JDBCStorage {
     private static final System.Logger log = System.getLogger(MSSQLStorage.class.getName());
 
-    public MSSQLStorage(StorageClass storageClass,
+    public MSSQLStorage(Properties properties,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) throws SQLException {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
     }
 
     private MSSQLStorage(Builder builder) {

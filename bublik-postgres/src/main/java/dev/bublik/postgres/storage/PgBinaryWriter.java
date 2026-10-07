@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
@@ -62,6 +61,26 @@ public class PgBinaryWriter implements AutoCloseable {
             out.write(bytes);
         }
     }
+
+/*
+    public void writeStreamingText(java.io.Reader reader, long charLength) throws IOException {
+        if (reader == null) {
+            out.writeInt(-1);
+            return;
+        }
+
+        out.writeInt((int) charLength);
+        char[] buffer = new char[64 * 1024];
+        int charsRead;
+
+        while ((charsRead = reader.read(buffer)) != -1) {
+            String chunk = new String(buffer, 0, charsRead);
+            byte[] bytes = chunk.replace("\u0000", "").getBytes(StandardCharsets.UTF_8);
+            out.write(bytes);
+        }
+    }
+*/
+
 
     public void writeNumeric(BigDecimal value) throws IOException {
         if (value == null) {

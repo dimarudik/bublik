@@ -19,9 +19,6 @@ import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -35,21 +32,22 @@ import static dev.bublik.core.constants.Constants.DEFAULT_FETCH_WHERE_CLAUSE;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 abstract class CSStorage extends Storage implements Source {
-//    private static final Logger log = LoggerFactory.getLogger(CSStorage.class);
     private static final System.Logger log = System.getLogger(CSStorage.class.getName());
     private CSPool csPool;
     protected int batchSize;
     private final String keySpace;
 
-    protected CSStorage(StorageClass storageClass,
+    protected CSStorage(Properties properties,
                         ConnectionProperty connectionProperty,
                         Table outboxTable) {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
         this.batchSize = getBatchSize(connectionProperty);
         this.threadCount = connectionProperty.getThreadCount();
-        this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+//        this.csPool = new CSPool(getStorageClass().getProperties(), connectionProperty.getThreadCount());
+        this.csPool = new CSPool(properties, connectionProperty.getThreadCount());
         this.isManaged = true;
-        this.keySpace = getStorageClass().getProperties().getProperty("keyspace");
+//        this.keySpace = getStorageClass().getProperties().getProperty("keyspace");
+        this.keySpace = properties.getProperty("keyspace");
         this.outboxTable = new DummyTable.Builder(keySpace, "bublik").build();
     }
 
@@ -449,11 +447,6 @@ abstract class CSStorage extends Storage implements Source {
 
     @Override
     public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
-        return Map.of();
-    }
-
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
         return Map.of();
     }
 

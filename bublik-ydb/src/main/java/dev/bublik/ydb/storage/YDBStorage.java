@@ -5,18 +5,13 @@ import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 import dev.bublik.ydb.model.YDBTable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.io.Serializable;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.Date;
+import java.util.*;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.ydb.constants.SQLConstants.*;
@@ -25,10 +20,10 @@ public class YDBStorage extends JDBCStorage {
 //    private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
     private static final System.Logger log = System.getLogger(YDBStorage.class.getName());
 
-    public YDBStorage(StorageClass storageClass,
+    public YDBStorage(Properties properties,
                       ConnectionProperty connectionProperty,
                       Table outboxTable) throws SQLException {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
     }
 
     private YDBStorage(Builder builder) {

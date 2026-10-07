@@ -8,7 +8,6 @@ import dev.bublik.core.exception.TargetSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 import dev.bublik.postgres.model.PGChunk;
 import dev.bublik.postgres.model.PGTable;
 import dev.bublik.postgres.model.PgIntervalComponents;
@@ -38,10 +37,10 @@ import static dev.bublik.postgres.util.ColumnUtil.*;
 public class PostgresStorage extends JDBCStorage {
     private static final System.Logger log = System.getLogger(PostgresStorage.class.getName());
 
-    public PostgresStorage(StorageClass storageClass,
+    public PostgresStorage(Properties properties,
                            ConnectionProperty connectionProperty,
                            Table outboxTable) throws SQLException {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
     }
 
     private PostgresStorage(Builder builder) {
@@ -305,6 +304,8 @@ public class PostgresStorage extends JDBCStorage {
                 "SET tcp_keepalives_interval = 1; " +
                 "SET tcp_keepalives_count = 3;";
         config.setConnectionInitSql(initSql);
+        config.addDataSourceProperty("prepareThreshold", "0");
+//        config.addDataSourceProperty("recvBufferSize", "65536");
     }
 
 /*
@@ -678,7 +679,6 @@ public class PostgresStorage extends JDBCStorage {
             String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
                     chunk.getT2t().targetTable().getFinalTableName(true);
             String sqlCopy = "COPY " + tableNameWithSchema + " (" + String.join(", ", columnNames) + ") FROM STDIN BINARY";
-//            log.info("sqlCopy: {}", sqlCopy);
 
             int pgStreamBufferSize = 1024 * 1024;
             int javaBufferSize = 64 * 1024;
@@ -699,7 +699,6 @@ public class PostgresStorage extends JDBCStorage {
 
             return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL COPY");
         } else {
-//            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "The chunk has already been copied");
             throw new SQLException("Chunk has already been copied (Duplicate detected during failover promote lag)", "23505");
         }
     }
@@ -719,6 +718,30 @@ public class PostgresStorage extends JDBCStorage {
 
             int colIndex = sourceColumnIndices[i];
             int sourceSqlType = sourceColumnTypes[i];
+
+/*
+            if ("text".equals(targetType) || sourceSqlType == java.sql.Types.CLOB || sourceSqlType == java.sql.Types.LONGVARCHAR) {
+                if (isOracle && sourceSqlType == 2005) {
+                    java.sql.Clob clob = rs.getClob(colIndex);
+                    if (clob == null) {
+                        writer.writeNull();
+                    } else {
+                        try (java.io.Reader reader = clob.getCharacterStream()) {
+                            writer.writeStreamingText(reader, clob.length());
+                        }
+                    }
+                } else {
+                    try (java.io.Reader reader = rs.getCharacterStream(colIndex)) {
+                        if (reader == null) {
+                            writer.writeNull();
+                        } else {
+                            writer.writeStreamingText(reader, 1024 * 1024); // Передаем поток
+                        }
+                    }
+                }
+                continue;
+            }
+*/
 
             Object value = rs.getObject(colIndex);
             if (value == null) {
@@ -778,7 +801,6 @@ public class PostgresStorage extends JDBCStorage {
                 case "text": {
                     String s;
                     if (isOracle) {
-//                        if (colIndex != 0 && rs.getMetaData().getColumnType(colIndex) == 2005) { // 2005 - Oracle CLOB
                         if (sourceSqlType == 2005) {
                             s = convertClobToString(rs, sourceColumn);
                         } else {
@@ -794,8 +816,6 @@ public class PostgresStorage extends JDBCStorage {
                 case "jsonb": {
                     String s;
                     if (isOracle) {
-//                        int columnIndex = getColumnIndexByColumnName(rs, sourceColumn.toUpperCase());
-//                        int columnType = rs.getMetaData().getColumnType(columnIndex);
                         s = switch (sourceSqlType) {
                             case 2005, 2011 -> convertClobToString(rs, sourceColumn).replace("\u0000", "");
                             default -> (value instanceof org.postgresql.util.PGobject pgo ?

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>dev.bublik</groupId>
+        <artifactId>bublik</artifactId>
+        <version>26.4.1</version>
+    </parent>
+
+    <artifactId>bublik-kora-module</artifactId>
+    <packaging>jar</packaging>
+
+    <developers>
+        <developer>
+            <name>Dmitrii Rudik</name>
+            <email>dima.rudik@gmail.com</email>
+            <organization>Bublik</organization>
+            <organizationUrl>http://www.bublik.dev</organizationUrl>
+        </developer>
+    </developers>
+
+    <name>bublik-kora-module</name>
+    <description>Bublik integration extension module for Kora Framework 2.0. Provides non-reflective compile-time dependency injection modules and type-safe declarative configuration mapping for distributed high-speed data migration pipelines.</description>
+    <url>https://github.com/dimarudik/bublik/tree/stable</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git://github.com/dimarudik/bublik.git</connection>
+        <developerConnection>scm:git:ssh://github.com:dimarudik/bublik.git</developerConnection>
+        <url>https://github.com/dimarudik/bublik/tree/stable</url>
+    </scm>
+
+    <properties>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <kora.version>2.0.0.RC2</kora.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>dev.bublik</groupId>
+            <artifactId>bublik-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.koraframework</groupId>
+            <artifactId>config-common</artifactId>
+            <version>${kora.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.koraframework</groupId>
+            <artifactId>config-hocon</artifactId>
+            <version>${kora.version}</version>
+            <!--            <scope>test</scope>-->
+        </dependency>
+
+        <dependency>
+            <groupId>io.koraframework</groupId>
+            <artifactId>test-junit5</artifactId>
+            <version>${kora.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.9.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.4.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.2.8</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <parameters>true</parameters>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>io.koraframework</groupId>
+                            <artifactId>annotation-processors</artifactId>
+                            <version>${kora.version}</version>
+                        </path>
+<!--
+                        <path>
+                            <groupId>io.koraframework</groupId>
+                            <artifactId>test-junit5</artifactId>
+                            <version>${kora.version}</version>
+                        </path>
+-->
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

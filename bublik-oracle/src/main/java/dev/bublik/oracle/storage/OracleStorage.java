@@ -5,7 +5,6 @@ import dev.bublik.core.constants.PGKeywords;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 import dev.bublik.oracle.model.OraChunkRowId;
 import dev.bublik.oracle.model.OraTable;
 import oracle.sql.INTERVALDS;
@@ -22,10 +21,10 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 public class OracleStorage extends JDBCStorage {
     private static final System.Logger log = System.getLogger(OracleStorage.class.getName());
 
-    public OracleStorage(StorageClass storageClass,
+    public OracleStorage(Properties properties,
                          ConnectionProperty connectionProperty,
                          Table outboxTable) throws SQLException {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
     }
 
     private OracleStorage(Builder builder) {

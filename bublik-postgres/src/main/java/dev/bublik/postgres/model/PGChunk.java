@@ -85,7 +85,9 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
     @Override
     public R getData(String query) throws SQLException {
         Connection connection = this.getSourceSession();
-        PreparedStatement statement = connection.prepareStatement(query);
+        PreparedStatement statement = connection.prepareStatement(query,
+                ResultSet.TYPE_FORWARD_ONLY,
+                ResultSet.CONCUR_READ_ONLY);
         statement.setLong(1, this.getStart());
         statement.setLong(2, this.getEnd());
         statement.setFetchSize(getSourceStorage().getFetchSize());
@@ -139,14 +141,12 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
                     }
                 } catch (Exception e) {
                     log.log(System.Logger.Level.ERROR, "Error while closing Statement for chunk {0}", getId(), e);
-//                    log.debug("Error while closing Statement for chunk {}", getId(), e);
                 }
 
                 try {
                     rs.close();
                 } catch (Exception e) {
                     log.log(System.Logger.Level.ERROR, "Error while closing source ResultSet for chunk {0}", getId(), e);
-//                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
                 }
             }
         }

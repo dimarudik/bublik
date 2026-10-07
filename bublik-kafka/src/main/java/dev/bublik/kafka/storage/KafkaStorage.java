@@ -3,7 +3,6 @@ package dev.bublik.kafka.storage;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 import dev.bublik.kafka.model.FieldRuntimeContext;
 import dev.bublik.kafka.service.AvroTypeMapper;
 import dev.bublik.kafka.service.ObjectTypeMapper;
@@ -39,15 +38,15 @@ public class KafkaStorage extends Storage {
     private final Map<String, AvroRowProducer> producerCache = new ConcurrentHashMap<>();
     private final Map<String, ObjectRowProducer> valueCache = new ConcurrentHashMap<>();
 
-    protected KafkaStorage(StorageClass storageClass, ConnectionProperty connectionProperty) {
-        super(storageClass, connectionProperty);
+    protected KafkaStorage(Properties properties, ConnectionProperty connectionProperty) {
+        super(properties, connectionProperty);
         Properties kafkaProperties = buildKafkaProperties(connectionProperty.getToProperties());
         this.kafkaProducer = new KafkaProducer<>(kafkaProperties);
         this.topic = connectionProperty.getToProperties().get("topic");
     }
 
-    public KafkaStorage(StorageClass storageClass, ConnectionProperty connectionProperty, Table outboxTable) {
-        this(storageClass, connectionProperty);
+    public KafkaStorage(Properties properties, ConnectionProperty connectionProperty, Table outboxTable) {
+        this(properties, connectionProperty);
     }
 
     private KafkaStorage(Builder builder) {
@@ -428,11 +427,6 @@ public class KafkaStorage extends Storage {
 
     @Override
     public Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk) {
-        return Map.of();
-    }
-
-    @Override
-    public Map<Table, Table> configsToTables(List<Config> configs, Storage targetStorage) {
         return Map.of();
     }
 

@@ -1,19 +1,22 @@
 package dev.bublik.postgres.storage;
 
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageFactory;
 import dev.bublik.core.storage.Storage;
 
+import java.sql.SQLException;
+import java.util.Properties;
+
 public class PostgresStorageFactory implements StorageFactory {
     @Override
-    public Storage create(ConnectionProperty connectionProperty) {
-        return null;
-/*
-        try {
-            return new JDBCPostgreSQLStorage(connectionProperty);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-*/
+    public boolean supports(Properties properties) {
+        String url = properties.getProperty("url");
+        return url != null && (url.startsWith("jdbc:postgresql:") || url.startsWith("jdbc:humus:"));
+    }
+
+    @Override
+    public Storage create(Properties properties, ConnectionProperty connectionProperty, Table table) throws SQLException {
+        return new PostgresStorage(properties, connectionProperty, table);
     }
 }

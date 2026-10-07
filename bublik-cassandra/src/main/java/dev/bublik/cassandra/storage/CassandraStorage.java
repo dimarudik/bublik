@@ -16,7 +16,6 @@ import dev.bublik.cassandra.storage.cassandraaddons.*;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -37,10 +36,10 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 public class CassandraStorage extends CSStorage {
     private static final System.Logger log = System.getLogger(CassandraStorage.class.getName());
 
-    public CassandraStorage(StorageClass storageClass,
+    public CassandraStorage(Properties properties,
                             ConnectionProperty connectionProperty,
                             Table outboxTable) {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
     }
 
     private CassandraStorage(Builder builder) {

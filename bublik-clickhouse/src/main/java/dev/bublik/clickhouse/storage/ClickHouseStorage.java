@@ -13,13 +13,9 @@ import dev.bublik.clickhouse.model.TransferPlan;
 import dev.bublik.clickhouse.service.ColumnTransfer;
 import dev.bublik.clickhouse.service.ValueTransfer;
 import dev.bublik.core.model.*;
-import dev.bublik.core.service.StorageService;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
-import dev.bublik.core.storage.StorageClass;
 import dev.bublik.core.util.Utils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -29,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Properties;
 
 public class ClickHouseStorage extends ClickStorage {
 //    private static final Logger log = LoggerFactory.getLogger(ClickHouseStorage.class);
@@ -39,10 +36,10 @@ public class ClickHouseStorage extends ClickStorage {
     private ValueTransfer[] pushPlan;
     private long rowCount = 0;
 
-    public ClickHouseStorage(StorageClass storageClass,
+    public ClickHouseStorage(Properties properties,
                              ConnectionProperty connectionProperty,
                              Table outboxTable) {
-        super(storageClass, connectionProperty, outboxTable);
+        super(properties, connectionProperty, outboxTable);
     }
 
     private ClickHouseStorage(Builder builder) {

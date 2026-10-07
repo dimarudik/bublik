@@ -12,6 +12,7 @@ import java.sql.Wrapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.*;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
@@ -19,34 +20,26 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 public abstract class Storage implements StorageService, Wrapper, AutoCloseable, Source, Target {
     private static final System.Logger log = System.getLogger(Storage.class.getName());
     private final String instanceUuid = java.util.UUID.randomUUID().toString();
+    private final Properties properties;
 
-    private final StorageClass storageClass;
     protected int threadCount;
     private final ConnectionProperty connectionProperty;
     protected Table outboxTable;
     private Map<Table, Table> tables;
     protected boolean isManaged;
 
-    public Storage(ConnectionProperty connectionProperty) {
-        this(null, connectionProperty, null);
+    protected Storage(Properties properties, ConnectionProperty connectionProperty) {
+        this(properties, connectionProperty, null);
     }
 
-    public Storage(ConnectionProperty connectionProperty, Table outboxTable) {
-        this(null, connectionProperty, outboxTable);
-    }
-
-    protected Storage(StorageClass storageClass, ConnectionProperty connectionProperty) {
-        this(storageClass, connectionProperty, null);
-    }
-
-    protected Storage(StorageClass storageClass, ConnectionProperty connectionProperty, Table outboxTable) {
-        this.storageClass = storageClass;
+    protected Storage(Properties properties, ConnectionProperty connectionProperty, Table outboxTable) {
+        this.properties = properties;
         this.connectionProperty = connectionProperty;
         this.outboxTable = outboxTable;
     }
 
     protected Storage(Builder<?, ?> builder) {
-        this.storageClass = null;
+        this.properties = null;
         this.connectionProperty = null;
         this.tables = null;
         this.threadCount = builder.threadCount;
@@ -82,10 +75,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
     public void setTables(Map<Table, Table> tables) {
         this.tables = tables;
-    }
-
-    public StorageClass getStorageClass() {
-        return storageClass;
     }
 
     public ConnectionProperty getConnectionProperty() {
@@ -370,6 +359,8 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), chunkLookupSql);
             String fetchQuery = buildFetchStatement(config, t2t);
             String orderByClause = targetTable.buildOrderBy(config);
+            log.log(System.Logger.Level.DEBUG,"Fetch query for table {0}.{1}: {2} {3}",
+                    t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), fetchQuery, orderByClause);
 
             migrationContexts.add(new TableMigrationContext(config, t2t, chunkLookupSql, fetchQuery, orderByClause));
         }
