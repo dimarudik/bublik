@@ -502,6 +502,8 @@ abstract class CSStorage extends Storage implements Source {
         List<Column> nonStaticColumns = CSTableService.getNonStaticColumns(sourceTable);
         List<Column> nonFrozenCollectionColumns = getStorageMajorVersion() < 5
                 ? CSTableService.getNonFrozenCollectionColumns(sourceTable) : new ArrayList<>();
+        List<Column> nonFrozenUdtColumns = getStorageMajorVersion() < 5
+                ? CSTableService.getNonFrozenUdtColumns(sourceTable) : new ArrayList<>();
 //        System.out.println("nonFrozenCollectionColumns: " + nonFrozenCollectionColumns);
         Collections.sort(pkColumns);
         String pkColumnsJoined = String.join(", ", pkColumns.stream().map(Column::columnName).toList());
@@ -516,6 +518,7 @@ abstract class CSStorage extends Storage implements Source {
                     .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
                     .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
                     .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
+                    .filter(s -> nonFrozenUdtColumns.stream().noneMatch(nfu -> nfu.columnName().equals(s)))
                     .map(s -> "ttl(" + s + ")")
                     .toList();
             columns.addAll(ttlColumns);
@@ -527,6 +530,7 @@ abstract class CSStorage extends Storage implements Source {
                     .filter(s -> ckColumns.stream().noneMatch(ck -> ck.columnName().equals(s)))
                     .filter(s -> nonStaticColumns.stream().anyMatch(ns -> ns.columnName().equals(s)))
                     .filter(s -> nonFrozenCollectionColumns.stream().noneMatch(nfc -> nfc.columnName().equals(s)))
+                    .filter(s -> nonFrozenUdtColumns.stream().noneMatch(nfu -> nfu.columnName().equals(s)))
                     .map(s -> "writetime(" + s + ")")
                     .toList();
             columns.addAll(timestampColumns);

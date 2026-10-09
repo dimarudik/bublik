@@ -47,8 +47,13 @@ public interface CSTableService {
         return key;
     }
 
+
     static List<Column> getNonStaticColumns(Table table) {
         return table.getColumns().stream().filter(column -> !column.isStatic()).toList();
+    }
+
+    static List<Column> getNonFrozenUdtColumns(Table table) {
+        return table.getColumns().stream().filter(column -> column.udtType() != null && !column.isFrozen()).toList();
     }
 
     static List<Column> getNonFrozenCollectionColumns(Table table) {

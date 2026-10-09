@@ -90,6 +90,8 @@ create table test.t5 (
     v18 frozen<map<int, int>>,
     v19 frozen<encrypted_data>,
     v20 frozen<map<text, text>>,
+    v21 encrypted_data,
+    v22 list<frozen<encrypted_data>>,
     primary key (id, uid));
 
 insert into test.t5 (id, uid, v1) values (1, 0, 1) using ttl 1000 and timestamp 10;
@@ -111,6 +113,8 @@ insert into test.t5 (id, uid, v17) values (1, 0, {'k1' : 'v1', 'k2' : 'v1', 'k3'
 insert into test.t5 (id, uid, v18) values (1, 0, {1 : 1, 2 : 1, 3 : 2}) using ttl 18000 and timestamp 180;
 insert into test.t5 (id, uid, v19) values (1, 0, {secret_data : 'secret_data', vector : 'vector'}) using ttl 19000 and timestamp 190;
 insert into test.t5 (id, uid, v20) values (1, 0, {'k1' : 'v1', 'k2' : 'v1', 'k3' : 'v2'}) using ttl 20000 and timestamp 200;
+insert into test.t5 (id, uid, v21) values (1, 0, {secret_data : 'secret_data', vector : 'vector'}) using ttl 19000 and timestamp 190;
+insert into test.t5 (id, uid, v22) values (1, 0, [{secret_data : 'secret_data', vector : 'vector'}, {secret_data : 'secret_data2', vector : 'vector2'}]);
 
 create table test.t6 (id tinyint,    v1 int, primary key (id));
 insert into test.t6  (id, v1) values (1, 1) using ttl 1000 and timestamp 10;

@@ -98,7 +98,8 @@ public class CSTable extends Table {
                 String columnType = row.getString("type");
                 assert columnType != null;
                 Column.UdtType udtType = getUdtTypeByTypeName(cqlSession, columnType);
-                Pattern isFrozen = Pattern.compile("(?i)\\bfrozen\\s*<");
+//                Pattern isFrozen = Pattern.compile("(?i)\\bfrozen\\s*<");
+                Pattern isFrozen = Pattern.compile("(?i)\\^frozen\\s*<");
                 Pattern isCollection = Pattern.compile("(?i)\\b(frozen\\s*<\\s*)?(list|set|map)\\s*<");
                 Column column = new Column(
                         row.getInt("position"),

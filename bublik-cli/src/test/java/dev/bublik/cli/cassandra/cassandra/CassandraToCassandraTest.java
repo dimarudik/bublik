@@ -81,7 +81,6 @@ public class CassandraToCassandraTest {
     }
 
     @Test
-// select id, uid, v1, v2, v3, v4, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4)  from test.t1;
     public void allTypes() throws InterruptedException, IOException {
         Properties sourceProperties = getPropertiesOfCassandra("localhost:9042");
         Properties targetProperties = getPropertiesOfCassandra("localhost:9043");
@@ -95,7 +94,7 @@ public class CassandraToCassandraTest {
                 "SELECT id, uid, ttl(v1), ttl(v2), ttl(v3), ttl(v4), writetime(v1), writetime(v2), writetime(v3), writetime(v4) FROM ",
                 null,
                 null);
-//        Thread.sleep(60_000);
+//        Thread.sleep(600_000);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
         assertEquals(result.sourceCount(), result.targetCount());
     }
@@ -322,7 +321,7 @@ public class CassandraToCassandraTest {
     }
 
 
-    public static TestResult getResult(String connectionPropertyFile,
+    private static TestResult getResult(String connectionPropertyFile,
                                        String mappingFile,
                                        int rows,
                                        boolean sync,

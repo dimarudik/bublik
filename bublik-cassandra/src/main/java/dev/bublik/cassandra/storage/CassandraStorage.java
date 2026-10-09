@@ -851,22 +851,22 @@ public class CassandraStorage extends CSStorage {
                               int majorVersion) {
         Integer ttl;
         Long timestamp;
-        boolean b = !(sourceColumn.isCollection() && !sourceColumn.isFrozen() && majorVersion < 5);
+//        System.out.println(sourceColumn.columnName() + " " + sourceColumn.udtType());
+        boolean a = !((sourceColumn.udtType() != null || sourceColumn.isCollection()) &&
+                !sourceColumn.isFrozen() && majorVersion < 5);
         if (recordTtl == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-            if (b) {
+            if (a) {
                 try {
                     ttl = row.get("ttl(" + sourceColumn.columnName() + ")", Integer.class);
                 } catch (CodecNotFoundException e) {
                     ttl = null;
                 }
-            } else {
-                ttl = null;
-            }
+            } else { ttl = null; }
         } else {
             ttl = recordTtl;
         }
         if (recordTimestamp == null && !sourceColumn.isStatic() && sourceColumn.columnPosition() == -1) {
-            if (b) {
+            if (a) {
                 try {
                     timestamp = row.getLong("writetime(" + sourceColumn.columnName() + ")");
                 } catch (CodecNotFoundException e) {

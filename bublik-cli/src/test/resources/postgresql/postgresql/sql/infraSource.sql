@@ -23,6 +23,7 @@ commit;
 CHECKPOINT;
 analyze public.s;
 CHECKPOINT;
--- create table public.big (image bytea);
--- insert into public.big (image) values (repeat('X', 256000000)::bytea);
--- analyze public.big;
+
+create table public.big (image bytea);
+-- insert into public.big (image) select (repeat('X', 400000)::bytea) as image from generate_series(1, 512) as n;
+analyze public.big;

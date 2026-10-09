@@ -6,6 +6,7 @@ import dev.bublik.core.model.ConnectionProperty;
 import dev.bublik.core.service.StorageService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -22,8 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static dev.bublik.core.util.Utils.getStackTrace;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class InfraTest {
     private static final Network network = Network.newNetwork();
@@ -113,7 +113,7 @@ public class InfraTest {
 
     @Test
     void k8sDatabasePromoteFailover() throws Exception {
-        ConnectionProperty connectionProperty = getConnectionProperty(2);
+        ConnectionProperty connectionProperty = getConnectionProperty(2, 1000);
         List<Config> configs = Collections.singletonList(
                 Config.builder().from("public", "s").to("public", "k8s_failover").build()
         );
@@ -176,7 +176,7 @@ public class InfraTest {
 
     @Test
     void k8sNotNullFailure() throws Exception {
-        ConnectionProperty connectionProperty = getConnectionProperty(2);
+        ConnectionProperty connectionProperty = getConnectionProperty(2, 1000);
         List<Config> configs = new ArrayList<>(Collections.singleton(
                 Config.builder()
                         .from("public", "s")
@@ -248,7 +248,7 @@ public class InfraTest {
 
     @Test
     void k8sKillPod() throws Exception {
-        ConnectionProperty connectionProperty = getConnectionProperty(2);
+        ConnectionProperty connectionProperty = getConnectionProperty(2, 1000);
         List<Config> configs = Collections.singletonList(
                 Config.builder().from("public", "s").to("public", "k8s_killpod").build()
         );
@@ -309,7 +309,7 @@ public class InfraTest {
 
     @Test
     void killProcess() throws Exception {
-        ConnectionProperty connectionProperty = getConnectionProperty(3);
+        ConnectionProperty connectionProperty = getConnectionProperty(3, 1000);
         List<Config> configs = new ArrayList<>(Collections.singleton(
                 Config.builder()
                         .from("public", "s")
@@ -361,7 +361,7 @@ public class InfraTest {
 
     }
 
-    private ConnectionProperty getConnectionProperty(int threads) {
+    private ConnectionProperty getConnectionProperty(int threads, int fetchSize) {
         String fromHostPort = "";
         if (srcMaster.isRunning()) {
             fromHostPort = srcMaster.getHost() + ":" + srcMaster.getMappedPort(5432) + ",";
@@ -374,7 +374,7 @@ public class InfraTest {
         fromProps.put("url", fromUrl);
         fromProps.put("user", srcMaster.getUsername());
         fromProps.put("password", srcMaster.getPassword());
-        fromProps.put("fetchSize", "1000");
+        fromProps.put("fetchSize", String.valueOf(fetchSize));
 
         String toHostPort = "";
         if (trgMaster.isRunning()) {
@@ -424,21 +424,19 @@ public class InfraTest {
         }
     }
 
-    /*
     @Test
+    @Disabled
     void bigDataFailure() throws Exception {
-        ConnectionProperty cp = getConnectionPropertyBigData();
+        ConnectionProperty cp = getConnectionProperty(10, 50_000);
         List<Config> cfgs = new ArrayList<>(Collections.singleton(
                 Config.builder()
                         .from("public", "big")
                         .to("public", "big")
                         .build()
         ));
-
         RuntimeException ex = assertThrows(RuntimeException.class, () -> {
-            StorageService.init(cp, cfgs, 10_000, chunkTable, outboxTable);
+            StorageService.init(cp, cfgs, 100);
         });
-        assertTrue(ex.getMessage().contains("Ran out of memory"));
+        assertTrue(ex.getMessage().contains("out of memory") || ex.getMessage().contains("Java heap space"));
     }
-    */
 }

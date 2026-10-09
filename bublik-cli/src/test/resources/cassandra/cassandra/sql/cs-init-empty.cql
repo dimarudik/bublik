@@ -66,6 +66,8 @@ create table test.t5 (
     v18 frozen<map<int, int>>,
     v19 frozen<encrypted_data>,
     v20 frozen<map<text, text>>,
+    v21 encrypted_data,
+    v22 list<frozen<encrypted_data>>,
     primary key (id, uid));
 
 create table test.t6 (id tinyint,    v1 int, primary key (id));

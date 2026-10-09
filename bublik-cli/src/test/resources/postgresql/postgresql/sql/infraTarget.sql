@@ -19,4 +19,4 @@ create table public.k8s_killpod (
     id2 int,
     name varchar(256)
 );
--- create table public.big (image bytea);
+create table public.big (image bytea);
