@@ -8,6 +8,7 @@ import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 
@@ -77,6 +78,12 @@ public class MM3 {
     public static byte[] timestampToBytes(Instant instant) {
         long l = instant.toEpochMilli();
         return longToBytes(l);
+    }
+
+    // Same encoding as the driver's DateCodec: days since epoch stored as an
+    // unsigned 32-bit int with the 2^31 offset (day 0 -> 0x80000000), big-endian
+    public static byte[] dateToBytes(LocalDate localDate) {
+        return intToBytes((int) (localDate.toEpochDay() - Integer.MIN_VALUE));
     }
 
     public static byte[] uuidToBytes(UUID uuid) {

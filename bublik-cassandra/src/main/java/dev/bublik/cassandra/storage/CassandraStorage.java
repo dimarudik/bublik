@@ -5,6 +5,7 @@ import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.data.UdtValue;
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange;
+import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException;
 import com.datastax.oss.driver.api.core.type.UserDefinedType;
 import com.datastax.oss.driver.api.core.type.codec.CodecNotFoundException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -337,17 +338,50 @@ public class CassandraStorage extends CSStorage {
 
     private void batchApply(BatchStatementBuilder batchStatementBuilder, CqlSession cqlSession) {
         try {
-            BatchStatement batchStatement = batchStatementBuilder
+            executeBatch(batchStatementBuilder
                     .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
                     .setTimeout(Duration.ofSeconds(20))
-                    .build();
-            cqlSession.execute(batchStatement);
+                    .build(),
+                    cqlSession);
             batchStatementBuilder.clearStatements();
-            batchStatement.clear();
         } catch (Exception e) {
             log.log(System.Logger.Level.ERROR, "{0}", getStackTrace(e));
             throw new RuntimeException(e);
         }
+    }
+
+    // batch_size_fail_threshold_in_kb: 50 — a batch of large rows (e.g. frozen UDT)
+    // can be rejected by size; split it recursively, an oversized single statement goes as a plain write
+    private void executeBatch(BatchStatement batchStatement, CqlSession cqlSession) {
+        try {
+            cqlSession.execute(batchStatement);
+        } catch (InvalidQueryException e) {
+            String message = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+            if (!message.contains("batch too large") && !message.contains("exceeding maximum")) {
+                throw e;
+            }
+            if (batchStatement.size() > 1) {
+                List<BatchableStatement<?>> statements = new ArrayList<>();
+                batchStatement.forEach(statements::add);
+                int middle = statements.size() / 2;
+                executeBatch(newBatch(batchStatement.getBatchType(), statements.subList(0, middle)), cqlSession);
+                executeBatch(newBatch(batchStatement.getBatchType(), statements.subList(middle, statements.size())), cqlSession);
+            } else {
+                Statement<?> single = batchStatement.iterator().next();
+                if (single instanceof BoundStatement boundStatement) {
+                    single = boundStatement
+                            .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
+                            .setTimeout(Duration.ofSeconds(20));
+                }
+                cqlSession.execute(single);
+            }
+        }
+    }
+
+    private BatchStatement newBatch(BatchType batchType, List<BatchableStatement<?>> statements) {
+        return BatchStatement.newInstance(batchType, statements)
+                .setConsistencyLevel(DefaultConsistencyLevel.LOCAL_QUORUM)
+                .setTimeout(Duration.ofSeconds(20));
     }
 
     public <K, T, S extends AutoCloseable, R> LogMessage ranged(Chunk<K, T, S, R> chunk) {
@@ -768,6 +802,9 @@ public class CassandraStorage extends CSStorage {
             }
             case "date": {
                 v = row.getLocalDate(sClmName);
+                if (targetColumn.isPartitionKey() && v != null) {
+                    bytes = dateToBytes((LocalDate) v);
+                }
                 break;
             }
             case "timestamp": {
