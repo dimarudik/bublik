@@ -219,7 +219,6 @@ public class TestUtils {
     public static Properties getJdbcProperties(JdbcDatabaseContainer<?> db) {
         Properties properties = new Properties();
         properties.setProperty("url", db.getJdbcUrl());
-//        properties.setProperty("database", db.getDatabaseName());
         properties.setProperty("user", db.getUsername());
         properties.setProperty("password", db.getPassword());
         System.out.println(db.getJdbcUrl() + " " + db.getUsername() + " " + db.getPassword());
@@ -228,7 +227,6 @@ public class TestUtils {
 
     public static Properties getFullJdbcProperties(JdbcDatabaseContainer<?> target) {
         String url = target.getJdbcUrl();
-//        System.out.println(url);
         Properties properties = new Properties();
         properties.setProperty("url", url);
         properties.setProperty("database", target.getDatabaseName());

@@ -159,6 +159,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 }
                 continue;
             }
+            // проверяем, что в очереди нет чанков для обработки и все чанки уже обработаны
             if (chunks.isEmpty()) {
                 if (!isMigrationFullyFinished()) {
                     log.log(System.Logger.Level.INFO, "No unassigned chunks, but cluster is still running. Waiting for ghost tasks...");
@@ -292,6 +293,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             tasks.clear();
             chunks.clear();
             printMemInfo();
+            printChunkStatus();
         } while (true);
 
         long cleanupLockId = Math.abs((long) (configs.getFirst().fromTaskName() + getOutboxTable().getTableName()).hashCode() + 999);
@@ -347,6 +349,10 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         throw new RuntimeException("Timeout exceeded for table creation by the Cluster Leader (1 min)!");
     }
 
+    @Override
+    public void printChunkStatus() {
+
+    }
 
     private List<TableMigrationContext> getTableMigrationContexts(List<Config> configs, Storage targetStorage) throws SQLException {
         List<TableMigrationContext> migrationContexts = new ArrayList<>();
