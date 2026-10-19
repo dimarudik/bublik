@@ -1,6 +1,7 @@
 package dev.bublik.ydb.storage;
 
 import dev.bublik.core.constants.PGKeywords;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
@@ -17,7 +18,6 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.ydb.constants.SQLConstants.*;
 
 public class YDBStorage extends JDBCStorage {
-//    private static final Logger log = LoggerFactory.getLogger(YDBStorage.class);
     private static final System.Logger log = System.getLogger(YDBStorage.class.getName());
 
     public YDBStorage(Properties properties,
@@ -117,7 +117,9 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R>  LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R>  LogMessage transfer(Chunk<K, T, S, R> chunk,
+                                                                   String tableName,
+                                                                   TransferMode mode) throws SQLException {
         ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
         Connection connectionFrom = (Connection) chunk.getSourceSession();
         if (fetchResultSet.next()) {

@@ -1,6 +1,7 @@
 package dev.bublik.core.storage;
 
 import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
 import dev.bublik.core.service.StorageService;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.*;
 
+import static dev.bublik.core.constants.TransferMode.COPY;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public abstract class Storage implements StorageService, Wrapper, AutoCloseable, Source, Target {
@@ -98,6 +100,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
     @Override
     public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
+        start(targetStorage, cfgs, rows, COPY);
+    }
+
+    @Override
+    public void start(Storage targetStorage, List<Config> cfgs, int rows, TransferMode mode) throws SQLException {
         List<Config> configs = copyConfigs(cfgs);
         if (getOutboxTable() == null || getOutboxTable().getTableName() == null) {
             setOutboxTable(getDefaultSourceOutboxTable());
@@ -172,7 +179,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             for (Chunk<?, ?, ?, ?> chunk : chunks) {
                 tasks.add(() -> {
                     try {
-                        return chunk.allStages(false, getOutboxTable());
+                        return chunk.allStages(mode, getOutboxTable());
                     } catch (Exception e) {
                         Throwable rootCause = e;
                         while (rootCause.getCause() != null && !(rootCause instanceof SQLException)) {

@@ -22,11 +22,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import static dev.bublik.cassandra.ContainerImageVersions.CASSANDRA;
+import static dev.bublik.cassandra.ContainerImageVersions.CLICKHOUSE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CassandraMigrationTest {
-    static final CassandraContainer cassandraContainer = new CassandraContainer(
-            DockerImageName.parse("cassandra"));
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+
+    static final CassandraContainer cassandraContainer = new CassandraContainer(CASSANDRA_STABLE);
 
     static CqlSession sourceSession;
     static CqlSession targetSession;

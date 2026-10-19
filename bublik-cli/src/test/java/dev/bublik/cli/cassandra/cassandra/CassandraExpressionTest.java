@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.util.Properties;
 import java.util.function.Predicate;
 
 import static dev.bublik.cli.App.getConfigs;
+import static dev.bublik.cli.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // +
@@ -31,7 +33,10 @@ public class CassandraExpressionTest {
     private static int rows = 50000;
     private static boolean sync = false;
 
-    private static CassandraContainer source = new CassandraContainer("cassandra")
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+    private static CassandraContainer source = new CassandraContainer(CASSANDRA_STABLE)
             .withEnv("CASSANDRA_USER", "cassandra")
             .withEnv("CASSANDRA_PASSWORD", "cassandra")
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
@@ -40,7 +45,7 @@ public class CassandraExpressionTest {
             .withCopyToContainer(MountableFile.forClasspathResource("./cassandra/cassandra/conf/docker-entrypoint.sh"), "/usr/local/bin/docker-entrypoint.sh")
             .withInitScript("./cassandra/cassandra/sql/cs-init-expression.cql")
             .withExposedPorts(9042);
-    private static CassandraContainer target = new CassandraContainer("cassandra")
+    private static CassandraContainer target = new CassandraContainer(CASSANDRA_STABLE)
             .withEnv("CASSANDRA_USER", "cassandra")
             .withEnv("CASSANDRA_PASSWORD", "cassandra")
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")

@@ -16,6 +16,7 @@ import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.oracle.OracleContainer;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static dev.bublik.cli.App.getConfigs;
+import static dev.bublik.cli.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 //@Disabled
@@ -34,7 +36,10 @@ public class ToUserDefinedTypeTest {
     private static JdbcDatabaseContainer<?> source = new OracleContainer("gvenzl/oracle-free:slim-faststart")
             .withStartupTimeout(Duration.ofMinutes(10))
             .withInitScript("./oracle/cassandra/sql/oracle/ora-init.sql");
-    private static CassandraContainer target = new CassandraContainer("cassandra")
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+    private static CassandraContainer target = new CassandraContainer(CASSANDRA_STABLE)
             .withInitScript("./oracle/cassandra/sql/cs-to-udt.cql");
 
     @BeforeAll

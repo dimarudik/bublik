@@ -1,5 +1,6 @@
 package dev.bublik.core.service;
 
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.Storage;
 
@@ -17,6 +18,7 @@ public interface StorageService {
     System.Logger log = System.getLogger(StorageService.class.getName());
 
     void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException;
+    void start(Storage targetStorage, List<Config> configs, int rows, TransferMode mode) throws SQLException;
     void validate(Storage targetStorage, List<Config> configs) throws SQLException;
     void createGlobalOutbox() throws SQLException;
     <K, T, S extends AutoCloseable, R, V> void insertColumnValue(List<ColumnValue<V>> columnValues, Chunk<K, T, S, R> chunk) throws SQLException;
@@ -30,7 +32,7 @@ public interface StorageService {
     Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException;
     List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> migrationContexts, Storage targetStorage) throws SQLException;
     String buildStartEndOfChunk(Config config, Table sourceTable);
-    <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException;
+    <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName, TransferMode mode) throws SQLException;
     void closeStorage();
     String buildFetchStatement(Config config, Table2Table t2t);
     Map<String, Column> readTargetColumnsAndTypes(Connection connectionTo, Chunk<?, ?, ?, ?> chunk);
@@ -82,22 +84,25 @@ public interface StorageService {
         throw new RuntimeException("StorageFactory not found for identifier: " + identifier);
     }
 
-
-    @Deprecated
-    static void init(ConnectionProperty property, List<Config> configs, boolean sync, int rows, String table) throws SQLException, IOException {
-        throw new RuntimeException("Deprecated");
-    }
-
     static void init(ConnectionProperty property, List<Config> configs, int rows) throws SQLException, IOException {
-        init(property, configs, rows, null);
+        init(property, configs, rows, (Table) null);
     }
 
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable) throws SQLException, IOException {
         init(property, configs, rows, chunkTable, null);
     }
 
+    static void init(ConnectionProperty property, List<Config> configs, int rows, TransferMode mode) throws SQLException, IOException {
+        init(property, configs, rows, null, null, mode);
+    }
+
     static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
+        init(property, configs, rows, chunkTable, outboxTable, TransferMode.COPY);
+    }
+
+    static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable, TransferMode mode) throws SQLException, IOException {
         log.log(System.Logger.Level.INFO, "Bublik starting...");
+        log.log(System.Logger.Level.INFO, "MODE: {0}", mode);
         if (rows > 0) log.log(System.Logger.Level.INFO, "Expected chunk size: {0}", rows);
         log.log(System.Logger.Level.INFO, "VERSION : {0}", getVersion());
         try {
@@ -136,8 +141,9 @@ public interface StorageService {
 
         try (Storage sourceStorage = getStorage(property.getFromProperty(), property, chunkTable);
              Storage targetStorage = getStorage(property.getToProperty(), property, outboxTable)) {
+//            TransferMode transferMode = mode == null ? TransferMode.COPY : TransferMode.valueOf(mode);
             assert sourceStorage != null;
-            sourceStorage.start(targetStorage, configs, rows);
+            sourceStorage.start(targetStorage, configs, rows, mode);
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {

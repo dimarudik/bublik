@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.sql.*;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static dev.bublik.cli.App.getConfigs;
+import static dev.bublik.cli.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // +
@@ -31,7 +33,10 @@ public class ToListAllTest {
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres")
             .withDatabaseName("postgres")
             .withInitScript("./postgresql/cassandra/sql/pg-to-list-all.sql");
-    private static CassandraContainer target = new CassandraContainer("cassandra")
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+    private static CassandraContainer target = new CassandraContainer(CASSANDRA_STABLE)
             .withInitScript("./postgresql/cassandra/sql/cs-to-list-all.cql");
 
     @BeforeAll

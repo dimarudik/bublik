@@ -2,6 +2,7 @@ package dev.bublik.mssql.storage;
 
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -348,7 +349,9 @@ public class MSSQLStorage extends JDBCStorage {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk,
+                                                                  String tableName,
+                                                                  TransferMode mode) throws SQLException {
         return null;
     }
 

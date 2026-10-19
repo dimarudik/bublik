@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.bublik.cassandra.model.CSComplexType;
 import dev.bublik.cassandra.model.CSTable;
 import dev.bublik.cassandra.storage.cassandraaddons.*;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -62,7 +63,9 @@ public class CassandraStorage extends CSStorage {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk,
+                                                                  String tableName,
+                                                                  TransferMode mode) throws SQLException {
         Storage sourceStorage = chunk.getSourceStorage();
         Storage targetStorage = chunk.getTargetStorage();
         if (sourceStorage instanceof CSStorage) {

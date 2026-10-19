@@ -3,6 +3,7 @@ package dev.bublik.cli;
 import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
+import dev.bublik.core.constants.TransferMode;
 import lombok.extern.slf4j.Slf4j;
 import dev.bublik.cli.addons.Utils;
 import dev.bublik.core.model.Config;
@@ -44,7 +45,17 @@ public class TestUtils {
                                             boolean sync,
                                             Properties sourceProperties,
                                             Properties targetProperties) throws IOException, SQLException {
-        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, chunkTable, outboxTable);
+        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, chunkTable, outboxTable, TransferMode.COPY);
+    }
+
+    public static TestResult getResultCount(String connectionPropertyFile,
+                                            String mappingFile,
+                                            int rows,
+                                            boolean sync,
+                                            Properties sourceProperties,
+                                            Properties targetProperties,
+                                            TransferMode mode) throws IOException, SQLException {
+        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, chunkTable, outboxTable, mode);
     }
 
     public static TestResult getResultCount(String connectionPropertyFile,
@@ -55,13 +66,25 @@ public class TestUtils {
                                             Properties targetProperties,
                                             Table chunkTable,
                                             Table outboxTable) throws IOException, SQLException {
+        return getResultCount(connectionPropertyFile, mappingFile, rows, sync, sourceProperties, targetProperties, chunkTable, outboxTable, TransferMode.COPY);
+    }
+
+    public static TestResult getResultCount(String connectionPropertyFile,
+                                            String mappingFile,
+                                            int rows,
+                                            boolean sync,
+                                            Properties sourceProperties,
+                                            Properties targetProperties,
+                                            Table chunkTable,
+                                            Table outboxTable,
+                                            TransferMode mode) throws IOException, SQLException {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
         if (chunkTable != null && outboxTable != null) {
-            App.runProcess(cp, configs, rows);
+            App.runProcess(cp, configs, rows, mode);
         } else {
-            StorageService.init(cp, configs, rows, chunkTable, outboxTable);
+            StorageService.init(cp, configs, rows, chunkTable, outboxTable, mode);
         }
 
         long sourceCount = 0;

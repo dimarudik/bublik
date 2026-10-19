@@ -132,6 +132,7 @@ select
     num,
     float8
 from public.target where 0 = 1;
+alter table public.target2 add primary key (id);
 alter table public.target add column gender gender;
 -- alter table public.target add primary key (id);
 create table public.parted (
@@ -200,6 +201,11 @@ insert into public."Source" (uuid, "Primary", boolean,
     from generate_series(1,300000) as n;
 
 analyze public."Source" ;
+
+create table public.source2 as
+    select id, "Primary", int2 , int4, int8, smallint, bigint, numeric, float8 from public."Source";
+alter table public.source2 add primary key (id);
+analyze public.source2 ;
 
 create table public.not_null_failure (
     id int,

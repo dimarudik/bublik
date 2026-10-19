@@ -1,6 +1,7 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
 import dev.bublik.core.model.Table;
@@ -14,10 +15,9 @@ import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 import static dev.bublik.cli.App.getConfigs;
 import static dev.bublik.cli.TestUtils.*;
@@ -97,17 +97,135 @@ public class PostgresToPostgresTest {
     }
 
     @Test
-    void sumCountHash() throws Exception {
-        TestResult result = getResultCount(
-                "./postgresql/postgresql/yaml/pg2pg.yaml",
-                "./postgresql/postgresql/json/sumCount.json",
-                rows,
-                sync,
-                getJdbcProperties(source),
-                getJdbcProperties(target));
-        System.out.println("source count: " + result.sourceCount());
-        System.out.println("target count: " + result.targetCount());
-        assertEquals(result.sourceCount(), result.targetCount());
+    void sumCountHashWithParallelLoad() throws Exception {
+        CountDownLatch longTxStarted = new CountDownLatch(1);
+        CountDownLatch xminCaptured = new CountDownLatch(1);
+
+        CompletableFuture<Void> longTransactionTask = CompletableFuture.runAsync(() -> {
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword())) {
+                conn.setAutoCommit(false);
+
+                try (PreparedStatement psUpdate = conn.prepareStatement(
+                        "UPDATE source2 SET \"Primary\" = 'long_tx_mod_' || id, numeric = numeric + 100 WHERE id <= 10");
+                     PreparedStatement psInsert = conn.prepareStatement(
+                             "INSERT INTO source2 (id, int2, int4, int8, smallint, bigint, numeric, float8, \"Primary\") " +
+                                     "VALUES (?, 1, 1, 1, 1, 1, 100.0, 100.0, ?)")) {
+
+                    psUpdate.executeUpdate();
+
+                    int startId = 20_000_000;
+                    for (int i = 0; i < 10; i++) {
+                        psInsert.setInt(1, startId + i);
+                        psInsert.setString(2, "long_tx_user_" + i);
+                        psInsert.addBatch();
+                    }
+                    psInsert.executeBatch();
+
+                    longTxStarted.countDown();
+                    xminCaptured.await();
+                    conn.commit();
+
+                } catch (Exception e) {
+                    conn.rollback();
+                    throw e;
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        longTxStarted.await();
+
+        final long xMin;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT pg_snapshot_xmin(pg_current_snapshot())::text::bigint")) {
+            assertTrue(rs.next());
+            xMin = rs.getLong(1);
+
+            xminCaptured.countDown();
+        }
+
+        longTransactionTask.get();
+
+        CompletableFuture<Void> backgroundLoadTask = CompletableFuture.runAsync(() -> {
+            Random random = new Random();
+
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+                 PreparedStatement psUpdate = conn.prepareStatement(
+                         "UPDATE source2 SET \"Primary\" = substr(md5(random()::text), 1, 100), numeric = numeric + ? " +
+                                 "WHERE id = (SELECT id FROM source2 OFFSET ? LIMIT 1)");
+                 PreparedStatement psInsert = conn.prepareStatement(
+                         "INSERT INTO source2 (id, int2, int4, int8, smallint, bigint, numeric, float8, \"Primary\") " +
+                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+
+                conn.setAutoCommit(true);
+                int nextId = 10_000_000;
+
+                int iterations = 0;
+                while (iterations < 10_000) {
+                    if (random.nextBoolean()) {
+                        psUpdate.setDouble(1, random.nextDouble());
+                        psUpdate.setInt(2, random.nextInt(100));
+                        psUpdate.executeUpdate();
+                    } else {
+                        psInsert.setInt(1, nextId++);
+                        psInsert.setShort(2, (short) random.nextInt(10));
+                        psInsert.setInt(3, random.nextInt(100));
+                        psInsert.setLong(4, random.nextLong(1000));
+                        psInsert.setShort(5, (short) random.nextInt(10));
+                        psInsert.setLong(6, random.nextLong(1000));
+                        psInsert.setDouble(7, random.nextDouble());
+                        psInsert.setDouble(8, random.nextDouble());
+                        psInsert.setString(9, "user_" + nextId);
+                        psInsert.executeUpdate();
+                    }
+//                    Thread.sleep(1);
+                    iterations++;
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        try {
+            getResultCount(
+                    "./postgresql/postgresql/yaml/pg2pg_sum_hash.yaml",
+                    "./postgresql/postgresql/json/sumCount.json",
+                    10_000,
+                    sync,
+                    getJdbcProperties(source),
+                    getJdbcProperties(target),
+                    TransferMode.COPY);
+        } catch (Exception e){
+            System.out.println(getStackTrace(e));
+        }
+
+        backgroundLoadTask.get();
+
+        try (Connection connection = DriverManager.getConnection(getJdbcProperties(source).getProperty("url"), getJdbcProperties(source));
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("drop table " + chunkTable.getSchemaName() + "." + chunkTable.getTableName());
+            statement.executeUpdate("drop table " + outboxTable.getSchemaName() + "." + outboxTable.getTableName());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        ConnectionProperty connectionProperty = connectionProperty(
+                PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/yaml/pg2pg_sum_hash.yaml"));
+        List<Config> configsTmp = getConfigs(
+                PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/sumCount.json"));
+        Config configFirst = configsTmp.getFirst();
+        List<Config> configs = new ArrayList<>();
+        Config config = Config
+                .builder()
+                .from(configFirst.fromSchemaName(), configFirst.fromTableName())
+                .to(configFirst.toSchemaName(), configFirst.toTableName())
+                .columnToColumn(configFirst.columnToColumn())
+                .fetchWhereClause("xmin::text::bigint >= " + xMin)
+                .build();
+        configs.add(config);
+        StorageService.init(connectionProperty, configs, 50_000, TransferMode.UPSERT);
 
         long sCnt, sId, sInt2, sInt4, sInt8, sSmallint, sBigint;
         double sNum, sFloat;
@@ -119,7 +237,81 @@ public class PostgresToPostgresTest {
                              "sum(int8) as int8, sum(smallint) as smallint, sum(bigint) as bigint, " +
                              "sum(numeric) as num, sum(float8) as float8, " +
                              "sum(hashtext(\"Primary\")::bigint + hashtext(reverse(\"Primary\"))::bigint) as primary " +
-                             "FROM \"Source\"")) {
+                             "FROM source2")) {
+            assertTrue(rs.next());
+            sCnt = rs.getLong("cnt");
+            sId = rs.getLong("id");
+            sInt2 = rs.getLong("int2");
+            sInt4 = rs.getLong("int4");
+            sInt8 = rs.getLong("int8");
+            sSmallint = rs.getLong("smallint");
+            sBigint = rs.getLong("bigint");
+            sNum = rs.getDouble("num");
+            sFloat = rs.getFloat("float8");
+            sPrimary = rs.getLong("primary");
+        }
+
+        long tCnt, tId, tInt2, tInt4, tInt8, tSmallint, tBigint;
+        double tNum, tFloat;
+        long tPrimary;
+        try (Connection conn = DriverManager.getConnection(target.getJdbcUrl(), target.getUsername(), target.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(int2) as int2, sum(int4) as int4, " +
+                             "sum(int8) as int8, sum(smallint) as smallint, sum(bigint) as bigint, " +
+                             "sum(num) as num, sum(float8) as float8, " +
+                             "sum(hashtext(\"Primary\")::bigint + hashtext(reverse(\"Primary\"))::bigint) as primary " +
+                             "FROM target2")) {
+            assertTrue(rs.next());
+            tCnt = rs.getLong("cnt");
+            tId = rs.getLong("id");
+            tInt2 = rs.getLong("int2");
+            tInt4 = rs.getLong("int4");
+            tInt8 = rs.getLong("int8");
+            tSmallint = rs.getLong("smallint");
+            tBigint = rs.getLong("bigint");
+            tNum = rs.getDouble("num");
+            tFloat = rs.getFloat("float8");
+            tPrimary = rs.getLong("primary");
+        }
+
+        // Жесткая сверка результатов
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "SUM(id) не совпал!");
+        assertEquals(sInt2, tInt2, "SUM(int2) не совпал!");
+        assertEquals(sInt4, tInt4, "SUM(int4) не совпал!");
+        assertEquals(sInt8, tInt8, "SUM(int8) не совпал!");
+        assertEquals(sSmallint, tSmallint, "SUM(smallint) не совпал!");
+        assertEquals(sBigint, tBigint, "SUM(bigint) не совпал!");
+        assertEquals(sNum, tNum, 0.000001f, "SUM(numeric) не совпал!");
+        assertEquals(sFloat, tFloat, 0.000001d, "SUM(float8) не совпал!");
+        assertEquals(sPrimary, tPrimary, "Хеш строк Primary не совпал!");
+
+    }
+
+/*
+    @Test
+    void sumCountHash() throws Exception {
+        getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg_sum_hash.yaml",
+                "./postgresql/postgresql/json/sumCount.json",
+                10_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.COPY);
+
+        long sCnt, sId, sInt2, sInt4, sInt8, sSmallint, sBigint;
+        double sNum, sFloat;
+        long sPrimary;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(int2) as int2, sum(int4) as int4, " +
+                             "sum(int8) as int8, sum(smallint) as smallint, sum(bigint) as bigint, " +
+                             "sum(numeric) as num, sum(float8) as float8, " +
+                             "sum(hashtext(\"Primary\")::bigint + hashtext(reverse(\"Primary\"))::bigint) as primary " +
+                             "FROM source2")) {
             assertTrue(rs.next());
             sCnt = rs.getLong("cnt");
             sId = rs.getLong("id");
@@ -168,6 +360,7 @@ public class PostgresToPostgresTest {
         assertEquals(sFloat, tFloat, 0.000001d);
         assertEquals(sPrimary, tPrimary);
     }
+*/
 
     @Test
     void columnOrder() throws Exception {

@@ -2,6 +2,7 @@ package dev.bublik.clickhouse.storage;
 
 import com.clickhouse.client.api.Client;
 import dev.bublik.clickhouse.model.ClickTable;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
 import dev.bublik.core.storage.Storage;
@@ -65,7 +66,7 @@ abstract class ClickStorage extends Storage implements Source {
     }
 
     @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+    public void start(Storage targetStorage, List<Config> configs, int rows, TransferMode mode) throws SQLException {
 
     }
 

@@ -1,5 +1,6 @@
 package dev.bublik.kafka.storage;
 
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -78,7 +79,9 @@ public class KafkaStorage extends Storage {
 
 
     @Override
-    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk,
+                                                                  String tableName,
+                                                                  TransferMode mode) throws SQLException {
         try {
             List<Column2Column> c2c = chunk.getT2t().column2Columns();
             if (chunk.getSourceStorage() instanceof JDBCStorage) {
@@ -100,7 +103,7 @@ public class KafkaStorage extends Storage {
 
                 return currentTableProducer.streamResultSetToKafka(chunk, topic);
             } else {
-                return chunk.getSourceStorage().transfer(chunk, tableName);
+                return chunk.getSourceStorage().transfer(chunk, tableName, mode);
             }
         } catch (Exception e) {
             throw new RuntimeException("KafkaStorage transfer pipeline failed", e);
@@ -284,7 +287,7 @@ public class KafkaStorage extends Storage {
     }
 
     @Override
-    public void start(Storage targetStorage, List<Config> configs, int rows) throws SQLException {
+    public void start(Storage targetStorage, List<Config> configs, int rows, TransferMode mode) throws SQLException {
 
     }
 

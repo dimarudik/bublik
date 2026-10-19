@@ -28,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.kafka.ConfluentKafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
@@ -39,12 +40,16 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import static dev.bublik.cli.App.getConfigs;
+import static dev.bublik.cli.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ToKafkaTest {
     private final static int ROWS = 20000;
 
-    private static CassandraContainer source = new CassandraContainer("cassandra")
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+    private static CassandraContainer source = new CassandraContainer(CASSANDRA_STABLE)
             .withEnv("CASSANDRA_USER", "cassandra")
             .withEnv("CASSANDRA_PASSWORD", "cassandra")
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")

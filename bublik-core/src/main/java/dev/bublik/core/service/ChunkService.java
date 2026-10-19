@@ -1,6 +1,7 @@
 package dev.bublik.core.service;
 
 import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.Chunk;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.storage.Storage;
@@ -10,10 +11,10 @@ import java.time.Instant;
 
 public interface ChunkService {
     <R> R getData(String query) throws SQLException;
-    Chunk<?, ?, ?, ?> allStages(boolean sync, Table outboxTable) throws SQLException;
+    Chunk<?, ?, ?, ?> allStages(TransferMode mode, Table outboxTable) throws SQLException;
     Chunk<?, ?, ?, ?> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String outboxTable) throws SQLException;
     Chunk<?, ?, ?, ?> secondStageGetSourceResultSet() throws SQLException;
-    Chunk<?, ?, ?, ?> mainStageTransfer(String outboxTable) throws SQLException;
+    Chunk<?, ?, ?, ?> mainStageTransfer(String outboxTable, TransferMode mode) throws SQLException;
     Chunk<?, ?, ?, ?> interStageSaveChunkRows(int copied, boolean sync, String outboxTable) throws SQLException;
     void lastStageCloseSourceSession(boolean sync) throws SQLException;
 

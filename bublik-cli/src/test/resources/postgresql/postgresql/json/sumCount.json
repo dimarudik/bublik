@@ -1,7 +1,7 @@
 [
   {
     "fromSchemaName" : "public",
-    "fromTableName" : "\"Source\"",
+    "fromTableName" : "source2",
     "toSchemaName" : "public",
     "toTableName" : "target2",
     "columnToColumn" : {

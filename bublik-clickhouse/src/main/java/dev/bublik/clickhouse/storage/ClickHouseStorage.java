@@ -12,6 +12,7 @@ import dev.bublik.clickhouse.model.ClickTable;
 import dev.bublik.clickhouse.model.TransferPlan;
 import dev.bublik.clickhouse.service.ColumnTransfer;
 import dev.bublik.clickhouse.service.ValueTransfer;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -65,12 +66,14 @@ public class ClickHouseStorage extends ClickStorage {
     }
 
     @Override
-    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName) throws SQLException {
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk,
+                                                                  String tableName,
+                                                                  TransferMode mode) throws SQLException {
         Storage sourceStorage = chunk.getSourceStorage();
         if (sourceStorage instanceof JDBCStorage) {
             return jdbcToClickHouse(chunk);
         } else {
-            return sourceStorage.transfer(chunk, tableName);
+            return sourceStorage.transfer(chunk, tableName, mode);
         }
     }
 

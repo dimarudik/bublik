@@ -1,6 +1,7 @@
 package dev.bublik.postgres.model;
 
 import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -53,7 +54,6 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
             updateStatus.close();
             connection.commit();
         } else {
-//            log.error("Chunk: {} Connection is not valid", getId());
             throw new SQLException("Chunk: " + getId() + " Connection is not valid");
         }
         return this;
@@ -95,16 +95,16 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
     }
 
     @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(TransferMode mode, Table tableName) throws SQLException {
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, false, null, null, tableName.tableToString())
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(tableName.tableToString())
-                .interStageSaveChunkRows(getCopied(), sync, tableName.tableToString())
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.tableToString())
-                .lastStageCloseSourceSession(sync);
+                .mainStageTransfer(tableName.tableToString(), mode)
+                .interStageSaveChunkRows(getCopied(), false, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, false, null, null, tableName.tableToString())
+                .lastStageCloseSourceSession(false);
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && getTargetSession() != null) {
             try {
@@ -122,9 +122,9 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
     }
 
     @Override
-    public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
+    public Chunk<K, T, S, R> mainStageTransfer(String tableName, TransferMode mode) throws SQLException {
         try {
-            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
+            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName, mode);
             this.setLogMessage(logMessage);
             return this;
         } catch (SQLException | RuntimeException e) {

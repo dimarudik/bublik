@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import static dev.bublik.postgres.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,8 +36,11 @@ public class CassandraMigrationTest {
     static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres"));
 
-    static final CassandraContainer cassandraContainer = new CassandraContainer(
-            DockerImageName.parse("cassandra"));
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+
+    static final CassandraContainer cassandraContainer = new CassandraContainer(CASSANDRA_STABLE);
 
     static HikariDataSource postgresDataSource;
     static CqlSession cassandraSession;
@@ -55,6 +59,7 @@ public class CassandraMigrationTest {
         pgConfig.setMaximumPoolSize(5);
         postgresDataSource = new HikariDataSource(pgConfig);
 
+        //
         try (Connection conn = postgresDataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE source_users (id INT PRIMARY KEY, user_name VARCHAR(100))");
             stmt.execute("INSERT INTO source_users (id, user_name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");

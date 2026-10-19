@@ -1,6 +1,7 @@
 package dev.bublik.oracle.model;
 
 import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.ChunkService;
 import dev.bublik.core.storage.JDBCStorage;
@@ -22,36 +23,23 @@ public abstract class OraChunk<K extends Long, T, S extends Connection, R extend
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
-/*
     @Override
-    public boolean isValidSourceSession() throws SQLException {
-        return getSourceSession() != null && getSourceSession().isValid(1);
-    }
-
-    @Override
-    public boolean isValidTargetSession() throws SQLException {
-        return getTargetSession() != null && getTargetSession().isValid(1);
-    }
-*/
-
-    @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(TransferMode mode, Table tableName) throws SQLException {
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.getTableName())
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, false, null, null, tableName.getTableName())
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(null)
-                .interStageSaveChunkRows(getCopied(), sync, tableName.getTableName())
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.getTableName())
-                .lastStageCloseSourceSession(sync);
+                .mainStageTransfer(null, mode)
+                .interStageSaveChunkRows(getCopied(), false, tableName.getTableName())
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, false, null, null, tableName.getTableName())
+                .lastStageCloseSourceSession(false);
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && getTargetSession() != null) {
             try {
                 getTargetSession().close();
             } catch (Exception e) {
                 log.log(System.Logger.Level.ERROR, "Target session was already closed or cannot be closed", e);
-//                log.debug("Target session was already closed or cannot be closed", e);
             }
         }
         return this;
@@ -101,9 +89,9 @@ public abstract class OraChunk<K extends Long, T, S extends Connection, R extend
     }
 
     @Override
-    public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
+    public Chunk<K, T, S, R> mainStageTransfer(String tableName, TransferMode mode) throws SQLException {
         try {
-            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
+            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName, mode);
             this.setLogMessage(logMessage);
             return this;
         } catch (SQLException | RuntimeException e) {
@@ -120,14 +108,12 @@ public abstract class OraChunk<K extends Long, T, S extends Connection, R extend
                     }
                 } catch (Exception e) {
                     log.log(System.Logger.Level.ERROR, "Error while closing Statement for chunk {0}", getId(), e);
-//                    log.debug("Error while closing Statement for chunk {}", getId(), e);
                 }
 
                 try {
                     rs.close();
                 } catch (Exception e) {
                     log.log(System.Logger.Level.ERROR, "Error while closing source ResultSet for chunk {0}", getId(), e);
-//                    log.debug("Error while closing source ResultSet for chunk {}", getId(), e);
                 }
             }
         }

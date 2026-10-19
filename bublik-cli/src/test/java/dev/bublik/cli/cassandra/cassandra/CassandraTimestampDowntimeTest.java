@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -23,6 +24,7 @@ import java.util.Properties;
 import java.util.function.Predicate;
 
 import static dev.bublik.cli.App.getConfigs;
+import static dev.bublik.cli.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 // +
@@ -31,11 +33,14 @@ public class CassandraTimestampDowntimeTest {
     private static int rows = 50000;
     private static boolean sync = false;
 
-    private static CassandraContainer source = new CassandraContainer("cassandra")
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+    private static CassandraContainer source = new CassandraContainer(CASSANDRA_STABLE)
             .withExposedPorts(9042)
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")
             .withInitScript("./cassandra/cassandra/sql/cs-init-downtime.cql");
-    private static CassandraContainer target = new CassandraContainer("cassandra")
+    private static CassandraContainer target = new CassandraContainer(CASSANDRA_STABLE)
             .withExposedPorts(9042)
             .withInitScript("./cassandra/cassandra/sql/cs-init-downtime-empty.cql");
 

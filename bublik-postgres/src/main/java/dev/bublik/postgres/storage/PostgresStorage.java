@@ -3,6 +3,7 @@ package dev.bublik.postgres.storage;
 import com.zaxxer.hikari.HikariConfig;
 import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.PGKeywords;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.exception.SourceSQLException;
 import dev.bublik.core.exception.TargetSQLException;
 import dev.bublik.core.model.*;
@@ -29,6 +30,8 @@ import java.time.*;
 import java.util.*;
 
 import static dev.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
+import static dev.bublik.core.constants.TransferMode.COPY;
+import static dev.bublik.core.constants.TransferMode.UPSERT;
 import static dev.bublik.core.util.ColumnUtil.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.postgres.constants.SQLConstants.*;
@@ -205,78 +208,24 @@ public class PostgresStorage extends JDBCStorage {
         return chunks;
     }
 
-/*
-    @Override
-    public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
-                                                Storage targetStorage) throws SQLException {
-        List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
-        Connection connection = null;
-        int attempts = 0;
-
-        while (connection == null) {
-            try {
-                connection = this.getPoolConnection();
-                if (!connection.isValid(2)) {
-                    throw new SQLException("Connection is not valid");
-                }
-            } catch (SQLException e) {
-                attempts++;
-                if (attempts >= 5) {
-                    throw e;
-                }
-                log.log(System.Logger.Level.WARNING, "Trying to reconnect. Try: {0}/5", attempts);
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException(ie);
-                }
-            }
-        }
-
-        try {
-
-            for (TableMigrationContext ctx : contexts) {
-                List<Long> capturedIds = new ArrayList<>();
-                try (PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())) {
-                    ps.setString(1, ctx.config().fromTaskName());
-                    try (ResultSet rs = ps.executeQuery()) {
-                        while (rs.next()) {
-                            Chunk<?, ?, ?, ?> chunk = getChunk(rs, ctx, targetStorage);
-                            chunks.add(chunk);
-                            capturedIds.add((Long) chunk.getId());
-                        }
-                    }
-                }
-
-                if (!capturedIds.isEmpty()) {
-                    String updateSql = "UPDATE " + getOutboxTable().tableToString() +
-                            " SET status = 'ASSIGNED', start_ts = now(), uuid = ?, err_msg = NULL " +
-                            " WHERE chunk_id = ?";
-                    try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
-                        for (Long id : capturedIds) {
-                            psUpdate.setString(1, this.getInstanceUuid());
-                            psUpdate.setLong(2, id);
-                            psUpdate.addBatch();
-                        }
-                        psUpdate.executeBatch();
-                    }
-                }
-            }
-            connection.commit();
-        } catch (SQLException e) {
-            try { connection.rollback(); } catch (Exception ex) {}
-            throw e;
-        } finally {
-            try { connection.close(); } catch (Exception e) {}
-        }
-        return chunks;
-    }
-*/
-
     @Override
     public void holdInstanceSignalLock() throws SQLException {
         dynamicHeartbeatConnection = this.getPoolConnection();
+        long xMin;
+        String pgSnapshot;
+
+        String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
+                "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
+
+        try (Statement stmt = dynamicHeartbeatConnection.createStatement();
+             ResultSet rs = stmt.executeQuery(snapshotSql)) {
+            rs.next();
+            pgSnapshot = rs.getString(1);
+            xMin = rs.getLong(2);
+        }
+        log.log(System.Logger.Level.INFO, "PG SNAPSHOT: {0}", pgSnapshot);
+        log.log(System.Logger.Level.INFO, "PG XMIN: {0}", String.valueOf(xMin));
+
         dynamicHeartbeatConnection.setAutoCommit(false);
 
         String sql = "SELECT pg_advisory_lock(hashtext(?))";
@@ -316,32 +265,6 @@ public class PostgresStorage extends JDBCStorage {
                 "task_name = ? " +
                 " AND status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
                 " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
-    }
-*/
-
-/*
-    @Override
-    public boolean isMigrationFullyFinished() {
-        return true;
-    }
-
-    @Override
-    public boolean tryDistributedLock(long lockId) throws SQLException {
-        return true;
-    }
-
-    @Override
-    public void releaseDistributedLock(long lockId) throws SQLException {
-
-    }
-
-    @Override
-    public String buildStartEndOfChunk(Config config, Table sourceTable) {
-        return "select chunk_id, uuid, start_page, end_page, task_name, status from " +
-                getOutboxTable().tableToString() + " where " +
-                "task_name = ? " +
-                " and status in ('ASSIGNED', 'UNASSIGNED', 'PROCESSED_WITH_ERROR') "
-                + " limit 200 ";
     }
 */
 
@@ -550,13 +473,11 @@ public class PostgresStorage extends JDBCStorage {
                 column2Column.add(new Column2Column(null, targetColumn, null, null, null, null, sourceColumns));
             }
         }
-//        logColumn2Column(column2Column);
         return column2Column;
     }
 
-
     @Override
-    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName)
+    public <K, T, S extends AutoCloseable, R> LogMessage transfer(Chunk<K, T, S, R> chunk, String tableName, TransferMode mode)
             throws SQLException, SourceSQLException, TargetSQLException {
         if (chunk.getSourceStorage() instanceof JDBCStorage) {
             ResultSet fetchResultSet = (ResultSet) chunk.getResultSet();
@@ -567,7 +488,11 @@ public class PostgresStorage extends JDBCStorage {
 
             Connection connectionTo = (Connection) chunk.getTargetSession();
             try {
-                return fetchAndCopy(fetchResultSet, chunk);
+                switch (mode) {
+                    case COPY -> { return fetchAndCopy(fetchResultSet, chunk); }
+                    case UPSERT -> { return fetchAndUpsert(fetchResultSet, chunk); }
+                    default -> throw new SQLException("Unknown transfer mode: " + mode);
+                }
             } catch (SQLException e) {
                 connectionTo.rollback();
                 throw e;
@@ -576,7 +501,119 @@ public class PostgresStorage extends JDBCStorage {
             }
 
         } else {
-            return chunk.getSourceStorage().transfer(chunk, tableName);
+            return chunk.getSourceStorage().transfer(chunk, tableName, mode);
+        }
+    }
+
+    private LogMessage fetchAndUpsert(ResultSet fetchResultSet, Chunk<?, ?, ?, ?> chunk) throws SQLException, IOException {
+        int recordCount = 0;
+        Connection connectionTo = (Connection) chunk.getTargetSession();
+
+        if (!isChunkProcessed(chunk)) {
+            List<Column2Column> columnToColumnList = chunk.getT2t().column2Columns();
+
+            List<String> columnNames = columnToColumnList.stream()
+                    .map(Column2Column::targetColumn)
+                    .map(Column::columnName)
+                    .toList();
+
+            List<Column> pkColumnNames = chunk.getT2t().targetTable().getPkColumns();
+
+            String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
+                    chunk.getT2t().targetTable().getFinalTableName(true);
+
+            String sqlUpsert = buildUpsertSql(columnNames, pkColumnNames, tableNameWithSchema);
+
+            int batchCounter = 0;
+            int batchSize = 1000;
+
+            int[] sourceColumnIndices = new int[columnToColumnList.size()];
+            int[] sourceColumnTypes = new int[columnToColumnList.size()];
+            ResultSetMetaData meta = fetchResultSet.getMetaData();
+            for (int i = 0; i < columnToColumnList.size(); i++) {
+                String sourceColumnName = columnToColumnList.get(i).sourceColumn().columnName().replace("\"", "");
+                int index = fetchResultSet.findColumn(sourceColumnName);
+                sourceColumnIndices[i] = index;
+                sourceColumnTypes[i] = meta.getColumnType(index);
+            }
+
+            try (PreparedStatement ps = connectionTo.prepareStatement(sqlUpsert)) {
+                while (fetchResultSet.next()) {
+
+                    writeValueToStatement(columnToColumnList, sourceColumnIndices, sourceColumnTypes, fetchResultSet, chunk, ps);
+
+                    ps.addBatch();
+                    batchCounter++;
+
+                    if (batchCounter >= batchSize) {
+                        ps.executeBatch();
+                        batchCounter = 0;
+                    }
+                    recordCount++;
+                }
+
+                if (batchCounter > 0) {
+                    ps.executeBatch();
+                }
+            }
+
+            chunk.setCopied(recordCount);
+            insertProcessedChunkInfo(chunk); // Записываем chunk_id в outbox приемника строго в этой же транзакции! [1.12]
+
+            connectionTo.commit(); // Атомарный коммит дельты данных и метаданных! [1.12]
+
+            return new LogMessage(chunk.getStartTime(), System.currentTimeMillis(), "PostgreSQL Delta UPSERT");
+        } else {
+            throw new SQLException("Chunk has already been copied (Duplicate detected during failover promote lag)", "23505");
+        }
+    }
+
+    private String buildUpsertSql(List<String> columnNames, List<Column> pkColumnNames, String tableName) {
+        if (pkColumnNames == null || pkColumnNames.isEmpty()) {
+            throw new IllegalArgumentException("Для выполнения UPSERT (Delta) на таблице " + tableName + " обязан быть первичный ключ (PK)!");
+        }
+
+        List<String> pkNames = pkColumnNames.stream().map(Column::columnName).toList();
+
+        StringBuilder sql = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
+        sql.append(String.join(", ", columnNames)).append(") VALUES (");
+
+        List<String> placeholders = columnNames.stream().map(c -> "?").toList();
+        sql.append(String.join(", ", placeholders)).append(") ");
+
+        sql.append("ON CONFLICT (").append(String.join(", ", pkNames)).append(") DO UPDATE SET ");
+
+        List<String> updateClauses = new ArrayList<>();
+        for (String col : columnNames) {
+            if (!pkNames.contains(col)) {
+                updateClauses.add(col + " = EXCLUDED." + col);
+            }
+        }
+
+        sql.append(String.join(", ", updateClauses));
+        return sql.toString();
+    }
+
+    private void writeValueToStatement(List<Column2Column> columnToColumnList,
+                                       int[] sourceColumnIndices,
+                                       int[] sourceColumnTypes,
+                                       ResultSet rs,
+                                       Chunk<?, ?, ?, ?> chunk,
+                                       PreparedStatement ps) throws SQLException, IOException {
+
+        for (int i = 0; i < columnToColumnList.size(); i++) {
+            int colIndex = sourceColumnIndices[i];
+            int paramIndex = i + 1; // В JDBC параметры PreparedStatement начинаются с 1
+
+            Object value = rs.getObject(colIndex);
+            if (value == null) {
+                ps.setNull(paramIndex, sourceColumnTypes[i]);
+                continue;
+            }
+
+            // Потоково раскладываем Java-типы по параметрам PreparedStatement
+            // (Твоя готовая логика конвертации CLOB/строк/чисел ядра Бублика)
+            ps.setObject(paramIndex, value);
         }
     }
 
@@ -1835,10 +1872,4 @@ public class PostgresStorage extends JDBCStorage {
             throw new RuntimeException(e);
         }
     }
-
-/*
-    public static Config.Builder builder() {
-        return new Config.Builder();
-    }
-*/
 }

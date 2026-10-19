@@ -6,6 +6,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -32,25 +33,12 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
         super(id, start, end, config, t2t, status, fetchQuery, sourceStorage, targetStorage, orderByClause);
     }
 
-/*
-    @Override
-    public boolean isValidSourceSession() throws SQLException {
-        return true;
-    }
-
-    @Override
-    public boolean isValidTargetSession() throws SQLException {
-        return true;
-    }
-*/
-
     @Override
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum,
                                                        String errMsg, String chunkTableName) throws SQLException {
         CqlSession cqlSession = getSourceSession();
         boolean applied;
         try {
-//            log.info("{}", DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
             PreparedStatement psDelete = cqlSession.prepare(DML_DELETE_CHUNK_BY_ID.replace("$tableName", chunkTableName));
             BoundStatement bsDelete = psDelete.bind(
                             getId(),
@@ -122,9 +110,7 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     @Override
     public Chunk<K, T, S, R> secondStageGetSourceResultSet() throws SQLException {
         setStartTime(System.currentTimeMillis());
-//        String sql = getFetchQuery() + (getOrderByClause() == null ? "" : getOrderByClause());
         String sql = getFetchQuery();
-//        log.info("{} {} {}", sql, getStart(), getEnd());
         ResultSet resultSet = getData(sql);
         setResultSet((R) resultSet);
         return this;
@@ -147,47 +133,23 @@ public class CSChunk<K extends UUID, T extends Long, S extends CqlSession, R ext
     }
 
     @Override
-    public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
-        LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
+    public Chunk<K, T, S, R> mainStageTransfer(String tableName, TransferMode mode) throws SQLException {
+        LogMessage logMessage = this.getTargetStorage().transfer(this, tableName, mode);
         setEndTs(LocalDateTime.now().toInstant(ZoneOffset.of("+0")));
         setLogMessage(logMessage);
         return this;
     }
 
-    private String oTable(Properties properties) {
-        String outboxTable = "";
-        if (getSourceStorage().getOutboxTable().getSchemaName() == null || properties != null) {
-            String keyspace = properties.getProperty("keyspace");
-            outboxTable = keyspace + "." + getSourceStorage().getOutboxTable().getTableName();
-        } else {
-            outboxTable = getSourceStorage().getOutboxTable().tableToString();
-        }
-//        System.out.println("outboxTable = " + outboxTable);
-        return outboxTable;
-    }
-
     @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(TransferMode mode, Table tableName) throws SQLException {
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, false, null, null, tableName.tableToString())
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(tableName.tableToString())
-                .interStageSaveChunkRows(getCopied(), sync, tableName.tableToString())
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, tableName.tableToString());
-/*
-        String chunkTable = getSourceStorage().getConnectionProperty() == null ? oTable(null) :
-                oTable(getSourceStorage().getConnectionProperty().getFromProperty());
-        this
-                .firstStageAssignSourceSession(this)
-                .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, chunkTable)
-                .secondStageGetSourceResultSet()
-                .mainStageTransfer(chunkTable)
-                .interStageSaveChunkRows(getCopied(), sync, chunkTable)
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, chunkTable);
-*/
+                .mainStageTransfer(tableName.tableToString(), mode)
+                .interStageSaveChunkRows(getCopied(), false, tableName.tableToString())
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, false, null, null, tableName.tableToString());
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && ((Connection)getTargetSession()).isValid(0)) {
             ((Connection)getTargetSession()).close();

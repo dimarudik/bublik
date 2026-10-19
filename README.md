@@ -442,8 +442,6 @@ CREATE OR REPLACE FUNCTION test.concat (s1 TEXT, s2 TEXT)
 If you are about do the transfer without downtime, you should parallel the payload to the source and target database. You must save the data to the source database ahead of target database, so that Bublik can not overwrite the data in the target database as per TIMESTAMP value.
 
 ```shell
-mvn clean package -DskipTests
-
 java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -k 50000 \
     -c ./bublik-cli/src/test/resources/cassandra/cassandra/yaml/cs2cs.yaml \
@@ -640,8 +638,6 @@ toProperties:
 Run the migration:
 
 ```shell
-mvn clean package -DskipTests
-
 java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -k 50000 \
     -c ./bublik-cli/src/test/resources/cassandra/kafka/yaml/cs2kafka.yaml \
@@ -1055,6 +1051,7 @@ docker run --name oracle \
     -p 1521:1521 \
     -e ORACLE_PASSWORD=oracle_4U \
     -v ./bublik-cli/src/test/resources/oracle/cassandra/sql/oracle:/docker-entrypoint-initdb.d \
+    -v ./bublik-cli/src/test/resources/oracle/postgres/sql/oracle/00.sql:/container-entrypoint-initdb.d/00.sql \
     -d gvenzl/oracle-free:slim-faststart
 ```
 
@@ -1219,6 +1216,7 @@ docker run --name oracle \
     -p 1521:1521 \
     -e ORACLE_PASSWORD=oracle_4U \
     -v ./bublik-cli/src/test/resources/oracle/kafka/sql/oracle:/docker-entrypoint-initdb.d \
+    -v ./bublik-cli/src/test/resources/oracle/postgres/sql/oracle/00.sql:/container-entrypoint-initdb.d/00.sql \
     -d gvenzl/oracle-free:slim-faststart
 ```
 
@@ -1937,6 +1935,11 @@ For relational databases like PostgreSQL, Bublik utilizes a unique hybrid approa
 * **Physical Page Isolation (`ctid`)**: Instead of relying on slow logical pagination, the source engine slices data blocks using native physical row identifiers (`ctid >= ... AND ctid < ...`). This yields non-blocking, lightning-fast data extraction directly from the disk pages.
 * **Presorted Indexing Optimization**: Bublik automatically detects the primary/clustering key structure of the target table and appends a matching `ORDER BY` clause (e.g., `ORDER BY id1, id2`) to the segment extraction query.
 * **Zero Target Fragmentation**: Streaming pre-sorted datasets directly into the binary `COPY` protocol prevents B-tree index page splits on the target side. Data is written linearly, maintaining consistent near-instantaneous `COPY` execution times (0.04–0.07s per chunk of 30k rows) even across multi-gigabyte tables.
+* **Near-Zero Downtime Delta Replication (`TransferMode`)**: Bublik seamlessly transitions from a heavy bulk historical migration stage into a low-latency incremental synchronization phase:
+  * **Happy-Path History (`COPY` Mode)**: The initial snapshot extracts the entire table volume using the high-speed binary `COPY` protocol while live business transactions continue running on the source database.
+  * **Transactional Point-in-Time Checkpointing (`pg_snapshot`)**: At the very beginning of the pipeline, Bublik atomically captures the earliest active transaction boundary using `pg_snapshot_xmin(pg_current_snapshot())`. This completely neutralizes data loss risks from long-running, concurrent, uncommitted transactions that aren't yet visible to the `COPY` stage.
+  * **Idempotent Ingestion (`UPSERT` Mode)**: During a brief scheduled maintenance window, the engine runs the exact same physical `ctid` workload schema but activates an optimized, stream-lined `Batch PreparedStatement` utilizing the `INSERT ... ON CONFLICT DO UPDATE` syntax.
+  * **Zero-Overhead Index Evaluation**: By automatically applying a strict numerical filter (`WHERE xmin::text::bigint >= :xMin`), the source engine bypasses immutable historical pages at the filesystem level. Empty chunks are evaluated in 0.01–0.02s, while modified or parallel-inserted rows are dynamically synced directly to the target, achieving 100% data convergence without any trigger overhead or tracking columns.
 
 
 The objective is to migrate partitions of table from one PostgreSQL database to another. To simplify test case we're using same database
@@ -1966,7 +1969,7 @@ docker run --name postgres \
         -e POSTGRES_DB=postgres \
         -p 5432:5432 \
         -v ./bublik-cli/src/test/resources/postgresql/postgresql/sql/pg-init.sql:/docker-entrypoint-initdb.d/init.sql \
-        -v ./sql/bublik.png:/var/lib/postgresql/bublik.png \
+        -v ./bublik-cli/src/test/resources/images/bublik.png:/var/lib/postgresql/bublik.png \
         -d postgres \
         -c shared_preload_libraries="pg_stat_statements,auto_explain"
 ```
@@ -1982,22 +1985,32 @@ fromProperties:
   url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
   user: test
   password: test
+  fetchSize: 5000     # optional, default: 10000
+  chunkSchemaName: public   # optional, name of schema where chunk table will be created
+  chunkTableName: _chunk_   # optional, name of chunk table
 toProperties:
   url: jdbc:postgresql://localhost:5432/postgres
   user: test
   password: test
+  outboxSchemaName: public  # optional, name of schema where outbox table will be created
+  outboxTableName: _outbox_ # optional, name of outbox table
 ```
 
 Or you can use environment variables (do not specify -c parameter):
 
-```
+```shell
 export THREAD_COUNT=10
 export FROM_URL=jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
 export FROM_USER=test
 export FROM_PASSWORD=test
+export FROM_FETCH_SIZE=100      # optional, default: 10000
+export FROM_CHUNK_SCHEMA_NAME=public   # optional, name of schema where chunk table will be created
+export FROM_CHUNK_TABLE_NAME=_chunk_    # optional, name of chunk table
 export TO_URL=jdbc:postgresql://localhost:5432/postgres
 export TO_USER=test
 export TO_PASSWORD=test
+export TO_OUTBOX_SCHEMA_NAME=public  # optional, name of schema where outbox table will be created
+export TO_OUTBOX_TABLE_NAME=_outbox_ # optional, name of outbox table
 ```
 
 ### Prepare PostgreSQL To PostgreSQL Mapping File

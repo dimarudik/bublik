@@ -21,12 +21,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static dev.bublik.cassandra.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class InitCassandraMigrationTest {
-    static final CassandraContainer cassandraContainer = new CassandraContainer(
-            DockerImageName.parse("cassandra"));
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+
+    static final CassandraContainer cassandraContainer = new CassandraContainer(CASSANDRA_STABLE);
 
     static CqlSession initSession;
 

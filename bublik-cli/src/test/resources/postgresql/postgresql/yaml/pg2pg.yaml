@@ -4,8 +4,12 @@ fromProperties:
   url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
   user: test
   password: test
+  fetchSize: 5000
+  chunkSchemaName: public
+  chunkTableName: _chunk_
 toProperties:
   url: jdbc:postgresql://localhost:5432/postgres
   user: test
   password: test
-
+  outboxSchemaName: public
+  outboxTableName: _outbox_

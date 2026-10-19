@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.cassandra.CassandraContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.IOException;
@@ -22,12 +23,16 @@ import java.util.Properties;
 import java.util.TimeZone;
 
 import static dev.bublik.cli.App.getConfigs;
+import static dev.bublik.cli.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class CassandraToPostgresTest {
     private static int rows = 10_000;
     private static boolean sync = false;
-    private static CassandraContainer source = new CassandraContainer("cassandra")
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+    private static CassandraContainer source = new CassandraContainer(CASSANDRA_STABLE)
             .withEnv("CASSANDRA_USER", "cassandra")
             .withEnv("CASSANDRA_PASSWORD", "cassandra")
             .withEnv("CASSANDRA_USER_DEFINED_FUNCTIONS_ENABLED", "true")

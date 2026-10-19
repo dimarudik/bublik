@@ -1,7 +1,6 @@
 package dev.bublik.cli.constants;
 
 public abstract class StringConstant {
-    public static final String MAPPING_FILE_CREATED = "File with mapping definitions has been created:\n";
     public static final String HELP_MESSAGE =
             "\n   # how to create mapping definitions file:\n     java -jar bublik-1.2.jar -c config.yaml -i tables.json -o def.json\n" +
             "   # to specify connection parameters you can use yaml config file or ENV:\n" +

@@ -2,6 +2,7 @@ package dev.bublik.postgres;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.storage.Storage;
 import dev.bublik.postgres.storage.PostgresStorage;
@@ -47,10 +48,13 @@ public class PostgresMigrationTest {
         targetDataSource = new HikariDataSource(targetConfig);
 
         try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
-            stmt.execute("CREATE TABLE source_users (id SERIAL PRIMARY KEY, name VARCHAR(100))");
-            stmt.execute("CREATE TABLE target_users (id INT PRIMARY KEY, name VARCHAR(100))");
+            stmt.execute("CREATE TABLE source_users (id INT PRIMARY KEY, name VARCHAR(100), updated_at TIMESTAMP)");
+            stmt.execute("CREATE TABLE target_users (id INT PRIMARY KEY, name VARCHAR(100), updated_at TIMESTAMP)");
 
-            stmt.execute("INSERT INTO source_users (id, name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");
+            stmt.execute("INSERT INTO source_users (id, name, updated_at) VALUES " +
+                    "(1, 'Alice', '2026-10-14 10:00:00'), " +
+                    "(2, 'Bob', '2026-10-14 10:00:00'), " +
+                    "(3, 'Charlie', '2026-10-14 10:00:00')");
         }
     }
 
@@ -221,5 +225,107 @@ public class PostgresMigrationTest {
 
         assertFalse(sourceDataSource.isClosed());
         assertFalse(targetDataSource.isClosed());
+    }
+
+    @Test
+    void testDeltaUpsertMode() throws Exception {
+        try (Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource).build();
+             Storage targetStorage = new PostgresStorage.Builder(targetDataSource).build()) {
+
+            List<Config> initialConfigs = new ArrayList<>();
+            initialConfigs.add(Config.builder()
+                    .from("public", "source_users")
+                    .to("public", "target_users")
+                    .build());
+
+            sourceStorage.start(targetStorage, initialConfigs, 1000, TransferMode.COPY);
+
+            try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+                stmt.execute("UPDATE source_users SET name = 'Bobby', updated_at = '2026-10-14 12:00:00' WHERE id = 2");
+                stmt.execute("INSERT INTO source_users (id, name, updated_at) VALUES (4, 'David', '2026-10-14 12:00:00')");
+            }
+
+        }
+
+        try (Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource).build();
+             Storage targetStorage = new PostgresStorage.Builder(targetDataSource).build()) {
+
+            List<Config> deltaConfigs = new ArrayList<>();
+            deltaConfigs.add(Config.builder()
+                    .from("public", "source_users")
+                    .to("public", "target_users")
+                    .fetchWhereClause("updated_at >= '2026-10-14 11:00:00'")
+                    .build());
+
+            sourceStorage.start(targetStorage, deltaConfigs, 1000, TransferMode.UPSERT);
+
+            try (Connection conn = targetDataSource.getConnection();
+                 Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT id, name FROM target_users ORDER BY id")) {
+
+                // Запись 1 (id=1): Не менялась, должна остаться нетронутой
+                assertTrue(rs.next());
+                assertEquals(1, rs.getInt("id"));
+                assertEquals("Alice", rs.getString("name"));
+
+                // Запись 2 (id=2): Должна быть атомарно обновлена (Upsert: Bob -> Bobby)
+                assertTrue(rs.next());
+                assertEquals(2, rs.getInt("id"));
+                assertEquals("Bobby", rs.getString("name"), "Имя Боба должно быть обновлено на Bobby через DO UPDATE");
+
+                // Запись 3 (id=3): Не менялась, должна остаться нетронутой
+                assertTrue(rs.next());
+                assertEquals(3, rs.getInt("id"));
+                assertEquals("Charlie", rs.getString("name"));
+
+                // Запись 4 (id=4): Должна успешно добавиться на фазе дельты (Upsert: Insert David)
+                assertTrue(rs.next());
+                assertEquals(4, rs.getInt("id"));
+                assertEquals("David", rs.getString("name"), "Новый пользователь David должен быть добавлен в таргет");
+
+                // Проверяем, что итоговое количество строк на приемнике строго равно 4
+                assertFalse(rs.next(), "Всего в целевой таблице должно быть ровно 4 записи");
+            }
+        }
+    }
+
+    @Test
+    void testUpsertFailureWithoutPrimaryKey() throws Exception {
+        // Создаем временную тестовую таблицу на источнике и приемнике без PK колонок
+        try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE public.no_pk_table (val VARCHAR(10))");
+            stmt.execute("INSERT INTO public.no_pk_table (val) VALUES ('test')");
+        }
+        try (Connection conn = targetDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE public.no_pk_table2 (val VARCHAR(10))");
+        }
+
+        Storage sourceStorage = new PostgresStorage.Builder(sourceDataSource).build();
+        Storage targetStorage = new PostgresStorage.Builder(targetDataSource).build();
+
+        List<Config> configs = new ArrayList<>();
+        configs.add(Config.builder()
+                .from("public", "no_pk_table")
+                .to("public", "no_pk_table2")
+                .build());
+
+        Exception exception = assertThrows(Exception.class, () -> {
+            sourceStorage.start(targetStorage, configs, 1000, TransferMode.UPSERT);
+        });
+
+        Throwable rootCause = exception;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
+        }
+
+        assertTrue(rootCause.getMessage().contains("обязан быть первичный ключ"),
+                "Ожидалась ошибка валидации PK, но получили: " + rootCause.getMessage());
+
+        try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("DROP TABLE public.no_pk_table");
+        }
+        try (Connection conn = targetDataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("DROP TABLE public.no_pk_table2");
+        }
     }
 }

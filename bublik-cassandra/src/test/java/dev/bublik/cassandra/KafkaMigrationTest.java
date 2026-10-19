@@ -29,12 +29,16 @@ import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.*;
 
+import static dev.bublik.cassandra.ContainerImageVersions.CASSANDRA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class KafkaMigrationTest {
     int batchSize = 256;
-    static final CassandraContainer<?> cassandra = new CassandraContainer<>(
-            DockerImageName.parse("cassandra"));
+    private static final DockerImageName CASSANDRA_STABLE = DockerImageName
+            .parse(CASSANDRA)
+            .asCompatibleSubstituteFor("cassandra");
+
+    static final CassandraContainer cassandra = new CassandraContainer(CASSANDRA_STABLE);
 
     static final ConfluentKafkaContainer kafkaContainer = new ConfluentKafkaContainer("confluentinc/cp-kafka:8.2.2")
             .withCopyFileToContainer(

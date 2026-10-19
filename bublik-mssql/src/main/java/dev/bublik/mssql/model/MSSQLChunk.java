@@ -1,6 +1,7 @@
 package dev.bublik.mssql.model;
 
 import dev.bublik.core.constants.ChunkStatus;
+import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.core.storage.Storage;
@@ -70,17 +71,17 @@ public class MSSQLChunk<K extends Long, T extends List<Object>, S extends Connec
     }
 
     @Override
-    public Chunk<K, T, S, R> allStages(boolean sync, Table tableName) throws SQLException {
+    public Chunk<K, T, S, R> allStages(TransferMode mode, Table tableName) throws SQLException {
         String oTable = schemaName() + ".[" + tableName.getTableName() + "]";
         this
                 .firstStageAssignSourceSession(this)
                 .firstStageAssignTargetSession(this)
-                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, sync, null, null, oTable)
+                .interStageSaveChunkStatus(ChunkStatus.ASSIGNED, false, null, null, oTable)
                 .secondStageGetSourceResultSet()
-                .mainStageTransfer(oTable)
-                .interStageSaveChunkRows(getCopied(), sync, oTable)
-                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, sync, null, null, oTable)
-                .lastStageCloseSourceSession(sync);
+                .mainStageTransfer(oTable, mode)
+                .interStageSaveChunkRows(getCopied(), false, oTable)
+                .interStageSaveChunkStatus(ChunkStatus.PROCESSED, false, null, null, oTable)
+                .lastStageCloseSourceSession(false);
         logChunkInfo();
         if (getTargetStorage() instanceof JDBCStorage && getTargetSession() != null) {
             try {
@@ -144,9 +145,9 @@ public class MSSQLChunk<K extends Long, T extends List<Object>, S extends Connec
     }
 
     @Override
-    public Chunk<K, T, S, R> mainStageTransfer(String tableName) throws SQLException {
+    public Chunk<K, T, S, R> mainStageTransfer(String tableName, TransferMode mode) throws SQLException {
         try {
-            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName);
+            LogMessage logMessage = this.getTargetStorage().transfer(this, tableName, mode);
             this.setLogMessage(logMessage);
             return this;
         } catch (SQLException | RuntimeException e) {
