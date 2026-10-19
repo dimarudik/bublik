@@ -30,8 +30,6 @@ import java.time.*;
 import java.util.*;
 
 import static dev.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
-import static dev.bublik.core.constants.TransferMode.COPY;
-import static dev.bublik.core.constants.TransferMode.UPSERT;
 import static dev.bublik.core.util.ColumnUtil.*;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static dev.bublik.postgres.constants.SQLConstants.*;
@@ -141,7 +139,8 @@ public class PostgresStorage extends JDBCStorage {
             String chunkTableName = getOutboxTable().tableToString();
 
             String findForeignPodsSql = "SELECT DISTINCT uuid FROM " + chunkTableName +
-                    " WHERE status = 'ASSIGNED' AND uuid <> ? ";
+                    " WHERE status IN ('ASSIGNED', 'LOCKED') AND uuid <> ? ";
+//                    " WHERE status = 'ASSIGNED' AND uuid <> ? ";
 
             try (PreparedStatement psFind = connection.prepareStatement(findForeignPodsSql)) {
                 psFind.setString(1, this.getInstanceUuid());
@@ -156,7 +155,8 @@ public class PostgresStorage extends JDBCStorage {
                             try (ResultSet rsLock = psCheck.executeQuery()) {
                                 if (rsLock.next() && rsLock.getBoolean(1)) {
                                     String stealSql = "UPDATE " + chunkTableName +
-                                            " SET uuid = ?, start_ts = now() " +
+                                            " SET uuid = ?, status = 'LOCKED' " +
+//                                            " SET uuid = ?, start_ts = now() " +
                                             " WHERE status = 'ASSIGNED' AND uuid = ? ";
                                     try (PreparedStatement psSteal = connection.prepareStatement(stealSql)) {
                                         psSteal.setString(1, this.getInstanceUuid());
@@ -186,7 +186,8 @@ public class PostgresStorage extends JDBCStorage {
 
                 if (!capturedIds.isEmpty()) {
                     String updateSql = "UPDATE " + chunkTableName +
-                            " SET status = 'ASSIGNED', start_ts = now(), uuid = ?, err_msg = NULL " +
+                            " SET status = 'LOCKED', uuid = ?, err_msg = NULL " +
+//                            " SET status = 'ASSIGNED', start_ts = now(), uuid = ?, err_msg = NULL " +
                             " WHERE chunk_id = ?";
                     try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
                         for (Long id : capturedIds) {
@@ -198,7 +199,7 @@ public class PostgresStorage extends JDBCStorage {
                     }
                 }
             }
-            connection.commit(); // 👈 Здесь зафиксируется и бронь, и отпустятся проверочные xact-локи! [1.1, 1.4]
+            connection.commit();
         } catch (SQLException e) {
             try { connection.rollback(); } catch (Exception ex) {}
             throw e;
@@ -208,6 +209,29 @@ public class PostgresStorage extends JDBCStorage {
         return chunks;
     }
 
+    /**
+     * Точка распределенной оркестрации и защиты жизненного цикла инстанса Бублика.
+     *
+     * Метод выполняет три критически важные задачи ДО старта основных воркеров:
+     * 1. АТОМАРНАЯ ФИКСАЦИЯ СЛУЖЕБНЫХ МАРКЕРОВ (pg_snapshot и xMin):
+     *    Через CTE-подзапрос (WITH snap AS...) гарантируется, что снимок состояния всей СУБД
+     *    снимается строго один раз. Это исключает микросекундные сдвиги счетчиков транзакций.
+     *    Полученный xMin является железобетонным системным чекпоинтом для второй фазы (Delta UPSERT),
+     *    который автоматически учитывает все длинные параллельные открытые транзакции в Postgres.
+     *
+     * 2. ВЫБОР ЛИДЕРА (Leader Election):
+     *    Использование pg_advisory_lock на базе UUID задачи предотвращает состояние гонки (Race Condition).
+     *    Если в Kubernetes одновременно стартуют несколько подов Бублика, первый захвативший лок
+     *    становится Лидером и в одиночку безопасно нарезает физические страницы ctid. Остальные поды
+     *    намертво засыпают на строке executeQuery(), выстраиваясь в очередь.
+     *
+     * 3. МЕХАНИЗМ ЖИВОГО СЕРДЦЕБИЕНИЯ (Distributed Heartbeat):
+     *    Блокировка берется внутри выделенного соединения (dynamicHeartbeatConnection) с привязкой к сессии.
+     *    Если текущий под Бублика погибнет (убьет K8s по OOM, упадет сервер, моргнет сеть), Postgres
+     *    мгновенно зафиксирует обрыв сокета и автоматически отпустит этот рекомендательный лок.
+     *    В эту же миллисекунду следующий спящий под «отмирает», видит незавершенную миграцию и по механизму
+     *    SKIP LOCKED угоняет недолитые чанки погибшего воркера, гарантируя автоматический Failover.
+     */
     @Override
     public void holdInstanceSignalLock() throws SQLException {
         dynamicHeartbeatConnection = this.getPoolConnection();
@@ -242,7 +266,7 @@ public class PostgresStorage extends JDBCStorage {
                 "task_name = ? " +
                 " AND ( " +
                 "    status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
-                "    OR (status = 'ASSIGNED' AND uuid = '" + this.getInstanceUuid() + "') " +
+                "    OR (status IN ('ASSIGNED', 'LOCKED') AND uuid = '" + this.getInstanceUuid() + "') " +
                 " ) " +
                 " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
     }
@@ -256,17 +280,6 @@ public class PostgresStorage extends JDBCStorage {
         config.addDataSourceProperty("prepareThreshold", "0");
 //        config.addDataSourceProperty("recvBufferSize", "65536");
     }
-
-/*
-    @Override
-    public String buildStartEndOfChunk(Config config, Table sourceTable) {
-        return "SELECT chunk_id, uuid, start_page, end_page, task_name, status FROM " +
-                getOutboxTable().tableToString() + " WHERE " +
-                "task_name = ? " +
-                " AND status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
-                " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
-    }
-*/
 
     @Override
     public Chunk<?, ?, ?, ?> getChunk(ResultSet rs, TableMigrationContext ctx, Storage targetStorage) throws SQLException {
@@ -282,6 +295,32 @@ public class PostgresStorage extends JDBCStorage {
                 this,
                 targetStorage,
                 ctx.orderByClause());
+    }
+
+    @Override
+    public void printChunkStatus() {
+        if (dynamicHeartbeatConnection != null) {
+            StringJoiner joiner = new StringJoiner(" | ");
+            String sql = "SELECT status, count(*) FROM " + getOutboxTable().tableToString() + " GROUP BY status ORDER BY status";
+
+            try (Statement stmt = dynamicHeartbeatConnection.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql)) {
+                while (rs.next()) {
+                    joiner.add(rs.getString(1) + ": " + rs.getInt(2));
+                }
+
+                if (joiner.length() > 0) {
+                    log.log(System.Logger.Level.INFO, "Chunks summary -> [ {0} ]", joiner.toString());
+                }
+            } catch (Exception e) {
+                log.log(System.Logger.Level.ERROR, "Error while printing chunk status: {0}", e);
+            } finally {
+                try {
+                    dynamicHeartbeatConnection.rollback();
+                } catch (Exception ex) {
+                }
+            }
+        }
     }
 
     @Override
