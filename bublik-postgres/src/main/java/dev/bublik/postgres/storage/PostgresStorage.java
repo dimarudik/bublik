@@ -156,8 +156,7 @@ public class PostgresStorage extends JDBCStorage {
                                 if (rsLock.next() && rsLock.getBoolean(1)) {
                                     String stealSql = "UPDATE " + chunkTableName +
                                             " SET uuid = ?, status = 'LOCKED' " +
-//                                            " SET uuid = ?, start_ts = now() " +
-                                            " WHERE status = 'ASSIGNED' AND uuid = ? ";
+                                            " WHERE status IN ('ASSIGNED', 'LOCKED') AND uuid = ? ";
                                     try (PreparedStatement psSteal = connection.prepareStatement(stealSql)) {
                                         psSteal.setString(1, this.getInstanceUuid());
                                         psSteal.setString(2, foreignUuid);
