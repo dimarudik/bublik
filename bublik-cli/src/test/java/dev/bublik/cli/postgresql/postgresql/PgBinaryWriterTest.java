@@ -1,9 +1,14 @@
 package dev.bublik.cli.postgresql.postgresql;
 
 import dev.bublik.cli.TestResult;
+import dev.bublik.core.constants.TransferMode;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
 import dev.bublik.core.model.DummyTable;
 import dev.bublik.core.model.Table;
+import dev.bublik.core.service.StorageService;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.PGConnection;
@@ -14,10 +19,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
+import static dev.bublik.cli.App.getConfigs;
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
+import static dev.bublik.cli.addons.Utils.connectionProperty;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PgBinaryWriterTest {
@@ -43,6 +52,15 @@ public class PgBinaryWriterTest {
         }
     }
 
+    @AfterEach
+    void afterEach() throws Exception {
+        Properties targetProp = getJdbcProperties(target);
+        try (Connection conn = DriverManager.getConnection(targetProp.getProperty("url"), targetProp);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("TRUNCATE TABLE b");
+        }
+    }
+
     @AfterAll
     static void clear() {
         source.stop();
@@ -56,7 +74,7 @@ public class PgBinaryWriterTest {
     }
 
     @Test
-    void pgBinaryWriter() throws Exception {
+    void pgBinaryWriterCopy() throws Exception {
         Properties targetProp = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
@@ -65,7 +83,6 @@ public class PgBinaryWriterTest {
                 sync,
                 getJdbcProperties(source),
                 targetProp);
-//        Thread.sleep(900_000);
         assertEquals(result.sourceCount(), result.targetCount());
 
         try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
@@ -229,6 +246,151 @@ public class PgBinaryWriterTest {
             assertEquals("yes", rs3.getString("abB"));
             rs3.close();
             statement3.close();
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void pgBinaryWriterUpsert() throws Exception {
+        Properties targetProp = getJdbcProperties(target);
+
+        ConnectionProperty connectionProperty = connectionProperty(
+                PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/yaml/pg2pg.yaml"));
+        List<Config> configsTmp = getConfigs(
+                PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/pgBinaryWriterUpsert.json"));
+        Config configFirst = configsTmp.getFirst();
+        List<Config> configs = new ArrayList<>();
+        Config config = Config
+                .builder()
+                .from(configFirst.fromSchemaName(), configFirst.fromTableName())
+                .to(configFirst.toSchemaName(), configFirst.toTableName())
+                .columnToColumn(configFirst.columnToColumn())
+                .build();
+        configs.add(config);
+        StorageService.init(connectionProperty, configs, 50_000, TransferMode.UPSERT);
+
+        try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
+            connection.setAutoCommit(false);
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery("select * from test.b where id = 1");
+            assertTrue(rs.next());
+
+            assertEquals(1, rs.getInt("id"));
+            assertEquals("varchar(40)", rs.getString("name"));
+            assertEquals(new java.math.BigDecimal("1"), rs.getBigDecimal("Nam"));
+            assertEquals("bpchar(10)", rs.getString("ALL").trim()); // trim, так как bpchar дополняется пробелами
+            assertEquals("char(10)", rs.getString("d").trim());
+            assertEquals("character(40)", rs.getString("e").trim());
+            assertEquals("text", rs.getString("f"));
+
+            java.sql.Array arrayG = rs.getArray("g");
+            assertNotNull(arrayG);
+            assertArrayEquals(new String[]{"a", "b", "c"}, (String[]) arrayG.getArray());
+
+            java.sql.Array arrayH = rs.getArray("h");
+            assertNotNull(arrayH);
+            assertArrayEquals(new String[]{"a", "b", "c"}, (String[]) arrayH.getArray());
+
+            rs.getShort("i");
+            assertTrue(rs.wasNull());
+
+            assertEquals("{\"key\": \"json\"}", rs.getString("j"));
+            assertEquals("{\"key\": \"jsonb\"}", rs.getString("jb"));
+
+            assertEquals(1, rs.getShort("k"));
+            assertEquals(2, rs.getLong("l"));
+            assertEquals(3, rs.getLong("m"));
+            assertEquals(4.6865f, rs.getFloat("n"), 0.0001f);
+            assertEquals(0.8362d, rs.getDouble("o"), 0.0001d);
+            assertEquals(294636.9362048d, rs.getDouble("p"), 0.000001d);
+
+            assertNotNull(rs.getString("q"));
+            assertTrue(rs.getBoolean("r"));
+
+            assertArrayEquals(
+                    new byte[]{(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF, 0x01, 0x02, 0x03, 0x04},
+                    rs.getBytes("w_bytea")
+            );
+            assertEquals("192.168.1.55", rs.getString("x_inet"));
+
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, String> hstoreMap = (java.util.Map<String, String>) rs.getObject("y_hstore");
+            assertNotNull(hstoreMap);
+            assertEquals("success", hstoreMap.get("status"));
+            assertEquals("Postgres", hstoreMap.get("target"));
+            assertEquals("Oracle", hstoreMap.get("vendor"));
+            assertNull(hstoreMap.get("nullable_key"));
+            assertTrue(hstoreMap.containsKey("nullable_key"));
+
+            java.sql.Array arrayZ = rs.getArray("z_bigint_arr");
+            assertNotNull(arrayZ);
+            assertArrayEquals(
+                    new Long[]{100000000001L, 100000000002L, 100000000003L},
+                    (Long[]) arrayZ.getArray()
+            );
+
+            java.sql.Array arrayAA = rs.getArray("aa_uuid_arr");
+            assertNotNull(arrayAA);
+            java.util.UUID[] uuids = (java.util.UUID[]) arrayAA.getArray();
+            assertEquals(3, uuids.length);
+            assertNotNull(uuids[0]);
+            assertNotNull(uuids[1]);
+            assertNotNull(uuids[2]);
+
+            assertNotNull(rs.getDate("s_date"));
+            assertNotNull(rs.getTimestamp("t_timestamp"));
+            assertNotNull(rs.getTimestamp("u_timestamptz"));
+            assertNotNull(rs.getTime("v_time"));
+
+            assertEquals("2 years 3 mons 5 days 11:22:33.444555", rs.getString("ac_interval"));
+
+            String tstzrangeStr = rs.getString("ab_tstzrange");
+            assertNotNull(tstzrangeStr);
+            assertTrue(tstzrangeStr.startsWith("["));
+            assertTrue(tstzrangeStr.endsWith(")"));
+            String xmlDocStr = rs.getString("xml_doc");
+            assertNotNull(xmlDocStr);
+            assertEquals("<root><element id=\"1\">Текст внутри XML</element></root>", xmlDocStr.trim());
+            assertEquals(0.001, rs.getDouble("nn"));
+
+            long loid = rs.getLong("lo_data");
+            assertTrue(loid > 0, "Идентификатор Large Object (OID) должен быть больше 0");
+            PGConnection pgConn = connection.unwrap(org.postgresql.PGConnection.class);
+            LargeObjectManager lobjManager = pgConn.getLargeObjectAPI();
+            try (org.postgresql.largeobject.LargeObject lobj = lobjManager.open(loid, org.postgresql.largeobject.LargeObjectManager.READ)) {
+                byte[] loBytes = new byte[lobj.size()];
+                lobj.read(loBytes, 0, loBytes.length);
+                String actualLoText = new String(loBytes, java.nio.charset.StandardCharsets.UTF_8);
+                assertEquals("LargeObjectTest", actualLoText, "Содержимое Large Object не совпадает с ожидаемым!");
+            }
+
+            rs.close();
+
+            ResultSet rsNull = statement.executeQuery("select * from test.b where id = 2");
+            assertTrue(rsNull.next());
+            assertEquals(2, rsNull.getInt("id"));
+
+            rsNull.getString("name"); assertTrue(rsNull.wasNull());
+            rsNull.getBigDecimal("Nam"); assertTrue(rsNull.wasNull());
+            rsNull.getArray("g"); assertTrue(rsNull.wasNull());
+            rsNull.getString("jb"); assertTrue(rsNull.wasNull());
+            rsNull.getBytes("w_bytea"); assertTrue(rsNull.wasNull());
+            rsNull.getString("ab_tstzrange"); assertTrue(rsNull.wasNull());
+            rsNull.getString("xml_doc"); assertTrue(rsNull.wasNull());
+            rsNull.close();
+
+            ResultSet rs3 = statement.executeQuery("select * from test.b where id = 3");
+            assertTrue(rs3.next());
+            assertEquals(3, rs3.getInt("id"));
+            assertEquals(-1, rs3.getDouble("Nam"));
+            assertEquals(-0.001, rs3.getDouble("n"));
+            assertEquals(-0.2, rs3.getDouble("o"));
+            assertEquals(-0.00005, rs3.getDouble("p"));
+            assertEquals(-0.003, rs3.getDouble("nn"));
+            rs3.close();
+            statement.close();
 
         } catch (SQLException e) {
             throw new RuntimeException(e);

@@ -54,12 +54,13 @@ public abstract class OraChunk<K extends Long, T, S extends Connection, R extend
     public Chunk<K, T, S, R> interStageSaveChunkStatus(ChunkStatus newStatus, boolean sync, Integer errNum, String errMsg, String chunkTableName) {
         try {
             Connection connection = getSourceSession();
+            int oracleStatusCode = getOracleStatusCode(newStatus);
             if (errMsg == null) {
                 CallableStatement callableStatement =
                         connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS);
                 callableStatement.setString(1, this.getConfig().fromTaskName());
                 callableStatement.setLong(2, this.getId());
-                callableStatement.setInt(3, newStatus.ordinal());
+                callableStatement.setInt(3, oracleStatusCode);
                 callableStatement.execute();
                 callableStatement.close();
             } else {
@@ -67,7 +68,7 @@ public abstract class OraChunk<K extends Long, T, S extends Connection, R extend
                         connection.prepareCall(PLSQL_UPDATE_STATUS_ROWID_CHUNKS_WITH_ERRORS);
                 callableStatement.setString(1, this.getConfig().fromTaskName());
                 callableStatement.setLong(2, this.getId());
-                callableStatement.setInt(3, newStatus.ordinal());
+                callableStatement.setInt(3, oracleStatusCode);
                 callableStatement.setString(4, errMsg.substring(0,
                         errMsg.length() > 2245 ? 2244 : errMsg.length()));
                 callableStatement.execute();
@@ -77,6 +78,16 @@ public abstract class OraChunk<K extends Long, T, S extends Connection, R extend
             throw new RuntimeException(e);
         }
         return this;
+    }
+
+    private int getOracleStatusCode(ChunkStatus status) {
+        return switch (status) {
+            case UNASSIGNED -> 0;
+            case ASSIGNED -> 1;
+            case PROCESSED -> 2;
+            case PROCESSED_WITH_ERROR -> 3;
+            default -> throw new IllegalArgumentException("Статус " + status + " не поддерживается встроенным пакетом Oracle DBMS_PARALLEL_EXECUTE");
+        };
     }
 
     @Override

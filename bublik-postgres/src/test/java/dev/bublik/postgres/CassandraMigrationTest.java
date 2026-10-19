@@ -59,7 +59,6 @@ public class CassandraMigrationTest {
         pgConfig.setMaximumPoolSize(5);
         postgresDataSource = new HikariDataSource(pgConfig);
 
-        //
         try (Connection conn = postgresDataSource.getConnection(); Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE source_users (id INT PRIMARY KEY, user_name VARCHAR(100))");
             stmt.execute("INSERT INTO source_users (id, user_name) VALUES (1, 'Alice'), (2, 'Bob'), (3, 'Charlie')");

@@ -89,6 +89,9 @@ public class ClickHouseMigrationTest {
 
     @Test
     void testOracleToClickHouseMigration() throws Exception {
+//        System.out.println("Oracle JDBC URL: " + oracle.getJdbcUrl() + " " + oracle.getUsername() + " " + oracle.getPassword());
+//        String clickhouseHttpUrl = "http://" + clickhouse.getHost() + ":" + clickhouse.getMappedPort(8123) + clickhouse.getUsername() + clickhouse.getPassword();
+//        System.out.println("ClickHouse HTTP URL: " + clickhouseHttpUrl);
         Storage sourceStorage = new OracleStorage.Builder(sourceDataSource)
                 .build();
         Storage targetStorage = new ClickHouseStorage.Builder(clickhouseClient)

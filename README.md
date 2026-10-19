@@ -115,7 +115,7 @@ mvn clean package -DskipTests
 
 ## Mapping File Format
 
-The mapping file is a JSON file that contains the mapping between the source and target tables.
+For any database to database transfer, you need to create a mapping file. The mapping file is a JSON file that contains the mapping between the source and target tables.
 
 ```bash
 [

@@ -20,8 +20,6 @@ public abstract class SQLConstants {
                     "unique (uuid, start_page, end_page, task_name, status) )";
     public static final String DDL_DROP_CHUNK_TABLE =
             "drop table $tableName";
-    public static final String DDL_TRUNCATE_CHUNK_TABLE =
-            "truncate table $tableName";
     public static final String SQL_NUMBER_OF_TUPLES =
             "select reltuples, relpages, relkind from pg_class " +
                     "where relnamespace::regnamespace::text = ? and relname = ?";
@@ -33,13 +31,13 @@ public abstract class SQLConstants {
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
     public static final String SQL_IS_MIGRATION_FULLY_FINISHED =
-            "SELECT COUNT(1) FROM $tableName WHERE status IN ('UNASSIGNED', 'ASSIGNED', 'PROCESSED_WITH_ERROR') ";
+            "SELECT COUNT(1) FROM $tableName WHERE status IN ('UNASSIGNED', 'ASSIGNED', 'LOCKED', 'PROCESSED_WITH_ERROR') ";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED =
             "update $tableName set status = ?, err_msg = null, start_ts = now() where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED =
             "update $tableName set status = ?, err_msg = null, end_ts = now() where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_WITH_ERRORS =
-            "update $tableName set status = ?, err_msg = ?, start_ts = NULL where chunk_id = ?";
+            "update $tableName set status = ?, err_msg = ?, end_ts = NULL where chunk_id = ?";
     public static final String DML_UPDATE_UUID_COPIED_CHUNK_TABLE =
             "update $tableName set copied = ? where chunk_id = ?";
     public static final String SQL_HEAP_BLKS_TOTAL =

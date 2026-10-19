@@ -55,6 +55,7 @@ public interface StorageService {
     boolean tryDistributedLock(long lockId) throws SQLException;
     void releaseDistributedLock(long lockId) throws SQLException;
     void holdInstanceSignalLock() throws SQLException;
+    void printChunkStatus();
 
     static Storage getStorage(Properties properties,
                               ConnectionProperty connectionProperty,
