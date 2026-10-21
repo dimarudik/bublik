@@ -33,60 +33,63 @@ You can find more details and examples below.
 * [Build](#Build)
 * [Mapping File Format](#mapping-file-format)
 * [Cassandra To Cassandra](#cassandra-to-cassandra)
-    * [Prepare Cassandra To Cassandra environment](#prepare-cassandra-to-cassandra-environment)
-    * [Prepare Cassandra To Cassandra Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
-    * [Prepare Cassandra To Cassandra Mapping Files](#prepare-cassandra-to-cassandra-mapping-files)
-    * [Cassandra To Cassandra Run](#cassandra-to-cassandra-run)
+    * [Environment](#prepare-cassandra-to-cassandra-environment)
+    * [Connection Settings](#prepare-cassandra-to-cassandra-connection-settings)
+    * [Mapping Files](#prepare-cassandra-to-cassandra-mapping-files)
+    * [Run](#cassandra-to-cassandra-run)
 * [Cassandra To Kafka](#cassandra-to-kafka)
-  * [Prepare Cassandra To Kafka environment](#prepare-cassandra-to-kafka-environment)
-  * [Prepare Cassandra To Kafka Connection Settings](#prepare-cassandra-to-kafka-connection-settings)
-  * [Prepare Cassandra To Kafka Mapping Files](#prepare-cassandra-to-kafka-mapping-files)
-  * [Cassandra To Kafka Run](#cassandra-to-kafka-run)
+  * [Environment](#prepare-cassandra-to-kafka-environment)
+  * [Connection Settings](#prepare-cassandra-to-kafka-connection-settings)
+  * [Mapping Files](#prepare-cassandra-to-kafka-mapping-files)
+  * [Run](#cassandra-to-kafka-run)
 * [Cassandra To PostgreSQL](#cassandra-to-postgresql)
-    * [Prepare Cassandra To PostgreSQL environment](#prepare-cassandra-to-postgresql-environment)
-    * [Prepare Cassandra To PostgreSQL Connection Settings](#prepare-cassandra-to-postgresql-connection-settings)
-    * [Prepare Cassandra To PostgreSQL Mapping Files](#prepare-cassandra-to-postgresql-mapping-files)
-    * [Cassandra To PostgreSQL Run](#cassandra-to-postgresql-run)
+    * [Environment](#prepare-cassandra-to-postgresql-environment)
+    * [Connection Settings](#prepare-cassandra-to-postgresql-connection-settings)
+    * [Mapping Files](#prepare-cassandra-to-postgresql-mapping-files)
+    * [Run](#cassandra-to-postgresql-run)
 * [MS SQL To PostgreSQL](#ms-sql-to-postgresql)
-  * [Prepare MS SQL To PostgreSQL environment](#prepare-ms-sql-to-postgresql-environment)
-  * [Prepare MS SQL To PostgreSQL Connection Settings](#prepare-ms-sql-to-postgresql-connection-settings)
-  * [Prepare MS SQL To PostgreSQL Mapping File](#prepare-ms-sql-to-postgresql-mapping-file)
-  * [MS SQL To PostgreSQL Run](#ms-sql-to-postgresql-run)
+  * [Environment](#prepare-ms-sql-to-postgresql-environment)
+  * [Connection Settings](#prepare-ms-sql-to-postgresql-connection-settings)
+  * [Mapping File](#prepare-ms-sql-to-postgresql-mapping-file)
+  * [Run](#ms-sql-to-postgresql-run)
 * [Oracle To Cassandra](#oracle-to-cassandra)
-    * [Prepare Oracle To Cassandra environment](#prepare-oracle-to-cassandra-environment)
-    * [Prepare Oracle To Cassandra Connection Settings](#prepare-oracle-to-cassandra-connection-settings)
-    * [Prepare Oracle To Cassandra Mapping File](#prepare-oracle-to-cassandra-mapping-file)
-    * [Oracle To Cassandra Run](#oracle-to-cassandra-run)
+    * [Environment](#prepare-oracle-to-cassandra-environment)
+    * [Connection Settings](#prepare-oracle-to-cassandra-connection-settings)
+    * [Mapping File](#prepare-oracle-to-cassandra-mapping-file)
+    * [Run](#oracle-to-cassandra-run)
 * [Oracle To Kafka](#oracle-to-kafka)
-  * [Prepare Oracle To Kafka environment](#prepare-oracle-to-kafka-environment)
-  * [Prepare Oracle To Kafka Connection Settings](#prepare-oracle-to-kafka-connection-settings)
-  * [Prepare Oracle To Kafka Mapping Files](#prepare-oracle-to-kafka-mapping-files)
-  * [Oracle To Kafka Run](#oracle-to-kafka-run)
+  * [Environment](#prepare-oracle-to-kafka-environment)
+  * [Connection Settings](#prepare-oracle-to-kafka-connection-settings)
+  * [Mapping Files](#prepare-oracle-to-kafka-mapping-files)
+  * [Run](#oracle-to-kafka-run)
 * [Oracle To PostgreSQL](#oracle-to-postgresql)
-  * [Prepare Oracle To PostgreSQL environment](#prepare-oracle-to-postgresql-environment)
-  * [Prepare Oracle To PostgreSQL Connection Settings](#prepare-oracle-to-postgresql-connection-settings)
-  * [Prepare Oracle To PostgreSQL Mapping File](#prepare-oracle-to-postgresql-mapping-file)
-  * [Oracle To PostgreSQL Run](#oracle-to-postgresql-run)
+  * [Environment](#prepare-oracle-to-postgresql-environment)
+  * [Connection Settings](#prepare-oracle-to-postgresql-connection-settings)
+  * [Mapping File](#prepare-oracle-to-postgresql-mapping-file)
+  * [Run](#oracle-to-postgresql-run)
 * [Oracle To YDB](#oracle-to-ydb)
-    * [Prepare Oracle To YDB environment](#prepare-oracle-to-ydb-environment)
-    * [Prepare Oracle To YDB Connection Settings](#prepare-oracle-to-ydb-connection-settings)
-    * [Prepare Oracle To YDB Mapping File](#prepare-oracle-to-ydb-mapping-file)
-    * [Oracle To YDB Run](#oracle-to-ydb-run)
+    * [Environment](#prepare-oracle-to-ydb-environment)
+    * [Connection Settings](#prepare-oracle-to-ydb-connection-settings)
+    * [Mapping File](#prepare-oracle-to-ydb-mapping-file)
+    * [Run](#oracle-to-ydb-run)
 * [PostgreSQL To Cassandra](#postgresql-to-cassandra)
-    * [Prepare PostgreSQL To Cassandra environment](#prepare-postgresql-to-cassandra-environment)
-    * [Prepare PostgreSQL To Cassandra Connection Settings](#prepare-postgresql-to-cassandra-connection-settings)
-    * [Prepare PostgreSQL To Cassandra Mapping File](#prepare-postgresql-to-cassandra-mapping-file)
-    * [PostgreSQL To Cassandra Run](#postgresql-to-cassandra-run)
+    * [Environment](#prepare-postgresql-to-cassandra-environment)
+    * [Connection Settings](#prepare-postgresql-to-cassandra-connection-settings)
+    * [Mapping File](#prepare-postgresql-to-cassandra-mapping-file)
+    * [Run](#postgresql-to-cassandra-run)
 * [PostgreSQL To PostgreSQL](#postgresql-to-postgresql)
-  * [Prepare PostgreSQL To PostgreSQL environment](#prepare-postgresql-to-postgresql-environment)
-  * [Prepare PostgreSQL To PostgreSQL Connection Settings](#prepare-postgresql-to-postgresql-connection-settings)
-  * [Prepare PostgreSQL To PostgreSQL Mapping File](#prepare-postgresql-to-postgresql-mapping-file)
-  * [PostgreSQL To PostgreSQL Run](#postgresql-to-postgresql-run)
+    * [Environment](#prepare-postgresql-to-postgresql-environment)
+    * [Connection Settings](#prepare-postgresql-to-postgresql-connection-settings)
+    * [Mapping File](#prepare-postgresql-to-postgresql-mapping-file)
+    * [Run](#postgresql-to-postgresql-run)
+      * [COPY](#copy-mode)
+      * [UPSERT](#upsert-mode)
+      * [SNAPSHOT](#snapshot-mode)
 * [PostgreSQL To YDB](#postgresql-to-ydb)
-  * [Prepare PostgreSQL To YDB environment](#prepare-postgresql-to-ydb-environment)
-  * [Prepare PostgreSQL To YDB Connection Settings](#prepare-postgresql-to-ydb-connection-settings)
-  * [Prepare PostgreSQL To YDB Mapping File](#prepare-postgresql-to-ydb-mapping-file)
-  * [PostgreSQL To YDB Run](#postgresql-to-ydb-run)
+  * [Environment](#prepare-postgresql-to-ydb-environment)
+  * [Connection Settings](#prepare-postgresql-to-ydb-connection-settings)
+  * [Mapping File](#prepare-postgresql-to-ydb-mapping-file)
+  * [Run](#postgresql-to-ydb-run)
 * [For Developers](#for-developers)
   * [init method](#init-method)
   * [Constructor](#constructor)
@@ -2072,20 +2075,50 @@ You can run the tool by using json file `./bublik-cli/src/test/resources/postgre
 
 ### PostgreSQL To PostgreSQL Run
 
-Halt any changes to the movable tables in the source database and run:
-
-```shell
-java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
-    -k 50000 \
-    -c ./bublik-cli/src/test/resources/postgresql/postgresql/yaml/pg2pg.yaml \
-    -m ./bublik-cli/src/test/resources/postgresql/postgresql/json/pg2pg.json
-```
-
 Chunks will be created automatically with parameter -k at startup
 
 > [!NOTE]
 > If the migration was interrupted due to any infrastructure issues you can resume the process without -k parameter.
 > In this case unprocessed chunks of data will be transferred.
+
+Halt any changes to the movable tables in the source database and run in required mode:
+
+#### COPY mode
+
+Default mode, can be set by using option `-s|--mode COPY`
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/postgresql/postgresql/yaml/pg2pg.yaml \
+    -m ./bublik-cli/src/test/resources/postgresql/postgresql/json/pg2pg.json \
+    -s COPY
+```
+
+#### UPSERT mode
+
+Usually used for delta replication, can be set by using option `-s|--mode UPSERT`
+
+```shell
+java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
+    -k 50000 \
+    -c ./bublik-cli/src/test/resources/postgresql/postgresql/yaml/pg2pg.yaml \
+    -m ./bublik-cli/src/test/resources/postgresql/postgresql/json/pg2pg.json \
+    -s UPSERT
+```
+
+#### SNAPSHOT mode
+
+Usually used to get snapshot of data in Repeatable Read mode, can be set by using option **snapshotIsolationEnabled** in yaml file
+
+```yaml
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+  fetchSize: 5000
+  snapshotIsolationEnabled: true
+```
 
 > [!IMPORTANT]
 > Due to chunk creation based on statistics of the table

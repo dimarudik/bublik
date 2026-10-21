@@ -274,6 +274,8 @@ public class PostgresStorage extends JDBCStorage {
             if (rs.next()) {
                 setTransactionalCheckpointId(rs.getString(1));
                 targetLsn = rs.getString(2);
+                printFinalizeInfo();
+/*
                 log.log(System.Logger.Level.INFO, "\n" +
                         "==========================================================\n" +
                         "  BUBLIK MIGRATION POINT CAPTURED\n" +
@@ -282,6 +284,7 @@ public class PostgresStorage extends JDBCStorage {
                         "  Command for DBA after copy:\n" +
                         "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
                         "==========================================================");
+*/
             }
         } catch (SQLException e) {
             log.log(System.Logger.Level.ERROR, "Failed to export standalone global snapshot: {0}", e.getMessage());
@@ -291,6 +294,18 @@ public class PostgresStorage extends JDBCStorage {
             }
             throw e;
         }
+    }
+
+    @Override
+    public void printFinalizeInfo() {
+        log.log(System.Logger.Level.INFO, "\n" +
+                "==========================================================\n" +
+                "  BUBLIK MIGRATION POINT CAPTURED\n" +
+                "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
+                "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
+                "  Command for DBA after copy:\n" +
+                "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
+                "==========================================================");
     }
 
     @Override
