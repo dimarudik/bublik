@@ -37,6 +37,7 @@ import static dev.bublik.postgres.util.ColumnUtil.*;
 
 public class PostgresStorage extends JDBCStorage {
     private static final System.Logger log = System.getLogger(PostgresStorage.class.getName());
+    private volatile String targetLsn;
 
     public PostgresStorage(Properties properties,
                            ConnectionProperty connectionProperty,
@@ -235,26 +236,60 @@ public class PostgresStorage extends JDBCStorage {
     public void holdInstanceSignalLock() throws SQLException {
         dynamicHeartbeatConnection = this.getPoolConnection();
         long xMin;
-        String pgSnapshot;
 
-        String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
-                "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
-
-        try (Statement stmt = dynamicHeartbeatConnection.createStatement();
-             ResultSet rs = stmt.executeQuery(snapshotSql)) {
-            rs.next();
-            pgSnapshot = rs.getString(1);
-            xMin = rs.getLong(2);
+        if (!snapshotIsolationEnabled) {
+            String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
+                    "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
+            try (Statement stmt = dynamicHeartbeatConnection.createStatement();
+                 ResultSet rs = stmt.executeQuery(snapshotSql)) {
+                rs.next();
+                setTransactionalCheckpointId(rs.getString(1));
+                xMin = rs.getLong(2);
+                log.log(System.Logger.Level.INFO, "PG SNAPSHOT: {0}", getTransactionalCheckpointId());
+                log.log(System.Logger.Level.INFO, "PG XMIN: {0}", String.valueOf(xMin));
+            }
         }
-        log.log(System.Logger.Level.INFO, "PG SNAPSHOT: {0}", pgSnapshot);
-        log.log(System.Logger.Level.INFO, "PG XMIN: {0}", String.valueOf(xMin));
-
-        dynamicHeartbeatConnection.setAutoCommit(false);
 
         String sql = "SELECT pg_advisory_lock(hashtext(?))";
-        try (PreparedStatement ps = this.dynamicHeartbeatConnection.prepareStatement(sql)) {
-            ps.setString(1, this.getInstanceUuid());
+        try (PreparedStatement ps = dynamicHeartbeatConnection.prepareStatement(sql)) {
+            ps.setString(1, getInstanceUuid());
             ps.executeQuery();
+        }
+    }
+
+    @Override
+    public void exportGlobalSnapshotTransaction() throws SQLException {
+        if (!this.snapshotIsolationEnabled) {
+            return;
+        }
+
+        snapshotAnchorConnection = getPoolConnection();
+        snapshotAnchorConnection.rollback();
+        snapshotAnchorConnection.setAutoCommit(false);
+        snapshotAnchorConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+
+        String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_insert_lsn()::text";
+        try (Statement stmt = snapshotAnchorConnection.createStatement();
+             ResultSet rs = stmt.executeQuery(exportSql)) {
+            if (rs.next()) {
+                setTransactionalCheckpointId(rs.getString(1));
+                targetLsn = rs.getString(2);
+                log.log(System.Logger.Level.INFO, "\n" +
+                        "==========================================================\n" +
+                        "  BUBLIK MIGRATION POINT CAPTURED\n" +
+                        "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
+                        "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
+                        "  Command for DBA after copy:\n" +
+                        "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
+                        "==========================================================");
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Failed to export standalone global snapshot: {0}", e.getMessage());
+            if (snapshotAnchorConnection != null) {
+                try { snapshotAnchorConnection.rollback(); } catch (Exception ignored) {}
+                try { snapshotAnchorConnection.close(); } catch (Exception ignored) {}
+            }
+            throw e;
         }
     }
 
@@ -265,7 +300,7 @@ public class PostgresStorage extends JDBCStorage {
                 "task_name = ? " +
                 " AND ( " +
                 "    status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
-                "    OR (status IN ('ASSIGNED', 'LOCKED') AND uuid = '" + this.getInstanceUuid() + "') " +
+                "    OR (status IN ('ASSIGNED', 'LOCKED') AND uuid = '" + getInstanceUuid() + "') " +
                 " ) " +
                 " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
     }

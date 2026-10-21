@@ -22,11 +22,16 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     private final DataSource dataSource;
     private final int fetchSize;
     protected Connection dynamicHeartbeatConnection = null;
+    protected Connection snapshotAnchorConnection = null;
+    protected volatile String transactionalCheckpointId;
+    protected final boolean snapshotIsolationEnabled;
 
     public JDBCStorage(Properties properties,
                        ConnectionProperty connectionProperty,
                        Table outboxTable) throws SQLException {
         super(properties, connectionProperty, outboxTable);
+        this.snapshotIsolationEnabled = Boolean.parseBoolean(
+                connectionProperty.getFromProperty().getProperty("snapshotIsolationEnabled", "false"));
         HikariConfig hikariConfig = buildConfiguration(properties, connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
@@ -43,11 +48,13 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         if (threadCount <= 0) {
             this.threadCount = getMaxPoolSize(dataSource, POOL_SIZE);
         }
+        this.snapshotIsolationEnabled = builder.snapshotIsolationEnabled;
     }
 
     protected static abstract class Builder<C extends JDBCStorage, B extends Builder<C, B>> extends Storage.Builder<C, B> {
         private final DataSource dataSource;
         private int fetchSize;
+        private boolean snapshotIsolationEnabled;
 
         public Builder(DataSource dataSource) {
             this.dataSource = dataSource;
@@ -55,6 +62,11 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
         public B fetchSize(int fetchSize) {
             this.fetchSize = fetchSize;
+            return self();
+        }
+
+        public B snapshotIsolationEnabled(boolean snapshotIsolationEnabled) {
+            this.snapshotIsolationEnabled = snapshotIsolationEnabled;
             return self();
         }
 
@@ -97,6 +109,18 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             return ((HikariDataSource) dataSource).getMaximumPoolSize();
         }
         return defaultValue;
+    }
+
+    public String getTransactionalCheckpointId() {
+        return transactionalCheckpointId;
+    }
+
+    public void setTransactionalCheckpointId(String transactionalCheckpointId) {
+        this.transactionalCheckpointId = transactionalCheckpointId;
+    }
+
+    public boolean isSnapshotIsolationEnabled() {
+        return snapshotIsolationEnabled;
     }
 
     @Override
@@ -149,7 +173,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         hikariConfig.setJdbcUrl(property.getProperty("url"));
         hikariConfig.setUsername(property.getProperty("user"));
         hikariConfig.setPassword(property.getProperty("password"));
-        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1);
+        int snapSession = snapshotIsolationEnabled ? 1 : 0;
+        hikariConfig.setMaximumPoolSize(connectionProperty.getThreadCount() + 1 + snapSession);
         hikariConfig.setConnectionTimeout(3_000);
         hikariConfig.setAutoCommit(false);
         configureDataSourceProperties(hikariConfig);
@@ -177,6 +202,19 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
     @Override
     public void closeStorage() {
+        if (this.snapshotAnchorConnection != null) {
+            try {
+                if (!this.snapshotAnchorConnection.isClosed()) {
+                    this.snapshotAnchorConnection.rollback(); // Закрываем транзакцию в PG
+                    this.snapshotAnchorConnection.close();
+                }
+            } catch (Exception e) {
+                log.log(System.Logger.Level.ERROR, "Error closing global snapshot anchor connection: {0}", e.getMessage());
+            } finally {
+                this.snapshotAnchorConnection = null;
+            }
+        }
+
         if (this.dynamicHeartbeatConnection != null) {
             try {
                 if (!this.dynamicHeartbeatConnection.isClosed()) {

@@ -76,16 +76,17 @@ public class PostgresToPostgresTest {
 
     @Test
     void allTypes() throws Exception {
+//        Thread.sleep(1_900_000);
         TestResult result = getResultCount(
-                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/yaml/pg2pg_snapshot.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
-                rows,
+                20_000,
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
         assertEquals(result.sourceCount(), result.targetCount());
         TestResult result2 = getResultCount(
-                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/yaml/pg2pg_snapshot.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
                 rows,
                 sync,
