@@ -62,14 +62,15 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
     @Override
     public Chunk<K, T, S, R> interStageSaveChunkRows(int copied, boolean sync, String chunkTableName) throws SQLException {
         Connection connection = this.getSourceSession();
+        connection.rollback();
+        connection.setAutoCommit(false);
         PreparedStatement updateStatus;
         updateStatus = connection.prepareStatement(DML_UPDATE_UUID_COPIED_CHUNK_TABLE.replace("$tableName", chunkTableName));
         updateStatus.setInt(1, copied);
         updateStatus.setLong(2, this.getId());
         int n = updateStatus.executeUpdate();
         updateStatus.close();
-        if (!sync)
-            connection.commit();
+        connection.commit();
         return this;
     }
 
@@ -84,7 +85,29 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
 
     @Override
     public R getData(String query) throws SQLException {
+        JDBCStorage jdbcStorage = getSourceStorage().unwrap(JDBCStorage.class);
         Connection connection = this.getSourceSession();
+
+        if (jdbcStorage.isSnapshotIsolationEnabled() && jdbcStorage.getTransactionalCheckpointId() != null) {
+            try {
+                connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+
+                String setSnapshotSql = "SET TRANSACTION SNAPSHOT '" + jdbcStorage.getTransactionalCheckpointId() + "'";
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.execute(setSnapshotSql);
+                }
+
+                System.getLogger(PGChunk.class.getName()).log(
+                        System.Logger.Level.DEBUG,
+                        "PG Worker thread bound chunk {0} to global snapshot {1}",
+                        getId(), jdbcStorage.getTransactionalCheckpointId()
+                );
+            } catch (SQLException e) {
+                try { connection.rollback(); } catch (Exception ignored) {}
+                throw new SQLException("Failed to bind worker thread to PG Snapshot", e);
+            }
+        }
+
         PreparedStatement statement = connection.prepareStatement(query,
                 ResultSet.TYPE_FORWARD_ONLY,
                 ResultSet.CONCUR_READ_ONLY);
@@ -115,6 +138,29 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
         }
         return this;
     }
+
+/*
+    @Override
+    public void lastStageCloseSourceSession(boolean sync) throws SQLException {
+        JDBCStorage jdbcStorage = getSourceStorage().unwrap(JDBCStorage.class);
+
+        if (getSourceSession() != null) {
+            try {
+                if (jdbcStorage.isSnapshotIsolationEnabled() && jdbcStorage.getTransactionalCheckpointId() != null) {
+                    getSourceSession().rollback();
+                }
+            } catch (SQLException e) {
+                System.getLogger(PGChunk.class.getName()).log(
+                        System.Logger.Level.ERROR,
+                        "Failed to rollback read-only transaction for chunk {0}: {1}",
+                        this.getId(), e.getMessage()
+                );
+            } finally {
+                getSourceSession().close();
+            }
+        }
+    }
+*/
 
     @Override
     public void lastStageCloseSourceSession(boolean sync) throws SQLException{
