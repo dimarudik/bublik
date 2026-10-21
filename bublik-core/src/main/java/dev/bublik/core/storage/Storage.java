@@ -319,6 +319,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 releaseDistributedLock(cleanupLockId);
             }
         }
+        printFinalizeInfo();
     }
 
     private String getPodName() {
@@ -456,4 +457,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     public String getInstanceUuid() {
         return this.instanceUuid;
     }
+
+    public void printFinalizeInfo() {}
 }
