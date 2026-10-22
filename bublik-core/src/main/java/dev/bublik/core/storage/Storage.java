@@ -99,6 +99,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     public void holdInstanceSignalLock() throws SQLException {}
 
     @Override
+    public void exportGlobalSnapshotTransaction() throws SQLException {}
+
+    @Override
     public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
         start(targetStorage, cfgs, rows, COPY);
     }
@@ -143,6 +146,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
         holdInstanceSignalLock();
+        exportGlobalSnapshotTransaction();
         do {
             List<Chunk<?, ?, ?, ?>> chunks;
             try {

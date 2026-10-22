@@ -1988,6 +1988,7 @@ fromProperties:
   fetchSize: 5000     # optional, default: 10000
   chunkSchemaName: public   # optional, name of schema where chunk table will be created
   chunkTableName: _chunk_   # optional, name of chunk table
+  snapshotIsolationEnabled: false  # optional, default: false, enable snapshot isolation for source database (Repeatable Read mode)
 toProperties:
   url: jdbc:postgresql://localhost:5432/postgres
   user: test
