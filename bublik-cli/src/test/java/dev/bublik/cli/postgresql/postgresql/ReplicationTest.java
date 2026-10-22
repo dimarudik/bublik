@@ -137,21 +137,28 @@ public class ReplicationTest {
 
                 ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
                         .threadCount(4)
-                        .addFromProperty("url", source.getJdbcUrl())
+                        .addFromProperty("url", source.getJdbcUrl().replace("?loggerLevel=OFF", ""))
                         .addFromProperty("user", source.getUsername())
                         .addFromProperty("password", source.getPassword())
                         .addFromProperty("snapshotIsolationEnabled", "true")
-                        .addToProperty("url", target.getJdbcUrl() + "?options=-c%20session_replication_role=replica")
+                        .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", "")
+                                + "?options=-c%20session_replication_role=replica")
                         .addToProperty("user", target.getUsername())
                         .addToProperty("password", target.getPassword())
                         .build();
                 List<Config> configs = new ArrayList<>();
-                Config config = Config
+                Config config1 = Config
                         .builder()
                         .from("public", "replicated_data")
                         .to("public", "replicated_data")
                         .build();
-                configs.add(config);
+                configs.add(config1);
+                Config config2 = Config
+                        .builder()
+                        .from("public", "a")
+                        .to("public", "a")
+                        .build();
+                configs.add(config2);
                 StorageService.init(connectionProperty, configs, 20_000, TransferMode.COPY);
                 return Void.TYPE.cast(null);
 

@@ -57,6 +57,7 @@ public interface StorageService {
     void holdInstanceSignalLock() throws SQLException;
     void exportGlobalSnapshotTransaction() throws SQLException;
     void printChunkStatus();
+    void printFinalizeInfo();
 
     static Storage getStorage(Properties properties,
                               ConnectionProperty connectionProperty,
