@@ -9,10 +9,7 @@ import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.ServiceLoader;
+import java.util.*;
 
 public interface StorageService {
     System.Logger log = System.getLogger(StorageService.class.getName());
@@ -87,23 +84,23 @@ public interface StorageService {
         throw new RuntimeException("StorageFactory not found for identifier: " + identifier);
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows) throws SQLException, IOException {
-        init(property, configs, rows, (Table) null);
+    static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows) throws SQLException, IOException {
+        return init(property, configs, rows, (Table) null);
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable) throws SQLException, IOException {
-        init(property, configs, rows, chunkTable, null);
+    static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable) throws SQLException, IOException {
+        return init(property, configs, rows, chunkTable, null);
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows, TransferMode mode) throws SQLException, IOException {
-        init(property, configs, rows, null, null, mode);
+    static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, TransferMode mode) throws SQLException, IOException {
+        return init(property, configs, rows, null, null, mode);
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
-        init(property, configs, rows, chunkTable, outboxTable, TransferMode.COPY);
+    static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable) throws SQLException, IOException {
+        return init(property, configs, rows, chunkTable, outboxTable, TransferMode.COPY);
     }
 
-    static void init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable, TransferMode mode) throws SQLException, IOException {
+    static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable, TransferMode mode) throws SQLException, IOException {
         log.log(System.Logger.Level.INFO, "Bublik starting...");
         log.log(System.Logger.Level.INFO, "MODE: {0}", mode);
         if (rows > 0) log.log(System.Logger.Level.INFO, "Expected chunk size: {0}", rows);
@@ -144,9 +141,9 @@ public interface StorageService {
 
         try (Storage sourceStorage = getStorage(property.getFromProperty(), property, chunkTable);
              Storage targetStorage = getStorage(property.getToProperty(), property, outboxTable)) {
-//            TransferMode transferMode = mode == null ? TransferMode.COPY : TransferMode.valueOf(mode);
             assert sourceStorage != null;
             sourceStorage.start(targetStorage, configs, rows, mode);
+            return new Storage2Storage(sourceStorage, targetStorage);
         } catch (SQLException e) {
             throw e;
         } catch (Exception e) {
