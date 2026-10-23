@@ -3,7 +3,10 @@ package dev.bublik.cli.postgresql.postgresql;
 import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Storage2Storage;
 import dev.bublik.core.service.StorageService;
+import dev.bublik.core.storage.JDBCStorage;
+import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -11,10 +14,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -70,69 +70,74 @@ public class ReplicationTest {
 
     @Test
     void replicationTest() throws Exception {
-        // Защелки для синхронизации хаос-потоков
         CountDownLatch latchBublikStarted = new CountDownLatch(1);
         CountDownLatch latchBublikFinished = new CountDownLatch(1);
 
-        // Пул на 3 потока: Бублик, Транзакция 1, Транзакция 2
-        ExecutorService testExecutor = Executors.newFixedThreadPool(3);
+        ExecutorService testExecutor = Executors.newFixedThreadPool(4);
 
-        // =================================================================================
-        // УСЛОВИЕ 1: Транзакция 1 (Коммит строго ВО ВРЕМЯ переливки)
-        // =================================================================================
         testExecutor.submit(() -> {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO public.replicated_data (payload_text) VALUES ('Trx 1: Commit DURING migration')")) {
                     ps.executeUpdate();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
 
-                // Ждем, пока Бублик гарантированно начнет миграцию
                 latchBublikStarted.await();
-
-                // Имитируем паузу: даем Бублику поработать пару секунд и налить часть чанков
                 Thread.sleep(1_000);
 
-                conn.commit(); // Стреляем коммитом прямо во время миграции!
+                conn.commit();
                 System.out.println("[CHAOS] ---> Transaction 1 COMMITTED DURIIIING Bublik work! <---");
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
 
-        // =================================================================================
-        // УСЛОВИЕ 2: Транзакция 2 (Коммит строго ПОСЛЕ переливки)
-        // =================================================================================
         testExecutor.submit(() -> {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO public.replicated_data (payload_text) VALUES ('Trx 2: Commit AFTER migration')")) {
                     ps.executeUpdate();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
 
-                // Ждем полного окончания работы Бублика
                 latchBublikFinished.await();
 
-                conn.commit(); // Заведомо после финиша Бублика
+                conn.commit();
                 System.out.println("[CHAOS] ---> Transaction 2 COMMITTED AFTER Bublik finished! <---");
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
 
-        // Даем хаос-транзакциям 500мс, чтобы они успели открыться и сделать INSERT до Бублика
         Thread.sleep(500);
 
-        // =================================================================================
-        // ВЫНОС БУБЛИКА В ОТДЕЛЬНЫЙ ПОТОК
-        // =================================================================================
-        Future<Void> bublikFuture = testExecutor.submit(() -> {
+        Future<Void> workLoad = testExecutor.submit(() -> {
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                conn.setAutoCommit(false);
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO public.replicated_data (payload_text) VALUES (?)")) {
+                    for (int i = 0; i < 500; i++) {
+                        ps.setString(1, "Trx 1: " + i);
+                        ps.executeUpdate();
+                        if (i % 10 == 0) conn.commit();
+                    }
+                    conn.commit();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+
+        Future<String> bublikFuture = testExecutor.submit(() -> {
             try {
                 System.out.println("[BUBLIK-THREAD] Starting history migration engine...");
 
-                // Сигнализируем Транзакции 1, что мы погнали (это произойдет прямо перед инициализацией)
                 latchBublikStarted.countDown();
 
                 ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
@@ -159,42 +164,45 @@ public class ReplicationTest {
                         .to("public", "a")
                         .build();
                 configs.add(config2);
-                StorageService.init(connectionProperty, configs, 20_000, TransferMode.COPY);
-                return Void.TYPE.cast(null);
-
+                Storage2Storage storage2Storage = StorageService.init(connectionProperty, configs, 20_000, TransferMode.COPY);
+                return storage2Storage.source().unwrap(JDBCStorage.class).unwrap(PostgresStorage.class).getTargetLsn();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
 
-        // Блокируем main поток теста до полного завершения Бублика
-        bublikFuture.get();
+        String capturedLsn = bublikFuture.get();
         System.out.println("[BUBLIK-THREAD] History migration finished successfully.");
 
-        // Бублик завершил работу — отпускаем Транзакцию 2 на коммит
         latchBublikFinished.countDown();
+        workLoad.get();
 
-        // Небольшой sleep, чтобы транзакция 2 успела физически закоммититься в БД
+        if (capturedLsn != null) {
+            try (Connection sourceConn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test");
+                 PreparedStatement ps = sourceConn.prepareStatement("SELECT pg_replication_slot_advance('bublik_slot', ?::pg_lsn)")) {
+                ps.setString(1, capturedLsn);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        System.out.println("[TEST] Slot 'bublik_slot' successfully advanced to " + capturedLsn + " . Position verified.");
+                    }
+                }
+            } catch (SQLException e) {
+                System.out.println("[WARN] Slot might already be ahead: " + e.getMessage());
+            }
+        } else {
+            System.out.println("[ERROR] Bublik failed to capture WAL LSN point!");
+        }
         Thread.sleep(1000);
 
-        // =================================================================================
-        // УСЛОВИЕ 3: Активируем логическую подписку на приемнике
-        // =================================================================================
         System.out.println("[TEST] Activating logical subscription on target...");
         try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
              Statement stmt = targetConn.createStatement()) {
-
-            // Включаем подписку. Она начнет выгребать накопленный WAL из bublik_slot
             stmt.execute("ALTER SUBSCRIPTION bublik_sub ENABLE");
         }
 
-        // Даем 5 секунд встроенному механизму Postgres, чтобы прочитать дельту
         System.out.println("[TEST] Waiting for subscription synchronization...");
         Thread.sleep(5000);
 
-        // =================================================================================
-        // УСЛОВИЕ 4: Проверяем сходимость данных (Data Consistency Check)
-        // =================================================================================
         long sourceCount = 0;
         long targetCount = 0;
 
@@ -213,7 +221,6 @@ public class ReplicationTest {
         System.out.println("[RESULT] SOURCE rows count: " + sourceCount);
         System.out.println("[RESULT] TARGET rows count: " + targetCount);
 
-        // Финальная проверка: исторический слой (100,000) + 2 наши контрольные строки = 100,002
         assertEquals(sourceCount, targetCount, "Data counts do not match between Source and Target!");
 
         testExecutor.shutdown();

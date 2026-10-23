@@ -1929,7 +1929,6 @@ public class PostgresStorage extends JDBCStorage {
                         } else {
                             log.log(System.Logger.Level.ERROR,
                                     "There is no handler for type: {0}  for column: {1}", targetType, targetColumnName);
-//                            log.error("There is no handler for type: {}  for column: {}", targetType, targetColumnName);
                         }
                     } else {
                         log.log(System.Logger.Level.ERROR,
@@ -1937,10 +1936,6 @@ public class PostgresStorage extends JDBCStorage {
                                 chunk.getT2t().targetTable().getSchemaName(),
                                 chunk.getT2t().targetTable().getTableName(),
                                 targetType, targetColumnName);
-//                        log.error("tryCharIfAny is NULL for Table: {}.{} Column: {} Type: {}",
-//                                chunk.getT2t().targetTable().getSchemaName(),
-//                                chunk.getT2t().targetTable().getTableName(),
-//                                targetType, targetColumnName);
                         throw new RuntimeException("Unsupported type: " + targetType + " for column: " + targetColumnName);
                     }
             }
@@ -1959,5 +1954,9 @@ public class PostgresStorage extends JDBCStorage {
         } catch (IOException | SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public String getTargetLsn() {
+        return targetLsn;
     }
 }
