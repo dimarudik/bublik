@@ -101,14 +101,16 @@ You can find more details and examples below.
 
 ## Build
 
+* [Install JDK](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)
+
+* [Install mvn](https://maven.apache.org/install.html)
+
 Download the source code
 
 ```
 git clone https://github.com/dimarudik/bublik.git
 cd bublik/
 ```
-
-[Install mvn](https://maven.apache.org/install.html)
 
 Build and package all dependencies
 

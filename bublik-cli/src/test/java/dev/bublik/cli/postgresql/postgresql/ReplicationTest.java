@@ -201,7 +201,7 @@ public class ReplicationTest {
         }
 
         System.out.println("[TEST] Waiting for subscription synchronization...");
-        Thread.sleep(5000);
+        Thread.sleep(7_000);
 
         long sourceCount = 0;
         long targetCount = 0;
