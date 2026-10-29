@@ -160,6 +160,20 @@ public class PgBinaryWriterTest {
 
             assertEquals("2 years 3 mons 5 days 11:22:33.444555", rs.getString("ac_interval"));
 
+            Array arrayJsonb = rs.getArray("ad_jsonb_arr");
+            assertNotNull(arrayJsonb, "Массив _jsonb не должен быть null");
+
+            Object[] jsonbObjects = (Object[]) arrayJsonb.getArray();
+            assertEquals(2, jsonbObjects.length, "Массив jsonb[] должен содержать ровно 2 элемента");
+
+            assertTrue(jsonbObjects[0] instanceof String, "Элемент должен быть String");
+            String jsonStr1 = (String) jsonbObjects[0];
+            assertEquals("{\"id\": 1, \"role\": \"admin\"}", jsonStr1.trim());
+
+            assertTrue(jsonbObjects[1] instanceof String, "Элемент должен быть String");
+            String jsonStr2 = (String) jsonbObjects[1];
+            assertEquals("{\"id\": 2, \"role\": \"user\"}", jsonStr2.trim());
+
             String tstzrangeStr = rs.getString("ab_tstzrange");
             assertNotNull(tstzrangeStr);
             assertTrue(tstzrangeStr.startsWith("["));

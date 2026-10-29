@@ -134,7 +134,7 @@ public class PostgresToYDBTest {
                 " 1 = 1 ");
         Long sourceCount = countRows(sourceProperties, fromQuery);
         Long targetCount = countRows(targetProperties, toQuery);
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, null);
     }
 
     public static Long countRows(Properties p, String query) {

@@ -516,7 +516,7 @@ public class CassandraStorage extends CSStorage {
                 }
                 break;
             }
-            case "text": {
+            case "text", "ascii": {
                 v = resultSet.getString(sClmName);
                 if (targetColumn.isPartitionKey() && v != null) {
                     bytes = stringToBytes((String) v);
