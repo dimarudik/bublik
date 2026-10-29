@@ -207,7 +207,7 @@ public class InfraTest {
 
         int sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
         int targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.k8s");
-        TestResult result = new TestResult(sourceCount, targetCount);
+        TestResult result = new TestResult(sourceCount, targetCount, null);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
 
         amendNotNull(connectionProperty.getFromProperty(), "update public.s set name = 'name' where id1 = 100000 and id2 = -100000");
@@ -239,7 +239,7 @@ public class InfraTest {
 
         sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
         targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.k8s");
-        result = new TestResult(sourceCount, targetCount);
+        result = new TestResult(sourceCount, targetCount, null);
         System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
 //        Thread.sleep(900_000);
         assertEquals(result.sourceCount(), result.targetCount(),
@@ -349,7 +349,7 @@ public class InfraTest {
             if (r) System.out.println("[TEST] Bublik finished its execution cycle.");
             int sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
             int targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.t");
-            TestResult result = new TestResult(sourceCount, targetCount);
+            TestResult result = new TestResult(sourceCount, targetCount, null);
             System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
 //            Thread.sleep(900_000);
             assertEquals(result.sourceCount(), result.targetCount(),

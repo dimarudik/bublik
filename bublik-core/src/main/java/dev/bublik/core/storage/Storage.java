@@ -147,6 +147,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
         holdInstanceSignalLock();
         exportGlobalSnapshotTransaction();
+        int limitChunkRetries = 0;
         do {
             List<Chunk<?, ?, ?, ?>> chunks;
             try {
@@ -166,6 +167,10 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             // проверяем, что в очереди нет чанков для обработки и все чанки уже обработаны
             if (chunks.isEmpty()) {
                 if (!isMigrationFullyFinished()) {
+                    if (limitChunkRetries > 70) {
+                        log.log(System.Logger.Level.ERROR, "CRITICAL: Cluster deadlock detected! Coordinated workers vanished or got stuck.");
+                        break;
+                    }
                     log.log(System.Logger.Level.INFO, "No unassigned chunks, but cluster is still running. Waiting for ghost tasks...");
                     try {
                         Thread.sleep(1200);
@@ -173,11 +178,13 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                         Thread.currentThread().interrupt();
                         throw new RuntimeException(ie);
                     }
+                    limitChunkRetries++;
                     continue;
                 }
                 log.log(System.Logger.Level.INFO, "All chunks are processed");
                 break;
             }
+            limitChunkRetries = 0;
             ExecutorService batchService = Executors.newFixedThreadPool(threadCount);
             List<Callable<Chunk<?, ?, ?, ?>>> tasks = new ArrayList<>();
 
@@ -286,6 +293,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     log.log(System.Logger.Level.ERROR,
                             "Critical error threshold reached ({0}/{1}). Finishing pipeline...",
                             errorCounter, threadCount * 2);
+                    printFinalizeInfo();
                     throw new RuntimeException("Unrecoverable error in migration pipeline", lastSubmittedException);
                 } else {
                     log.log(System.Logger.Level.WARNING,

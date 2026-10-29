@@ -9,10 +9,7 @@ import dev.bublik.cassandra.storage.CSPool;
 import dev.bublik.cli.TestResult;
 import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
-import dev.bublik.core.model.Config;
-import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.DummyTable;
-import dev.bublik.core.model.Table;
+import dev.bublik.core.model.*;
 import dev.bublik.core.service.StorageService;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -115,12 +112,12 @@ public class ToKafkaTest {
         cp.getToProperties().put("servers", kafkaContainer.getBootstrapServers());
         Table chunkTable = new DummyTable(cp.getToProperty().getProperty("keyspace"), "chunk");
 
-        StorageService.init(cp, configs, rows, chunkTable);
+        Storage2Storage storage2Storage = StorageService.init(cp, configs, rows, chunkTable);
 
         long sourceCount = 141160;
         long targetCount = countMessagesInKafka(kafkaContainer.getBootstrapServers(), targetTopic);
 
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, storage2Storage);
     }
 
     private static long countMessagesInKafka(String bootstrapServers, String topic) {

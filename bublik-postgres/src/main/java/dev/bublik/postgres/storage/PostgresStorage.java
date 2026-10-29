@@ -38,6 +38,7 @@ import static dev.bublik.postgres.util.ColumnUtil.*;
 public class PostgresStorage extends JDBCStorage {
     private static final System.Logger log = System.getLogger(PostgresStorage.class.getName());
     private volatile String targetLsn;
+    private volatile String xMin;
 
     public PostgresStorage(Properties properties,
                            ConnectionProperty connectionProperty,
@@ -132,16 +133,20 @@ public class PostgresStorage extends JDBCStorage {
                 attempts++;
                 if (attempts >= 5) throw e;
                 log.log(System.Logger.Level.WARNING, "Trying to reconnect. Try: {0}/5", attempts);
-                try { Thread.sleep(1000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw new RuntimeException(ie); }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt(); throw new RuntimeException(ie);
+                }
             }
         }
 
+        // Тут поток помечает на себя чанки погибшего пода
         try {
             String chunkTableName = getOutboxTable().tableToString();
 
             String findForeignPodsSql = "SELECT DISTINCT uuid FROM " + chunkTableName +
                     " WHERE status IN ('ASSIGNED', 'LOCKED') AND uuid <> ? ";
-//                    " WHERE status = 'ASSIGNED' AND uuid <> ? ";
 
             try (PreparedStatement psFind = connection.prepareStatement(findForeignPodsSql)) {
                 psFind.setString(1, this.getInstanceUuid());
@@ -187,7 +192,6 @@ public class PostgresStorage extends JDBCStorage {
                 if (!capturedIds.isEmpty()) {
                     String updateSql = "UPDATE " + chunkTableName +
                             " SET status = 'LOCKED', uuid = ?, err_msg = NULL " +
-//                            " SET status = 'ASSIGNED', start_ts = now(), uuid = ?, err_msg = NULL " +
                             " WHERE chunk_id = ?";
                     try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
                         for (Long id : capturedIds) {
@@ -247,6 +251,7 @@ public class PostgresStorage extends JDBCStorage {
                 xMin = rs.getLong(2);
                 log.log(System.Logger.Level.INFO, "PG SNAPSHOT: {0}", getTransactionalCheckpointId());
                 log.log(System.Logger.Level.INFO, "PG XMIN: {0}", String.valueOf(xMin));
+                setxMin(String.valueOf(xMin));
             }
         }
 
@@ -275,16 +280,6 @@ public class PostgresStorage extends JDBCStorage {
                 setTransactionalCheckpointId(rs.getString(1));
                 targetLsn = rs.getString(2);
                 printFinalizeInfo();
-/*
-                log.log(System.Logger.Level.INFO, "\n" +
-                        "==========================================================\n" +
-                        "  BUBLIK MIGRATION POINT CAPTURED\n" +
-                        "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
-                        "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
-                        "  Command for DBA after copy:\n" +
-                        "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
-                        "==========================================================");
-*/
             }
         } catch (SQLException e) {
             log.log(System.Logger.Level.ERROR, "Failed to export standalone global snapshot: {0}", e.getMessage());
@@ -298,16 +293,27 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void printFinalizeInfo() {
-        log.log(System.Logger.Level.INFO, "\n" +
-                "==========================================================\n" +
-                "  BUBLIK MIGRATION POINT CAPTURED\n" +
-                "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
-                "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
-                "  Command for DBA after copy:\n" +
-                "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
-                "==========================================================");
+        if (this.snapshotIsolationEnabled) {
+            log.log(System.Logger.Level.INFO, "\n" +
+                    "==========================================================\n" +
+                    "  BUBLIK MIGRATION POINT CAPTURED\n" +
+                    "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
+                    "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
+                    "  Command for DBA after copy:\n" +
+                    "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
+                    "==========================================================");
+        } else {
+            log.log(System.Logger.Level.INFO, "\n" +
+                    "==========================================================\n" +
+                    "  BUBLIK MIGRATION POINT CAPTURED\n" +
+                    "  1. PG XMIN: " + getxMin() + "\n" +
+                    "  Configuration for UPSERT mode:\n" +
+                    "  \"fetchWhereClause\": \"xmin::text::bigint >= " + getxMin() + "\"\n" +
+                    "==========================================================");
+        }
     }
 
+    // Тут формируется список необработанных чанков, принадлежащих данному поду, в количестве threadCount * 4
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
         return "SELECT chunk_id, uuid, start_page, end_page, task_name, status FROM " +
@@ -1958,5 +1964,13 @@ public class PostgresStorage extends JDBCStorage {
 
     public String getTargetLsn() {
         return targetLsn;
+    }
+
+    public String getxMin() {
+        return xMin;
+    }
+
+    public void setxMin(String xMin) {
+        this.xMin = xMin;
     }
 }

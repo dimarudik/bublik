@@ -1,13 +1,10 @@
 package dev.bublik.cli;
 
-import dev.bublik.core.model.DummyTable;
-import dev.bublik.core.model.Table;
+import dev.bublik.core.model.*;
 import dev.bublik.core.service.StorageService;
 import dev.bublik.core.constants.TransferMode;
 import lombok.extern.slf4j.Slf4j;
 import dev.bublik.cli.addons.Utils;
-import dev.bublik.core.model.Config;
-import dev.bublik.core.model.ConnectionProperty;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 import java.io.IOException;
@@ -81,10 +78,11 @@ public class TestUtils {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
+        Storage2Storage storage2Storage = null;
         if (chunkTable != null && outboxTable != null) {
-            App.runProcess(cp, configs, rows, mode);
+            storage2Storage = App.runProcess(cp, configs, rows, mode);
         } else {
-            StorageService.init(cp, configs, rows, chunkTable, outboxTable, mode);
+            storage2Storage = StorageService.init(cp, configs, rows, chunkTable, outboxTable, mode);
         }
 
         long sourceCount = 0;
@@ -105,7 +103,7 @@ public class TestUtils {
             System.out.println(toQuery);
             targetCount += TestUtils.countRows(targetProperties, toQuery);
         }
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, storage2Storage);
     }
 
     public static TestResult getResult(String connectionPropertyFile,
@@ -119,7 +117,7 @@ public class TestUtils {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        StorageService.init(cp, configs, rows, chunkTable, outboxTable);
+        Storage2Storage storage2Storage = StorageService.init(cp, configs, rows, chunkTable, outboxTable);
 
         long sourceCount = 0;
         long targetCount = 0;
@@ -139,7 +137,7 @@ public class TestUtils {
             System.out.println(toQuery);
             targetCount += TestUtils.countRows(targetProperties, toQuery);
         }
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, storage2Storage);
     }
 
 
