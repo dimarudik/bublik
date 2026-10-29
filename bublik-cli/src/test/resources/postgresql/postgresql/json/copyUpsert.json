@@ -1,0 +1,31 @@
+[
+  {
+    "fromSchemaName" : "public",
+    "fromTableName" : "\"Source\"",
+    "toSchemaName" : "public",
+    "toTableName" : "target",
+    "columnToColumn" : {
+      "id"            : "id",
+      "uuid"          : "uuid",
+      "\"Primary\""   : "\"Primary\"",
+      "boolean"       : "boolean",
+      "int2"          : "int2",
+      "int4"          : "int4",
+      "int8"          : "int8",
+      "smallint"      : "smallint",
+      "bigint"        : "bigint",
+      "numeric"       : "num",
+      "float8"        : "float8",
+      "date"          : "date",
+      "timestamp"     : "timestamp",
+      "timestamptz"   : "timestamptz",
+      "description"   : "rem",
+      "image"         : "image",
+      "j"             : "j",
+      "time"          : "time",
+      "ip"            : "ip",
+      "h"             : "h",
+      "ints"          : "ints"
+    }
+  }
+]

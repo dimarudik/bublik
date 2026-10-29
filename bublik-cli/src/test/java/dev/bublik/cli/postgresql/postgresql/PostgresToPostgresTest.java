@@ -4,9 +4,12 @@ import dev.bublik.cli.TestResult;
 import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Storage2Storage;
 import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
+import dev.bublik.core.storage.JDBCStorage;
 import dev.bublik.postgres.model.PGTable;
+import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -16,8 +19,7 @@ import org.testcontainers.utility.MountableFile;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.*;
 
 import static dev.bublik.cli.App.getConfigs;
 import static dev.bublik.cli.TestUtils.*;
@@ -34,7 +36,7 @@ public class PostgresToPostgresTest {
     private static JdbcDatabaseContainer<?> target = source;
 
     @BeforeAll
-     static void setUp() throws SQLException {
+    static void setUp() throws SQLException {
         MountableFile mf = MountableFile.forClasspathResource("./images/bublik.png");
         source.addFileSystemBind(mf.getResolvedPath(), "/var/lib/postgresql/bublik.png", BindMode.READ_ONLY);
         source.setPortBindings(java.util.Collections.singletonList("5432:5432"));
@@ -76,7 +78,6 @@ public class PostgresToPostgresTest {
 
     @Test
     void allTypes() throws Exception {
-//        Thread.sleep(1_900_000);
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg_snapshot.yaml",
                 "./postgresql/postgresql/json/allTypes.json",
@@ -94,6 +95,11 @@ public class PostgresToPostgresTest {
                 getJdbcProperties(target));
         System.out.println("source count: " + result2.sourceCount());
         System.out.println("target count: " + (result2.targetCount() - result.targetCount()));
+        Properties targetProp = getJdbcProperties(target);
+        try (Connection conn = DriverManager.getConnection(targetProp.getProperty("url"), targetProp);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("truncate table target");
+        }
         assertEquals(result.sourceCount(), result2.targetCount() - result.targetCount());
     }
 
@@ -181,7 +187,6 @@ public class PostgresToPostgresTest {
                         psInsert.setString(9, "user_" + nextId);
                         psInsert.executeUpdate();
                     }
-//                    Thread.sleep(1);
                     iterations++;
                 }
             } catch (Exception e) {
@@ -189,8 +194,9 @@ public class PostgresToPostgresTest {
             }
         });
 
+        TestResult result = null;
         try {
-            getResultCount(
+            result = getResultCount(
                     "./postgresql/postgresql/yaml/pg2pg_sum_hash.yaml",
                     "./postgresql/postgresql/json/sumCount.json",
                     10_000,
@@ -198,7 +204,7 @@ public class PostgresToPostgresTest {
                     getJdbcProperties(source),
                     getJdbcProperties(target),
                     TransferMode.COPY);
-        } catch (Exception e){
+        } catch (Exception e) {
             System.out.println(getStackTrace(e));
         }
 
@@ -218,12 +224,14 @@ public class PostgresToPostgresTest {
                 PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/sumCount.json"));
         Config configFirst = configsTmp.getFirst();
         List<Config> configs = new ArrayList<>();
+        String fetchWhereClause = "xmin::text::bigint >= " + xMin;
+        System.out.println(fetchWhereClause);
         Config config = Config
                 .builder()
                 .from(configFirst.fromSchemaName(), configFirst.fromTableName())
                 .to(configFirst.toSchemaName(), configFirst.toTableName())
                 .columnToColumn(configFirst.columnToColumn())
-                .fetchWhereClause("xmin::text::bigint >= " + xMin)
+                .fetchWhereClause(fetchWhereClause)
                 .build();
         configs.add(config);
         StorageService.init(connectionProperty, configs, 50_000, TransferMode.UPSERT);
@@ -346,7 +354,7 @@ public class PostgresToPostgresTest {
                 PostgresToPostgresTest.class.getResourceAsStream("/postgresql/postgresql/json/isNotPartitioned.json"));
 
         SQLException ex = assertThrows(SQLException.class, () ->
-                        StorageService.init(property, configs, rows, chunkTable, outboxTable));
+                StorageService.init(property, configs, rows, chunkTable, outboxTable));
         assertTrue(ex.getMessage().contains("Partitioned tables are not supported"));
         System.out.println(ex.getMessage());
     }

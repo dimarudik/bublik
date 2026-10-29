@@ -345,7 +345,7 @@ public class CassandraV3Test {
                             (config.toTableName() == null ? config.fromTableName() : config.toTableName()),
                     targetPredicate, null);
         }
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, null);
     }
 
     private static long countCassandra(Properties properties, String query, String tableName, Predicate<Row> p, String where) {

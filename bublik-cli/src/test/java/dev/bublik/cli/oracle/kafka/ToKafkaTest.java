@@ -5,6 +5,7 @@ import dev.bublik.cli.TestUtils;
 import dev.bublik.cli.addons.Utils;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Storage2Storage;
 import dev.bublik.core.service.StorageService;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -176,7 +177,7 @@ public class ToKafkaTest {
 //        cp.getFromProperties().put("password", sourceProperties.getProperty("password"));
         cp.getToProperties().put("servers", kafkaContainer.getBootstrapServers());
 
-        StorageService.init(cp, configs, rows, chunkTable, outboxTable);
+        Storage2Storage storage2Storage = StorageService.init(cp, configs, rows, chunkTable, outboxTable);
 
         long sourceCount = 0;
         for (Config config : configs) {
@@ -188,7 +189,7 @@ public class ToKafkaTest {
 
         long targetCount = countMessagesInKafka(kafkaContainer.getBootstrapServers(), targetTopic);
 
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, storage2Storage);
     }
 
     private static long countMessagesInKafka(String bootstrapServers, String topic) {

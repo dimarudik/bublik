@@ -100,7 +100,7 @@ public class ModelTransformationTest {
         String fromQuery = "SELECT count(1) * 2 FROM public.likes l left join users u on u.id = l.user_id left join items i on i.id = l.item_id";
         Long sourceCount = countRows(sourceProperties, fromQuery);
         Long targetCount = countCassandra();
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, null);
     }
 
     private static Long countCassandra() {

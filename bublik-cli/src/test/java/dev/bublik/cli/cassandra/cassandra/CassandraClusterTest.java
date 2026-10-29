@@ -238,7 +238,7 @@ public class CassandraClusterTest {
             sourceCount += countCassandra(sourceProperties, query,config.fromSchemaName() + "." + config.fromTableName(), sourcePredicate);
             targetCount += countCassandra(targetProperties, query, config.toSchemaName() + "." + config.toTableName(), targetPredicate);
         }
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, null);
     }
 
     private static long countCassandra(Properties properties, String query, String tableName, Predicate<Row> p) {

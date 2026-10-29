@@ -3,10 +3,7 @@ package dev.bublik.cli;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.bublik.core.constants.ENVProperties;
 import dev.bublik.core.constants.TransferMode;
-import dev.bublik.core.model.Config;
-import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.DummyTable;
-import dev.bublik.core.model.Table;
+import dev.bublik.core.model.*;
 import dev.bublik.core.service.StorageService;
 import org.apache.commons.cli.*;
 import org.slf4j.Logger;
@@ -109,16 +106,16 @@ public class App {
         }
     }
 
-    public static void runProcess(ConnectionProperty property,
+    public static Storage2Storage runProcess(ConnectionProperty property,
                                   List<Config> configs,
                                   int rowsParameter) {
-        runProcess(property, configs, rowsParameter, TransferMode.COPY);
+        return runProcess(property, configs, rowsParameter, TransferMode.COPY);
     }
 
-    public static void runProcess(ConnectionProperty property,
-                                  List<Config> configs,
-                                  int rowsParameter,
-                                  TransferMode mode) {
+    public static Storage2Storage runProcess(ConnectionProperty property,
+                                             List<Config> configs,
+                                             int rowsParameter,
+                                             TransferMode mode) {
         try {
             Table chunkTable = null;
             Table outboxTable = null;
@@ -130,13 +127,14 @@ public class App {
                 outboxTable = new DummyTable((String) property.getToProperty().get("outboxSchemaName"),
                         (String) property.getToProperty().get("outboxTableName"));
             }
-            StorageService.init(property, configs, rowsParameter, chunkTable, outboxTable, mode);
+            return StorageService.init(property, configs, rowsParameter, chunkTable, outboxTable, mode);
 //            StorageService.init(property, configs, rowsParameter, mode);
         } catch (SQLException e) {
             log.error("SQL Engine Fail [{}]: {}", e.getSQLState(), e.getMessage());
         } catch (Exception r) {
             log.error("Pipeline breakdown failure context", r);
         }
+        return null;
     }
 
     private static Option createOptionNoArg(String shortName, String longName, String description) {

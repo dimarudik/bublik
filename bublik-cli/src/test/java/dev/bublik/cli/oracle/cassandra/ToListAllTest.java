@@ -113,7 +113,7 @@ public class ToListAllTest {
         String fromQuery = "SELECT count(1) FROM test.users";
         Long sourceCount = countRows(sourceProperties, fromQuery);
         Long targetCount = countCassandra();
-        return new TestResult(sourceCount, targetCount);
+        return new TestResult(sourceCount, targetCount, null);
     }
 
     private static Long countCassandra() {
