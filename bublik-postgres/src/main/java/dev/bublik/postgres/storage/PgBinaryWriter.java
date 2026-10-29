@@ -62,26 +62,6 @@ public class PgBinaryWriter implements AutoCloseable {
         }
     }
 
-/*
-    public void writeStreamingText(java.io.Reader reader, long charLength) throws IOException {
-        if (reader == null) {
-            out.writeInt(-1);
-            return;
-        }
-
-        out.writeInt((int) charLength);
-        char[] buffer = new char[64 * 1024];
-        int charsRead;
-
-        while ((charsRead = reader.read(buffer)) != -1) {
-            String chunk = new String(buffer, 0, charsRead);
-            byte[] bytes = chunk.replace("\u0000", "").getBytes(StandardCharsets.UTF_8);
-            out.write(bytes);
-        }
-    }
-*/
-
-
     public void writeNumeric(BigDecimal value) throws IOException {
         if (value == null) {
             out.writeInt(-1);
@@ -199,6 +179,53 @@ public class PgBinaryWriter implements AutoCloseable {
         out.writeByte(1);
         out.write(jsonBytes);
     }
+
+    public void writeJsonbArray(String[] array) throws IOException {
+        if (array == null) {
+            out.writeInt(-1);
+            return;
+        }
+
+        int hasNulls = 0;
+        int totalElementsLength = 0;
+        List<byte[]> encodedJsonbElements = new ArrayList<>(array.length);
+        int jsonbOid = 3802; // OID типа jsonb в PostgreSQL
+
+        for (String s : array) {
+            if (s == null) {
+                hasNulls = 1;
+                totalElementsLength += 4;
+                encodedJsonbElements.add(null);
+            } else {
+                byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+                // Длина элемента в PG COPY = 4 байта размера + 1 байт версии + длина текста JSON
+                totalElementsLength += 4 + 1 + bytes.length;
+                encodedJsonbElements.add(bytes);
+            }
+        }
+
+        // 20 байт — фиксированный размер заголовка одномерного массива в PG COPY
+        int dataLength = 20 + totalElementsLength;
+
+        out.writeInt(dataLength);
+        out.writeInt(1);           // Кол-во размерностей (Dimensions)
+        out.writeInt(hasNulls);     // Наличие NULL элементов
+        out.writeInt(jsonbOid);     // OID типа элементов (3802)
+        out.writeInt(array.length); // Размерность (кол-во элементов)
+        out.writeInt(1);           // Lower Bound (индексация с 1)
+
+        for (byte[] bytes : encodedJsonbElements) {
+            if (bytes == null) {
+                out.writeInt(-1);
+            } else {
+                // Пишем размер этого элемента (1 байт версии + тело JSON)
+                out.writeInt(1 + bytes.length);
+                out.writeByte(1); // Обязательный префикс формата jsonb (version 1)
+                out.write(bytes);
+            }
+        }
+    }
+
 
     public void writeShort(Short value) throws IOException {
         if (value == null) {

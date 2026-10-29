@@ -850,30 +850,6 @@ public class PostgresStorage extends JDBCStorage {
             int colIndex = sourceColumnIndices[i];
             int sourceSqlType = sourceColumnTypes[i];
 
-/*
-            if ("text".equals(targetType) || sourceSqlType == java.sql.Types.CLOB || sourceSqlType == java.sql.Types.LONGVARCHAR) {
-                if (isOracle && sourceSqlType == 2005) {
-                    java.sql.Clob clob = rs.getClob(colIndex);
-                    if (clob == null) {
-                        writer.writeNull();
-                    } else {
-                        try (java.io.Reader reader = clob.getCharacterStream()) {
-                            writer.writeStreamingText(reader, clob.length());
-                        }
-                    }
-                } else {
-                    try (java.io.Reader reader = rs.getCharacterStream(colIndex)) {
-                        if (reader == null) {
-                            writer.writeNull();
-                        } else {
-                            writer.writeStreamingText(reader, 1024 * 1024); // Передаем поток
-                        }
-                    }
-                }
-                continue;
-            }
-*/
-
             Object value = rs.getObject(colIndex);
             if (value == null) {
                 writer.writeNull();
@@ -962,6 +938,50 @@ public class PostgresStorage extends JDBCStorage {
                     writer.writeJsonb(s);
                     break;
                 }
+
+                case "_jsonb", "jsonb[]": {
+                    String[] jsonStrings = null;
+
+                    if (value instanceof java.sql.Array sqlArray) {
+                        Object arrayData = sqlArray.getArray();
+                        if (arrayData instanceof Object[] objArray) {
+                            jsonStrings = new String[objArray.length];
+                            for (int idx = 0; idx < objArray.length; idx++) {
+                                Object elem = objArray[idx];
+                                if (elem == null) {
+                                    jsonStrings[idx] = null;
+                                } else if (elem instanceof org.postgresql.util.PGobject pgObj) {
+                                    jsonStrings[idx] = pgObj.getValue();
+                                } else {
+                                    jsonStrings[idx] = elem.toString();
+                                }
+                            }
+                        }
+                    } else if (value instanceof String[] strArray) {
+                        jsonStrings = strArray;
+                    } else if (value instanceof String strValue) {
+                        // Текстовый fallback, если данные пришли в виде строки '{...}'
+                        if (strValue.startsWith("{") && strValue.endsWith("}")) {
+                            strValue = strValue.substring(1, strValue.length() - 1);
+                            jsonStrings = strValue.split(",");
+                        } else {
+                            jsonStrings = new String[]{strValue};
+                        }
+                    }
+
+                    // Обязательно вычищаем нулл-байты, чтобы бинарный COPY не ругался на некорректные строки
+                    if (jsonStrings != null) {
+                        for (int idx = 0; idx < jsonStrings.length; idx++) {
+                            if (jsonStrings[idx] != null) {
+                                jsonStrings[idx] = jsonStrings[idx].replace("\u0000", "");
+                            }
+                        }
+                    }
+
+                    writer.writeJsonbArray(jsonStrings);
+                    break;
+                }
+
 
                 case "money", "numeric", "decimal", "NUMBER": {
                     if (value instanceof BigDecimal bd) {
