@@ -28,6 +28,7 @@ import java.sql.*;
 import java.sql.Date;
 import java.time.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static dev.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 import static dev.bublik.core.util.ColumnUtil.*;
@@ -611,12 +612,8 @@ public class PostgresStorage extends JDBCStorage {
                     .map(Column::columnName)
                     .toList();
 
-            List<Column> pkColumnNames = chunk.getT2t().targetTable().getPkColumns();
-
-            String tableNameWithSchema = chunk.getT2t().targetTable().getSchemaName() + "." +
-                    chunk.getT2t().targetTable().getFinalTableName(true);
-
-            String sqlUpsert = buildUpsertSql(columnNames, pkColumnNames, tableNameWithSchema);
+            String sqlUpsert = buildUpsertSql(columnNames, chunk.getT2t().targetTable());
+//            log.log(System.Logger.Level.INFO, "Upsert SQL: " + sqlUpsert);
 
             int batchCounter = 0;
             int batchSize = 1000;
@@ -662,12 +659,24 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
-    private String buildUpsertSql(List<String> columnNames, List<Column> pkColumnNames, String tableName) {
-        if (pkColumnNames == null || pkColumnNames.isEmpty()) {
-            throw new IllegalArgumentException("Для выполнения UPSERT (Delta) на таблице " + tableName + " обязан быть первичный ключ (PK)!");
+    private String buildUpsertSql(List<String> columnNames, Table targetTable) {
+        List<Column> pkColumnNames = targetTable.getPkColumns();
+        UniqueConstraint uniqueConstraint = targetTable.getUniqueConstraints() == null ? null :
+                targetTable.getUniqueConstraints().stream().filter(uc -> !uc.isNullable()).findFirst().orElse(null);
+        List<Column> ucColumnNames = uniqueConstraint == null ? null : uniqueConstraint.getColumns().values().stream().toList();
+//        System.out.println("ucColumnNames = " + ucColumnNames);
+        String tableName = targetTable.getSchemaName() + "." + targetTable.getFinalTableName(true);
+
+        if ((pkColumnNames == null || pkColumnNames.isEmpty()) &&
+                (ucColumnNames == null || ucColumnNames.isEmpty())) {
+            throw new IllegalArgumentException("!!! To make UPSERT (Delta) for table " + tableName +
+                    " must have Primary Key or Unique Not Null Constraint !!!");
         }
 
-        List<String> pkNames = pkColumnNames.stream().map(Column::columnName).toList();
+//        List<String> upsertKeys = pkColumnNames.stream().map(Column::columnName).toList();
+        List<String> upsertKeys = (pkColumnNames != null && !pkColumnNames.isEmpty()) ?
+                pkColumnNames.stream().map(Column::columnName).toList() :
+                ucColumnNames.stream().map(Column::columnName).toList();
 
         StringBuilder sql = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
         sql.append(String.join(", ", columnNames)).append(") VALUES (");
@@ -675,11 +684,11 @@ public class PostgresStorage extends JDBCStorage {
         List<String> placeholders = columnNames.stream().map(c -> "?").toList();
         sql.append(String.join(", ", placeholders)).append(") ");
 
-        sql.append("ON CONFLICT (").append(String.join(", ", pkNames)).append(") DO UPDATE SET ");
+        sql.append("ON CONFLICT (").append(String.join(", ", upsertKeys)).append(") DO UPDATE SET ");
 
         List<String> updateClauses = new ArrayList<>();
         for (String col : columnNames) {
-            if (!pkNames.contains(col)) {
+            if (!upsertKeys.contains(col)) {
                 updateClauses.add(col + " = EXCLUDED." + col);
             }
         }

@@ -380,9 +380,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
 
             String chunkLookupSql = buildStartEndOfChunk(config, sourceTable);
+/*
             log.log(System.Logger.Level.DEBUG,
                     "Query of chunks for table {0}.{1}: {2}",
                     t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), chunkLookupSql);
+*/
             String fetchQuery = buildFetchStatement(config, t2t);
             String orderByClause = targetTable.buildOrderBy(config);
             log.log(System.Logger.Level.DEBUG,"Fetch query for table {0}.{1}: {2} {3}",

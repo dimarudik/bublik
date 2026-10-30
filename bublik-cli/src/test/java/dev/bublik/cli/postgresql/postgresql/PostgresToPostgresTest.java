@@ -77,6 +77,22 @@ public class PostgresToPostgresTest {
     }
 
     @Test
+    void upsertReplicaIdentity() throws Exception {
+//        Thread.sleep(900_000);
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/json/replicaIdentity.json",
+                50_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.UPSERT);
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+    }
+
+    @Test
     void allTypes() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg_snapshot.yaml",
