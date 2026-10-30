@@ -29,6 +29,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     protected Table outboxTable;
     private Map<Table, Table> tables;
     protected boolean isManaged;
+    protected int storageMajorVersion;
 
     protected Storage(Properties properties, ConnectionProperty connectionProperty) {
         this(properties, connectionProperty, null);

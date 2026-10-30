@@ -48,6 +48,7 @@ public class V14Test {
 
     @Test
     void allTypes() throws Exception {
+//        Thread.sleep(600_000);
         TestResult result = TestUtils.getResultCount(
                 "postgresql/postgresql/yaml/pg2pg.yaml",
                 "postgresql/postgresql/json/allTypes-v14.json",

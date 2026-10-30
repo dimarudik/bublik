@@ -1693,7 +1693,8 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public Table configToTable(String schemaName, String tableName) {
-        return new PGTable(schemaName, tableName);
+        int storageVersion = storageMajorVersion == 0 ? getStorageMajorVersion() : storageMajorVersion;
+        return new PGTable(schemaName, tableName, storageVersion);
     }
 
     @Override
