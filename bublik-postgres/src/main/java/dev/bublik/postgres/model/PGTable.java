@@ -2,8 +2,6 @@ package dev.bublik.postgres.model;
 
 import dev.bublik.core.model.*;
 import dev.bublik.core.storage.Storage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.*;
@@ -191,8 +189,6 @@ public class PGTable extends Table {
             int decimalDigits = rs.getInt("DECIMAL_DIGITS");
             String remark = rs.getString("REMARKS");
             int charOctetLength = rs.getInt("CHAR_OCTET_LENGTH");
-//            тут
-//            System.out.println(columnName + "   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             columns.add(new Column(
                     ordinalPosition,
                     isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName,
@@ -224,22 +220,10 @@ public class PGTable extends Table {
             Integer keySeq = rs.getInt("KEY_SEQ");
             String pkName = rs.getString("PK_NAME");
             String columnName = rs.getString("COLUMN_NAME");
-            pkColumns.add(new Column(
-                    keySeq,
-                    columnName,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    0,
-                    null,
-                    0,
-                    null,
-                    false,
-                    false,
-                    false)
+            pkColumns.add( Column.builder()
+                            .columnPosition(keySeq)
+                            .columnName(columnName)
+                            .build()
             );
         }
         rs.close();
@@ -272,46 +256,27 @@ public class PGTable extends Table {
             boolean nullsNotDistinct = rs.getBoolean("indnullsnotdistinct");
             int ordinalPosition = rs.getInt("pos");
             String columnName = rs.getString("attname");
+            boolean isNullable = rs.getBoolean("attnotnull");
             if (uniqueConstraintMap.containsKey(constraintName)) {
                 UniqueConstraint existingConstraint = uniqueConstraintMap.get(constraintName);
-                existingConstraint.getColumns().put((short) ordinalPosition, new Column(
-                        ordinalPosition,
-                        columnName/*,
-                        null, // columnType is not used here
-                        null, // dataType is not used here
-                        null, // nullable is not used here
-                        null, // defaultValue is not used here
-                        null, // isAutoIncrement is not used here
-                        null, // isGenerated is not used here
-                        0, // decimalDigits is not used here
-                        null, // columnComment is not used here
-                        0, // charOctetLength is not used here
-                        null,
-                        false,
-                        false,
-                        false// ascOrDesc is not used here*/
-                ));
+                existingConstraint.getColumns().put((short) ordinalPosition,
+                        Column.builder()
+                                .columnPosition(ordinalPosition)
+                                .columnName(columnName)
+                                .isNullable(isNullable ? 0 : 1)
+                                .build()
+                );
             } else {
                 uniqueConstraintMap.put(constraintName, new UniqueConstraint(
                         constraintName,
                         new TreeMap<>() {{
-                            put((short) ordinalPosition, new Column(
-                                    ordinalPosition,
-                                    columnName/*,
-                                    null, // columnType is not used here
-                                    null, // dataType is not used here
-                                    null, // nullable is not used here
-                                    null, // defaultValue is not used here
-                                    null, // isAutoIncrement is not used here
-                                    null, // isGenerated is not used here
-                                    0, // decimalDigits is not used here
-                                    null, // columnComment is not used here
-                                    0, // charOctetLength is not used here
-                                    null,
-                                    false,
-                                    false,
-                                    false// ascOrDesc is not used here*/
-                            ));
+                            put((short) ordinalPosition,
+                                    Column.builder()
+                                            .columnPosition(ordinalPosition)
+                                            .columnName(columnName)
+                                            .isNullable(isNullable ? 0 : 1)
+                                            .build()
+                            );
                         }},
                         nullsNotDistinct));
             }
@@ -360,23 +325,11 @@ public class PGTable extends Table {
                 int ordinalPosition = rs.getInt("pos");
                 String columnName = rs.getString("name");
                 String ascOrDesc = rs.getString("ascdesc");
-                Column column = new Column(
-                        ordinalPosition,
-                        columnName,
-                        null, // columnType is not used here
-                        null, // dataType is not used here
-                        null, // nullable is not used here
-                        null, // defaultValue is not used here
-                        null, // isAutoIncrement is not used here
-                        null, // isGenerated is not used here
-                        0, // decimalDigits is not used here
-                        null, // columnComment is not used here
-                        0, // charOctetLength is not used here
-                        ascOrDesc,
-                        false,
-                        false,
-                        false
-                );
+                Column column = Column.builder()
+                        .columnPosition(ordinalPosition)
+                        .columnName(columnName)
+                        .ascOrDesc(ascOrDesc)
+                        .build();
                 if (indexes.containsKey(id)) {
                     Index existingIndex = indexes.get(id);
                     if (basic) {
@@ -429,10 +382,6 @@ public class PGTable extends Table {
                     options.add(new TableOption(option));
                 }
             }
-/*
-            log.info("Table Options for {}.{}: OID: {}, RelOptions: {}",
-                    getFinalSchemaName(true), getFinalTableName(true), oid, relOptionsArray);
-*/
         }
         return new AbstractMap.SimpleEntry<>(oid, options);
     }
@@ -455,7 +404,6 @@ public class PGTable extends Table {
             }
         }
         pkQuery.append(");");
-//        log.info("Creating primary key for table {}.{}: {}", getSchemaName(), getTableName(), pkQuery);
         log.log(System.Logger.Level.INFO, "Creating primary key for table {0}.{1}: {2}", getSchemaName(), getTableName(), pkQuery);
         try {
             connection.createStatement().execute(pkQuery.toString());
@@ -464,7 +412,6 @@ public class PGTable extends Table {
             log.log(System.Logger.Level.ERROR,
                     "Failed to create primary key for table {0}.{1}: {2}",
                     getSchemaName(), getTableName(), e.getMessage());
-//            log.error("Failed to create primary key for table {}.{}: {}", getSchemaName(), getTableName(), e.getMessage());
         }
     }
 
@@ -506,7 +453,6 @@ public class PGTable extends Table {
     public void create(Connection connection) throws SQLException {
         if (!exists(connection)) {
             log.log(System.Logger.Level.INFO, "Creating table {0}.{1}", getSchemaName(), getTableName());
-//            log.info("Creating table {}.{}", getSchemaName(), getTableName());
             String columnDefinition = getColumnDefinition();
             String query = DDL_CREATE_TABLE
                     .replace("$schemaName", getFinalSchemaName(true))
@@ -517,7 +463,6 @@ public class PGTable extends Table {
             }
             query = query.replace("\"\"","\"");
             log.log(System.Logger.Level.INFO, "{0}", query);
-//            log.info("{}", query);
             Statement statement = connection.createStatement();
             statement.execute(query);
             connection.commit();
@@ -542,7 +487,6 @@ public class PGTable extends Table {
 
     @Override
     public <S extends AutoCloseable> boolean enrichTable(S session) throws SQLException {
-        // if table exists, enrich it
         Connection connection = (Connection) session;
         if (exists(connection)) {
             setColumns(getAllColumns(connection));
@@ -550,6 +494,7 @@ public class PGTable extends Table {
             Map.Entry<Integer, List<TableOption>> options = getOptions(connection);
             setId(options.getKey());
             setOptions(options.getValue());
+            setUniqueConstraints(getUniqueConstraints(connection));
             return true;
         }
         return false;

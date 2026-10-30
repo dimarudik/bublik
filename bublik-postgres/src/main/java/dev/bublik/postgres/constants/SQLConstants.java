@@ -79,12 +79,13 @@ public abstract class SQLConstants {
                     "and t.oid = ix.indrelid and ix.indexrelid = i.oid and t.oid = a.attrelid and t.relkind = 'r' " +
                     "and not exists (select oid from pg_constraint c where c.conindid = ix.indexrelid) " +
                     "and a.attnum = any(ix.indkey[ix.indnkeyatts:]) and ix.indisprimary = false";
-    public static String SQL_PG_UNIQUE_CONSTRAINTS =
-            "select i.indnullsnotdistinct, c.conname, a.attname, array_position(i.indkey, a.attnum)+1 as pos " +
-                    "from pg_namespace n, pg_constraint c, pg_index i, pg_class t, pg_attribute a " +
-                    "where n.oid = t.relnamespace and t.oid = c.conrelid and i.indexrelid = c.conindid and " +
-                    "i.indisprimary = false and t.oid = a.attrelid and t.relkind = 'r' and a.attnum = any(i.indkey) and " +
-                    "c.contype = 'u' and n.nspname = ? and t.relname = ?";
+    public static String SQL_PG_UNIQUE_CONSTRAINTS = """
+            select i.indnullsnotdistinct, c.conname, a.attname, array_position(i.indkey, a.attnum)+1 as pos, a.attnotnull
+                from pg_namespace n, pg_constraint c, pg_index i, pg_class t, pg_attribute a
+                where n.oid = t.relnamespace and t.oid = c.conrelid and i.indexrelid = c.conindid and
+                    i.indisprimary = false and t.oid = a.attrelid and t.relkind = 'r' and a.attnum = any(i.indkey) and
+                    c.contype = 'u' and n.nspname = ? and t.relname = ?
+            """;
     public static final String SQL_PG_TABLE_OPTIONS =
             "select c.oid::int4 as oid, c.reloptions from pg_class c, pg_namespace n " +
                     "where n.oid = c.relnamespace and n.nspname = ? and c.relname = ?";

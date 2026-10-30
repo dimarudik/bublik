@@ -20,8 +20,6 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
     private List<TableOption> options;
     private List<UniqueConstraint> uniqueConstraints;
 
-//    public Table() {}
-
     public Table(String schemaName, String tableName) {
         this.schemaName = schemaName;
         this.tableName = tableName;
