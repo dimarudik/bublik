@@ -19,10 +19,17 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
     private List<ForeignKey> foreignKeys;
     private List<TableOption> options;
     private List<UniqueConstraint> uniqueConstraints;
+    private int storageMajorVersion;
 
     public Table(String schemaName, String tableName) {
         this.schemaName = schemaName;
         this.tableName = tableName;
+    }
+
+    public Table(String schemaName, String tableName, int storageMajorVersion) {
+        this.schemaName = schemaName;
+        this.tableName = tableName;
+        this.storageMajorVersion = storageMajorVersion;
     }
 
     public String getSchemaName() {
@@ -93,6 +100,10 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
         this.foreignKeys = foreignKeys;
     }
 
+    public int getStorageMajorVersion() {
+        return storageMajorVersion;
+    }
+
     @Override
     public String getTableTaskName() {
         return getFinalTableName(false).toUpperCase() + "_TASK";
@@ -135,6 +146,7 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
         this.foreignKeys = builder.foreignKeys;
         this.options = builder.options;
         this.uniqueConstraints = builder.uniqueConstraints;
+        this.storageMajorVersion = builder.storageMajorVersion;
     }
 
     protected static abstract class Builder<C extends Table, B extends Builder<C, B>> {
@@ -147,6 +159,7 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
         protected List<ForeignKey> foreignKeys = new ArrayList<>();
         protected List<TableOption> options = new ArrayList<>();
         protected List<UniqueConstraint> uniqueConstraints = new ArrayList<>();
+        protected int storageMajorVersion;
 
         protected Builder(String schemaName, String tableName) {
             if (schemaName == null || schemaName.isBlank()) {
@@ -159,10 +172,23 @@ public abstract class Table implements TableService, NameSyntaxService, Comparab
             this.tableName = tableName;
         }
 
+        protected Builder(String schemaName, String tableName, int storageMajorVersion) {
+            if (schemaName == null || schemaName.isBlank()) {
+                throw new IllegalArgumentException("Schema name cannot be null or empty");
+            }
+            if (tableName == null || tableName.isBlank()) {
+                throw new IllegalArgumentException("Table name cannot be null or empty");
+            }
+            this.schemaName = schemaName;
+            this.tableName = tableName;
+            this.storageMajorVersion = storageMajorVersion;
+        }
+
         protected abstract B self();
         public abstract C build();
 
         public B id(Integer id) { this.id = id; return self(); }
+        public B storageMajorVersion(int storageMajorVersion) { this.storageMajorVersion = storageMajorVersion; return self(); }
 
         public B columns(List<Column> columns) { this.columns = columns; return self(); }
         public B pkColumns(List<Column> pkColumns) { this.pkColumns = pkColumns; return self(); }

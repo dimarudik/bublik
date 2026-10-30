@@ -16,6 +16,10 @@ public class PGTable extends Table {
         super(schemaName, tableName);
     }
 
+    public PGTable(String schemaName, String tableName, int storageMajorVersion) {
+        super(schemaName, tableName, storageMajorVersion);
+    }
+
     @Override
     public boolean exists(Connection connection) throws SQLException {
         try (ResultSet tablesLowCase = connection.getMetaData().getTables(
@@ -73,7 +77,13 @@ public class PGTable extends Table {
             short deferrability = rs.getShort("DEFERRABILITY");
             if (foreignKeys.containsKey(fkName)) {
                 ForeignKey existingForeignKey = foreignKeys.get(fkName);
-                existingForeignKey.getPkColumns().add(new Column(
+                existingForeignKey.getPkColumns().add(
+                        Column.builder()
+                                .columnPosition((int) ordinalPosition)
+                                .columnName(pkColumnName)
+                               .build()
+/*
+                        new Column(
                         (int) ordinalPosition,
                         pkColumnName,
                         null, // columnType is not used here
@@ -88,9 +98,16 @@ public class PGTable extends Table {
                         null,
                         false,
                         false,
-                        false// ascOrDesc is not used here
-                ));
-                existingForeignKey.getFkColumns().add(new Column(
+                        false)
+*/
+                );
+                existingForeignKey.getFkColumns().add(
+                        Column.builder()
+                                .columnPosition((int) ordinalPosition)
+                                .columnName(fkColumnName)
+                                .build()
+/*
+                        new Column(
                         (int) ordinalPosition,
                         fkColumnName,
                         null, // columnType is not used here
@@ -105,8 +122,9 @@ public class PGTable extends Table {
                         null,
                         false,
                         false,
-                        false// ascOrDesc is not used here
-                ));
+                        false)
+*/
+                );
             } else {
                 Table fkTable = new PGTable(fkSchemaName, fkTableName);
                 Table pkTable = storage.getSourceTableByTargetTable(new PGTable(pkSchemaName, pkTableName));
@@ -114,7 +132,13 @@ public class PGTable extends Table {
                     ForeignKey foreignKey = new ForeignKey(
                             targetTable,
                             new ArrayList<>() {{
-                                add(new Column(
+                                add(
+                                        Column.builder()
+                                                .columnPosition((int) ordinalPosition)
+                                                .columnName(fkColumnName)
+                                                .build()
+/*
+                                        new Column(
                                         (int) ordinalPosition,
                                         fkColumnName,
                                         null, // columnType is not used here
@@ -129,12 +153,19 @@ public class PGTable extends Table {
                                         null,
                                         false,
                                         false,
-                                        false// ascOrDesc is not used here
-                                ));
+                                        false)
+*/
+                                );
                             }},
                             pkTable,
                             new ArrayList<>() {{
-                                add(new Column(
+                                add(
+                                        Column.builder()
+                                                .columnPosition((int) ordinalPosition)
+                                                .columnName(pkColumnName)
+                                                .build()
+/*
+                                        new Column(
                                         (int) ordinalPosition,
                                         pkColumnName,
                                         null, // columnType is not used here
@@ -149,8 +180,9 @@ public class PGTable extends Table {
                                         null,
                                         false,
                                         false,
-                                        false// ascOrDesc is not used here
-                                ));
+                                        false)
+*/
+                                );
                             }},
                             pkName,
                             fkName,
@@ -246,7 +278,8 @@ public class PGTable extends Table {
 
     @Override
     public List<UniqueConstraint> getUniqueConstraints(Connection connection) throws SQLException {
-        PreparedStatement ps = connection.prepareStatement(SQL_PG_UNIQUE_CONSTRAINTS);
+        String sql = getStorageMajorVersion() > 14 ? SQL_PG_UNIQUE_CONSTRAINTS : SQL_PG_UNIQUE_CONSTRAINTS_V14;
+        PreparedStatement ps = connection.prepareStatement(sql);
         ps.setString(1, getFinalSchemaName(true));
         ps.setString(2, getFinalTableName(true));
         ResultSet rs = ps.executeQuery();
