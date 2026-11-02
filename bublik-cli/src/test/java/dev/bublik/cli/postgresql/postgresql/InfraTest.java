@@ -27,6 +27,7 @@ import static dev.bublik.core.util.Utils.getStackTrace;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class InfraTest {
+    private static final System.Logger log = System.getLogger(InfraTest.class.getName());
     private static final Network network = Network.newNetwork();
 
     private static final JdbcDatabaseContainer<?> srcMaster = new PostgreSQLContainer<>("postgres:17")
@@ -134,32 +135,33 @@ public class InfraTest {
 
         Thread.sleep(1_000);
 
-        System.out.println("[💥 DB CRASH] Stopping PostgreSQL Source Master Node immediately...");
+        log.log(System.Logger.Level.INFO,"[💥 DB CRASH] Stopping PostgreSQL Source Master Node immediately...");
         srcMaster.stop();
-        System.out.println("[🚀 PROMOTE] Promoting Source Replica container to become the new READ-WRITE Master...");
+        log.log(System.Logger.Level.INFO,"[🚀 PROMOTE] Promoting Source Replica container to become the new READ-WRITE Master...");
         Container.ExecResult srcExecResult = srcReplica.execInContainer(
                 "su", "-", "postgres", "-c", "/usr/lib/postgresql/17/bin/pg_ctl promote -D /var/lib/postgresql/data"
         );
-        System.out.println("[🚀 PROMOTE] pg_ctl output: " + srcExecResult.getStdout().trim());
+        log.log(System.Logger.Level.INFO,"[🚀 PROMOTE] pg_ctl output: {0}", srcExecResult.getStdout().trim());
 
         Thread.sleep(1_000);
 
-        System.out.println("[💥 DB CRASH] Stopping PostgreSQL Target Master Node immediately...");
+        log.log(System.Logger.Level.INFO,"[💥 DB CRASH] Stopping PostgreSQL Target Master Node immediately...");
         trgMaster.stop();
-        System.out.println("[🚀 PROMOTE] Promoting Target Replica container to become the new READ-WRITE Master...");
+        log.log(System.Logger.Level.INFO,"[🚀 PROMOTE] Promoting Target Replica container to become the new READ-WRITE Master...");
         Container.ExecResult trgExecResult = trgReplica.execInContainer(
                 "su", "-", "postgres", "-c", "/usr/lib/postgresql/17/bin/pg_ctl promote -D /var/lib/postgresql/data"
         );
-        System.out.println("[🚀 PROMOTE] pg_ctl output: " + trgExecResult.getStdout().trim());
+        log.log(System.Logger.Level.INFO,"[🚀 PROMOTE] pg_ctl output: {0}", trgExecResult.getStdout().trim());
 
         Thread.sleep(1_000);
 
         for (Future<Storage2Storage> future : futures) {
             try {
-                future.get();
-                System.out.println("[TEST] Pod successfully survived Master Failover via Replica Promotion!");
+                Storage2Storage storage2Storage = future.get();
+                log.log(System.Logger.Level.INFO,"[TEST] Pod successfully survived Master Failover via Replica Promotion!");
             } catch (Exception e) {
-                System.out.println("[⚠️ CRASH] Pod failed during failover tracking. Stacktrace:");
+                log.log(System.Logger.Level.ERROR,
+                        "[⚠️ CRASH] Pod failed during failover tracking. Stacktrace: {0}", getStackTrace(e));
             }
         }
 
@@ -168,10 +170,9 @@ public class InfraTest {
 
         int sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
         int targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.k8s_failover");
+        log.log(System.Logger.Level.INFO,
+                "Source count (New Master): {0}, Target count: ", sourceCount, targetCount);
 
-        System.out.println("Source count (New Master): " + sourceCount + ", Target count: " + targetCount);
-
-//        Thread.sleep(900_000);
         assertEquals(sourceCount, targetCount,
                 "Фейловер с промоушеном провалился! Бублик потерял чанки или не смог продолжить запись на новый мастер.");
     }

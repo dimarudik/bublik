@@ -26,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ReplicationTest {
     private static final System.Logger log = System.getLogger(ReplicationTest.class.getName());
-
     private static final Network network = Network.newNetwork();
 
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:17")
