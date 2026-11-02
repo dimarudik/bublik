@@ -1,5 +1,5 @@
 CREATE TABLE public.replicated_data (
-    id BIGSERIAL,
+    id bigint,
     uuid_key UUID NOT NULL,
     payload_text VARCHAR(256),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -8,7 +8,7 @@ CREATE TABLE public.replicated_data (
 );
 
 create table public.a (
-    id BIGSERIAL primary key,
+    id bigint primary key,
     repl_id bigint,
     constraint fk_a_repl_id foreign key (repl_id) references public.replicated_data (id)
 );

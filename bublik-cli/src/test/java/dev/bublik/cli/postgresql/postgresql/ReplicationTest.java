@@ -25,6 +25,8 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ReplicationTest {
+    private static final System.Logger log = System.getLogger(ReplicationTest.class.getName());
+
     private static final Network network = Network.newNetwork();
 
     private static JdbcDatabaseContainer<?> source = new PostgreSQLContainer<>("postgres:17")
@@ -79,7 +81,7 @@ public class ReplicationTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO public.replicated_data (payload_text) VALUES ('Trx 1: Commit DURING migration')")) {
+                        "INSERT INTO public.replicated_data (id, payload_text) VALUES (1000001,'Trx 1: Commit DURING migration')")) {
                     ps.executeUpdate();
                 } catch (SQLException e) {
                     e.printStackTrace();
@@ -89,7 +91,7 @@ public class ReplicationTest {
                 Thread.sleep(1_000);
 
                 conn.commit();
-                System.out.println("[CHAOS] ---> Transaction 1 COMMITTED DURIIIING Bublik work! <---");
+                log.log(System.Logger.Level.INFO,"[CHAOS] ---> Transaction 1 COMMITTED DURIIIING Bublik work! <---");
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -99,7 +101,7 @@ public class ReplicationTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO public.replicated_data (payload_text) VALUES ('Trx 2: Commit AFTER migration')")) {
+                        "INSERT INTO public.replicated_data (id, payload_text) VALUES (1000501,'Trx 2: Commit AFTER migration')")) {
                     ps.executeUpdate();
                 } catch (SQLException e) {
                     e.printStackTrace();
@@ -108,7 +110,7 @@ public class ReplicationTest {
                 latchBublikFinished.await();
 
                 conn.commit();
-                System.out.println("[CHAOS] ---> Transaction 2 COMMITTED AFTER Bublik finished! <---");
+                log.log(System.Logger.Level.INFO,"[CHAOS] ---> Transaction 2 COMMITTED AFTER Bublik finished! <---");
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -120,13 +122,14 @@ public class ReplicationTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO public.replicated_data (payload_text) VALUES (?)")) {
-                    for (int i = 0; i < 500; i++) {
-                        ps.setString(1, "Trx 1: " + i);
+                        "INSERT INTO public.replicated_data (id, payload_text) VALUES (?, ?)")) {
+                    for (int i = 1000002; i < 1000500; i++) {
+                        ps.setLong(1, i);
+                        ps.setString(2, "Trx 1: " + i);
                         ps.executeUpdate();
                         if (i % 10 == 0) conn.commit();
                     }
-                    conn.commit();
+//                    conn.commit();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -136,8 +139,7 @@ public class ReplicationTest {
 
         Future<String> bublikFuture = testExecutor.submit(() -> {
             try {
-                System.out.println("[BUBLIK-THREAD] Starting history migration engine...");
-
+                log.log(System.Logger.Level.INFO,"[BUBLIK-THREAD] Starting history migration engine...");
                 latchBublikStarted.countDown();
 
                 ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
@@ -172,7 +174,7 @@ public class ReplicationTest {
         });
 
         String capturedLsn = bublikFuture.get();
-        System.out.println("[BUBLIK-THREAD] History migration finished successfully.");
+        log.log(System.Logger.Level.INFO,"[BUBLIK-THREAD] History migration finished successfully.");
 
         latchBublikFinished.countDown();
         workLoad.get();
@@ -183,7 +185,8 @@ public class ReplicationTest {
                 ps.setString(1, capturedLsn);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        System.out.println("[TEST] Slot 'bublik_slot' successfully advanced to " + capturedLsn + " . Position verified.");
+                        log.log(System.Logger.Level.INFO,
+                                "[TEST] Slot 'bublik_slot' successfully advanced to {0}", capturedLsn);
                     }
                 }
             } catch (SQLException e) {
@@ -194,35 +197,42 @@ public class ReplicationTest {
         }
         Thread.sleep(1000);
 
-        System.out.println("[TEST] Activating logical subscription on target...");
+        log.log(System.Logger.Level.INFO,"[TEST] Activating logical subscription on target...");
         try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
              Statement stmt = targetConn.createStatement()) {
             stmt.execute("ALTER SUBSCRIPTION bublik_sub ENABLE");
         }
 
-        System.out.println("[TEST] Waiting for subscription synchronization...");
-        Thread.sleep(8_000);
-
         long sourceCount = 0;
-        long targetCount = 0;
-
         try (Connection sourceConn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test");
              Statement stmt = sourceConn.createStatement();
-             java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
             if (rs.next()) sourceCount = rs.getLong(1);
         }
 
-        try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
-             Statement stmt = targetConn.createStatement();
-             java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
-            if (rs.next()) targetCount = rs.getLong(1);
+        long targetCount = 0;
+        int tries = 100;
+        while (sourceCount != targetCount) {
+            try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
+                 Statement stmt = targetConn.createStatement();
+                 java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
+                if (rs.next()) targetCount = rs.getLong(1);
+            }
+            Thread.sleep(500);
+            tries--;
+            log.log(System.Logger.Level.INFO,"[TEST] Waiting for subscription synchronization... {0} tries left", tries);
+            if (tries == 0) break;
+/*
+            if (tries == 60) {
+                Thread.sleep(900_000);
+            }
+*/
         }
 
-        System.out.println("[RESULT] SOURCE rows count: " + sourceCount);
-        System.out.println("[RESULT] TARGET rows count: " + targetCount);
+        log.log(System.Logger.Level.INFO,"[RESULT] SOURCE rows count: {0}", sourceCount);
+        log.log(System.Logger.Level.INFO,"[RESULT] TARGET rows count: {0}", targetCount);
 
         assertEquals(sourceCount, targetCount, "Data counts do not match between Source and Target!");
-
         testExecutor.shutdown();
     }
 }

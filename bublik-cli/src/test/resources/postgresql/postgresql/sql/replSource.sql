@@ -1,5 +1,5 @@
 CREATE TABLE public.replicated_data (
-    id BIGSERIAL,
+    id bigint,
     uuid_key UUID DEFAULT gen_random_uuid() NOT NULL,
     payload_text VARCHAR(256),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -7,17 +7,17 @@ CREATE TABLE public.replicated_data (
     CONSTRAINT pk_replicated_data PRIMARY KEY (id)
 );
 
-INSERT INTO public.replicated_data (payload_text)
-SELECT 'Historical item #' || g
+INSERT INTO public.replicated_data (id, payload_text)
+SELECT g,'Historical item #' || g
 FROM generate_series(1, 1000000) g;
 analyze public.replicated_data;
 
 create table public.a (
-    id BIGSERIAL primary key,
+    id bigint primary key,
     repl_id bigint,
     constraint fk_a_repl_id foreign key (repl_id) references public.replicated_data (id)
 );
-insert into public.a (repl_id) select id from public.replicated_data limit 10;
+insert into public.a (id, repl_id) select id, id from public.replicated_data limit 10;
 analyze public.a;
 
 alter table public.replicated_data add constraint fk_replicated_data_a_id foreign key (a_id) references public.a (id);
