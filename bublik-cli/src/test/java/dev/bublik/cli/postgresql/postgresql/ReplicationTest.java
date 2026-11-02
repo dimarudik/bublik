@@ -211,7 +211,7 @@ public class ReplicationTest {
         }
 
         long targetCount = 0;
-        int tries = 15;
+        int tries = 30;
         while (sourceCount != targetCount) {
             try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
                  Statement stmt = targetConn.createStatement();

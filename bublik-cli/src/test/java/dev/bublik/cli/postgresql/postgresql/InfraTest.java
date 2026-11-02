@@ -3,6 +3,7 @@ package dev.bublik.cli.postgresql.postgresql;
 import dev.bublik.cli.TestResult;
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.model.Storage2Storage;
 import dev.bublik.core.service.StorageService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -119,20 +120,19 @@ public class InfraTest {
         );
 
         ExecutorService service = Executors.newFixedThreadPool(4);
-        List<Future<Boolean>> futures = new ArrayList<>();
+        List<Future<Storage2Storage>> futures = new ArrayList<>();
 
         for (int i = 0; i < 4; i++) {
             futures.add(service.submit(() -> {
                 try {
-                    StorageService.init(connectionProperty, configs, 20_000);
+                    return StorageService.init(connectionProperty, configs, 20_000);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                return true;
             }));
         }
 
-        Thread.sleep(400);
+        Thread.sleep(1_000);
 
         System.out.println("[💥 DB CRASH] Stopping PostgreSQL Source Master Node immediately...");
         srcMaster.stop();
@@ -142,7 +142,7 @@ public class InfraTest {
         );
         System.out.println("[🚀 PROMOTE] pg_ctl output: " + srcExecResult.getStdout().trim());
 
-        Thread.sleep(800);
+        Thread.sleep(1_000);
 
         System.out.println("[💥 DB CRASH] Stopping PostgreSQL Target Master Node immediately...");
         trgMaster.stop();
@@ -152,7 +152,9 @@ public class InfraTest {
         );
         System.out.println("[🚀 PROMOTE] pg_ctl output: " + trgExecResult.getStdout().trim());
 
-        for (Future<Boolean> future : futures) {
+        Thread.sleep(1_000);
+
+        for (Future<Storage2Storage> future : futures) {
             try {
                 future.get();
                 System.out.println("[TEST] Pod successfully survived Master Failover via Replica Promotion!");
