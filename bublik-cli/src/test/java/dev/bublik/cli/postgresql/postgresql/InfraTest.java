@@ -256,27 +256,25 @@ public class InfraTest {
         );
 
         ExecutorService k8sCluster = Executors.newFixedThreadPool(4);
-        List<Future<Boolean>> futures = new ArrayList<>();
+        List<Future<Storage2Storage>> futures = new ArrayList<>();
 
         for (int i = 0; i < 2; i++) {
             final int podId = i + 1;
             futures.add(k8sCluster.submit(() -> {
                 try {
-                    StorageService.init(connectionProperty, configs, 5_000);
+                    return StorageService.init(connectionProperty, configs, 5_000);
                 } catch (Exception e) {
                     throw new RuntimeException("Healthy Pod-" + podId + " failed", e);
                 }
-                return true;
             }));
         }
 
-        Future<Boolean> crashedPodFuture = k8sCluster.submit(() -> {
+        Future<Storage2Storage> crashedPodFuture = k8sCluster.submit(() -> {
             try {
-                StorageService.init(connectionProperty, configs, 5_000);
+                return StorageService.init(connectionProperty, configs, 5_000);
             } catch (Exception e) {
                 throw new RuntimeException("Crashed Pod-4 thread execution interrupted", e);
             }
-            return true;
         });
         futures.add(crashedPodFuture);
 
@@ -285,7 +283,7 @@ public class InfraTest {
         crashedPodFuture.cancel(true);
 
         int survivedPodsFinished = 0;
-        for (Future<Boolean> future : futures) {
+        for (Future<Storage2Storage> future : futures) {
             try {
                 future.get();
                 survivedPodsFinished++;
@@ -319,13 +317,12 @@ public class InfraTest {
                         .build()
         ));
 
-        CompletableFuture<Boolean> migrationTask = CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<Storage2Storage> migrationTask = CompletableFuture.supplyAsync(() -> {
             try {
-                StorageService.init(connectionProperty, configs, 30_000);
+                return StorageService.init(connectionProperty, configs, 30_000);
             } catch (Exception e) {
                 throw new RuntimeException("Bublik migration thread failed unexpectedly", e);
             }
-            return true;
         });
 
         Thread.sleep(500);
@@ -347,13 +344,11 @@ public class InfraTest {
         }
 
         try {
-            boolean r = migrationTask.get(60, java.util.concurrent.TimeUnit.SECONDS);
-            if (r) System.out.println("[TEST] Bublik finished its execution cycle.");
+            Storage2Storage s2s = migrationTask.get(80, java.util.concurrent.TimeUnit.SECONDS);
             int sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
             int targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.t");
             TestResult result = new TestResult(sourceCount, targetCount, null);
             System.out.println("Source count: " + result.sourceCount() + ", target count: " + result.targetCount());
-//            Thread.sleep(900_000);
             assertEquals(result.sourceCount(), result.targetCount(),
                     "Несмотря на падение источника, Бублик должен восстановить упавшие чанки и перелить ровно 100% данных (At-Least-Once)");
         } catch (java.util.concurrent.TimeoutException e) {
