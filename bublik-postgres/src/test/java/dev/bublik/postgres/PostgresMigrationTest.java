@@ -318,7 +318,7 @@ public class PostgresMigrationTest {
             rootCause = rootCause.getCause();
         }
 
-        assertTrue(rootCause.getMessage().contains("обязан быть первичный ключ"),
+        assertTrue(rootCause.getMessage().contains("must have Primary Key or Unique Not Null Constraint"),
                 "Ожидалась ошибка валидации PK, но получили: " + rootCause.getMessage());
 
         try (Connection conn = sourceDataSource.getConnection(); Statement stmt = conn.createStatement()) {

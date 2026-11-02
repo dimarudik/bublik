@@ -38,6 +38,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         this.fetchSize = properties.getProperty("fetchSize") == null ?
                 FETCH_SIZE : Integer.parseInt(properties.getProperty("fetchSize"));
         this.isManaged = true;
+        this.storageMajorVersion = getStorageMajorVersion();
     }
 
     protected JDBCStorage(Builder<?, ?> builder) {
@@ -137,11 +138,8 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
     @Override
     public int getStorageMajorVersion() {
-        try {
-            Connection connection = getPoolConnection();
-            int version = connection.getMetaData().getDatabaseMajorVersion();
-            connection.close();
-            return version;
+        try (Connection connection = getPoolConnection()){
+            return connection.getMetaData().getDatabaseMajorVersion();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

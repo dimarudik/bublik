@@ -1,0 +1,44 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "s",
+    "toSchemaName": "public",
+    "toTableName": "rep_ident_pk",
+    "columnToColumn" : {
+      "id1" : "id",
+      "name" : "name"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "s",
+    "toSchemaName": "public",
+    "toTableName": "rep_ident_uc",
+    "columnToColumn" : {
+      "id1" : "id",
+      "name" : "name"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "s",
+    "toSchemaName": "public",
+    "toTableName": "rep_ident_uc2",
+    "columnToColumn" : {
+      "id1" : "id1",
+      "id2" : "id2",
+      "name" : "name"
+    }
+  },
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "s",
+    "toSchemaName": "public",
+    "toTableName": "rep_ident_uc_complex",
+    "columnToColumn" : {
+      "id1" : "id1",
+      "id2" : "id2",
+      "name" : "name"
+    }
+  }
+]

@@ -405,22 +405,21 @@ from generate_series(1, 510023) as n;
 
 analyze public.s;
 
--- select * from users where user_id = 800 \gx
--- select i.item_id, i.item_name, i.description from items i, likes l where i.item_id = l.item_id and l.user_id = 800 \gx
--- select * from items where item_id = 300 \gx
--- select u.user_id, u.user_name, u.email from users u, likes l where u.user_id = l.user_id and  l.item_id = 300 \gx
+create table public.rep_ident_pk (
+    id int primary key,
+    name varchar(256));
 
---insert into vacuum_me (uuid, boolean,
---        int2, int4, int8, smallint, bigint, float8, date, timestamp, timestamptz)
---    select gen_random_uuid() uuid, case when mod(n, 2) = 0 then false else true end boolean,
---        0 as int2, n as int4, n as int8, 10 as smallint, n as bigint, n / pi() as float8,
---        current_date, current_timestamp, current_timestamp
---    from generate_series(1,9000000) as n;
+create table public.rep_ident_uc (
+    id int unique not null,
+    name varchar(256));
 
---vacuum verbose vacuum_me;
---alter table vacuum_me set (autovacuum_enabled = false);
---update vacuum_me set int8 = int8 where ctid >= '(0,1)' and ctid < '(43171,1)';
---vacuum verbose vacuum_me;
---update vacuum_me set int8 = int8 where ctid >= '(128610,1)';
---update ctid_chunks c set rows = (select count(1) from vacuum_me where ctid >= concat('(',c.start_page,',1)')::tid and ctid < concat('(',c.end_page,',1)')::tid );
+create table public.rep_ident_uc2 (
+     id1 int unique not null,
+     id2 int unique,
+     name varchar(256));
 
+create table public.rep_ident_uc_complex (
+    id1 int not null,
+    id2 int not null,
+    name varchar(256),
+    constraint unique_id_complex unique (id1, id2));

@@ -2109,6 +2109,10 @@ java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -s UPSERT
 ```
 
+> [!IMPORTANT]
+> Since the underlying mechanism relies on INSERT INTO ... ON CONFLICT ..., 
+> the receiving table must be configured with a primary key or a non-nullable unique constraint.
+
 #### SNAPSHOT mode
 
 Usually used to get snapshot of data in Repeatable Read mode, can be set by using option **snapshotIsolationEnabled** in yaml file
@@ -2122,7 +2126,7 @@ fromProperties:
   snapshotIsolationEnabled: true
 ```
 
-> [!IMPORTANT]
+> [!NOTE]
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
 

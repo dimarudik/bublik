@@ -201,21 +201,27 @@ public class ReplicationTest {
         }
 
         System.out.println("[TEST] Waiting for subscription synchronization...");
-        Thread.sleep(7_000);
+//        Thread.sleep(8_000);
 
         long sourceCount = 0;
-        long targetCount = 0;
-
         try (Connection sourceConn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test");
              Statement stmt = sourceConn.createStatement();
-             java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
             if (rs.next()) sourceCount = rs.getLong(1);
         }
 
-        try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
-             Statement stmt = targetConn.createStatement();
-             java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
-            if (rs.next()) targetCount = rs.getLong(1);
+        long targetCount = 0;
+        int tries = 15;
+        while (sourceCount != targetCount) {
+            try (Connection targetConn = DriverManager.getConnection(target.getJdbcUrl(), "test", "test");
+                 Statement stmt = targetConn.createStatement();
+                 java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM public.replicated_data")) {
+                if (rs.next()) targetCount = rs.getLong(1);
+            }
+            Thread.sleep(1_000);
+            tries--;
+            System.out.println("[TEST] Waiting for subscription synchronization... " + tries + " tries left");
+            if (tries == 0) break;
         }
 
         System.out.println("[RESULT] SOURCE rows count: " + sourceCount);

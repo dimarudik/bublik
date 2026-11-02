@@ -356,6 +356,11 @@ public class YDBStorage extends JDBCStorage {
     }
 
     @Override
+    public void enrichTable(Table targetTable) throws SQLException {
+        targetTable.enrichTable(getSession());
+    }
+
+    @Override
     public void enrichTable(Table sourceTable, Table targetTable) throws SQLException {
         Connection session = getPoolConnection();
         targetTable.enrichTable(session);
@@ -511,11 +516,6 @@ public class YDBStorage extends JDBCStorage {
         chunkInsert.close();
     }
 */
-
-    @Override
-    public void enrichTable(Table targetTable) throws SQLException {
-        targetTable.enrichTable(getSession());
-    }
 
     @Override
     public boolean isMigrationFullyFinished() {

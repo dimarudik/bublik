@@ -1,14 +1,11 @@
 package dev.bublik.core.model;
 
 import dev.bublik.core.service.DDLService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.util.Map;
 
 public class UniqueConstraint implements DDLService {
-//    private static final Logger log = LoggerFactory.getLogger(UniqueConstraint.class);
     private static final System.Logger log = System.getLogger(UniqueConstraint.class.getName());
 
     private final String constraintName;
@@ -19,6 +16,10 @@ public class UniqueConstraint implements DDLService {
         this.constraintName = constraintName;
         this.columns = columns;
         this.nullsNotDistinct = nullsNotDistinct;
+    }
+
+    public boolean isNullable() {
+        return columns.values().stream().anyMatch(c -> c.isNullable() == 1);
     }
 
     public String getConstraintName() {
@@ -52,7 +53,6 @@ public class UniqueConstraint implements DDLService {
             log.log(System.Logger.Level.ERROR,
                     "Failed to create unique constraint {0} on table {1}.{2}: {3}",
                     constraintName, table.getSchemaName(), table.getFinalTableName(true), e.getMessage());
-//            log.error("Failed to create unique constraint {} on table {}.{}: {}", constraintName, table.getSchemaName(), table.getFinalTableName(true), e.getMessage());
             throw new RuntimeException(e);
         }
     }
