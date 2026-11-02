@@ -274,7 +274,8 @@ public class PostgresStorage extends JDBCStorage {
         snapshotAnchorConnection.setAutoCommit(false);
         snapshotAnchorConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
-        String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_insert_lsn()::text";
+//        String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_insert_lsn()::text";
+        String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_lsn()::text";
         try (Statement stmt = snapshotAnchorConnection.createStatement();
              ResultSet rs = stmt.executeQuery(exportSql)) {
             if (rs.next()) {
