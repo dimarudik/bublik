@@ -30,8 +30,18 @@ public abstract class SQLConstants {
                     "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
+    public static final String SQL_RESET_OUTBOX =
+            "truncate table $tableName ";
+    public static final String SQL_RESET_CHUNKS =
+            "update $tableName set status = 'UNASSIGNED', err_msg = null, start_ts = null, end_ts = null, copied = 0 where status = 'PROCESSED'";
+    public static final String SQL_IS_MIGRATION_FINISHED =
+            "SELECT COUNT(1) FROM $tableName WHERE status IN ('UNASSIGNED', 'ASSIGNED', 'LOCKED') ";
+    public static final String SQL_IS_MIGRATION_HAS_FAILURES =
+            "SELECT COUNT(1) FROM $tableName WHERE status = 'PROCESSED_WITH_ERROR' ";
     public static final String SQL_IS_MIGRATION_FULLY_FINISHED =
             "SELECT COUNT(1) FROM $tableName WHERE status IN ('UNASSIGNED', 'ASSIGNED', 'LOCKED', 'PROCESSED_WITH_ERROR') ";
+    public static final String DML_UPDATE_STATUS_CHUNK_TABLE_LOCKED =
+            "update $tableName set status = 'LOCKED', uuid = ?, err_msg = NULL where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_ASSIGNED =
             "update $tableName set status = ?, err_msg = null, start_ts = now() where chunk_id = ?";
     public static final String DML_UPDATE_STATUS_CHUNK_TABLE_PROCESSED =

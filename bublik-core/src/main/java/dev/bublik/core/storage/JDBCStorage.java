@@ -21,7 +21,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     private static final System.Logger log = System.getLogger(JDBCStorage.class.getName());
     private final DataSource dataSource;
     private final int fetchSize;
-    protected Connection dynamicHeartbeatConnection = null;
+    protected Connection connection = null;
     protected Connection snapshotAnchorConnection = null;
     protected volatile String transactionalCheckpointId;
     protected final boolean snapshotIsolationEnabled;
@@ -213,15 +213,15 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             }
         }
 
-        if (this.dynamicHeartbeatConnection != null) {
+        if (this.connection != null) {
             try {
-                if (!this.dynamicHeartbeatConnection.isClosed()) {
-                    this.dynamicHeartbeatConnection.close();
+                if (!this.connection.isClosed()) {
+                    this.connection.close();
                 }
             } catch (Exception e) {
                 log.log(System.Logger.Level.ERROR, "Error of closing dynamic heartbeat connection: {0}", e.getMessage());
             } finally {
-                this.dynamicHeartbeatConnection = null;
+                this.connection = null;
             }
         }
 

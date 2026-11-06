@@ -128,7 +128,7 @@ public class ReplicationTest {
                         ps.executeUpdate();
                         if (i % 10 == 0) conn.commit();
                     }
-//                    conn.commit();
+                    conn.commit();
                 }
             } catch (Exception e) {
                 e.printStackTrace();

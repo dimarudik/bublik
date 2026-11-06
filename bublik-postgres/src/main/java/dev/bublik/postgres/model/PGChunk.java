@@ -97,11 +97,13 @@ public class PGChunk<K extends Long, T extends Long, S extends Connection, R ext
                     stmt.execute(setSnapshotSql);
                 }
 
+/*
                 System.getLogger(PGChunk.class.getName()).log(
                         System.Logger.Level.DEBUG,
                         "PG Worker thread bound chunk {0} to global snapshot {1}",
                         getId(), jdbcStorage.getTransactionalCheckpointId()
                 );
+*/
             } catch (SQLException e) {
                 try { connection.rollback(); } catch (Exception ignored) {}
                 throw new SQLException("Failed to bind worker thread to PG Snapshot", e);

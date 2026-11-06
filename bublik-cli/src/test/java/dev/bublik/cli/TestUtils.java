@@ -78,7 +78,7 @@ public class TestUtils {
         ConnectionProperty cp = Utils.connectionProperty(TestUtils.getFilePath(connectionPropertyFile));
         List<Config> configs = getConfigs(TestUtils.getFilePath(mappingFile));
 
-        Storage2Storage storage2Storage = null;
+        Storage2Storage storage2Storage;
         if (chunkTable != null && outboxTable != null) {
             storage2Storage = App.runProcess(cp, configs, rows, mode);
         } else {
