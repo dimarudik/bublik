@@ -54,7 +54,8 @@ public interface StorageService {
     void holdInstanceSignalLock() throws SQLException;
     void exportGlobalSnapshotTransaction() throws SQLException;
     void printChunkStatus();
-    void printFinalizeInfo();
+    void printFinalizeInfo(TransferMode mode);
+    void resetProcessedChunks(Storage targetStorage) throws SQLException;
 
     static Storage getStorage(Properties properties,
                               ConnectionProperty connectionProperty,
@@ -92,6 +93,10 @@ public interface StorageService {
         return init(property, configs, rows, chunkTable, null);
     }
 
+    static Storage2Storage init(ConnectionProperty property, List<Config> configs, TransferMode mode) throws SQLException, IOException {
+        return init(property, configs, 0, null, null, mode);
+    }
+
     static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, TransferMode mode) throws SQLException, IOException {
         return init(property, configs, rows, null, null, mode);
     }
@@ -102,7 +107,9 @@ public interface StorageService {
 
     static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable, TransferMode mode) throws SQLException, IOException {
         log.log(System.Logger.Level.INFO, "Bublik starting...");
-        log.log(System.Logger.Level.INFO, "MODE: {0}", mode);
+        String isolationLevel = property.getFromProperties().get("snapshotIsolationEnabled");
+        boolean isSnapshotEnabled = Boolean.parseBoolean(isolationLevel);
+        log.log(System.Logger.Level.INFO, "MODE: {0} {1}", mode, isSnapshotEnabled ? "| SNAPSHOT ISOLATION (REPEATABLE READ) ENABLED" : "");
         if (rows > 0) log.log(System.Logger.Level.INFO, "Expected chunk size: {0}", rows);
         log.log(System.Logger.Level.INFO, "VERSION : {0}", getVersion());
         try {

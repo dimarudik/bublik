@@ -171,7 +171,7 @@ public class InfraTest {
         int sourceCount = countRows(connectionProperty.getFromProperty(), "select count(*) from public.s");
         int targetCount = countRows(connectionProperty.getToProperty(), "select count(*) from public.k8s_failover");
         log.log(System.Logger.Level.INFO,
-                "Source count (New Master): {0}, Target count: ", sourceCount, targetCount);
+                "Source count (New Master): {0}, Target count: {1}", sourceCount, targetCount);
 
         assertEquals(sourceCount, targetCount,
                 "Фейловер с промоушеном провалился! Бублик потерял чанки или не смог продолжить запись на новый мастер.");

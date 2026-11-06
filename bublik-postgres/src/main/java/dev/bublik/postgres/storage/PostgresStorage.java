@@ -17,6 +17,7 @@ import org.postgresql.copy.PGCopyOutputStream;
 import org.postgresql.largeobject.LargeObject;
 import org.postgresql.largeobject.LargeObjectManager;
 import org.postgresql.replication.LogSequenceNumber;
+import org.postgresql.util.PSQLException;
 
 import javax.sql.DataSource;
 import java.io.DataOutputStream;
@@ -28,7 +29,6 @@ import java.sql.*;
 import java.sql.Date;
 import java.time.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static dev.bublik.core.constants.CLassConstants.ORACLE_STORAGE_CLASS_NAME;
 import static dev.bublik.core.util.ColumnUtil.*;
@@ -80,6 +80,22 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
+    public void resetProcessedChunks(Storage targetStorage) throws SQLException {
+        try (Connection connection = this.getPoolConnection();
+             Statement statement = connection.createStatement()){
+            statement.executeUpdate(SQL_RESET_CHUNKS
+                    .replace("$tableName", getOutboxTable().tableToString()));
+            connection.commit();
+        }
+        try (Connection connection = targetStorage.getPoolConnection();
+             Statement statement = connection.createStatement()){
+            statement.executeUpdate(SQL_RESET_OUTBOX
+                    .replace("$tableName", targetStorage.getOutboxTable().tableToString()));
+            connection.commit();
+        }
+    }
+
+    @Override
     public boolean tryDistributedLock(long lockId) throws SQLException {
         String sql = "SELECT pg_try_advisory_lock(?)";
         try (Connection conn = this.getPoolConnection();
@@ -120,6 +136,36 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
+    public boolean hasFailures() {
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(SQL_IS_MIGRATION_HAS_FAILURES
+                     .replace("$tableName", getOutboxTable().tableToString()));
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return !(rs.getInt(1) == 0);
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while checking migration status", e);
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isMigrationFinished() {
+        try (Connection conn = this.getPoolConnection();
+             PreparedStatement ps = conn.prepareStatement(SQL_IS_MIGRATION_FINISHED
+                     .replace("$tableName", getOutboxTable().tableToString()));
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt(1) == 0;
+            }
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while checking migration status", e);
+        }
+        return false;
+    }
+
+    @Override
     public List<Chunk<?, ?, ?, ?>> getChunkList(List<TableMigrationContext> contexts,
                                                 Storage targetStorage) throws SQLException {
         List<Chunk<?, ?, ?, ?>> chunks = new ArrayList<>();
@@ -142,13 +188,13 @@ public class PostgresStorage extends JDBCStorage {
             }
         }
 
-        // Тут поток помечает на себя чанки погибшего пода
         try {
             String chunkTableName = getOutboxTable().tableToString();
 
             String findForeignPodsSql = "SELECT DISTINCT uuid FROM " + chunkTableName +
                     " WHERE status IN ('ASSIGNED', 'LOCKED') AND uuid <> ? ";
 
+            // Тут поток помечает заблокированными на себя чанки погибшего пода
             try (PreparedStatement psFind = connection.prepareStatement(findForeignPodsSql)) {
                 psFind.setString(1, this.getInstanceUuid());
 
@@ -177,6 +223,9 @@ public class PostgresStorage extends JDBCStorage {
                 }
             }
 
+//            contexts.stream().map(TableMigrationContext::chunkLookupSql)
+//                    .forEach(sql -> log.log(System.Logger.Level.INFO, "sql: {0}", sql));
+            // Тут поток помечает заблокированными на себя свободные чанки
             for (TableMigrationContext ctx : contexts) {
                 List<Long> capturedIds = new ArrayList<>();
                 try (PreparedStatement ps = connection.prepareStatement(ctx.chunkLookupSql())) {
@@ -191,10 +240,8 @@ public class PostgresStorage extends JDBCStorage {
                 }
 
                 if (!capturedIds.isEmpty()) {
-                    String updateSql = "UPDATE " + chunkTableName +
-                            " SET status = 'LOCKED', uuid = ?, err_msg = NULL " +
-                            " WHERE chunk_id = ?";
-                    try (PreparedStatement psUpdate = connection.prepareStatement(updateSql)) {
+                    try (PreparedStatement psUpdate = connection.prepareStatement(
+                            DML_UPDATE_STATUS_CHUNK_TABLE_LOCKED.replace("$tableName", chunkTableName))) {
                         for (Long id : capturedIds) {
                             psUpdate.setString(1, this.getInstanceUuid());
                             psUpdate.setLong(2, id);
@@ -239,25 +286,35 @@ public class PostgresStorage extends JDBCStorage {
      */
     @Override
     public void holdInstanceSignalLock() throws SQLException {
-        dynamicHeartbeatConnection = this.getPoolConnection();
+        connection = this.getPoolConnection();
         long xMin;
 
+        String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
+                "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(snapshotSql)) {
+            rs.next();
+            setTransactionalCheckpointId(rs.getString(1));
+            xMin = rs.getLong(2);
+            setxMin(String.valueOf(xMin));
+        }
+
+/*
         if (!snapshotIsolationEnabled) {
             String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
                     "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
-            try (Statement stmt = dynamicHeartbeatConnection.createStatement();
+            try (Statement stmt = connection.createStatement();
                  ResultSet rs = stmt.executeQuery(snapshotSql)) {
                 rs.next();
                 setTransactionalCheckpointId(rs.getString(1));
                 xMin = rs.getLong(2);
-                log.log(System.Logger.Level.INFO, "PG SNAPSHOT: {0}", getTransactionalCheckpointId());
-                log.log(System.Logger.Level.INFO, "PG XMIN: {0}", String.valueOf(xMin));
                 setxMin(String.valueOf(xMin));
             }
         }
+*/
 
         String sql = "SELECT pg_advisory_lock(hashtext(?))";
-        try (PreparedStatement ps = dynamicHeartbeatConnection.prepareStatement(sql)) {
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, getInstanceUuid());
             ps.executeQuery();
         }
@@ -281,7 +338,7 @@ public class PostgresStorage extends JDBCStorage {
             if (rs.next()) {
                 setTransactionalCheckpointId(rs.getString(1));
                 targetLsn = rs.getString(2);
-                printFinalizeInfo();
+                printFinalizeInfo(TransferMode.COPY);
             }
         } catch (SQLException e) {
             log.log(System.Logger.Level.ERROR, "Failed to export standalone global snapshot: {0}", e.getMessage());
@@ -294,38 +351,71 @@ public class PostgresStorage extends JDBCStorage {
     }
 
     @Override
-    public void printFinalizeInfo() {
-        if (this.snapshotIsolationEnabled) {
+    public void printFinalizeInfo(TransferMode mode) {
+        if (snapshotIsolationEnabled) {
             log.log(System.Logger.Level.INFO, "\n" +
                     "==========================================================\n" +
-                    "  BUBLIK MIGRATION POINT CAPTURED\n" +
+                    "  CURRENT XMIN: " + getxMin() + "\n" +
+                    "==========================================================\n" +
+                    "  BUBLIK MIGRATION IN " + mode + " MODE WITH REPEATABLE READ ISOLATION LEVEL HAS BEEN FINISHED:\n " +
                     "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
                     "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
                     "  Command for DBA after copy:\n" +
                     "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
                     "==========================================================");
         } else {
-            log.log(System.Logger.Level.INFO, "\n" +
-                    "==========================================================\n" +
-                    "  BUBLIK MIGRATION POINT CAPTURED\n" +
-                    "  1. PG XMIN: " + getxMin() + "\n" +
-                    "  Configuration for UPSERT mode:\n" +
-                    "  \"fetchWhereClause\": \"xmin::text::bigint >= " + getxMin() + "\"\n" +
-                    "==========================================================");
+            if (isSuccessful()) {
+                log.log(System.Logger.Level.INFO, "\n" +
+                        "==========================================================\n" +
+                        "  CURRENT XMIN: " + getxMin() + "\n" +
+                        "==========================================================\n" +
+                        "  BUBLIK MIGRATION IN " + mode + " MODE HAS BEEN FINISHED\n" +
+                        "  HALT CHANGES ON THE SOURCE DB AND DO THE NEXT STEP MANUALLY!\n" +
+                        "  STEP:\n" +
+                        "   Run Bublik in UPSERT mode (-s|--mode UPSERT) WITH!!! chunk creation (-k,--chunk <rows number>) with row filter in a mapping json file:\n" +
+                        "   \"fetchWhereClause\": \"xmin::text::bigint >= <xmin_value>\"\n" +
+                        "  TAKE THE XMIN VALUE FROM YOUR FIRST MIGRATION LOG FILE!!!\n" +
+                        "==========================================================");
+            } else {
+                log.log(System.Logger.Level.INFO, "\n" +
+                        "==========================================================\n" +
+                        "  CURRENT XMIN: " + getxMin() + "\n" +
+                        "==========================================================\n" +
+                        "  BUBLIK MIGRATION IN " + mode + " MODE HAS BEEN FINISHED WITH WARNINGS!\n" +
+                        "  HALT CHANGES ON THE SOURCE DB AND DO THE NEXT TWO STEPS MANUALLY!\n" +
+                        "  STEP 1:\n" +
+                        "   Run Bublik in UPSERT mode (-s|--mode UPSERT) WITHOUT!!! chunk creation (-k,--chunk <rows number>)\n" +
+                        "  STEP 2:\n" +
+                        "   Run Bublik in UPSERT mode (-s|--mode UPSERT) WITH!!! chunk creation (-k,--chunk <rows number>) and with row filter in a mapping json file:\n" +
+                        "   \"fetchWhereClause\": \"xmin::text::bigint >= <xmin_value>\"\n" +
+                        "  TAKE THE XMIN VALUE FROM YOUR FIRST MIGRATION LOG FILE!!!\n" +
+                        "==========================================================");
+            }
         }
     }
 
     // Тут формируется список необработанных чанков, принадлежащих данному поду, в количестве threadCount * 4
     @Override
     public String buildStartEndOfChunk(Config config, Table sourceTable) {
-        return "SELECT chunk_id, uuid, start_page, end_page, task_name, status FROM " +
-                getOutboxTable().tableToString() + " WHERE " +
-                "task_name = ? " +
-                " AND ( " +
-                "    status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
-                "    OR (status IN ('ASSIGNED', 'LOCKED') AND uuid = '" + getInstanceUuid() + "') " +
-                " ) " +
-                " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
+        if (ignorePrimaryKeyFailures) {
+            return "SELECT chunk_id, uuid, start_page, end_page, task_name, status FROM " +
+                    getOutboxTable().tableToString() + " WHERE " +
+                    "task_name = ? " +
+                    " AND ( " +
+                    "    status IN ('UNASSIGNED') " +
+                    "    OR (status IN ('ASSIGNED', 'LOCKED') AND uuid = '" + getInstanceUuid() + "') " +
+                    " ) " +
+                    " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
+        } else {
+            return "SELECT chunk_id, uuid, start_page, end_page, task_name, status FROM " +
+                    getOutboxTable().tableToString() + " WHERE " +
+                    "task_name = ? " +
+                    " AND ( " +
+                    "    status IN ('UNASSIGNED', 'PROCESSED_WITH_ERROR') " +
+                    "    OR (status IN ('ASSIGNED', 'LOCKED') AND uuid = '" + getInstanceUuid() + "') " +
+                    " ) " +
+                    " LIMIT " + threadCount * 4 + " FOR UPDATE SKIP LOCKED";
+        }
     }
 
     @Override
@@ -356,6 +446,26 @@ public class PostgresStorage extends JDBCStorage {
 
     @Override
     public void printChunkStatus() {
+        StringJoiner joiner = new StringJoiner(" | ");
+        String sql = "SELECT status, count(*) FROM " + getOutboxTable().tableToString() + " GROUP BY status ORDER BY status";
+        try (Connection conn = getPoolConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                joiner.add(rs.getString(1) + ": " + rs.getInt(2));
+            }
+
+            if (joiner.length() > 0) {
+                log.log(System.Logger.Level.INFO, "Chunks summary -> [ {0} ]", joiner.toString());
+            }
+        } catch (Exception e) {
+            log.log(System.Logger.Level.ERROR, "Error while printing chunk status: {0}", e);
+        }
+    }
+
+/*
+    @Override
+    public void printChunkStatus() {
         if (dynamicHeartbeatConnection != null) {
             StringJoiner joiner = new StringJoiner(" | ");
             String sql = "SELECT status, count(*) FROM " + getOutboxTable().tableToString() + " GROUP BY status ORDER BY status";
@@ -379,6 +489,7 @@ public class PostgresStorage extends JDBCStorage {
             }
         }
     }
+*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,
@@ -665,7 +776,6 @@ public class PostgresStorage extends JDBCStorage {
         UniqueConstraint uniqueConstraint = targetTable.getUniqueConstraints() == null ? null :
                 targetTable.getUniqueConstraints().stream().filter(uc -> !uc.isNullable()).findFirst().orElse(null);
         List<Column> ucColumnNames = uniqueConstraint == null ? null : uniqueConstraint.getColumns().values().stream().toList();
-//        System.out.println("ucColumnNames = " + ucColumnNames);
         String tableName = targetTable.getSchemaName() + "." + targetTable.getFinalTableName(true);
 
         if ((pkColumnNames == null || pkColumnNames.isEmpty()) &&
@@ -674,7 +784,6 @@ public class PostgresStorage extends JDBCStorage {
                     " must have Primary Key or Unique Not Null Constraint !!!");
         }
 
-//        List<String> upsertKeys = pkColumnNames.stream().map(Column::columnName).toList();
         List<String> upsertKeys = (pkColumnNames != null && !pkColumnNames.isEmpty()) ?
                 pkColumnNames.stream().map(Column::columnName).toList() :
                 ucColumnNames.stream().map(Column::columnName).toList();
@@ -715,8 +824,6 @@ public class PostgresStorage extends JDBCStorage {
                 continue;
             }
 
-            // Потоково раскладываем Java-типы по параметрам PreparedStatement
-            // (Твоя готовая логика конвертации CLOB/строк/чисел ядра Бублика)
             ps.setObject(paramIndex, value);
         }
     }
@@ -832,6 +939,15 @@ public class PostgresStorage extends JDBCStorage {
                     writeValue(columnToColumnList, sourceColumnIndices, sourceColumnTypes, fetchResultSet, chunk, writer);
                     recordCount++;
                 }
+            } catch (Exception e) {
+                Throwable current = e;
+                while (current != null) {
+                    if (current instanceof PSQLException psqlex) {
+                        throw new SQLException(psqlex.getMessage(), psqlex.getSQLState());
+                    }
+                    current = current.getCause();
+                }
+                throw e;
             }
 
             chunk.setCopied(recordCount);
