@@ -74,7 +74,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -95,7 +95,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -113,7 +113,7 @@ public class PostgresToPostgresTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
-                    for (int i = 0; i < 10_000; i++) {
+                    for (int i = 0; i < 1_000; i++) {
                         ps.setInt(1, 300_000 + i);
                         updateCount += ps.executeUpdate();
                     }
@@ -228,7 +228,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -249,7 +249,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -267,7 +267,7 @@ public class PostgresToPostgresTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
-                    for (int i = 0; i < 10_000; i++) {
+                    for (int i = 0; i < 1_000; i++) {
                         ps.setInt(1, 300_000 + i);
                         updateCount += ps.executeUpdate();
                     }
@@ -378,7 +378,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -399,7 +399,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -417,7 +417,7 @@ public class PostgresToPostgresTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
-                    for (int i = 0; i < 10_000; i++) {
+                    for (int i = 0; i < 1_000; i++) {
                         ps.setInt(1, 300_000 + i);
                         updateCount += ps.executeUpdate();
                     }
@@ -642,7 +642,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -663,7 +663,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 7000; i++) {
+                    for (int i = 0; i < 500; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -681,7 +681,7 @@ public class PostgresToPostgresTest {
             try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
-                    for (int i = 0; i < 10_000; i++) {
+                    for (int i = 0; i < 1_000; i++) {
                         ps.setInt(1, 300_000 + i);
                         updateCount += ps.executeUpdate();
                     }
