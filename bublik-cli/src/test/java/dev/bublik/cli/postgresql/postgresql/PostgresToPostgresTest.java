@@ -317,14 +317,6 @@ public class PostgresToPostgresTest {
                 .fetchWhereClause(fetchWhereClause)
                 .build()));
         StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
-/*
-        if (isSuccessful)
-            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
-        else {
-            StorageService.init(connectionProperty, configs, TransferMode.UPSERT);
-            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
-        }
-*/
 
         long sCnt, sId, sTxmin, sName, tCnt, tId, tTxmin, tName, sUpdatedAt, tUpdatedAt;
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
