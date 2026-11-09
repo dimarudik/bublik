@@ -74,7 +74,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 500; i++) {
+                    for (int i = 0; i < 3000; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -95,7 +95,7 @@ public class PostgresToPostgresTest {
                                 "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
                                 "where id between ? and ?")) {
                     Random random = new Random();
-                    for (int i = 0; i < 500; i++) {
+                    for (int i = 0; i < 300; i++) {
                         int r = random.nextInt(1, 200_001);
                         ps.setInt(1, r);
                         ps.setInt(2, r + 49);
@@ -209,8 +209,12 @@ public class PostgresToPostgresTest {
         System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
 
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("truncate table public.pk_failures_t");
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -359,8 +363,12 @@ public class PostgresToPostgresTest {
         System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
 
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("truncate table public.pk_failures_t");
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -508,8 +516,12 @@ public class PostgresToPostgresTest {
         System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
 
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("truncate table public.pk_failures_t");
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -530,7 +542,7 @@ public class PostgresToPostgresTest {
                     for (int i = 0; i < 300; i++) {
                         int r = random.nextInt(150_000, 200_001);
                         ps.setInt(1, r);
-                        ps.setInt(2, r + 9);
+                        ps.setInt(2, r + 10);
                         updateCount += ps.executeUpdate();
                     }
                 }
@@ -623,8 +635,12 @@ public class PostgresToPostgresTest {
         System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
 
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("truncate table public.pk_failures_t");
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -768,8 +784,12 @@ public class PostgresToPostgresTest {
         System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
 
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("truncate table public.pk_failures_t");
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
         } catch (SQLException e) {
             e.printStackTrace();
         }
