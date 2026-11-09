@@ -383,7 +383,6 @@ create table test.serialcolumn (
     name varchar(256)
 );
 
-
 create table public.s (
     id1 int,
     id2 int,
@@ -423,3 +422,22 @@ create table public.rep_ident_uc_complex (
     id2 int not null,
     name varchar(256),
     constraint unique_id_complex unique (id1, id2));
+
+create table public.pk_failures_s (
+    id int primary key,
+    name varchar(256),
+    updated_at timestamp,
+    txmin bigint
+);
+
+insert into public.pk_failures_s (id, name)
+select n as id1, 'PostgreSQL ' || n as name
+from generate_series(1, 200101) as n;
+analyze public.pk_failures_s;
+
+create table public.pk_failures_t (
+    id int primary key,
+    name varchar(256),
+    updated_at timestamp,
+    txmin bigint
+);

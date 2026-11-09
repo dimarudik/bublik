@@ -63,6 +63,739 @@ public class PostgresToPostgresTest {
     }
 
     @Test
+    void ignorePrimaryKeyFailuresWithCopyAndUpsert() throws Exception {
+        ExecutorService testExecutor = Executors.newFixedThreadPool(3);
+
+        Future<Long> workLoad1 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 3000; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad2 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 300; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad3 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
+                    for (int i = 0; i < 1_000; i++) {
+                        ps.setInt(1, 300_000 + i);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pgPKFailures.yaml",
+                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                20_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        String fetchWhereClause = "xmin::text::bigint >= " +
+                result.storage2Storage().source().unwrap(PostgresStorage.class).getxMin();
+        boolean isSuccessful = result.storage2Storage().source().isSuccessful();
+        System.out.println(fetchWhereClause + " isSuccessful: " + isSuccessful);
+
+        Long res1 = workLoad1.get();
+        Long res2 = workLoad2.get();
+        Long res3 = workLoad3.get();
+        testExecutor.shutdown();
+
+        ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
+                .threadCount(2)
+                .addFromProperty("url", source.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addFromProperty("user", source.getUsername())
+                .addFromProperty("password", source.getPassword())
+                .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addToProperty("user", target.getUsername())
+                .addToProperty("password", target.getPassword())
+                .build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .build()));
+        List<Config> configsWithFilter = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .fetchWhereClause(fetchWhereClause)
+                .build()));
+        if (isSuccessful)
+            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+        else {
+            StorageService.init(connectionProperty, configs, TransferMode.UPSERT);
+            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+        }
+
+        long sCnt, sId, sTxmin, sName, tCnt, tId, tTxmin, tName, sUpdatedAt, tUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             ResultSet rs1 = stmt1.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_s");
+             Statement stmt2 = conn.createStatement();
+             ResultSet rs2 = stmt2.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_t")) {
+            assertTrue(rs1.next());
+            sCnt = rs1.getLong("cnt");
+            sId = rs1.getLong("id");
+            sTxmin = rs1.getLong("txmin");
+            sName = rs1.getLong("name");
+            sUpdatedAt = rs1.getLong("updated_at");
+            assertTrue(rs2.next());
+            tCnt = rs2.getLong("cnt");
+            tId = rs2.getLong("id");
+            tTxmin = rs2.getLong("txmin");
+            tName = rs2.getLong("name");
+            tUpdatedAt = rs2.getLong("updated_at");
+        }
+
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "SUM(id) не совпал!");
+        assertEquals(sTxmin, tTxmin, "SUM(txmin) не совпал!");
+        assertEquals(sName, tName, "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) не совпал!");
+        assertEquals(sUpdatedAt, tUpdatedAt, "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) не совпал!");
+
+        System.out.println("COUNT: " + sCnt + " " + tCnt);
+        System.out.println("SUM(id): " + sId + " " + tId);
+        System.out.println("SUM(txmin): " + sTxmin + " " + tTxmin);
+        System.out.println("sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint): " + sName + " " + tName);
+        System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
+
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    void ignorePrimaryKeyFailuresWithUpsertSnapshotAndUpsert() throws Exception {
+        ExecutorService testExecutor = Executors.newFixedThreadPool(3);
+
+        Future<Long> workLoad1 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 500; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad2 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 500; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad3 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
+                    for (int i = 0; i < 1_000; i++) {
+                        ps.setInt(1, 300_000 + i);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pgPKFailuresSnapshot.yaml",
+                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                20_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.UPSERT);
+        String fetchWhereClause = "xmin::text::bigint >= " +
+                result.storage2Storage().source().unwrap(PostgresStorage.class).getxMin();
+        boolean isSuccessful = result.storage2Storage().source().isSuccessful();
+        System.out.println(fetchWhereClause + " isSuccessful: " + isSuccessful);
+
+        Long res1 = workLoad1.get();
+        Long res2 = workLoad2.get();
+        Long res3 = workLoad3.get();
+        testExecutor.shutdown();
+
+        ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
+                .threadCount(2)
+                .addFromProperty("url", source.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addFromProperty("user", source.getUsername())
+                .addFromProperty("password", source.getPassword())
+                .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addToProperty("user", target.getUsername())
+                .addToProperty("password", target.getPassword())
+                .build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .build()));
+        List<Config> configsWithFilter = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .fetchWhereClause(fetchWhereClause)
+                .build()));
+        StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+
+        long sCnt, sId, sTxmin, sName, tCnt, tId, tTxmin, tName, sUpdatedAt, tUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             ResultSet rs1 = stmt1.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_s");
+             Statement stmt2 = conn.createStatement();
+             ResultSet rs2 = stmt2.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_t")) {
+            assertTrue(rs1.next());
+            sCnt = rs1.getLong("cnt");
+            sId = rs1.getLong("id");
+            sTxmin = rs1.getLong("txmin");
+            sName = rs1.getLong("name");
+            sUpdatedAt = rs1.getLong("updated_at");
+            assertTrue(rs2.next());
+            tCnt = rs2.getLong("cnt");
+            tId = rs2.getLong("id");
+            tTxmin = rs2.getLong("txmin");
+            tName = rs2.getLong("name");
+            tUpdatedAt = rs2.getLong("updated_at");
+        }
+
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "SUM(id) не совпал!");
+        assertEquals(sTxmin, tTxmin, "SUM(txmin) не совпал!");
+        assertEquals(sName, tName, "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) не совпал!");
+        assertEquals(sUpdatedAt, tUpdatedAt, "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) не совпал!");
+
+        System.out.println("COUNT: " + sCnt + " " + tCnt);
+        System.out.println("SUM(id): " + sId + " " + tId);
+        System.out.println("SUM(txmin): " + sTxmin + " " + tTxmin);
+        System.out.println("sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint): " + sName + " " + tName);
+        System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
+
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    void ignorePrimaryKeyFailuresWithCopySnapshotAndUpsert() throws Exception {
+        ExecutorService testExecutor = Executors.newFixedThreadPool(3);
+
+        Future<Long> workLoad1 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 500; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad2 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 500; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad3 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
+                    for (int i = 0; i < 1_000; i++) {
+                        ps.setInt(1, 300_000 + i);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pgPKFailuresSnapshot.yaml",
+                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                20_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        String fetchWhereClause = "xmin::text::bigint >= " +
+                result.storage2Storage().source().unwrap(PostgresStorage.class).getxMin();
+        boolean isSuccessful = result.storage2Storage().source().isSuccessful();
+        System.out.println(fetchWhereClause + " isSuccessful: " + isSuccessful);
+
+        Long res1 = workLoad1.get();
+        Long res2 = workLoad2.get();
+        Long res3 = workLoad3.get();
+        testExecutor.shutdown();
+
+        ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
+                .threadCount(2)
+                .addFromProperty("url", source.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addFromProperty("user", source.getUsername())
+                .addFromProperty("password", source.getPassword())
+                .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addToProperty("user", target.getUsername())
+                .addToProperty("password", target.getPassword())
+                .build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .build()));
+        List<Config> configsWithFilter = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .fetchWhereClause(fetchWhereClause)
+                .build()));
+        StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+
+        long sCnt, sId, sTxmin, sName, tCnt, tId, tTxmin, tName, sUpdatedAt, tUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             ResultSet rs1 = stmt1.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_s");
+             Statement stmt2 = conn.createStatement();
+             ResultSet rs2 = stmt2.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_t")) {
+            assertTrue(rs1.next());
+            sCnt = rs1.getLong("cnt");
+            sId = rs1.getLong("id");
+            sTxmin = rs1.getLong("txmin");
+            sName = rs1.getLong("name");
+            sUpdatedAt = rs1.getLong("updated_at");
+            assertTrue(rs2.next());
+            tCnt = rs2.getLong("cnt");
+            tId = rs2.getLong("id");
+            tTxmin = rs2.getLong("txmin");
+            tName = rs2.getLong("name");
+            tUpdatedAt = rs2.getLong("updated_at");
+        }
+
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "SUM(id) не совпал!");
+        assertEquals(sTxmin, tTxmin, "SUM(txmin) не совпал!");
+        assertEquals(sName, tName, "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) не совпал!");
+        assertEquals(sUpdatedAt, tUpdatedAt, "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) не совпал!");
+
+        System.out.println("COUNT: " + sCnt + " " + tCnt);
+        System.out.println("SUM(id): " + sId + " " + tId);
+        System.out.println("SUM(txmin): " + sTxmin + " " + tTxmin);
+        System.out.println("sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint): " + sName + " " + tName);
+        System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
+
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    void ignorePrimaryKeyFailuresWithCopyAndUpsert2() throws Exception {
+        ExecutorService testExecutor = Executors.newFixedThreadPool(1);
+
+        Future<Long> workLoad1 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 300; i++) {
+                        int r = random.nextInt(150_000, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 10);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pgPKFailures.yaml",
+                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                20_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        String fetchWhereClause = "xmin::text::bigint >= " +
+                result.storage2Storage().source().unwrap(PostgresStorage.class).getxMin();
+        boolean isSuccessful = result.storage2Storage().source().isSuccessful();
+        System.out.println(fetchWhereClause + " isSuccessful: " + isSuccessful);
+
+        Long res1 = workLoad1.get();
+        testExecutor.shutdown();
+
+        ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
+                .threadCount(2)
+                .addFromProperty("url", source.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addFromProperty("user", source.getUsername())
+                .addFromProperty("password", source.getPassword())
+                .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addToProperty("user", target.getUsername())
+                .addToProperty("password", target.getPassword())
+                .build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .build()));
+        List<Config> configsWithFilter = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .fetchWhereClause(fetchWhereClause)
+                .build()));
+        if (isSuccessful)
+            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+        else {
+            StorageService.init(connectionProperty, configs, TransferMode.UPSERT);
+            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+        }
+
+        long sCnt, sId, sTxmin, sName, tCnt, tId, tTxmin, tName, sUpdatedAt, tUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             ResultSet rs1 = stmt1.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_s");
+             Statement stmt2 = conn.createStatement();
+             ResultSet rs2 = stmt2.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_t")) {
+            assertTrue(rs1.next());
+            sCnt = rs1.getLong("cnt");
+            sId = rs1.getLong("id");
+            sTxmin = rs1.getLong("txmin");
+            sName = rs1.getLong("name");
+            sUpdatedAt = rs1.getLong("updated_at");
+            assertTrue(rs2.next());
+            tCnt = rs2.getLong("cnt");
+            tId = rs2.getLong("id");
+            tTxmin = rs2.getLong("txmin");
+            tName = rs2.getLong("name");
+            tUpdatedAt = rs2.getLong("updated_at");
+        }
+
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "SUM(id) не совпал!");
+        assertEquals(sTxmin, tTxmin, "SUM(txmin) не совпал!");
+        assertEquals(sName, tName, "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) не совпал!");
+        assertEquals(sUpdatedAt, tUpdatedAt, "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) не совпал!");
+
+        System.out.println("COUNT: " + sCnt + " " + tCnt);
+        System.out.println("SUM(id): " + sId + " " + tId);
+        System.out.println("SUM(txmin): " + sTxmin + " " + tTxmin);
+        System.out.println("sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint): " + sName + " " + tName);
+        System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
+
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    void ignorePrimaryKeyFailuresWithUpsertAndUpsert() throws Exception {
+        ExecutorService testExecutor = Executors.newFixedThreadPool(3);
+
+        Future<Long> workLoad1 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 500; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad2 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update public.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = now(), txmin = xmin::text::bigint " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 500; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 49);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad3 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "insert into public.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', now()) ")) {
+                    for (int i = 0; i < 1_000; i++) {
+                        ps.setInt(1, 300_000 + i);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pgPKFailures.yaml",
+                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                20_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.UPSERT);
+        String fetchWhereClause = "xmin::text::bigint >= " +
+                result.storage2Storage().source().unwrap(PostgresStorage.class).getxMin();
+        boolean isSuccessful = result.storage2Storage().source().isSuccessful();
+        System.out.println(fetchWhereClause + " isSuccessful: " + isSuccessful);
+
+        Long res1 = workLoad1.get();
+        Long res2 = workLoad2.get();
+        Long res3 = workLoad3.get();
+        testExecutor.shutdown();
+
+        ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
+                .threadCount(2)
+                .addFromProperty("url", source.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addFromProperty("user", source.getUsername())
+                .addFromProperty("password", source.getPassword())
+                .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addToProperty("user", target.getUsername())
+                .addToProperty("password", target.getPassword())
+                .build();
+        List<Config> configsWithFilter = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("public", "pk_failures_s")
+                .to("public", "pk_failures_t")
+                .fetchWhereClause(fetchWhereClause)
+                .build()));
+        StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+
+        long sCnt, sId, sTxmin, sName, tCnt, tId, tTxmin, tName, sUpdatedAt, tUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             ResultSet rs1 = stmt1.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_s");
+             Statement stmt2 = conn.createStatement();
+             ResultSet rs2 = stmt2.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) as name, " +
+                             "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) as updated_at " +
+                             "FROM pk_failures_t")) {
+            assertTrue(rs1.next());
+            sCnt = rs1.getLong("cnt");
+            sId = rs1.getLong("id");
+            sTxmin = rs1.getLong("txmin");
+            sName = rs1.getLong("name");
+            sUpdatedAt = rs1.getLong("updated_at");
+            assertTrue(rs2.next());
+            tCnt = rs2.getLong("cnt");
+            tId = rs2.getLong("id");
+            tTxmin = rs2.getLong("txmin");
+            tName = rs2.getLong("name");
+            tUpdatedAt = rs2.getLong("updated_at");
+        }
+
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "SUM(id) не совпал!");
+        assertEquals(sTxmin, tTxmin, "SUM(txmin) не совпал!");
+        assertEquals(sName, tName, "sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint) не совпал!");
+        assertEquals(sUpdatedAt, tUpdatedAt, "sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint) не совпал!");
+
+        System.out.println("COUNT: " + sCnt + " " + tCnt);
+        System.out.println("SUM(id): " + sId + " " + tId);
+        System.out.println("SUM(txmin): " + sTxmin + " " + tTxmin);
+        System.out.println("sum(hashtext(name)::bigint + hashtext(reverse(name))::bigint): " + sName + " " + tName);
+        System.out.println("sum(hashtext(updated_at::text)::bigint + hashtext(reverse(updated_at::text))::bigint): " + sUpdatedAt + " " + tUpdatedAt);
+
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             Statement stmt2 = conn.createStatement();
+             Statement stmt3 = conn.createStatement();) {
+            stmt1.execute("truncate table public.pk_failures_t");
+            stmt2.execute("delete from public.pk_failures_s where id > 200101");
+            stmt3.execute("vacuum public.pk_failures_s");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
     void orderByOptimisation() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
@@ -78,7 +811,6 @@ public class PostgresToPostgresTest {
 
     @Test
     void upsertReplicaIdentity() throws Exception {
-//        Thread.sleep(900_000);
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
                 "./postgresql/postgresql/json/replicaIdentity.json",

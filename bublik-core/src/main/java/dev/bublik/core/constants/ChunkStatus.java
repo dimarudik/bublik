@@ -5,7 +5,5 @@ public enum ChunkStatus {
     LOCKED,
     ASSIGNED,
     PROCESSED,
-    PROCESSED_WITH_ERROR,
-    SYNCED,
-    UNCHANGED
+    PROCESSED_WITH_ERROR
 }

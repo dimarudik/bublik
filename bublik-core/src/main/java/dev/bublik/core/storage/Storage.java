@@ -1,6 +1,5 @@
 package dev.bublik.core.storage;
 
-import dev.bublik.core.constants.ChunkStatus;
 import dev.bublik.core.constants.TransferMode;
 import dev.bublik.core.model.*;
 import dev.bublik.core.service.Source;
@@ -16,7 +15,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.*;
 
+import static dev.bublik.core.constants.ChunkStatus.PROCESSED;
+import static dev.bublik.core.constants.ChunkStatus.PROCESSED_WITH_ERROR;
 import static dev.bublik.core.constants.TransferMode.COPY;
+import static dev.bublik.core.constants.TransferMode.UPSERT;
 import static dev.bublik.core.util.Utils.getStackTrace;
 
 public abstract class Storage implements StorageService, Wrapper, AutoCloseable, Source, Target {
@@ -30,6 +32,8 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     private Map<Table, Table> tables;
     protected boolean isManaged;
     protected int storageMajorVersion;
+    protected final boolean ignorePrimaryKeyFailures;
+    private boolean isSuccessful;
 
     protected Storage(Properties properties, ConnectionProperty connectionProperty) {
         this(properties, connectionProperty, null);
@@ -39,6 +43,8 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         this.properties = properties;
         this.connectionProperty = connectionProperty;
         this.outboxTable = outboxTable;
+        this.ignorePrimaryKeyFailures = Boolean.parseBoolean(
+                connectionProperty.getToProperty().getProperty("ignorePrimaryKeyFailures", "false"));
     }
 
     protected Storage(Builder<?, ?> builder) {
@@ -47,12 +53,14 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         this.tables = null;
         this.threadCount = builder.threadCount;
         this.outboxTable = builder.outboxTable;
+        this.ignorePrimaryKeyFailures = builder.ignorePrimaryKeyFailures;
     }
 
     // Curiously Recurring Template Pattern (CRTP)
     protected static abstract class Builder<C extends Storage, B extends Builder<C, B>> {
         protected int threadCount;
         private Table outboxTable;
+        private boolean ignorePrimaryKeyFailures;
 
         protected abstract B self();
 
@@ -65,6 +73,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
 
         public B outboxTable(Table outboxTable) {
             this.outboxTable = outboxTable;
+            return self();
+        }
+
+        public B ignorePrimaryKeyFailures(boolean ignorePrimaryKeyFailures) {
+            this.ignorePrimaryKeyFailures = ignorePrimaryKeyFailures;
             return self();
         }
 
@@ -136,7 +149,10 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             } else {
                 waitForTablesToExist(targetStorage);
             }
+        } else if (mode == UPSERT) {
+//            resetProcessedChunks(targetStorage);
         }
+
         log.log(System.Logger.Level.INFO, "SOURCE version: {0}", getStorageVersion());
         log.log(System.Logger.Level.INFO, "TARGET version: {0}", targetStorage.getStorageVersion());
         int errorCounter = 0;
@@ -167,6 +183,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             }
             // проверяем, что в очереди нет чанков для обработки и все чанки уже обработаны
             if (chunks.isEmpty()) {
+                if (ignorePrimaryKeyFailures && isMigrationFinished()) {
+                    break;
+                }
                 if (!isMigrationFullyFinished()) {
                     if (limitChunkRetries > 70) {
                         log.log(System.Logger.Level.ERROR, "CRITICAL: Cluster deadlock detected! Coordinated workers vanished or got stuck.");
@@ -199,6 +218,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                             rootCause = rootCause.getCause();
                         }
 
+                        // Обрабатываем ошибку, если чанк уже перелит
                         if (rootCause instanceof SQLException sqlEx
                                 && "23505".equals(sqlEx.getSQLState())
                                 && sqlEx.getMessage() != null
@@ -207,9 +227,37 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                                     "The chunk has already been copied. Chunk ID: {0}", chunk.getId());
 
                             try {
-                                chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED, false, null, null, getOutboxTable().tableToString());
+                                chunk.interStageSaveChunkStatus(PROCESSED, false, null, null, getOutboxTable().tableToString());
                             } catch (SQLException ex) {
                                 //
+                            }
+
+                            if (this instanceof JDBCStorage) {
+                                try { chunk.getSourceSession().close(); } catch (SQLException ignored) {}
+                            }
+                            if (targetStorage instanceof JDBCStorage) {
+                                try { chunk.getTargetSession().close(); } catch (SQLException ignored) {}
+                            }
+
+                            return chunk;
+                        }
+
+                        // Подавляем ошибку для первичных ключей, если ignorePrimaryKeyFailures = true
+                        if (rootCause instanceof SQLException sqlEx
+                                && "23505".equals(sqlEx.getSQLState())
+                                && sqlEx.getMessage() != null
+                                && sqlEx.getMessage().contains("duplicate key value violates unique constraint")
+                                && targetStorage.ignorePrimaryKeyFailures) {
+                            log.log(System.Logger.Level.WARNING,
+                                    "Duplicate key violation suppressed. Chunk ID: {0} {1}",
+                                    chunk.getId(), sqlEx.getMessage());
+
+                            try {
+                                chunk.interStageSaveChunkStatus(PROCESSED_WITH_ERROR, false, null,
+                                        getStackTrace(e), getOutboxTable().tableToString());
+//                                chunk.interStageSaveChunkStatus(PROCESSED_WITH_ERROR, false, null, null, getOutboxTable().tableToString());
+                            } catch (SQLException ex) {
+                                log.log(System.Logger.Level.ERROR, "Error while saving chunk status: {0}", PROCESSED_WITH_ERROR);
                             }
 
                             if (this instanceof JDBCStorage) {
@@ -226,7 +274,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                                 chunk.getT2t().sourceTable().getSchemaName(),
                                 chunk.getT2t().sourceTable().getTableName(), e);
                         try {
-                            chunk.interStageSaveChunkStatus(ChunkStatus.PROCESSED_WITH_ERROR, false, null,
+                            chunk.interStageSaveChunkStatus(PROCESSED_WITH_ERROR, false, null,
                                     getStackTrace(e), getOutboxTable().tableToString());
                         } catch (SQLException ex) {
                             log.log(System.Logger.Level.ERROR,
@@ -263,9 +311,9 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             try {
                 List<Future<Chunk<?, ?, ?, ?>>> futures = batchService.invokeAll(tasks);
 
-                for (Future<?> future : futures) {
+                for (Future<Chunk<?,?,?,?>> future : futures) {
                     try {
-                        future.get();
+                        Chunk chunk = future.get();
                     } catch (Exception e) {
                         hasBatchErrors = true;
                         lastSubmittedException = (e.getCause() != null) ? e.getCause() : e;
@@ -294,7 +342,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     log.log(System.Logger.Level.ERROR,
                             "Critical error threshold reached ({0}/{1}). Finishing pipeline...",
                             errorCounter, threadCount * 2);
-                    printFinalizeInfo();
+                    setSuccessful(false);
                     throw new RuntimeException("Unrecoverable error in migration pipeline", lastSubmittedException);
                 } else {
                     log.log(System.Logger.Level.WARNING,
@@ -320,6 +368,11 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                         targetStorage.dropOutboxTable(false);
                     }
                     log.log(System.Logger.Level.INFO, "Infrastructure cleanup finished successfully.");
+                    setSuccessful(true);
+                    printFinalizeInfo(mode);
+                } else if (ignorePrimaryKeyFailures && isMigrationFinished()) {
+                    setSuccessful(!hasFailures());
+                    printFinalizeInfo(mode);
                 } else {
                     log.log(System.Logger.Level.WARNING,
                             "Other pods are still processing chunks. Pod {0} skips table deletion.", getPodName());
@@ -328,7 +381,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                 releaseDistributedLock(cleanupLockId);
             }
         }
-        printFinalizeInfo();
     }
 
     private String getPodName() {
@@ -381,11 +433,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             Table2Table t2t = getTable2Table(sourceTable, targetTable, c2c, config);
 
             String chunkLookupSql = buildStartEndOfChunk(config, sourceTable);
-/*
-            log.log(System.Logger.Level.DEBUG,
-                    "Query of chunks for table {0}.{1}: {2}",
-                    t2t.sourceTable().getSchemaName(), t2t.sourceTable().getTableName(), chunkLookupSql);
-*/
             String fetchQuery = buildFetchStatement(config, t2t);
             String orderByClause = targetTable.buildOrderBy(config);
             log.log(System.Logger.Level.DEBUG,"Fetch query for table {0}.{1}: {2} {3}",
@@ -469,5 +516,20 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         return this.instanceUuid;
     }
 
-    public void printFinalizeInfo() {}
+    public boolean isSuccessful() {
+        return isSuccessful;
+    }
+
+    public void setSuccessful(boolean successful) {
+        isSuccessful = successful;
+    }
+
+    @Override
+    public void printFinalizeInfo(TransferMode mode) {}
+    @Override
+    public void resetProcessedChunks(Storage targetStorage) throws SQLException {}
+    @Override
+    public boolean isMigrationFinished() { return false; }
+    @Override
+    public boolean hasFailures() { return false; }
 }
