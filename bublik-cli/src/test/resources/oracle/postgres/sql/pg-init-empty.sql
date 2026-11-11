@@ -118,3 +118,10 @@ CREATE TABLE test.employees_iot (
     email       VARCHAR(100),
     CONSTRAINT pk_emp_iot PRIMARY KEY (employee_id)
 );
+
+create table test.pk_failures_t (
+    id int primary key,
+    name varchar(256),
+    updated_at timestamp,
+    txmin bigint
+);

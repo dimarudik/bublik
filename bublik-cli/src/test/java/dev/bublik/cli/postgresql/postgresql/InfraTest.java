@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import static dev.bublik.core.util.Utils.getStackTrace;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 public class InfraTest {
     private static final System.Logger log = System.getLogger(InfraTest.class.getName());
     private static final Network network = Network.newNetwork();

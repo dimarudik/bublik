@@ -8,3 +8,4 @@ grant analyze any to bublik;
 grant execute on SYS.DBMS_LOCK TO bublik;
 create user test identified by test;
 alter user test quota unlimited on users;
+grant select_catalog_role to bublik;

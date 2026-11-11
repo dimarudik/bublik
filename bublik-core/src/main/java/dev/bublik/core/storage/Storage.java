@@ -110,12 +110,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     }
 
     @Override
-    public void holdInstanceSignalLock() throws SQLException {}
-
-    @Override
-    public void exportGlobalSnapshotTransaction() throws SQLException {}
-
-    @Override
     public void start(Storage targetStorage, List<Config> cfgs, int rows) throws SQLException {
         start(targetStorage, cfgs, rows, COPY);
     }
@@ -162,8 +156,10 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         Throwable lastSubmittedException = null;
         List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
+        getAnchorPoint();
         holdInstanceSignalLock();
-        exportGlobalSnapshotTransaction();
+        getSnapshot();
+
         int limitChunkRetries = 0;
         do {
             List<Chunk<?, ?, ?, ?>> chunks;
@@ -532,4 +528,10 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
     public boolean isMigrationFinished() { return false; }
     @Override
     public boolean hasFailures() { return false; }
+    @Override
+    public void getAnchorPoint() throws SQLException {}
+    @Override
+    public void holdInstanceSignalLock() throws SQLException {}
+    @Override
+    public void getSnapshot() throws SQLException {}
 }
