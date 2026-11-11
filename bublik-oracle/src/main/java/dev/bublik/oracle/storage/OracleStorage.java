@@ -22,6 +22,8 @@ import static dev.bublik.oracle.constants.SQLConstants.*;
 public class OracleStorage extends JDBCStorage {
     private static final System.Logger log = System.getLogger(OracleStorage.class.getName());
 
+    private volatile Long oraRowScn;
+
     public OracleStorage(Properties properties,
                          ConnectionProperty connectionProperty,
                          Table outboxTable) throws SQLException {
@@ -64,6 +66,52 @@ public class OracleStorage extends JDBCStorage {
     public void releaseDistributedLock(long lockId) throws SQLException {
 
     }
+
+    @Override
+    public void getAnchorPoint() throws SQLException {
+        String snapshotSql = "select current_scn from v$database";
+        try (Connection conn = this.getPoolConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(snapshotSql)) {
+            rs.next();
+            setOraRowScn(rs.getLong(1));
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Failed to get current SCN: " + getStackTrace(e));
+            throw e;
+        }
+    }
+
+    @Override
+    public void printFinalizeInfo(TransferMode mode) {
+        if (isSuccessful()) {
+            log.log(System.Logger.Level.INFO, "\n" +
+                    "==========================================================\n" +
+                    "  CURRENT_SCN: " + getOraRowScn() + "\n" +
+                    "==========================================================\n" +
+                    "  BUBLIK MIGRATION IN " + mode + " MODE HAS BEEN FINISHED\n" +
+                    "  HALT CHANGES ON THE SOURCE DB AND DO THE NEXT STEP MANUALLY!\n" +
+                    "  STEP:\n" +
+                    "   Run Bublik in UPSERT mode (-s|--mode UPSERT) WITH!!! chunk creation (-k,--chunk <rows number>) with row filter in a mapping json file:\n" +
+                    "   \"fetchWhereClause\": \"ORA_ROWSCN >= <current_scn_value>\"\n" +
+                    "  TAKE THE CURRENT_SCN VALUE FROM YOUR FIRST MIGRATION LOG FILE!!!\n" +
+                    "==========================================================");
+        } else {
+            log.log(System.Logger.Level.INFO, "\n" +
+                    "==========================================================\n" +
+                    "  CURRENT_SCN: " + getOraRowScn() + "\n" +
+                    "==========================================================\n" +
+                    "  BUBLIK MIGRATION IN " + mode + " MODE HAS BEEN FINISHED WITH WARNINGS!\n" +
+                    "  HALT CHANGES ON THE SOURCE DB AND DO THE NEXT TWO STEPS MANUALLY!\n" +
+                    "  STEP 1:\n" +
+                    "   Run Bublik in UPSERT mode (-s|--mode UPSERT) WITHOUT!!! chunk creation (-k,--chunk <rows number>)\n" +
+                    "  STEP 2:\n" +
+                    "   Run Bublik in UPSERT mode (-s|--mode UPSERT) WITH!!! chunk creation (-k,--chunk <rows number>) and with row filter in a mapping json file:\n" +
+                    "   \"fetchWhereClause\": \"ORA_ROWSCN >= <current_scn_value>\"\n" +
+                    "  TAKE THE CURRENT_SCN VALUE FROM YOUR FIRST MIGRATION LOG FILE!!!\n" +
+                    "==========================================================");
+        }
+    }
+
 
 /*
     @Override
@@ -243,10 +291,7 @@ public class OracleStorage extends JDBCStorage {
                                         + config.fromSchemaName() + '.' + config.fromTableName()
                                         + " (IOT Type: " + iotType + ")");
                             }
-                        }/* else {
-                            throw new SQLException("Table not found in Oracle catalog: "
-                                    + config.fromSchemaName() + '.' + config.fromTableName());
-                        }*/
+                        }
                     }
                 }
             }
@@ -333,6 +378,12 @@ public class OracleStorage extends JDBCStorage {
         Column ttlColumn = null;
         Column timestampColumn = null;
         if (config.withTTL() != null) {
+            ttlColumn = Column.builder()
+                    .columnName("_ttl")
+                    .columnType("int")
+                    .defaultValue(config.withTTL())
+                    .build();
+/*
             ttlColumn = new Column(-1,
                     "_ttl",
                     "int",
@@ -348,8 +399,15 @@ public class OracleStorage extends JDBCStorage {
                     false,
                     false,
                     false);
+*/
         }
         if (config.timestamp() != null) {
+            timestampColumn = Column.builder()
+                    .columnName("_timestamp")
+                    .columnType("int")
+                    .defaultValue(config.timestamp())
+                    .build();
+/*
             timestampColumn = new Column(-1,
                     "_timestamp",
                     "int",
@@ -365,6 +423,7 @@ public class OracleStorage extends JDBCStorage {
                     false,
                     false,
                     false);
+*/
         }
         return new Table2Table(sourceTable, targetTable, c2c, ttlColumn, timestampColumn);
     }
@@ -652,5 +711,13 @@ public class OracleStorage extends JDBCStorage {
         Connection session = getPoolConnection();
         table.enrichTable(session);
         session.close();
+    }
+
+    public Long getOraRowScn() {
+        return oraRowScn;
+    }
+
+    public void setOraRowScn(Long oraRowScn) {
+        this.oraRowScn = oraRowScn;
     }
 }

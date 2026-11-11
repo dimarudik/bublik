@@ -51,8 +51,9 @@ public interface StorageService {
     Table getDefaultTargetOutboxTable();
     boolean tryDistributedLock(long lockId) throws SQLException;
     void releaseDistributedLock(long lockId) throws SQLException;
+    void getAnchorPoint() throws SQLException;
     void holdInstanceSignalLock() throws SQLException;
-    void exportGlobalSnapshotTransaction() throws SQLException;
+    void getSnapshot() throws SQLException;
     void printChunkStatus();
     void printFinalizeInfo(TransferMode mode);
     void resetProcessedChunks(Storage targetStorage) throws SQLException;

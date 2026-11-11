@@ -7,3 +7,5 @@ grant select any table to bublik;
 grant analyze any to bublik;
 grant execute on SYS.DBMS_LOCK TO bublik;
 grant execute on SYS.DBMS_LOCK TO test;
+grant select_catalog_role to bublik;
+grant select_catalog_role to test;
