@@ -2,6 +2,12 @@ package dev.bublik.cli.oracle.postgresql;
 
 import dev.bublik.cli.TestResult;
 import dev.bublik.cli.TestUtils;
+import dev.bublik.core.constants.TransferMode;
+import dev.bublik.core.model.Config;
+import dev.bublik.core.model.ConnectionProperty;
+import dev.bublik.core.service.StorageService;
+import dev.bublik.oracle.storage.OracleStorage;
+import dev.bublik.postgres.storage.PostgresStorage;
 import org.junit.jupiter.api.*;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -12,7 +18,10 @@ import org.testcontainers.utility.MountableFile;
 import java.io.IOException;
 import java.sql.*;
 import java.time.Duration;
-import java.util.Properties;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static dev.bublik.cli.TestUtils.getJdbcProperties;
 import static dev.bublik.cli.TestUtils.getResultCount;
@@ -51,6 +60,170 @@ public class OracleToPostgresTest {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    @Test
+    void ignorePrimaryKeyFailuresWithCopyAndUpsert() throws Exception {
+        ExecutorService testExecutor = Executors.newFixedThreadPool(3);
+
+        Future<Long> workLoad1 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "bublik", "bublik")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update test.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = sysdate " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 300; i++) {
+                        int r = random.nextInt(1, 200_001);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 2);
+                        updateCount += ps.executeUpdate();
+                        Thread.sleep(1);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad2 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "bublik", "bublik")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "update test.pk_failures_s  " +
+                                "set name = 'Trx new...', updated_at = sysdate " +
+                                "where id between ? and ?")) {
+                    Random random = new Random();
+                    for (int i = 0; i < 300; i++) {
+                        int r = random.nextInt(1, 10_000);
+                        ps.setInt(1, r);
+                        ps.setInt(2, r + 599);
+                        updateCount += ps.executeUpdate();
+                        Thread.sleep(1);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        Future<Long> workLoad3 = testExecutor.submit(() -> {
+            long updateCount = 0;
+            try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), "test", "test")) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "insert into test.pk_failures_s (id, name, updated_at) values (?, 'Trx new 2...', sysdate) ")) {
+                    for (int i = 0; i < 5_000; i++) {
+                        ps.setInt(1, 300_000 + i);
+                        updateCount += ps.executeUpdate();
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return updateCount;
+        });
+
+        TestResult result = getResultCount(
+                "./oracle/postgres/yaml/ora2pgPKFailures.yaml",
+                "./oracle/postgres/json/ignorePrimaryKetFailures.json",
+                20_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target));
+        String fetchWhereClause = "ORA_ROWSCN >= " +
+                result.storage2Storage().source().unwrap(OracleStorage.class).getOraRowScn();
+        boolean isSuccessful = result.storage2Storage().source().isSuccessful();
+        System.out.println(fetchWhereClause + " isSuccessful: " + isSuccessful);
+
+        Long res1 = workLoad1.get();
+        System.out.println("Updated by workload 1: " + res1);
+        Long res2 = workLoad2.get();
+        System.out.println("Updated by workload 2: " + res2);
+        Long res3 = workLoad3.get();
+        System.out.println("Inserted by workload 3: " + res3);
+        testExecutor.shutdown();
+
+
+        ConnectionProperty connectionProperty = new ConnectionProperty.Builder()
+                .threadCount(2)
+                .addFromProperty("url", "jdbc:oracle:thin:@(description=(address=(host=localhost)(protocol=tcp)(port=1521))(connect_data=(service_name=freepdb1)))")
+                .addFromProperty("user", "bublik")
+                .addFromProperty("password", "bublik")
+                .addToProperty("url", target.getJdbcUrl().replace("?loggerLevel=OFF", ""))
+                .addToProperty("user", target.getUsername())
+                .addToProperty("password", target.getPassword())
+                .build();
+        List<Config> configs = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("test", "pk_failures_s")
+                .to("test", "pk_failures_t")
+                .build()));
+        List<Config> configsWithFilter = new ArrayList<>(Collections.singleton(Config
+                .builder()
+                .from("test", "pk_failures_s")
+                .to("test", "pk_failures_t")
+                .fetchWhereClause(fetchWhereClause)
+                .build()));
+        if (isSuccessful)
+            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+        else {
+            StorageService.init(connectionProperty, configs, TransferMode.UPSERT);
+            StorageService.init(connectionProperty, configsWithFilter, 20_000, TransferMode.UPSERT);
+        }
+
+        long sCnt, sId, sTxmin, sName, sUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
+             Statement stmt1 = conn.createStatement();
+             ResultSet rs1 = stmt1.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "SUM(TO_NUMBER(SUBSTR(STANDARD_HASH(NVL(name, 'NULL'), 'MD5'), 1, 8), 'XXXXXXXX')) AS name, " +
+                             "SUM(TO_NUMBER(SUBSTR(STANDARD_HASH(NVL(TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS.FF6'), 'NULL'), 'MD5'), 1, 8), 'XXXXXXXX')) AS updated_at " +
+                             "FROM test.pk_failures_s")) {
+            assertTrue(rs1.next());
+            sCnt = rs1.getLong("cnt");
+            sId = rs1.getLong("id");
+            sTxmin = rs1.getLong("txmin");
+            sName = rs1.getLong("name");
+            sUpdatedAt = rs1.getLong("updated_at");
+        }
+
+        long tCnt, tId, tTxmin, tName, tUpdatedAt;
+        try (Connection conn = DriverManager.getConnection(target.getJdbcUrl(), target.getUsername(), target.getPassword());
+             Statement stmt2 = conn.createStatement();
+             ResultSet rs2 = stmt2.executeQuery(
+                     "SELECT COUNT(1) as cnt, SUM(id) as id, sum(txmin) as txmin, " +
+                             "SUM(('x' || substr(md5(COALESCE(name, 'NULL')), 1, 8))::bit(32)::bigint) AS name, " +
+                             "SUM(('x' || substr(md5(COALESCE(to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS.US'), 'NULL')), 1, 8))::bit(32)::bigint) AS updated_at " +
+                             "FROM pk_failures_t")) {
+            assertTrue(rs2.next());
+            tCnt = rs2.getLong("cnt");
+            tId = rs2.getLong("id");
+            tTxmin = rs2.getLong("txmin");
+            tName = rs2.getLong("name");
+            tUpdatedAt = rs2.getLong("updated_at");
+        }
+
+        System.out.println("COUNT: " + sCnt + " " + tCnt);
+        System.out.println("id: " + sId + " " + tId);
+        System.out.println("xmin: " + sTxmin + " " + tTxmin);
+        System.out.println("name: " + sName + " " + tName);
+        System.out.println("updated_at: " + sUpdatedAt + " " + tUpdatedAt);
+
+        assertEquals(sCnt, tCnt, "COUNT не совпал!");
+        assertEquals(sId, tId, "id не совпал!");
+        assertEquals(sTxmin, tTxmin, "xmin не совпал!");
+        assertEquals(sName, tName, "name не совпал!");
+        assertEquals(sUpdatedAt, tUpdatedAt, "updated_at не совпал!");
+
+        try (Connection conn = DriverManager.getConnection(target.getJdbcUrl(), target.getUsername(), target.getPassword());
+             Statement stmt1 = conn.createStatement()) {
+            stmt1.execute("truncate table test.pk_failures_t");
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
@@ -171,6 +344,7 @@ public class OracleToPostgresTest {
                 sync,
                 getJdbcProperties(source),
                 getJdbcProperties(target));
+//        Thread.sleep(900_000);
         assertEquals(result.sourceCount(), result.targetCount());
     }
 

@@ -204,6 +204,16 @@ insert into test.employees_iot (employee_id, first_name, last_name, email)
     values (1, 'John', 'Doe', 'john.doe@example.com');
 commit;
 
+create table test.pk_failures_s (
+    id int primary key,
+    name varchar2(256),
+    updated_at timestamp,
+    txmin number
+);
+insert into test.pk_failures_s (id, name) (select rownum as id, 'PostgreSQL ' || rownum as name from dual connect by level < 200101);
+commit;
+grant update, insert, delete on test.pk_failures_s to bublik;
+
 /*-- 2
 insert into test.parted3
     (select

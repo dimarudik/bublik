@@ -1077,6 +1077,7 @@ grant create table to bublik;               -- needed to create global temporary
 grant select any table to bublik;           -- if the user is not an owner of the table
 grant analyze any to bublik;                -- if the user is not an owner of the table
 grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
+grant select_catalog_role to bublik;        -- needed to get CURRENT_SCN
 ```
 
 
@@ -1240,6 +1241,7 @@ grant create table to bublik;               -- needed to create global temporary
 grant select any table to bublik;           -- if the user is not an owner of the table
 grant analyze any to bublik;                -- if the user is not an owner of the table
 grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
+grant select_catalog_role to bublik;        -- needed to get CURRENT_SCN
 ```
 
 #### Prepare Kafka Target environment
@@ -1421,6 +1423,7 @@ grant create table to bublik;               -- needed to create global temporary
 grant select any table to bublik;           -- if the user is not an owner of the table
 grant analyze any to bublik;                -- if the user is not an owner of the table
 grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
+grant select_catalog_role to bublik;        -- needed to get CURRENT_SCN
 ```
 
 #### Prepare PostgreSQL environment
@@ -1665,6 +1668,7 @@ grant create table to bublik;               -- needed to create global temporary
 grant select any table to bublik;           -- if the user is not an owner of the table
 grant analyze any to bublik;                -- if the user is not an owner of the table
 grant execute on SYS.DBMS_LOCK TO bublik;   -- needed to implement distributed locking
+grant select_catalog_role to bublik;        -- needed to get CURRENT_SCN
 ```
 
 #### Prepare YDB environment

@@ -1,0 +1,8 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "pk_failures_s",
+    "toSchemaName": "test",
+    "toTableName": "pk_failures_t"
+  }
+]

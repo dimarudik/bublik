@@ -286,42 +286,34 @@ public class PostgresStorage extends JDBCStorage {
      */
     @Override
     public void holdInstanceSignalLock() throws SQLException {
-        connection = this.getPoolConnection();
-        long xMin;
-
-        String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
-                "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(snapshotSql)) {
-            rs.next();
-            setTransactionalCheckpointId(rs.getString(1));
-            xMin = rs.getLong(2);
-            setxMin(String.valueOf(xMin));
-        }
-
-/*
-        if (!snapshotIsolationEnabled) {
-            String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
-                    "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
-            try (Statement stmt = connection.createStatement();
-                 ResultSet rs = stmt.executeQuery(snapshotSql)) {
-                rs.next();
-                setTransactionalCheckpointId(rs.getString(1));
-                xMin = rs.getLong(2);
-                setxMin(String.valueOf(xMin));
-            }
-        }
-*/
-
+        signalConnection = this.getPoolConnection();
         String sql = "SELECT pg_advisory_lock(hashtext(?))";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (PreparedStatement ps = signalConnection.prepareStatement(sql)) {
             ps.setString(1, getInstanceUuid());
             ps.executeQuery();
         }
     }
 
     @Override
-    public void exportGlobalSnapshotTransaction() throws SQLException {
+    public void getAnchorPoint() throws SQLException {
+        long xMin;
+        String snapshotSql = "WITH snap AS (SELECT pg_current_snapshot() AS s) " +
+                "SELECT s::text, pg_snapshot_xmin(s)::text::bigint FROM snap";
+        try (Connection connection = this.getPoolConnection();
+             Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(snapshotSql)) {
+            rs.next();
+            setTransactionalCheckpointId(rs.getString(1));
+            xMin = rs.getLong(2);
+            setxMin(String.valueOf(xMin));
+        } catch (SQLException e) {
+            log.log(System.Logger.Level.ERROR, "Error while getting current XMIN", e);
+            throw e;
+        }
+    }
+
+    @Override
+    public void getSnapshot() throws SQLException {
         if (!this.snapshotIsolationEnabled) {
             return;
         }
@@ -331,7 +323,6 @@ public class PostgresStorage extends JDBCStorage {
         snapshotAnchorConnection.setAutoCommit(false);
         snapshotAnchorConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
-//        String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_insert_lsn()::text";
         String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_lsn()::text";
         try (Statement stmt = snapshotAnchorConnection.createStatement();
              ResultSet rs = stmt.executeQuery(exportSql)) {
@@ -462,34 +453,6 @@ public class PostgresStorage extends JDBCStorage {
             log.log(System.Logger.Level.ERROR, "Error while printing chunk status: {0}", e);
         }
     }
-
-/*
-    @Override
-    public void printChunkStatus() {
-        if (dynamicHeartbeatConnection != null) {
-            StringJoiner joiner = new StringJoiner(" | ");
-            String sql = "SELECT status, count(*) FROM " + getOutboxTable().tableToString() + " GROUP BY status ORDER BY status";
-
-            try (Statement stmt = dynamicHeartbeatConnection.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-                while (rs.next()) {
-                    joiner.add(rs.getString(1) + ": " + rs.getInt(2));
-                }
-
-                if (joiner.length() > 0) {
-                    log.log(System.Logger.Level.INFO, "Chunks summary -> [ {0} ]", joiner.toString());
-                }
-            } catch (Exception e) {
-                log.log(System.Logger.Level.ERROR, "Error while printing chunk status: {0}", e);
-            } finally {
-                try {
-                    dynamicHeartbeatConnection.rollback();
-                } catch (Exception ex) {
-                }
-            }
-        }
-    }
-*/
 
     @Override
     public Table2Table getTable2Table(Table sourceTable,
@@ -740,23 +703,45 @@ public class PostgresStorage extends JDBCStorage {
                 sourceColumnTypes[i] = meta.getColumnType(index);
             }
 
-            try (PreparedStatement ps = connectionTo.prepareStatement(sqlUpsert)) {
-                while (fetchResultSet.next()) {
+            if (chunk.getSourceStorage() instanceof PostgresStorage) {
+                try (PreparedStatement ps = connectionTo.prepareStatement(sqlUpsert)) {
+                    while (fetchResultSet.next()) {
 
-                    writeValueToStatement(columnToColumnList, sourceColumnIndices, sourceColumnTypes, fetchResultSet, chunk, ps);
+                        writeValueToStatement(columnToColumnList, sourceColumnIndices, sourceColumnTypes, fetchResultSet, chunk, ps);
 
-                    ps.addBatch();
-                    batchCounter++;
+                        ps.addBatch();
+                        batchCounter++;
 
-                    if (batchCounter >= batchSize) {
-                        ps.executeBatch();
-                        batchCounter = 0;
+                        if (batchCounter >= batchSize) {
+                            ps.executeBatch();
+                            batchCounter = 0;
+                        }
+                        recordCount++;
                     }
-                    recordCount++;
-                }
 
-                if (batchCounter > 0) {
-                    ps.executeBatch();
+                    if (batchCounter > 0) {
+                        ps.executeBatch();
+                    }
+                }
+            } else {
+                try (PreparedStatement ps = connectionTo.prepareStatement(sqlUpsert)) {
+                    while (fetchResultSet.next()) {
+
+                        writeValueToStatementFromOthers(columnToColumnList, sourceColumnIndices, sourceColumnTypes, fetchResultSet, chunk, ps);
+
+                        ps.addBatch();
+                        batchCounter++;
+
+                        if (batchCounter >= batchSize) {
+                            ps.executeBatch();
+                            batchCounter = 0;
+                        }
+                        recordCount++;
+                    }
+
+                    if (batchCounter > 0) {
+                        ps.executeBatch();
+                    }
                 }
             }
 
@@ -825,6 +810,78 @@ public class PostgresStorage extends JDBCStorage {
             }
 
             ps.setObject(paramIndex, value);
+        }
+    }
+
+    private void writeValueToStatementFromOthers(List<Column2Column> columnToColumnList,
+                                       int[] sourceColumnIndices,
+                                       int[] sourceColumnTypes,
+                                       ResultSet rs,
+                                       Chunk<?, ?, ?, ?> chunk,
+                                       PreparedStatement ps) throws SQLException, IOException {
+
+        for (int i = 0; i < columnToColumnList.size(); i++) {
+            Column2Column entry = columnToColumnList.get(i);
+            String targetType = entry.targetColumn().columnType();
+            int colIndex = sourceColumnIndices[i];
+            int paramIndex = i + 1;
+
+            Object value = rs.getObject(colIndex);
+            if (value == null) {
+                ps.setNull(paramIndex, sourceColumnTypes[i]);
+                continue;
+            }
+
+            // Приводим проприетарные типы Oracle (oracle.sql.TIMESTAMP, DATE и др.) к стандартным JDBC типам
+            String className = value.getClass().getName();
+            switch (targetType) {
+                case "timestamp": {
+                    ps.setTimestamp(paramIndex, rs.getTimestamp(colIndex));
+                    break;
+                }
+                case "timestamptz": {
+                    if (className.startsWith("oracle.sql.")) {
+                        ps.setTimestamp(paramIndex, rs.getTimestamp(colIndex));
+                    } else {
+                        ps.setObject(paramIndex, value);
+                    }
+                    break;
+                }
+                case "date": {
+                    ps.setDate(paramIndex, rs.getDate(colIndex));
+                    break;
+                }
+                case "time": {
+                    ps.setTime(paramIndex, rs.getTime(colIndex));
+                    break;
+                }
+                case "json", "jsonb": {
+                    org.postgresql.util.PGobject pgObject = new org.postgresql.util.PGobject();
+                    pgObject.setType(targetType);
+                    pgObject.setValue(value.toString());
+                    ps.setObject(paramIndex, pgObject);
+                    break;
+                }
+                case "uuid": {
+                    if (value instanceof java.util.UUID) {
+                        ps.setObject(paramIndex, value);
+                    } else {
+                        ps.setObject(paramIndex, java.util.UUID.fromString(value.toString()));
+                    }
+                    break;
+                }
+                default: {
+                    // Защита на случай, если Oracle вернул oracle.sql.TIMESTAMP для другого типа колонки
+                    if ("oracle.sql.TIMESTAMP".equals(className) || "oracle.sql.TIMESTAMPTZ".equals(className)) {
+                        ps.setTimestamp(paramIndex, rs.getTimestamp(colIndex));
+                    } else if ("oracle.sql.DATE".equals(className)) {
+                        ps.setDate(paramIndex, rs.getDate(colIndex));
+                    } else {
+                        ps.setObject(paramIndex, value);
+                    }
+                    break;
+                }
+            }
         }
     }
 
@@ -1688,14 +1745,6 @@ public class PostgresStorage extends JDBCStorage {
                         reltuples,
                         (double) required,
                         pagesInChunk);
-//                log.debug("{}.{} \t\t\t relpages : {}\t heap_blks_total : {}\t reltuples : {}\t rowsInChunk : {}\t pagesInChunk : {} ",
-//                        config.fromSchemaName(),
-//                        config.fromTableName(),
-//                        relpages,
-//                        heap_blks_total,
-//                        reltuples,
-//                        (double) required,
-//                        pagesInChunk);
                 insertCtidChunksV2(connection, config, table, 0, relpages, pagesInChunk,
                         ChunkStatus.UNASSIGNED, required, getOutboxTable().tableToString());
 
@@ -1709,7 +1758,6 @@ public class PostgresStorage extends JDBCStorage {
             }
             connection.commit();
             log.log(System.Logger.Level.INFO, "Chunk table {0} fulfilled successfully", getOutboxTable().tableToString());
-//            log.info("Chunk table {} fulfilled successfully", getOutboxTable().tableToString());
         }
     }
 
