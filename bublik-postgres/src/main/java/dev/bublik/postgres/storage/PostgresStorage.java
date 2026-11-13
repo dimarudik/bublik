@@ -318,42 +318,80 @@ public class PostgresStorage extends JDBCStorage {
             return;
         }
 
-        snapshotAnchorConnection = getPoolConnection();
-        snapshotAnchorConnection.rollback();
-        snapshotAnchorConnection.setAutoCommit(false);
-        snapshotAnchorConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        if (slotName == null || slotName.isEmpty()) {
+            snapshotAnchorConnection = getPoolConnection();
+            snapshotAnchorConnection.rollback();
+            snapshotAnchorConnection.setAutoCommit(false);
+            snapshotAnchorConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
 
-        String exportSql = "SELECT pg_export_snapshot(), pg_current_wal_lsn()::text";
-        try (Statement stmt = snapshotAnchorConnection.createStatement();
-             ResultSet rs = stmt.executeQuery(exportSql)) {
-            if (rs.next()) {
-                setTransactionalCheckpointId(rs.getString(1));
-                targetLsn = rs.getString(2);
-                printFinalizeInfo(TransferMode.COPY);
+            String exportSql = "SELECT pg_current_wal_lsn()::text, pg_export_snapshot()";
+            try (Statement stmt = snapshotAnchorConnection.createStatement();
+                 ResultSet rs = stmt.executeQuery(exportSql)) {
+                if (rs.next()) {
+                    targetLsn = rs.getString(1);
+                    setTransactionalCheckpointId(rs.getString(2));
+                }
+            } catch (SQLException e) {
+                log.log(System.Logger.Level.ERROR, "Failed to export standalone global snapshot: {0}", e.getMessage());
+                if (snapshotAnchorConnection != null) {
+                    try { snapshotAnchorConnection.rollback(); } catch (Exception ignored) {}
+                    try { snapshotAnchorConnection.close(); } catch (Exception ignored) {}
+                }
+                throw e;
             }
-        } catch (SQLException e) {
-            log.log(System.Logger.Level.ERROR, "Failed to export standalone global snapshot: {0}", e.getMessage());
-            if (snapshotAnchorConnection != null) {
-                try { snapshotAnchorConnection.rollback(); } catch (Exception ignored) {}
-                try { snapshotAnchorConnection.close(); } catch (Exception ignored) {}
+        } else {
+            String rawUrl = getConnectionProperty().getFromProperties().get("url");
+            String baseUrl = rawUrl.contains("?") ? rawUrl.substring(0, rawUrl.indexOf("?")) : rawUrl;
+
+            Properties replProps = new Properties();
+            org.postgresql.PGProperty.USER.set(replProps, getConnectionProperty().getFromProperties().get("user"));
+            org.postgresql.PGProperty.PASSWORD.set(replProps, getConnectionProperty().getFromProperties().get("password"));
+            org.postgresql.PGProperty.REPLICATION.set(replProps, "database");
+            org.postgresql.PGProperty.PREFER_QUERY_MODE.set(replProps, "simple");
+            org.postgresql.PGProperty.ASSUME_MIN_SERVER_VERSION.set(replProps, "9.4");
+
+            snapshotAnchorConnection = new org.postgresql.Driver().connect(baseUrl, replProps);
+//        snapshotAnchorConnection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+
+            String createSlotSql = String.format(
+                    "CREATE_REPLICATION_SLOT %s LOGICAL pgoutput EXPORT_SNAPSHOT", slotName);
+            try (Statement stmt = snapshotAnchorConnection.createStatement();
+                 ResultSet rs = stmt.executeQuery(createSlotSql)) {
+                if (rs.next()) {
+                    // Колонки результата: slot_name (1), consistent_point (2), snapshot_name (3), output_plugin (4)
+                    targetLsn = rs.getString(2);
+                    setTransactionalCheckpointId(rs.getString(3));
+                }
+            } catch (SQLException e) {
+                if (snapshotAnchorConnection != null) {
+                    try { snapshotAnchorConnection.close(); } catch (Exception ignored) {}
+                }
+                throw e;
             }
-            throw e;
         }
     }
 
     @Override
     public void printFinalizeInfo(TransferMode mode) {
         if (snapshotIsolationEnabled) {
-            log.log(System.Logger.Level.INFO, "\n" +
-                    "==========================================================\n" +
-                    "  CURRENT XMIN: " + getxMin() + "\n" +
-                    "==========================================================\n" +
-                    "  BUBLIK MIGRATION IN " + mode + " MODE WITH REPEATABLE READ ISOLATION LEVEL HAS BEEN FINISHED:\n " +
-                    "  1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
-                    "  2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
-                    "  Command for DBA after copy:\n" +
-                    "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
-                    "==========================================================");
+            if (slotName == null || slotName.isEmpty()) {
+                log.log(System.Logger.Level.INFO, "\n" +
+                        "==========================================================\n" +
+                        "  CURRENT XMIN: " + getxMin() + "\n" +
+                        "==========================================================\n" +
+                        "  BUBLIK MIGRATION IN " + mode + " MODE WITH REPEATABLE READ ISOLATION LEVEL HAS BEEN FINISHED:\n" +
+                        "    1. Snapshot ID for workers : " + getTransactionalCheckpointId() + "\n" +
+                        "    2. WAL LSN for DBA Advance : " + targetLsn + "\n" +
+                        "  Command for DBA after copy:\n" +
+                        "  SELECT pg_replication_slot_advance('slot_name', '" + targetLsn + "');\n" +
+                        "==========================================================");
+            } else {
+                log.log(System.Logger.Level.INFO, "\n" +
+                        "==========================================================\n" +
+                        "  BUBLIK MIGRATION IN " + mode + " MODE WITH REPEATABLE READ ISOLATION LEVEL HAS BEEN FINISHED:\n" +
+                        "    1. Logical Slot Name : " + slotName + "\n" +
+                        "==========================================================");
+            }
         } else {
             if (isSuccessful()) {
                 log.log(System.Logger.Level.INFO, "\n" +
@@ -1753,6 +1791,13 @@ public class PostgresStorage extends JDBCStorage {
                 // всавка последних чанков
                 if (heap_blks_total > max_end_page) {
                     insertCtidChunksV2(connection, config, table, max_end_page, heap_blks_total,
+                            pagesInChunk, ChunkStatus.UNASSIGNED, required, getOutboxTable().tableToString());
+                    max_end_page = getMaxEndPageOfChunks(connection, config, getOutboxTable().tableToString());
+                }
+
+                // вставка чанка для снапшота
+                if (this.snapshotIsolationEnabled) {
+                    insertCtidChunkForSnapshot(connection, config, table, max_end_page, heap_blks_total,
                             pagesInChunk, ChunkStatus.UNASSIGNED, required, getOutboxTable().tableToString());
                 }
             }

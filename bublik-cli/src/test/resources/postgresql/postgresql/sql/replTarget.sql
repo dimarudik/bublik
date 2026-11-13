@@ -14,7 +14,7 @@ create table public.a (
 );
 alter table public.replicated_data add constraint fk_replicated_data_a_id foreign key (a_id) references public.a (id);
 
-CREATE SUBSCRIPTION bublik_sub
+/*CREATE SUBSCRIPTION bublik_sub
 CONNECTION 'host=source port=5432 dbname=postgres user=test password=test'
 PUBLICATION bublik_pub
 WITH (
@@ -23,3 +23,4 @@ WITH (
     copy_data = false,
     slot_name = 'bublik_slot'
 );
+*/

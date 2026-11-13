@@ -6,7 +6,7 @@
     <parent>
         <groupId>dev.bublik</groupId>
         <artifactId>bublik</artifactId>
-        <version>26.4.20</version>
+        <version>26.4.21</version>
     </parent>
 
     <artifactId>bublik-cli</artifactId>
@@ -364,7 +364,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.1</version>
                 <configuration>
-                    <argLine>-Xmx384m @{argLine}</argLine>
+                    <argLine>-Xmx384m -XX:ActiveProcessorCount=3 @{argLine}</argLine>
                 </configuration>
             </plugin>
 

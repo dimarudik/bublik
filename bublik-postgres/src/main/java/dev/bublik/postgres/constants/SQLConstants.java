@@ -11,7 +11,7 @@ public abstract class SQLConstants {
                     "table_name varchar(256), " +
                     "config jsonb, " +
                     "required bigint, " +
-                    "copied bigint, " +
+                    "copied bigint default 0, " +
                     "task_name varchar(128), " +
                     "status varchar(20)  default 'UNASSIGNED', " +
                     "start_ts timestamp, " +
@@ -28,6 +28,10 @@ public abstract class SQLConstants {
                     "schema_name, table_name, status, config, required ) " +
                     "(select * from (select n start_page, n + ? as end_page, ? as copied, ? task_name, " +
                     "? schema_name, ? table_name, ? status, to_json(?::json) config, ? required from generate_series(?, ?, ?) as n) c where start_page <> end_page)";
+    public static final String DML_INSERT_CHUNK_FOR_SNAPSHOT = """
+            insert into $tableName (start_page, end_page, task_name, schema_name, table_name)
+            values (?, 4294967294, ?, ?, ?)
+            """;
     public static final String SQL_MAX_END_PAGE =
             "select max(end_page) as max_end_page from $tableName where task_name = ?";
     public static final String SQL_RESET_OUTBOX =

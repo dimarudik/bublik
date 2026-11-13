@@ -23,5 +23,5 @@ analyze public.a;
 alter table public.replicated_data add constraint fk_replicated_data_a_id foreign key (a_id) references public.a (id);
 update public.replicated_data set a_id = 1 where id = 1;
 
-SELECT pg_create_logical_replication_slot('bublik_slot', 'pgoutput');
-CREATE PUBLICATION bublik_pub FOR TABLE public.replicated_data;
+-- SELECT pg_create_logical_replication_slot('bublik_slot', 'pgoutput');
+-- CREATE PUBLICATION bublik_pub FOR TABLE public.replicated_data;

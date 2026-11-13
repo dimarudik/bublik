@@ -25,6 +25,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
     protected Connection snapshotAnchorConnection = null;
     protected volatile String transactionalCheckpointId;
     protected final boolean snapshotIsolationEnabled;
+    protected final String slotName;
 
     public JDBCStorage(Properties properties,
                        ConnectionProperty connectionProperty,
@@ -32,6 +33,7 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
         super(properties, connectionProperty, outboxTable);
         this.snapshotIsolationEnabled = Boolean.parseBoolean(
                 connectionProperty.getFromProperty().getProperty("snapshotIsolationEnabled", "false"));
+        this.slotName = connectionProperty.getFromProperty().getProperty("slotName", "");
         HikariConfig hikariConfig = buildConfiguration(properties, connectionProperty);
         this.dataSource = new HikariDataSource(hikariConfig);
         this.threadCount = connectionProperty.getThreadCount();
@@ -50,12 +52,14 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
             this.threadCount = getMaxPoolSize(dataSource, POOL_SIZE);
         }
         this.snapshotIsolationEnabled = builder.snapshotIsolationEnabled;
+        this.slotName = builder.slotName;
     }
 
     protected static abstract class Builder<C extends JDBCStorage, B extends Builder<C, B>> extends Storage.Builder<C, B> {
         private final DataSource dataSource;
         private int fetchSize;
         private boolean snapshotIsolationEnabled;
+        private String slotName;
 
         public Builder(DataSource dataSource) {
             this.dataSource = dataSource;
@@ -68,6 +72,11 @@ public abstract class JDBCStorage extends Storage implements JDBCStorageService 
 
         public B snapshotIsolationEnabled(boolean snapshotIsolationEnabled) {
             this.snapshotIsolationEnabled = snapshotIsolationEnabled;
+            return self();
+        }
+
+        public B slotName(String slotName) {
+            this.slotName = slotName;
             return self();
         }
 

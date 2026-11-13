@@ -157,4 +157,24 @@ public class ColumnUtil {
             int rows = chunkInsert.executeUpdate();
         }
     }
+
+    public static void insertCtidChunkForSnapshot (Connection connection,
+                                           Config config,
+                                           Table table,
+                                           long startPage,
+                                           long totalPages,
+                                           long pagesInChunk,
+                                           ChunkStatus status,
+                                           int required,
+                                           String chunkTableName) throws SQLException {
+        String sql = DML_INSERT_CHUNK_FOR_SNAPSHOT
+                .replace("$tableName", chunkTableName);
+        try (PreparedStatement chunkInsert = connection.prepareStatement(sql)) {
+            chunkInsert.setLong(1, startPage);
+            chunkInsert.setString(2, config.fromTaskName());
+            chunkInsert.setString(3, table.getSchemaName());
+            chunkInsert.setString(4, table.getFinalTableName(true));
+            int rows = chunkInsert.executeUpdate();
+        }
+    }
 }
