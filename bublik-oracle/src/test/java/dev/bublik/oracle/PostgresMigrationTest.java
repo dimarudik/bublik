@@ -20,6 +20,8 @@ import org.testcontainers.utility.MountableFile;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,8 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PostgresMigrationTest {
-    static final JdbcDatabaseContainer<?> oracle = new OracleContainer(
-            DockerImageName.parse("gvenzl/oracle-free:slim-faststart"));
+    static final JdbcDatabaseContainer<?> oracle = new OracleContainer("gvenzl/oracle-free:slim-faststart")
+            .withStartupTimeout(Duration.of(10, ChronoUnit.MINUTES));
 
     static final JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>(
             DockerImageName.parse("postgres"));

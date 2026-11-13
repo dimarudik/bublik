@@ -126,7 +126,7 @@ public class PostgresToPostgresTest {
 
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pgPKFailures.yaml",
-                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                "./postgresql/postgresql/json/ignorePrimaryKeyFailures.json",
                 20_000,
                 sync,
                 getJdbcProperties(source),
@@ -284,7 +284,7 @@ public class PostgresToPostgresTest {
 
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pgPKFailuresSnapshot.yaml",
-                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                "./postgresql/postgresql/json/ignorePrimaryKeyFailures.json",
                 20_000,
                 sync,
                 getJdbcProperties(source),
@@ -438,7 +438,7 @@ public class PostgresToPostgresTest {
 
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pgPKFailuresSnapshot.yaml",
-                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                "./postgresql/postgresql/json/ignorePrimaryKeyFailures.json",
                 20_000,
                 sync,
                 getJdbcProperties(source),
@@ -554,7 +554,7 @@ public class PostgresToPostgresTest {
 
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pgPKFailures.yaml",
-                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                "./postgresql/postgresql/json/ignorePrimaryKeyFailures.json",
                 20_000,
                 sync,
                 getJdbcProperties(source),
@@ -647,6 +647,8 @@ public class PostgresToPostgresTest {
     }
 
     @Test
+//    @RepeatedTest(10)
+    @DisplayName("ignorePrimaryKeyFailuresWithUpsertAndUpsert...")
     void ignorePrimaryKeyFailuresWithUpsertAndUpsert() throws Exception {
         ExecutorService testExecutor = Executors.newFixedThreadPool(3);
 
@@ -710,7 +712,7 @@ public class PostgresToPostgresTest {
 
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pgPKFailures.yaml",
-                "./postgresql/postgresql/json/ignorePrimaryKetFailures.json",
+                "./postgresql/postgresql/json/ignorePrimaryKeyFailures.json",
                 20_000,
                 sync,
                 getJdbcProperties(source),

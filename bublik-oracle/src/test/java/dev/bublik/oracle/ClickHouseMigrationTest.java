@@ -20,6 +20,7 @@ import org.testcontainers.utility.MountableFile;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ClickHouseMigrationTest {
-    static final JdbcDatabaseContainer<?> oracle = new OracleContainer(
-            DockerImageName.parse("gvenzl/oracle-free:slim-faststart"));
+    static final JdbcDatabaseContainer<?> oracle = new OracleContainer("gvenzl/oracle-free:slim-faststart")
+            .withStartupTimeout(Duration.of(10, ChronoUnit.MINUTES));
 
     private static final DockerImageName CLICKHOUSE_STABLE = DockerImageName
             .parse(CLICKHOUSE)

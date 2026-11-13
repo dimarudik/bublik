@@ -125,6 +125,7 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
             targetStorage.setOutboxTable(targetStorage.getDefaultTargetOutboxTable());
             log.log(System.Logger.Level.INFO, "Outbox table is not set. Using default name: {0}", targetStorage.getOutboxTable().tableToString());
         }
+        getAnchorPoint();
         if (rows > 0) {
             long lockId = Math.abs((long) (configs.getFirst().fromTaskName() + getOutboxTable().getTableName()).hashCode());
             if (tryDistributedLock(lockId)) {
@@ -134,6 +135,13 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
                     preChecks(configs);
                     createChunkTable();
                     fulfillChunks(configs, false, rows);
+/*
+                    try {
+                        Thread.sleep(900_000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+*/
                     if (targetStorage instanceof JDBCStorage) {
                         targetStorage.createGlobalOutbox();
                     }
@@ -156,7 +164,6 @@ public abstract class Storage implements StorageService, Wrapper, AutoCloseable,
         Throwable lastSubmittedException = null;
         List<TableMigrationContext> migrationContexts = getTableMigrationContexts(configs, targetStorage);
 
-        getAnchorPoint();
         holdInstanceSignalLock();
         getSnapshot();
 
