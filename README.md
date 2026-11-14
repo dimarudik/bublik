@@ -2130,6 +2130,18 @@ fromProperties:
   snapshotIsolationEnabled: true
 ```
 
+If you need to create a logical replication slot at the same time as taking a snapshot, you must set the **slotName** option in conjunction with **snapshotIsolationEnabled**.
+
+```yaml
+fromProperties:
+  url: jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_indexscan=off%20-c%20enable_indexonlyscan=off%20-c%20enable_bitmapscan=off
+  user: test
+  password: test
+  fetchSize: 5000
+  snapshotIsolationEnabled: true
+  slotName: bublik_slot
+```
+
 > [!NOTE]
 > Due to chunk creation based on statistics of the table
 > please check that ANALYZE is performed on regular basis
