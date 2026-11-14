@@ -97,7 +97,6 @@ public class ReplicationTest {
         }
 
         CountDownLatch latchBublikStarted = new CountDownLatch(1);
-
         ExecutorService testExecutor = Executors.newFixedThreadPool(10);
 
         testExecutor.submit(() -> {
@@ -111,7 +110,7 @@ public class ReplicationTest {
                 }
 
                 latchBublikStarted.await();
-                Thread.sleep(1_000);
+                Thread.sleep(2_000);
 
                 conn.commit();
                 log.log(System.Logger.Level.INFO,"[CHAOS] ---> Transaction 1 COMMITTED DURIIIING Bublik work! <---");
@@ -126,7 +125,7 @@ public class ReplicationTest {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO public.replicated_data (id, payload_text) VALUES (?, ?)")) {
-                    for (int i = 1000002; i < 1001000; i++) {
+                    for (int i = 1000002; i < 1002000; i++) {
                         ps.setLong(1, i);
                         ps.setString(2, "Trx 1: " + i);
                         l += ps.executeUpdate();
@@ -146,7 +145,7 @@ public class ReplicationTest {
                 conn.setAutoCommit(false);
                 try (PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO public.replicated_data (id, payload_text) VALUES (?, ?)")) {
-                    for (int i = 1100002; i < 1101000; i++) {
+                    for (int i = 1100002; i < 1102000; i++) {
                         ps.setLong(1, i);
                         ps.setString(2, "Trx 1: " + i);
                         l += ps.executeUpdate();
