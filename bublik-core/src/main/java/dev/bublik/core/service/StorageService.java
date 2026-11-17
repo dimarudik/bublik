@@ -60,7 +60,8 @@ public interface StorageService {
 
     static Storage getStorage(Properties properties,
                               ConnectionProperty connectionProperty,
-                              Table outboxTable) {
+                              Table outboxTable,
+                              boolean isSource) {
 
         ServiceLoader<StorageFactory> loader = ServiceLoader.load(StorageFactory.class);
         int pluginCount = 0;
@@ -68,11 +69,10 @@ public interface StorageService {
             if (factory.supports(properties)) {
                 pluginCount++;
                 try {
-//                    log.log(System.Logger.Level.INFO, "Storage factory matched: {0}", factory.getClass().getName());
                     log.log(System.Logger.Level.INFO, "Detected Plugin: {0} | Version: {1}",
                             factory.getClass().getSimpleName().replace("StorageFactory", ""),
                             factory.getVersion());
-                    return factory.create(properties, connectionProperty, outboxTable);
+                    return factory.create(properties, connectionProperty, outboxTable, isSource);
                 } catch (SQLException e) {
                     throw new RuntimeException("Error while creating storage via factory: " + factory.getClass().getName(), e);
                 }
@@ -107,6 +107,20 @@ public interface StorageService {
     }
 
     static Storage2Storage init(ConnectionProperty property, List<Config> configs, int rows, Table chunkTable, Table outboxTable, TransferMode mode) throws SQLException, IOException {
+        printBublikHeader(property, rows, mode);
+        try (Storage sourceStorage = getStorage(property.getFromProperty(), property, chunkTable, true);
+             Storage targetStorage = getStorage(property.getToProperty(), property, outboxTable, false)) {
+            assert sourceStorage != null;
+            sourceStorage.start(targetStorage, configs, rows, mode);
+            return new Storage2Storage(sourceStorage, targetStorage);
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static void printBublikHeader(ConnectionProperty property, int rows, TransferMode mode) throws IOException {
         log.log(System.Logger.Level.INFO, "Bublik starting...");
         String isolationLevel = property.getFromProperties().get("snapshotIsolationEnabled");
         boolean isSnapshotEnabled = Boolean.parseBoolean(isolationLevel);
@@ -146,17 +160,6 @@ public interface StorageService {
         String targetHosts = property.getToProperty().getProperty("hosts");
         log.log(System.Logger.Level.INFO, "TARGET: {0}", targetUrl == null ? targetHosts : targetUrl);
         log.log(System.Logger.Level.INFO, "TARGET USERNAME: {0}", property.getToProperty().getProperty("user"));
-
-        try (Storage sourceStorage = getStorage(property.getFromProperty(), property, chunkTable);
-             Storage targetStorage = getStorage(property.getToProperty(), property, outboxTable)) {
-            assert sourceStorage != null;
-            sourceStorage.start(targetStorage, configs, rows, mode);
-            return new Storage2Storage(sourceStorage, targetStorage);
-        } catch (SQLException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     static String getVersion() throws IOException {

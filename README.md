@@ -143,7 +143,7 @@ For any database to database transfer, you need to create a mapping file. The ma
     
     "columnToColumn" : {          # column to column mapping (Optional) 
       "col1"   : "col1",
-      "col2"   : "newcolumn",     # rename column 
+      "col2"   : "newcolumn",     # example of renaming column 
       "col3"   : "col3"
     },
     
@@ -1995,15 +1995,16 @@ fromProperties:
   user: test
   password: test
   fetchSize: 5000     # optional, default: 10000
-  chunkSchemaName: public   # optional, name of schema where chunk table will be created
-  chunkTableName: _chunk_   # optional, name of chunk table
+  chunkSchemaName: public   # optional, default:public, name of schema where chunk table will be created
+  chunkTableName: _chunk_   # optional, default:bublik_chunk, name of chunk table
   snapshotIsolationEnabled: false  # optional, default: false, enable snapshot isolation for source database (Repeatable Read mode)
 toProperties:
   url: jdbc:postgresql://localhost:5432/postgres
   user: test
   password: test
-  outboxSchemaName: public  # optional, name of schema where outbox table will be created
-  outboxTableName: _outbox_ # optional, name of outbox table
+  outboxSchemaName: public  # optional, default:public, name of schema where outbox table will be created
+  outboxTableName: _outbox_ # optional, default:bublik_outbox, name of outbox table
+  ignorePrimaryKeyFailures: false  # optional, default: false, ignore primary key failures during data transfer on target side
 ```
 
 Or you can use environment variables (do not specify -c parameter):
@@ -2014,13 +2015,16 @@ export FROM_URL=jdbc:postgresql://localhost:5432/postgres?options=-c%20enable_in
 export FROM_USER=test
 export FROM_PASSWORD=test
 export FROM_FETCH_SIZE=100      # optional, default: 10000
-export FROM_CHUNK_SCHEMA_NAME=public   # optional, name of schema where chunk table will be created
-export FROM_CHUNK_TABLE_NAME=_chunk_    # optional, name of chunk table
+export FROM_CHUNK_SCHEMA_NAME=public   # optional, default:public, name of schema where chunk table will be created
+export FROM_CHUNK_TABLE_NAME=_chunk_    # optional, default:bublik_chunk, name of chunk table
+export FROM_SNAPSHOT_ISOLATION_ENABLED=false  # optional, default: false, enable snapshot isolation for source database (Repeatable Read mode)
+export FROM_SLOT_NAME=bublik_slot  # optional, name of logical replication slot to be created in source database
 export TO_URL=jdbc:postgresql://localhost:5432/postgres
 export TO_USER=test
 export TO_PASSWORD=test
-export TO_OUTBOX_SCHEMA_NAME=public  # optional, name of schema where outbox table will be created
-export TO_OUTBOX_TABLE_NAME=_outbox_ # optional, name of outbox table
+export TO_OUTBOX_SCHEMA_NAME=public  # optional, default:public, name of schema where outbox table will be created
+export TO_OUTBOX_TABLE_NAME=_outbox_ # optional, default:bublik_outbox, name of outbox table
+export TO_IGNORE_PRIMARY_KEY_FAILURES=true  # optional, default: false, ignore primary key failures during data transfer on target side
 ```
 
 ### Prepare PostgreSQL To PostgreSQL Mapping File
@@ -2099,6 +2103,16 @@ java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
     -c ./bublik-cli/src/test/resources/postgresql/postgresql/yaml/pg2pg.yaml \
     -m ./bublik-cli/src/test/resources/postgresql/postgresql/json/pg2pg.json \
     -s COPY
+```
+
+To prevent Bublik from failing on primary key constraint violations on the target database while running in COPY mode, set **ignorePrimaryKeyFailures: true** in yaml file.
+
+```yaml
+toProperties:
+  url: jdbc:postgresql://localhost:5432/postgres
+  user: test
+  password: test
+  ignorePrimaryKeyFailures: true
 ```
 
 #### UPSERT mode

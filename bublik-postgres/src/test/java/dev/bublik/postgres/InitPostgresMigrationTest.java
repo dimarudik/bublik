@@ -80,9 +80,11 @@ public class InitPostgresMigrationTest {
                 .addFromProperty("url", postgres.getJdbcUrl())
                 .addFromProperty("user", postgres.getUsername())
                 .addFromProperty("password", postgres.getPassword())
+                .addFromProperty("chunkSchemaName", "public")
                 .addToProperty("url", postgres.getJdbcUrl())
                 .addToProperty("user", postgres.getUsername())
                 .addToProperty("password", postgres.getPassword())
+                .addToProperty("outboxTableName", "_outbox_")
                 .build();
 
     }

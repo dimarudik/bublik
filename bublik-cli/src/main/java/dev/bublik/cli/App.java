@@ -117,6 +117,7 @@ public class App {
                                              int rowsParameter,
                                              TransferMode mode) {
         try {
+/*
             Table chunkTable = null;
             Table outboxTable = null;
             if (property.getFromProperty().containsKey("chunkSchemaName") && property.getFromProperty().containsKey("chunkTableName")) {
@@ -128,7 +129,8 @@ public class App {
                         (String) property.getToProperty().get("outboxTableName"));
             }
             return StorageService.init(property, configs, rowsParameter, chunkTable, outboxTable, mode);
-//            StorageService.init(property, configs, rowsParameter, mode);
+*/
+            return StorageService.init(property, configs, rowsParameter, mode);
         } catch (SQLException e) {
             log.error("SQL Engine Fail [{}]: {}", e.getSQLState(), e.getMessage());
         } catch (Exception r) {
@@ -180,11 +182,14 @@ public class App {
                     case FROM_FETCH_SIZE -> fromENVMap.put("fetchSize", envValue);
                     case FROM_CHUNK_SCHEMA_NAME -> fromENVMap.put("chunkSchemaName", envValue);
                     case FROM_CHUNK_TABLE_NAME -> fromENVMap.put("chunkTableName", envValue);
+                    case FROM_SNAPSHOT_ISOLATION_ENABLED -> fromENVMap.put("snapshotIsolationEnabled", envValue);
+                    case FROM_SLOT_NAME -> fromENVMap.put("slotName", envValue);
                     case TO_URL -> toENVMap.put("url", envValue);
                     case TO_USER -> toENVMap.put("user", envValue);
                     case TO_PASSWORD -> toENVMap.put("password", envValue);
                     case TO_OUTBOX_SCHEMA_NAME -> toENVMap.put("outboxSchemaName", envValue);
                     case TO_OUTBOX_TABLE_NAME -> toENVMap.put("outboxTableName", envValue);
+                    case TO_IGNORE_PRIMARY_KEY_FAILURES -> toENVMap.put("ignorePrimaryKeyFailures", envValue);
                 }
             }
         }
