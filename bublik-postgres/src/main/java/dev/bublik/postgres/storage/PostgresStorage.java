@@ -69,14 +69,18 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
+    public static Table getDefaultTableName(String schemaName, String tableName) {
+        return new PGTable.Builder(schemaName, tableName).build();
+    }
+
     @Override
     public Table getDefaultSourceOutboxTable() {
-        return new PGTable.Builder("public", "bublik_chunk").build();
+        return PostgresStorage.getDefaultTableName("public", "bublik_chunk");
     }
 
     @Override
     public Table getDefaultTargetOutboxTable() {
-        return new PGTable.Builder("public", "bublik_outbox").build();
+        return PostgresStorage.getDefaultTableName("public", "bublik_outbox");
     }
 
     @Override

@@ -16,7 +16,7 @@ public class ClickHouseStorageFactory implements StorageFactory {
     }
 
     @Override
-    public Storage create(Properties properties, ConnectionProperty connectionProperty, Table table) throws SQLException {
+    public Storage create(Properties properties, ConnectionProperty connectionProperty, Table table, boolean isSource) throws SQLException {
         return new ClickHouseStorage(properties, connectionProperty, table);
     }
 }

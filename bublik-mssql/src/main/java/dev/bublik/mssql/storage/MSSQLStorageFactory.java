@@ -16,7 +16,7 @@ public class MSSQLStorageFactory implements StorageFactory {
     }
 
     @Override
-    public Storage create(Properties properties, ConnectionProperty connectionProperty, Table table) throws SQLException {
+    public Storage create(Properties properties, ConnectionProperty connectionProperty, Table table, boolean isSource) throws SQLException {
         return new MSSQLStorage(properties, connectionProperty, table);
     }
 }

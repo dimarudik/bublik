@@ -12,7 +12,8 @@ public interface StorageFactory {
     boolean supports(Properties properties);
     Storage create(Properties properties,
                    ConnectionProperty connectionProperty,
-                   Table table) throws SQLException;
+                   Table table,
+                   boolean isSource) throws SQLException;
     default String getVersion() {
         try (InputStream is = this.getClass().getResourceAsStream("/bublik-plugin.properties")) {
             if (is == null) return "unknown";

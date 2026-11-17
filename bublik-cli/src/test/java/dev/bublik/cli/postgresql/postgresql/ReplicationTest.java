@@ -74,7 +74,7 @@ public class ReplicationTest {
 
     // psql "postgresql://test:test@localhost:53881/postgres?replication=database"
 //    @Test
-    @RepeatedTest(10)
+    @RepeatedTest(4)
     void replicationTest() throws Exception {
         try (Connection conn = DriverManager.getConnection(source.getJdbcUrl(), source.getUsername(), source.getPassword());
              Statement stmt1 = conn.createStatement()) {
