@@ -132,7 +132,8 @@ For any database to database transfer, you need to create a mapping file. The ma
     "fromTableAlias" : "t",       # source table alias (Optional - used in FROM clause) 
     "fromTableAdds" : "join users u on u.id = t.user_id", # source table adds (Optional - used in FROM clause to join additional tables) 
     "fetchHintClause" : "/*+ no_index(t) */", # fetch hint clause, applicable for Oracle (Optional - used in SELECT clause to avoid index access method)
-    "fetchWhereClause" : "t.id > 1000000000 and gender = 'F'" # fetch where clause (Optional - used in WHERE clause to filter data) 
+    "fetchWhereClause" : "t.id > 1000000000 and gender = 'F'" # fetch where clause (Optional - used in WHERE clause to filter data)
+    "upsertWhereClause" : "EXCLUDED.updated_at > target_table.updated_at" # upsert where clause, applicable for PostgreSQL (Optional - used in ON CONFLICT clause to update existing rows)
     "fromTaskWhereClause" : "(DBMS_ROWID.ROWID_OBJECT(START_ROWID) IN ...", # for filtering source chunks, applicable only for Oracle (Optional)
     "fromTaskName" : "table_task" # name of the task to be created in chunk metadata table (Optional)
     
@@ -2130,6 +2131,20 @@ java -jar ./bublik-cli/target/bublik-cli-<version>.jar \
 > [!IMPORTANT]
 > Since the underlying mechanism relies on INSERT INTO ... ON CONFLICT ..., 
 > the receiving table must be configured with a primary key or a non-nullable unique constraint.
+
+To implement **Last Write Wins (LWW)** conflict resolution in UPSERT mode, configure the **upsertWhereClause** option.
+
+```json
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "source_table",
+    "toSchemaName": "public",
+    "toTableName": "target_table",
+    "upsertWhereClause": "EXCLUDED.updated_at > target_table.updated_at"
+  }
+]
+```
 
 #### SNAPSHOT mode
 

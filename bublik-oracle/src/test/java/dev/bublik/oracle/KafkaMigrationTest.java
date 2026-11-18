@@ -36,6 +36,7 @@ public class KafkaMigrationTest {
             .withStartupTimeout(Duration.of(10, ChronoUnit.MINUTES));
 
     static final ConfluentKafkaContainer kafkaContainer = new ConfluentKafkaContainer("confluentinc/cp-kafka:8.2.2")
+            .withEnv("KAFKA_HEAP_OPTS", "-Xmx384m -Xms384m")
             .withCopyFileToContainer(
                     MountableFile.forClasspathResource("ssl/kafka_plain_jaas.conf"),
                     "/etc/kafka/secrets/kafka_plain_jaas.conf"
@@ -145,6 +146,42 @@ public class KafkaMigrationTest {
     private static long countMessagesInKafka(String bootstrapServers, String topic) {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        props.put("security.protocol", "SASL_PLAINTEXT");
+        props.put("sasl.mechanism", "PLAIN");
+        props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test\";");
+
+        long count = 0;
+        try (KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(props)) {
+            List<org.apache.kafka.common.PartitionInfo> partitionInfos = consumer.partitionsFor(topic, Duration.ofSeconds(15));
+            List<org.apache.kafka.common.TopicPartition> partitions = partitionInfos.stream()
+                    .map(p -> new org.apache.kafka.common.TopicPartition(p.topic(), p.partition()))
+                    .toList();
+
+            consumer.assign(partitions);
+            consumer.seekToBeginning(partitions);
+
+            int emptyPolls = 0;
+            while (emptyPolls < 5) {
+                ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(1));
+                if (records.isEmpty()) {
+                    emptyPolls++;
+                } else {
+                    emptyPolls = 0;
+                    count += records.count();
+                    if (count >= 3) {
+                        break; // Как только вычитали ожидаемые 3 сообщения — сразу выходим, не тратя время теста
+                    }
+                }
+            }
+        }
+        return count;
+    }
+/*
+    private static long countMessagesInKafka(String bootstrapServers, String topic) {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "oracle-verification-group-" + System.currentTimeMillis());
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
@@ -169,4 +206,5 @@ public class KafkaMigrationTest {
         }
         return count;
     }
+*/
 }

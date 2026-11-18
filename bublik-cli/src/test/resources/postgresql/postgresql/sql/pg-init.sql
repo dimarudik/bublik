@@ -441,3 +441,22 @@ create table public.pk_failures_t (
     updated_at timestamp,
     txmin bigint
 );
+
+create table public.last_write_wins_source (
+    id int primary key,
+    name varchar(256),
+    updated_at timestamp);
+insert into public.last_write_wins_source (id, name, updated_at) values
+    (1, 'PostgreSQL', '2025-01-01 00:00:00'),
+    (2, 'Oracle', '2022-01-01 00:00:00'),
+    (3, 'MySQL', '2024-01-01 00:00:00')
+;
+
+create table public.last_write_wins_target (
+    id int primary key,
+    name varchar(256),
+    updated_at timestamp);
+insert into public.last_write_wins_target (id, name, updated_at) values
+    (1, 'PostgreSQL', '2024-01-01 00:00:00'),
+    (2, 'Oracle', '2023-01-01 00:00:00')
+;

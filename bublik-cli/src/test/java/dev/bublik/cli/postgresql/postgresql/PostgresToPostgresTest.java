@@ -798,6 +798,29 @@ public class PostgresToPostgresTest {
     }
 
     @Test
+    void lastWriteWins() throws Exception {
+        TestResult result = getResultCount(
+                "./postgresql/postgresql/yaml/pg2pg.yaml",
+                "./postgresql/postgresql/json/lastWriteWins.json",
+                10_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.UPSERT);
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+        try (Connection conn = DriverManager.getConnection(target.getJdbcUrl(), target.getUsername(), target.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT COUNT(1) as cnt FROM public.last_write_wins_target where id = 2 and updated_at = '2023-01-01 00:00:00'")) {
+            assertTrue(rs.next());
+            int cnt = rs.getInt("cnt");
+            assertEquals(1, cnt);
+        }
+    }
+
+    @Test
     void orderByOptimisation() throws Exception {
         TestResult result = getResultCount(
                 "./postgresql/postgresql/yaml/pg2pg.yaml",
