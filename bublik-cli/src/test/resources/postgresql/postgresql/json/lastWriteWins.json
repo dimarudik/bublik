@@ -1,0 +1,9 @@
+[
+  {
+    "fromSchemaName": "public",
+    "fromTableName": "last_write_wins_source",
+    "toSchemaName": "public",
+    "toTableName": "last_write_wins_target",
+    "upsertWhereClause": "EXCLUDED.updated_at > last_write_wins_target.updated_at"
+  }
+]

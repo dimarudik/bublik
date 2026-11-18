@@ -18,6 +18,7 @@ public record Config(
         String toTableName,
         String fetchHintClause,
         String fetchWhereClause,
+        String upsertWhereClause,
         String fromTaskName,
         String fromTaskWhereClause,
         String timestamp,
@@ -46,6 +47,7 @@ public record Config(
                 this.toTableName == null ? this.fromTableName : this.toTableName,
                 this.fetchHintClause,
                 this.fetchWhereClause == null ? DEFAULT_FETCH_WHERE_CLAUSE : this.fetchWhereClause,
+                this.upsertWhereClause,
                 this.fromTaskName == null ? this.fromSchemaName.replaceAll("^\"|\"$", "") + "_" +
                         this.fromTableName.replaceAll("^\"|\"$", "") + "_" +
                         (this.toTableName == null ? null : this.toTableName.replaceAll("^\"|\"$", "")) + "_task": this.fromTaskName,
@@ -80,6 +82,7 @@ public record Config(
         private String toTableName;
         private String fetchHintClause;
         private String fetchWhereClause;
+        private String upsertWhereClause;
         private String fromTaskName;
         private String fromTaskWhereClause;
         private String timestamp;
@@ -118,6 +121,7 @@ public record Config(
         public Builder fromTableAdds(String fromTableAdds) { this.fromTableAdds = fromTableAdds; return this; }
         public Builder fetchHintClause(String fetchHintClause) { this.fetchHintClause = fetchHintClause; return this; }
         public Builder fetchWhereClause(String fetchWhereClause) { this.fetchWhereClause = fetchWhereClause; return this; }
+        public Builder upsertWhereClause(String upsertWhereClause) { this.upsertWhereClause = upsertWhereClause; return this; }
         public Builder fromTaskName(String fromTaskName) { this.fromTaskName = fromTaskName; return this; }
         public Builder fromTaskWhereClause(String fromTaskWhereClause) { this.fromTaskWhereClause = fromTaskWhereClause; return this; }
         public Builder timestamp(String timestamp) { this.timestamp = timestamp; return this; }
@@ -135,7 +139,7 @@ public record Config(
                     fromPartitionName, fromSubpartitionName,
                     fromTableAlias, fromTableAdds,
                     toSchemaName, toTableName, fetchHintClause, fetchWhereClause,
-                    fromTaskName, fromTaskWhereClause, timestamp, withTTL,
+                    upsertWhereClause, fromTaskName, fromTaskWhereClause, timestamp, withTTL,
                     tryCharIfAny, columnToColumn, expressionToColumn, columnFromMany,
                     asList, asSet, asMap, asUDT, avroSchema, validationRules
             );

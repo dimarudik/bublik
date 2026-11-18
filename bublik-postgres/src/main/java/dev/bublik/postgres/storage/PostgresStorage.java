@@ -265,29 +265,6 @@ public class PostgresStorage extends JDBCStorage {
         return chunks;
     }
 
-    /**
-     * Точка распределенной оркестрации и защиты жизненного цикла инстанса Бублика.
-     *
-     * Метод выполняет три критически важные задачи ДО старта основных воркеров:
-     * 1. АТОМАРНАЯ ФИКСАЦИЯ СЛУЖЕБНЫХ МАРКЕРОВ (pg_snapshot и xMin):
-     *    Через CTE-подзапрос (WITH snap AS...) гарантируется, что снимок состояния всей СУБД
-     *    снимается строго один раз. Это исключает микросекундные сдвиги счетчиков транзакций.
-     *    Полученный xMin является железобетонным системным чекпоинтом для второй фазы (Delta UPSERT),
-     *    который автоматически учитывает все длинные параллельные открытые транзакции в Postgres.
-     *
-     * 2. ВЫБОР ЛИДЕРА (Leader Election):
-     *    Использование pg_advisory_lock на базе UUID задачи предотвращает состояние гонки (Race Condition).
-     *    Если в Kubernetes одновременно стартуют несколько подов Бублика, первый захвативший лок
-     *    становится Лидером и в одиночку безопасно нарезает физические страницы ctid. Остальные поды
-     *    намертво засыпают на строке executeQuery(), выстраиваясь в очередь.
-     *
-     * 3. МЕХАНИЗМ ЖИВОГО СЕРДЦЕБИЕНИЯ (Distributed Heartbeat):
-     *    Блокировка берется внутри выделенного соединения (dynamicHeartbeatConnection) с привязкой к сессии.
-     *    Если текущий под Бублика погибнет (убьет K8s по OOM, упадет сервер, моргнет сеть), Postgres
-     *    мгновенно зафиксирует обрыв сокета и автоматически отпустит этот рекомендательный лок.
-     *    В эту же миллисекунду следующий спящий под «отмирает», видит незавершенную миграцию и по механизму
-     *    SKIP LOCKED угоняет недолитые чанки погибшего воркера, гарантируя автоматический Failover.
-     */
     @Override
     public void holdInstanceSignalLock() throws SQLException {
         signalConnection = this.getPoolConnection();
@@ -729,7 +706,7 @@ public class PostgresStorage extends JDBCStorage {
                     .map(Column::columnName)
                     .toList();
 
-            String sqlUpsert = buildUpsertSql(columnNames, chunk.getT2t().targetTable());
+            String sqlUpsert = buildUpsertSql(columnNames, chunk);
 //            log.log(System.Logger.Level.INFO, "Upsert SQL: " + sqlUpsert);
 
             int batchCounter = 0;
@@ -798,7 +775,8 @@ public class PostgresStorage extends JDBCStorage {
         }
     }
 
-    private String buildUpsertSql(List<String> columnNames, Table targetTable) {
+    private String buildUpsertSql(List<String> columnNames, Chunk<?, ?, ?, ?> chunk) {
+        Table targetTable = chunk.getT2t().targetTable();
         List<Column> pkColumnNames = targetTable.getPkColumns();
         UniqueConstraint uniqueConstraint = targetTable.getUniqueConstraints() == null ? null :
                 targetTable.getUniqueConstraints().stream().filter(uc -> !uc.isNullable()).findFirst().orElse(null);
@@ -831,6 +809,10 @@ public class PostgresStorage extends JDBCStorage {
         }
 
         sql.append(String.join(", ", updateClauses));
+        if (chunk.getConfig().upsertWhereClause() != null && !chunk.getConfig().upsertWhereClause().isEmpty()) {
+            sql.append(" WHERE ").append(chunk.getConfig().upsertWhereClause());
+        }
+//        log.log(System.Logger.Level.INFO, "Upsert SQL: " + sql);
         return sql.toString();
     }
 
