@@ -369,18 +369,18 @@ create table public.p_trg_202512_1 partition of public.p_trg_202512 for values i
 
 create sequence public.serialcolumn_seq;
 create table public.serialcolumn (
-    id bigint DEFAULT nextval('serialcolumn_seq') primary key,
-    name varchar(256)
+    "Id" bigint DEFAULT nextval('serialcolumn_seq') primary key,
+    "Name" varchar(256)
 );
 
-insert into public.serialcolumn (id, name)
+insert into public.serialcolumn ("Id", "Name")
     select num as id,
            'Description ' || substr(md5(random()::text), 1, 30) as name
     from generate_series(1, 100) as num;
 
 create table test.serialcolumn (
-    id bigint,
-    name varchar(256)
+    "Id" bigint primary key,
+    "Name" varchar(256)
 );
 
 create table public.s (

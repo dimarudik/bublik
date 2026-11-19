@@ -4,7 +4,7 @@ create type mood AS ENUM ('sad', 'ok', 'happy');
 create type gender AS ENUM ('male', 'female', 'NA');
 
 CREATE TABLE test.a (
-    id int,
+    id int primary key,
     a numeric(12,2),
     b numeric(10,0),
     c char(1),
@@ -108,20 +108,38 @@ create table public.intervals (
 create table public.subparted (
     id bigint,
     create_at timestamp(6) not null,
-    name varchar(11)
-);
-
-CREATE TABLE test.employees_iot (
+    name varchar(11));
+create table test.employees_iot (
     employee_id bigint,
     first_name  VARCHAR(50),
     last_name   VARCHAR(50),
     email       VARCHAR(100),
-    CONSTRAINT pk_emp_iot PRIMARY KEY (employee_id)
-);
-
+    constraint pk_emp_iot PRIMARY KEY (employee_id));
 create table test.pk_failures_t (
     id int primary key,
     name varchar(256),
     updated_at timestamp,
-    txmin bigint
-);
+    txmin bigint);
+create table test.c (
+    id int primary key,
+    a numeric(12,2),
+    b numeric(10,0),
+    c char(1),
+    d char(10),
+    "ALL" varchar(255),
+    "LEVEL" varchar(255),
+    e real,
+    t timestamp,
+    create_at timestamp(6) with time zone,
+    gender smallint CHECK (gender IN (0,1)),
+    byteablob bytea,
+    textclob text,
+    exclude_me int,
+    "CaseSensitive" varchar(40),
+    country_id int,
+    rawbytea bytea,
+    json_like varchar(4000),
+    doc jsonb,
+    "uuid" char(36),
+    dd date);
+insert into test.c (id, b) values (1, 987654322);

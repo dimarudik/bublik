@@ -1,0 +1,9 @@
+[
+  {
+    "fromSchemaName": "test",
+    "fromTableName": "b",
+    "toSchemaName": "test",
+    "toTableName": "c",
+    "upsertWhereClause": "EXCLUDED.b > c.b"
+  }
+]

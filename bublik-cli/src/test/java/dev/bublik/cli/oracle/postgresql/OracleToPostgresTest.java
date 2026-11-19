@@ -229,7 +229,6 @@ public class OracleToPostgresTest {
 
     @Test
     void pgBinaryWriter() throws Exception {
-//        Thread.sleep(600_000);
         Properties targetProp = getJdbcProperties(target);
         TestResult result = getResultCount(
                 "./oracle/postgres/yaml/ora2pg.yaml",
@@ -240,9 +239,11 @@ public class OracleToPostgresTest {
                 getJdbcProperties(target));
         assertEquals(result.sourceCount(), result.targetCount());
 
-        try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp)) {
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery("select * from test.a where id = 1");
+        try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp);
+             Statement statement = connection.createStatement();
+             Statement truncateStmt = connection.createStatement();
+             ResultSet rs = statement.executeQuery("select * from test.a where id = 1")) {
+
             assertTrue(rs.next());
 
             assertEquals(1, rs.getInt("id"));
@@ -315,8 +316,128 @@ public class OracleToPostgresTest {
             rsNull.getString("uuid");     assertTrue(rsNull.wasNull());
             rsNull.getString("dd");     assertTrue(rsNull.wasNull());
 
+            truncateStmt.execute("truncate table test.a");
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void pgBinaryWriterUpsert() throws Exception {
+        Properties targetProp = getJdbcProperties(target);
+        TestResult result = getResultCount(
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/pgBinaryWriter.json",
+                rows,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.UPSERT);
+        assertEquals(result.sourceCount(), result.targetCount());
+
+        try (Connection connection = DriverManager.getConnection(targetProp.getProperty("url"), targetProp);
+             Statement statement = connection.createStatement();
+             Statement truncateStmt = connection.createStatement();
+             ResultSet rs = statement.executeQuery("select * from test.a where id = 1")) {
+
+            assertTrue(rs.next());
+
+            assertEquals(1, rs.getInt("id"));
+            assertEquals(new java.math.BigDecimal("123456.78"), rs.getBigDecimal("a"));
+            assertEquals(new java.math.BigDecimal("987654321"), rs.getBigDecimal("b"));
+
+            assertEquals("Y", rs.getString("c"));
+            assertEquals("NCHAR_VAL ", rs.getString("d")); // В Postgres char(10) сохраняет хвостовые пробелы
+            assertEquals("Тестовая строка NVARCHAR2", rs.getString("ALL"));
+            assertEquals("Уровень доступа VARCHAR2", rs.getString("LEVEL"));
+
+            assertEquals(100f, rs.getFloat("e"), 0.001f);
+
+            assertNotNull(rs.getTimestamp("t"));
+            assertNotNull(rs.getTimestamp("create_at"));
+
+            assertEquals(1, rs.getShort("gender"));
+            assertEquals("Текст внутри поля CLOB", rs.getString("textclob"));
+            assertEquals(999, rs.getInt("exclude_me"));
+
+            assertEquals("РеГиСтР_СиМвОлОв", rs.getString("CaseSensitive"));
+            assertEquals(7, rs.getInt("country_id"));
+
+            assertArrayEquals(
+                    new byte[]{(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF, 0x01, 0x02, 0x03, 0x04},
+                    rs.getBytes("byteablob")
+            );
+            assertArrayEquals(
+                    new byte[]{
+                            (byte) 0xAA, (byte) 0xBB, (byte) 0xCC, (byte) 0xDD,
+                            (byte) 0xEE, (byte) 0xFF, 0x00, 0x11,
+                            0x22, 0x33, 0x44, 0x55,
+                            0x66, 0x77, (byte) 0x88, (byte) 0x99
+                    },
+                    rs.getBytes("rawbytea")
+            );
+
+            assertEquals("{\"key\": \"just_string\"}", rs.getString("json_like"));
+
+            String docJson = rs.getString("doc");
+            assertNotNull(docJson);
+            assertTrue(docJson.contains("\"user\": \"Dmitrii\""));
+            assertTrue(docJson.contains("\"role\": \"admin\""));
+
+            assertEquals("3e2e125a-b6c9-4f9b-9682-d21ec40564bc", rs.getString("uuid").trim());
+            assertEquals( java.sql.Date.valueOf(java.time.LocalDate.now()) , rs.getDate("dd"));
+
+            ResultSet rsNull = statement.executeQuery("select * from test.a where id = 2");
+            assertTrue(rsNull.next());
+            assertEquals(2, rsNull.getInt("id"));
+
+            rsNull.getBigDecimal("a"); assertTrue(rsNull.wasNull());
+            rsNull.getBigDecimal("b"); assertTrue(rsNull.wasNull());
+            rsNull.getString("c");     assertTrue(rsNull.wasNull());
+            rsNull.getString("d");     assertTrue(rsNull.wasNull());
+            rsNull.getString("ALL");   assertTrue(rsNull.wasNull());
+            rsNull.getString("LEVEL"); assertTrue(rsNull.wasNull());
+            rsNull.getFloat("e");      assertTrue(rsNull.wasNull());
+            rsNull.getTimestamp("t");  assertTrue(rsNull.wasNull());
+            rsNull.getTimestamp("create_at"); assertTrue(rsNull.wasNull());
+            rsNull.getShort("gender"); assertTrue(rsNull.wasNull());
+            rsNull.getBytes("byteablob"); assertTrue(rsNull.wasNull());
+            rsNull.getString("textclob"); assertTrue(rsNull.wasNull());
+            rsNull.getInt("exclude_me");  assertTrue(rsNull.wasNull());
+            rsNull.getString("CaseSensitive"); assertTrue(rsNull.wasNull());
+            rsNull.getInt("country_id");  assertTrue(rsNull.wasNull());
+            rsNull.getBytes("rawbytea");  assertTrue(rsNull.wasNull());
+            rsNull.getString("json_like"); assertTrue(rsNull.wasNull());
+            rsNull.getString("doc");      assertTrue(rsNull.wasNull());
+            rsNull.getString("uuid");     assertTrue(rsNull.wasNull());
+            rsNull.getString("dd");     assertTrue(rsNull.wasNull());
+
+            truncateStmt.execute("truncate table test.a");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void lastWriteWins() throws Exception {
+        TestResult result = getResultCount(
+                "./oracle/postgres/yaml/ora2pg.yaml",
+                "./oracle/postgres/json/lastWriteWins.json",
+                10_000,
+                sync,
+                getJdbcProperties(source),
+                getJdbcProperties(target),
+                TransferMode.UPSERT);
+        System.out.println("source count: " + result.sourceCount());
+        System.out.println("target count: " + result.targetCount());
+        assertEquals(result.sourceCount(), result.targetCount());
+        try (Connection conn = DriverManager.getConnection(target.getJdbcUrl(), target.getUsername(), target.getPassword());
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT COUNT(1) as cnt FROM test.c where id = 1 and b = 987654322")) {
+            assertTrue(rs.next());
+            int cnt = rs.getInt("cnt");
+            assertEquals(1, cnt);
         }
     }
 

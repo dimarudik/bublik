@@ -289,7 +289,7 @@ public class ReplicationTest {
                     tPayload = rs.getLong(2);
                 }
             }
-            Thread.sleep(700);
+            Thread.sleep(1_000);
             tries--;
             log.log(System.Logger.Level.INFO,"[TEST] {0} tries left. The diff is: {1} {2}, {3} {4}}. restart_lsn: {5} confirmed_flush_lsn: {6}",
                     tries, sourceCount, targetCount, sPayload, tPayload, restartLsn, confirmedFlushLsn);

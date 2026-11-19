@@ -81,50 +81,12 @@ public class PGTable extends Table {
                         Column.builder()
                                 .columnPosition((int) ordinalPosition)
                                 .columnName(pkColumnName)
-                               .build()
-/*
-                        new Column(
-                        (int) ordinalPosition,
-                        pkColumnName,
-                        null, // columnType is not used here
-                        null, // dataType is not used here
-                        null, // nullable is not used here
-                        null, // defaultValue is not used here
-                        null, // isAutoIncrement is not used here
-                        null, // isGenerated is not used here
-                        0, // decimalDigits is not used here
-                        null, // columnComment is not used here
-                        0, // charOctetLength is not used here
-                        null,
-                        false,
-                        false,
-                        false)
-*/
-                );
+                               .build());
                 existingForeignKey.getFkColumns().add(
                         Column.builder()
                                 .columnPosition((int) ordinalPosition)
                                 .columnName(fkColumnName)
-                                .build()
-/*
-                        new Column(
-                        (int) ordinalPosition,
-                        fkColumnName,
-                        null, // columnType is not used here
-                        null, // dataType is not used here
-                        null, // nullable is not used here
-                        null, // defaultValue is not used here
-                        null, // isAutoIncrement is not used here
-                        null, // isGenerated is not used here
-                        0, // decimalDigits is not used here
-                        null, // columnComment is not used here
-                        0, // charOctetLength is not used here
-                        null,
-                        false,
-                        false,
-                        false)
-*/
-                );
+                                .build());
             } else {
                 Table fkTable = new PGTable(fkSchemaName, fkTableName);
                 Table pkTable = storage.getSourceTableByTargetTable(new PGTable(pkSchemaName, pkTableName));
@@ -136,26 +98,7 @@ public class PGTable extends Table {
                                         Column.builder()
                                                 .columnPosition((int) ordinalPosition)
                                                 .columnName(fkColumnName)
-                                                .build()
-/*
-                                        new Column(
-                                        (int) ordinalPosition,
-                                        fkColumnName,
-                                        null, // columnType is not used here
-                                        null, // dataType is not used here
-                                        null, // nullable is not used here
-                                        null, // defaultValue is not used here
-                                        null, // isAutoIncrement is not used here
-                                        null, // isGenerated is not used here
-                                        0, // decimalDigits is not used here
-                                        null, // columnComment is not used here
-                                        0, // charOctetLength is not used here
-                                        null,
-                                        false,
-                                        false,
-                                        false)
-*/
-                                );
+                                                .build());
                             }},
                             pkTable,
                             new ArrayList<>() {{
@@ -163,26 +106,7 @@ public class PGTable extends Table {
                                         Column.builder()
                                                 .columnPosition((int) ordinalPosition)
                                                 .columnName(pkColumnName)
-                                                .build()
-/*
-                                        new Column(
-                                        (int) ordinalPosition,
-                                        pkColumnName,
-                                        null, // columnType is not used here
-                                        null, // dataType is not used here
-                                        null, // nullable is not used here
-                                        null, // defaultValue is not used here
-                                        null, // isAutoIncrement is not used here
-                                        null, // isGenerated is not used here
-                                        0, // decimalDigits is not used here
-                                        null, // columnComment is not used here
-                                        0, // charOctetLength is not used here
-                                        null,
-                                        false,
-                                        false,
-                                        false)
-*/
-                                );
+                                                .build());
                             }},
                             pkName,
                             fkName,
@@ -254,7 +178,7 @@ public class PGTable extends Table {
             String columnName = rs.getString("COLUMN_NAME");
             pkColumns.add( Column.builder()
                             .columnPosition(keySeq)
-                            .columnName(columnName)
+                            .columnName(isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName)
                             .build()
             );
         }
@@ -290,12 +214,13 @@ public class PGTable extends Table {
             int ordinalPosition = rs.getInt("pos");
             String columnName = rs.getString("attname");
             boolean isNullable = rs.getBoolean("attnotnull");
+//            System.out.println(constraintName + " " + columnName + " " + isNullable);
             if (uniqueConstraintMap.containsKey(constraintName)) {
                 UniqueConstraint existingConstraint = uniqueConstraintMap.get(constraintName);
                 existingConstraint.getColumns().put((short) ordinalPosition,
                         Column.builder()
                                 .columnPosition(ordinalPosition)
-                                .columnName(columnName)
+                                .columnName(isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName)
                                 .isNullable(isNullable ? 0 : 1)
                                 .build()
                 );
@@ -306,7 +231,7 @@ public class PGTable extends Table {
                             put((short) ordinalPosition,
                                     Column.builder()
                                             .columnPosition(ordinalPosition)
-                                            .columnName(columnName)
+                                            .columnName(isCaseSensitiveWord(columnName) || isReservedWord(columnName) ? "\"" + columnName + "\"" : columnName)
                                             .isNullable(isNullable ? 0 : 1)
                                             .build()
                             );
