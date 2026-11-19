@@ -825,7 +825,7 @@ public class PostgresStorage extends JDBCStorage {
 
         for (int i = 0; i < columnToColumnList.size(); i++) {
             int colIndex = sourceColumnIndices[i];
-            int paramIndex = i + 1; // В JDBC параметры PreparedStatement начинаются с 1
+            int paramIndex = i + 1;
 
             Object value = rs.getObject(colIndex);
             if (value == null) {
@@ -844,15 +844,18 @@ public class PostgresStorage extends JDBCStorage {
                                        Chunk<?, ?, ?, ?> chunk,
                                        PreparedStatement ps) throws SQLException, IOException {
 
+        boolean isOracle = chunk.getSourceStorage().getClass().getName().equals(ORACLE_STORAGE_CLASS_NAME);
         for (int i = 0; i < columnToColumnList.size(); i++) {
             Column2Column entry = columnToColumnList.get(i);
             String targetType = entry.targetColumn().columnType();
+            int sourceSqlType = entry.sourceColumn().dataType();
+            int targetSqlType = entry.targetColumn().dataType();
             int colIndex = sourceColumnIndices[i];
             int paramIndex = i + 1;
 
             Object value = rs.getObject(colIndex);
             if (value == null) {
-                ps.setNull(paramIndex, sourceColumnTypes[i]);
+                ps.setNull(paramIndex, targetSqlType);
                 continue;
             }
 
@@ -892,6 +895,40 @@ public class PostgresStorage extends JDBCStorage {
                     } else {
                         ps.setObject(paramIndex, java.util.UUID.fromString(value.toString()));
                     }
+                    break;
+                }
+                case "bytea", "blob", "BINARY": {
+                    byte[] bytes;
+                    if (isOracle) {
+                        bytes = switch (sourceSqlType) {
+                            // RAW (-3), LONG RAW (-4)
+                            case -3, -4 -> rs.getBytes(colIndex);
+                            // BLOB (2004)
+                            case 2004 -> convertBlobToBytes(rs, colIndex);
+                            default -> rs.getBytes(colIndex);
+                        };
+                    } else {
+                        if (value instanceof byte[]) {
+                            bytes = (byte[]) value;
+                        } else {
+                            bytes = rs.getBytes(colIndex);
+                        }
+                    }
+                    ps.setBytes(paramIndex, bytes);
+                    break;
+                }
+                case "text": {
+                    String s;
+                    if (isOracle) {
+                        if (sourceSqlType == 2005) {
+                            s = convertClobToString(rs, colIndex);
+                        } else {
+                            s = value.toString();
+                        }
+                    } else {
+                        s = value.toString();
+                    }
+                    ps.setString(paramIndex, s.replace("\u0000", ""));
                     break;
                 }
                 default: {
@@ -1300,8 +1337,6 @@ public class PostgresStorage extends JDBCStorage {
                                     chunk.getT2t().targetTable().getSchemaName(),
                                     chunk.getT2t().targetTable().getTableName(),
                                     targetColumn, value, getStackTrace(e1));
-//                            log.error("{}.{} : {} {} {}", chunk.getT2t().targetTable().getSchemaName(),
-//                                    chunk.getT2t().targetTable().getTableName(), targetColumn, value, getStackTrace(e1));
                         }
                     }
                     writer.writeUuid(uuid);

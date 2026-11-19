@@ -2,8 +2,6 @@ package dev.bublik.postgres;
 
 import dev.bublik.core.model.Config;
 import dev.bublik.core.model.ConnectionProperty;
-import dev.bublik.core.model.DummyTable;
-import dev.bublik.core.model.Table;
 import dev.bublik.core.service.StorageService;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.AfterAll;
@@ -18,9 +16,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
